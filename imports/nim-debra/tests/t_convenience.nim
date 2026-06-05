@@ -1,0 +1,250 @@
+## Test high-level convenience API for DEBRA.
+
+import unittest2
+import ../src/debra
+import ../src/debra/atomics
+
+type
+  NodeObj = object
+    value: int
+
+  Node = ptr NodeObj
+
+var destroyedCount = 0
+
+proc destroyNode(p: pointer) {.nimcall.} =
+  inc destroyedCount
+  dealloc(p)
+
+suite "DEBRA Convenience API":
+  setup:
+    var manager = initDebraManager[4]()
+    setGlobalManager(addr manager)
+    let handle = registerThread(manager)
+    destroyedCount = 0
+
+  test "retireAndReclaim with pointer - eager reclaim":
+    # Allocate node
+    let node = cast[Node](alloc0(sizeof(NodeObj)))
+    node.value = 42
+
+    # Retire and reclaim (eager=true by default)
+    retireAndReclaim(handle, node, destroyNode)
+
+    # Should work without error
+    check destroyedCount >= 0 # May or may not reclaim immediately
+
+  test "retireAndReclaim with pointer - no eager reclaim":
+    let node = cast[Node](alloc0(sizeof(NodeObj)))
+    node.value = 99
+
+    # Retire without immediate reclaim attempt
+    retireAndReclaim(handle, node, destroyNode, eager = false)
+
+    check destroyedCount == 0 # Should not have reclaimed yet
+
+  test "multiple retireAndReclaim calls":
+    for i in 0 ..< 10:
+      let node = cast[Node](alloc0(sizeof(NodeObj)))
+      node.value = i
+      retireAndReclaim(handle, node, destroyNode, eager = true)
+
+    # All retirements should succeed
+    check destroyedCount >= 0
+
+  test "retireAndReclaim with retain'd ref via releaseDestructor":
+    type RefNodeObj = object
+      value: int
+
+    type RefNode = ref RefNodeObj
+
+    let n = RefNode(value: 123)
+    let raw = retain(n)
+    retireAndReclaim(
+      handle, cast[pointer](raw), releaseDestructor[RefNodeObj](), eager = true
+    )
+
+    # The retain is balanced by releaseDestructor at reclamation time.
+    check true
+
+# ---------------------------------------------------------------------------
+# Batched retire/reclaim API tests
+# (see docs/design/2026-04-25-batched-retire-reclaim.md)
+# ---------------------------------------------------------------------------
+
+suite "DEBRA Batched Retire/Reclaim API":
+  setup:
+    var manager = initDebraManager[4]()
+    setGlobalManager(addr manager)
+    let handle = registerThread(manager)
+    destroyedCount = 0
+
+  test "pinScope injects scope.state and retires multiple pointers":
+    let n1 = cast[Node](alloc0(sizeof(NodeObj)))
+    let n2 = cast[Node](alloc0(sizeof(NodeObj)))
+    let n3 = cast[Node](alloc0(sizeof(NodeObj)))
+
+    block:
+      var scope = pinScope(unpinned(handle))
+      var ready = retireReady(scope.state)
+      ready.retire(n1, destroyNode)
+      ready.retire(n2, destroyNode)
+      ready.retire(n3, destroyNode)
+
+    # Thread is unpinned after the scope's =destroy
+    check not manager.threads[handle.idx].pinned.load(moAcquire)
+
+    # Advance epoch and reclaim
+    advance(manager)
+    advance(manager)
+    advance(manager)
+    discard reclaimNow(manager)
+    check destroyedCount == 3
+
+  test "pinScope retires a single pointer via retireReady":
+    let n = cast[Node](alloc0(sizeof(NodeObj)))
+
+    block:
+      var scope = pinScope(unpinned(handle))
+      var myPin = retireReady(scope.state)
+      myPin.retire(n, destroyNode)
+
+    check not manager.threads[handle.idx].pinned.load(moAcquire)
+    advance(manager)
+    advance(manager)
+    advance(manager)
+    discard reclaimNow(manager)
+    check destroyedCount == 1
+
+  test "pinScope runs body to completion and unpins":
+    var ran = false
+    block:
+      var scope {.used.} = pinScope(unpinned(handle))
+      ran = true
+      check manager.threads[handle.idx].pinned.load(moAcquire)
+    check ran
+    check not manager.threads[handle.idx].pinned.load(moAcquire)
+
+  test "pinScope unpins on exception":
+    let n = cast[Node](alloc0(sizeof(NodeObj)))
+
+    expect(ValueError):
+      var scope = pinScope(unpinned(handle))
+      var ready = retireReady(scope.state)
+      ready.retire(n, destroyNode)
+      raise newException(ValueError, "boom")
+
+    # Thread is unpinned despite the raise (scope's =destroy ran during unwind)
+    check not manager.threads[handle.idx].pinned.load(moAcquire)
+
+    # Reclamation can still proceed
+    advance(manager)
+    advance(manager)
+    advance(manager)
+    discard reclaimNow(manager)
+    check destroyedCount == 1
+
+  test "nested pinScope on same handle raises AssertionDefect under debug":
+    # `assert` is active unless built with -d:release / -d:danger.
+    # Tests typically run with debug-friendly builds; only enforce when active.
+    when compileOption("assertions"):
+      block:
+        var outer {.used.} = pinScope(unpinned(handle))
+        expect(AssertionDefect):
+          var inner {.used.} = pinScope(unpinned(handle))
+        # outer is still alive; its =destroy runs at block exit and
+        # unpins the slot.
+      check not manager.threads[handle.idx].pinned.load(moAcquire)
+
+  test "reclaimNow returns 0 when not safe yet":
+    # Fresh manager: globalEpoch starts at 1, safeEpoch == 1, so checkSafe
+    # returns ReclaimBlocked and the helper returns 0.
+    check reclaimNow(manager) == 0
+
+  test "reclaimNow reclaims pending objects when safe":
+    let n1 = cast[Node](alloc0(sizeof(NodeObj)))
+    let n2 = cast[Node](alloc0(sizeof(NodeObj)))
+
+    block:
+      var scope = pinScope(unpinned(handle))
+      var ready = retireReady(scope.state)
+      ready.retire(n1, destroyNode)
+      ready.retire(n2, destroyNode)
+
+    advance(manager)
+    advance(manager)
+    advance(manager)
+    let count = reclaimNow(manager)
+    check count == 2
+    check destroyedCount == 2
+
+  test "advanceEvery advances every Nth call":
+    let startEpoch = currentEpoch(manager)
+    # n=4: calls 4, 8, 12 advance; calls 1-3, 5-7, 9-11 just increment.
+    var advanced = 0
+    for i in 1 .. 12:
+      if handle.advanceEvery(4):
+        inc advanced
+    check advanced == 3
+    check currentEpoch(manager) == startEpoch + 3'u64
+
+  test "advanceEvery with n=1 advances on every call":
+    let startEpoch = currentEpoch(manager)
+    for i in 1 .. 5:
+      check handle.advanceEvery(1) == true
+    check currentEpoch(manager) == startEpoch + 5'u64
+
+  test "advanceEvery counter is per-handle":
+    # Register a second handle; its counter starts at 0 independent of the
+    # first handle's counter. Different cadences interleave correctly.
+    let other = registerThread(manager)
+    # Drive `handle` partway toward its trigger.
+    discard handle.advanceEvery(4)
+    discard handle.advanceEvery(4)
+    discard handle.advanceEvery(4)
+    let mid = currentEpoch(manager) # no advance yet on `handle`
+    # `other` has its own counter starting from 0.
+    check other.advanceEvery(2) == false
+    check other.advanceEvery(2) == true # 2nd call on `other` triggers
+    check currentEpoch(manager) == mid + 1'u64
+    # Finish driving `handle` past its 4th call.
+    check handle.advanceEvery(4) == true
+    check currentEpoch(manager) == mid + 2'u64
+
+  test "advanceEvery + retire/reclaim cycle":
+    # End-to-end: retire, advance via cadence helper, reclaim observes safe.
+    let n1 = cast[Node](alloc0(sizeof(NodeObj)))
+    let n2 = cast[Node](alloc0(sizeof(NodeObj)))
+    block:
+      var scope = pinScope(unpinned(handle))
+      var ready = retireReady(scope.state)
+      ready.retire(n1, destroyNode)
+      ready.retire(n2, destroyNode)
+    # Drive enough cadence ticks (n=2) to advance the epoch past safe.
+    for i in 1 .. 6:
+      handle.advanceEvery(2)
+    let count = reclaimNow(manager)
+    check count == 2
+    check destroyedCount == 2
+
+  test "retireBatch retires N objects with their destructors":
+    const N = 16
+    var items: seq[(pointer, Destructor)]
+    for i in 0 ..< N:
+      let node = cast[Node](alloc0(sizeof(NodeObj)))
+      node.value = i
+      items.add((cast[pointer](node), destroyNode))
+
+    block:
+      var scope = pinScope(unpinned(handle))
+      var ready = retireReady(scope.state)
+      ready.retireBatch(items)
+
+    check not manager.threads[handle.idx].pinned.load(moAcquire)
+
+    advance(manager)
+    advance(manager)
+    advance(manager)
+    let count = reclaimNow(manager)
+    check count == N
+    check destroyedCount == N

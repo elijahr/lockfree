@@ -1,0 +1,36 @@
+## nim-debra test suite
+
+import ./t_types
+import ./t_signal
+import ./t_limbo
+import ./t_signal_handler
+import ./t_manager_typestate
+import ./t_registration
+import ./t_guard
+import ./t_retire
+import ./t_pinned_scope
+import ./t_retire_on_cas
+import ./t_reclaim
+import ./t_neutralize
+import ./t_advance
+import ./t_slot
+import ./t_convenience
+import ./t_refptr
+import ./t_integration
+import ./t_atomics
+import ./test_dwcas_roundtrip
+import ./test_dwcas_generation_rollover
+import ./test_dwcas_pair_ptr
+import ./test_dwcas_pair_alignment
+import ./test_dwcas_pair_shape_positive
+import ./test_dwcas_memory_orders
+import ./test_dwcas_fetch_ops
+import ./t_atomics_dsl
+import ./t_thread_id
+import ./t_item_processing
+import ./t_lockfree_stack_typestates
+import ./t_backoff
+import ./t_bind_client
+import ./t_manager_cc_surface
+import ./t_unregister_thread
+import ./t_unregister_thread_stress
