@@ -387,8 +387,13 @@ class ChartContractTests(unittest.TestCase):
             )
         # Every slug obeys the BMF grammar; every measure key obeys
         # the measure-key grammar; every value carries a finite
-        # `value` field.
+        # `value` field. The top-level `"meta"` key holds emitter
+        # provenance (commit, schema version, etc.) and is not a slug —
+        # skip it before applying the slug grammar. Per gemini PR
+        # feat/v0.1.0 review, 2026-06-07.
         for slug, measures in data.items():
+            if slug == "meta":
+                continue
             self.assertRegex(slug, SLUG_RE,
                              msg=f"bad slug in fixture: {slug!r}")
             self.assertIsInstance(measures, dict,

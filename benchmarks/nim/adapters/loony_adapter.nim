@@ -90,10 +90,14 @@ when defined(adapter_loony_available):
     # in `-d:release`/`-d:danger` builds (which is what the bench
     # binaries use), so there is zero overhead in measurement runs while
     # development builds still catch encoding misuse loudly.
-    assert uint64(item) <= LoonyMaxValue,
-      "value " & $uint64(item) & " exceeds Loony adapter encoding range " & "(0 .. " &
+    # `cast[uint64]` rather than `uint64(item)`: direct conversion is a
+    # compile error when `T` is a pointer type. Per gemini PR
+    # feat/v0.1.0 review, 2026-06-07.
+    let raw = cast[uint64](item)
+    assert raw <= LoonyMaxValue,
+      "value " & $raw & " exceeds Loony adapter encoding range " & "(0 .. " &
         $LoonyMaxValue & "); see module docstring."
-    a.queue.push((uint64(item) + 1'u64) shl LoonyTagShift)
+    a.queue.push((raw + 1'u64) shl LoonyTagShift)
     prSuccess
 
   proc pop*[T](a: var LoonyAdapter[T]): PopResult[T] =
@@ -107,7 +111,12 @@ when defined(adapter_loony_available):
       # under multi-consumer load.
       PopResult[T](success: false)
     else:
-      PopResult[T](success: true, value: T((raw shr LoonyTagShift) - 1'u64))
+      # Use `cast[T]` rather than `T(...)`: direct value conversion is a
+      # compile error when `T` is a pointer type, but `cast[T]` works for
+      # both integer and pointer destinations (the harness pushes
+      # uint64 today but a pointer-typed harness is a likely follow-up).
+      # Per gemini PR feat/v0.1.0 review, 2026-06-07.
+      PopResult[T](success: true, value: cast[T]((raw shr LoonyTagShift) - 1'u64))
 
   proc name*[T](a: LoonyAdapter[T]): string =
     "loony/LoonyQueue[" & $T & "]"

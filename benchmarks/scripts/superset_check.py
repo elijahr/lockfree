@@ -57,7 +57,7 @@ def _die_usage(msg: str) -> int:
 # Keys that the BMF emitter or the merge step may add at the top level
 # but that are NOT benchmark slugs. The superset check must ignore
 # them or it will report spurious missing-slug failures (e.g., if
-# `pre.json` was emitted before `_meta` was added and `post.json`
+# `pre.json` was emitted before `meta` was added and `post.json`
 # carries it, the diff is harmless; the reverse — pre carrying a
 # metadata key absent from post — is what previously raised a false
 # positive). Match by exact name and by a leading `_` convention so
@@ -65,7 +65,11 @@ def _die_usage(msg: str) -> int:
 # Per gemini PR feat/v0.1.0 review, 2026-06-07.
 _NON_SLUG_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
     {
-        "_meta",
+        # Live schema key (no underscore prefix). The emitter writes
+        # `"meta"` at the top level of every BMF; the earlier draft of
+        # this exclusion list used `"_meta"`, which never matched and
+        # could trigger false-positive missing-slug failures.
+        "meta",
         "_schema",
         "_generated_at",
         "_version",

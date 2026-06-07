@@ -21,6 +21,7 @@
 ## was built somewhere other than the in-tree ``target/release``.
 
 when defined(adapter_crossbeam_array_queue_available):
+  import std/typetraits
   import ../bench_common
   import ../adapter
   # Link-flag emission lives in a shared module so it fires exactly once
@@ -42,12 +43,23 @@ when defined(adapter_crossbeam_array_queue_available):
   const topologiesSupported* = {tMpmc}
 
   type CrossbeamArrayQueueAdapter*[T] = object
+    # T must be POD and fit in a u64 cell: the Rust side stores items as
+    # `u64`, and the FFI marshals via plain byte-equivalent value passing.
+    # Non-POD T (anything with =copy/=destroy hooks) would skip the hook
+    # on the Rust side and leak/double-free; T larger than 8 bytes would
+    # silently truncate. The static asserts inside the generic procs
+    # below fire at the first instantiation site with a concrete T.
+    # Per gemini PR feat/v0.1.0 review, 2026-06-07.
     queue*: pointer
     capacity*: int
 
   proc makeCrossbeamArrayQueueAdapter*[T](
       capacity: int = 1024
   ): CrossbeamArrayQueueAdapter[T] =
+    when not supportsCopyMem(T):
+      {.error: "CrossbeamArrayQueueAdapter[T] requires POD T (no =copy/=destroy hooks); the FFI passes by raw u64 value and would bypass user hooks.".}
+    when sizeof(T) > sizeof(uint64):
+      {.error: "CrossbeamArrayQueueAdapter[T] requires sizeof(T) <= 8; the Rust cell is u64 and larger T would truncate silently.".}
     doAssert capacity > 0,
       "CrossbeamArrayQueue requires capacity > 0 (zero would null-init)"
     result.capacity = capacity

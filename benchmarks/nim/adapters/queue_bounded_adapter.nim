@@ -69,12 +69,15 @@ proc makeQueueBoundedAdapter*[
 ](capacity: int = N): QueueBoundedAdapter[ccProd, ccCons, ST, N, P, C, T] =
   doAssert capacity == N, "capacity must equal static N"
   result.queue = create(BQueue[T, ccProd, ccCons, N, P, C])
-  # wasMoved before the deref-assign: `create` zero-fills but the BQueue
-  # typestate `=destroy` is still untracked-untrusted by ARC/ORC, so the
-  # `result.queue[] = ...` would otherwise run `=destroy` on uninitialized
-  # storage. wasMoved marks the slot as moved-from so no destructor fires.
-  wasMoved(result.queue[])
-  result.queue[] = q_mod.newBQueue[T, ccProd, ccCons, N, P, C]()
+  # Construct the queue on the stack, then `copyMem` the raw bytes into
+  # the heap slot and `wasMoved` the stack temp. This avoids `=sink`
+  # firing on the (zero-filled but typestate-untracked) heap slot under
+  # ARC/ORC — the prior `wasMoved(result.queue[]) ; result.queue[] = ...`
+  # form was undefined behavior because `wasMoved` requires a properly
+  # initialized destination. Per gemini PR feat/v0.1.0 review, 2026-06-07.
+  var tmp = q_mod.newBQueue[T, ccProd, ccCons, N, P, C]()
+  copyMem(result.queue, addr tmp, sizeof(BQueue[T, ccProd, ccCons, N, P, C]))
+  wasMoved(tmp)
   when ccProd == ccMulti:
     result.producer = result.queue[].getProducerHere(idx = 0)
   when ccCons == ccMulti:
