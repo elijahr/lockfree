@@ -4,13 +4,14 @@ name: bench
 
 # yamllint disable rule:truthy
 on:
-  # Only fire on PRs that actually target an integration branch. Stacked
-  # feature-to-feature PRs (`feat/foo` -> `feat/bar`) used to be in this
-  # allowlist; they have been removed because cascade-rebases would
-  # otherwise burn CI time re-running near-identical bench matrices for
-  # every intermediate stack PR. The topmost PR (base=devel) still gets
-  # PR-time bench treatment.
-  pull_request:
+  # Bench fires on release-branch pushes and manual dispatch only.
+  # The previous `pull_request: branches: [main, devel]` trigger was
+  # removed (push-7) because every push to a feature branch with a
+  # PR open against main/devel re-ran the full 9-binary matrix; the
+  # operator wants bench compute scoped to release branches. Manual
+  # operator runs via workflow_dispatch remain available for pre-merge
+  # sanity-runs against a feature branch.
+  push:
     branches: [main, devel]
     paths-ignore:
       - '*.md'
@@ -26,12 +27,6 @@ on:
       # re-runs and any future paths-ignore loosening. docs.yml's
       # chart deploy is acceptable to defer because the next non-bot
       # push to devel rebuilds and redeploys the docs site.
-      - 'docs/assets/bench-results/**'
-  push:
-    branches: [main, devel]
-    paths-ignore:
-      - '*.md'
-      - '.github/workflows/docs.yml'
       - 'docs/assets/bench-results/**'
   workflow_dispatch:
     inputs:
