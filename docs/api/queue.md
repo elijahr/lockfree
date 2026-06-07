@@ -8,11 +8,14 @@
 
 
 `Queue[T, ccProd, ccCons, ST, S, MaxThreads]` is the unified unbounded,
-lock-free queue. A single generic type covers all four
-producer/consumer cardinality combinations — SPSC, MPSC, SPMC, and
-MPMC — selected at compile time through `ccProd` and `ccCons`. It
-replaces the v4.x family-prefixed unbounded types (`UnboundedSipsic`,
-`UnboundedSipmuc`, `UnboundedMupsic`, `UnboundedMupmuc`).
+lock-free queue exposed by lockfree v0.1.0. A single generic type
+covers all four producer/consumer cardinality combinations — SPSC,
+MPSC, SPMC, and MPMC — selected at compile time through `ccProd` and
+`ccCons`. It replaces the family-prefixed unbounded types
+(`UnboundedSipsic`, `UnboundedSipmuc`, `UnboundedMupsic`,
+`UnboundedMupmuc`) shipped by the predecessor package `lockfreequeues`
+through v4.x; the consolidated umbrella `lockfree` absorbs that surface
+verbatim under a single generic.
 
 ## Overview
 
@@ -33,6 +36,18 @@ Body layout splits on `(ccProd, ccCons) is (ccSingle, ccSingle)`:
   borrows a `DebraManager`, and each operating thread holds a
   per-thread handle for the pin/retire cycle.
 
+## Supported `T`
+
+Per Path-C of the lockfree v0.1.0 element-type story, `Queue[T, …]`
+supports the full Nim type vocabulary on the SPSC, MPSC, and SPMC
+shapes — including `ref T`, `string`, and `seq[T]` — via the
+`ManagedRef` / `ManagedSlice` wrappers documented in
+[Managed Ref](../guide/managed-ref.md) and
+[Managed Slice](../guide/managed-slice.md). Plain copyable `T` flow
+through unmodified; GC-managed `T` flow through the managed wrappers
+while preserving the lock-free fast path. The unbounded MPMC shape
+carries an additional `T`-width constraint documented below.
+
 ## Type Parameters
 
 - `T` — Item type
@@ -50,7 +65,7 @@ Body layout splits on `(ccProd, ccCons) is (ccSingle, ccSingle)`:
 
 The parameter order is load-bearing: `T, ccProd, ccCons, ST, S, MaxThreads`.
 
-!!! warning "v5.0.0 Phase B — unbounded MPMC `T` constraint"
+!!! warning "lockfree v0.1.0 — unbounded MPMC `T` constraint"
 
     The unbounded MPMC shape (`Queue[T, ccMulti, ccMulti, …]`) requires
     **`supportsCopyMem(T) AND sizeof(T) <= 8`** (8 bytes on 64-bit;
@@ -61,11 +76,13 @@ The parameter order is load-bearing: `T, ccProd, ccCons, ST, S, MaxThreads`.
     Violations fail at compile time with a `{.error.}` overload that
     cites the migration path. For wider or move-only `T`, switch to
     `BQueue[T, ccMulti, ccMulti, …]` (bounded MPMC, Vyukov per-slot
-    seq) — `BQueue` preserves general `T` support and is unchanged in
-    v5.0.0. To keep unbounded MPMC, wrap as `ptr T`; see
+    seq) — `BQueue` preserves general `T` support. To keep unbounded
+    MPMC, wrap as `ptr T`; see
     [From lockfreequeues v5](../migrations/from-lockfreequeues-v5.md)
     for the `ptr T` recipe and `examples/job_scheduler.nim`. The other
-    three unbounded shapes (SPSC / SPMC / MPSC) are unaffected.
+    three unbounded shapes (SPSC / SPMC / MPSC) are unaffected and
+    accept `ref T` / `string` / `seq[T]` via the Path-C managed
+    wrappers.
 
 ## Constructors
 
@@ -78,7 +95,8 @@ SPSC shape. Manager-borrowed overloads accept an existing
 `ownsManager = false`.
 
 Family-named thin wrappers are retained for ergonomic continuity with
-the v3.x/v4.x naming; all compile to the same `Queue` type:
+the `lockfreequeues` v3.x/v4.x naming; all compile to the same `Queue`
+type:
 
 - `newUnboundedSpscQueue` — `ccSingle × ccSingle` (SPSC)
 - `newUnboundedMpscQueue` — `ccMulti × ccSingle` (MPSC)
@@ -100,12 +118,13 @@ shapes:
   performs the debra registration and may raise
   `DebraRegistrationError`.
 
-This differs from pre-v5.0.0, where `get*()` registered at get-time.
+This differs from the pre-consolidation lockfreequeues API, where
+`get*()` registered at get-time.
 
 ## Usage
 
 ```nim
-import lockfreequeues
+import lockfree
 
 # SPSC: debra-free; no manager, no attach needed.
 var spsc = newQueue(Queue[int, ccSingle, ccSingle, stEager, 64, 1])
@@ -116,11 +135,11 @@ let a = spsc.pop()                 # some(42)
 # MPMC: each operating thread attaches before its first push/pop.
 var mpmc = newQueue(Queue[int, ccMulti, ccMulti, stEager, 64, 8])
 var producer = mpmc.getProducer()
-discard producer.bindToThread()  # v5.0.0: replaces v4.x attach()                  # registers this thread (may raise
+discard producer.bindToThread()    # registers this thread (may raise
                                    #   DebraRegistrationError)
 producer.push(99)
 var consumer = mpmc.getConsumer()
-discard consumer.bindToThread()  # v5.0.0: replaces v4.x attach()
+discard consumer.bindToThread()
 let b = consumer.pop()             # some(99)
 
 # MPMC: when the calling thread is also the operating thread,
@@ -163,10 +182,18 @@ driven by `=destroy`; the `Bound[T, Tag, Queue[...]]` endpoint / `Bound[T, Tag, 
 a Claim-state typestate (`QCUnclaimed -> QCBothClaimed`). All
 push/pop/attach/detach operations are state-preserving; only the
 destructor moves a value to its terminal state. Use-after-destroy is a
-documented limitation; see the CHANGELOG `[5.0.0]` entry.
+documented limitation; see the lockfree CHANGELOG `[0.1.0]` entry.
 
 ## See also
 
+- [Strict-LCRQ MPMC queue](../guide/queues/strict-lcrq-mpmc.md) — the
+  unbounded MPMC engine and its DWCAS / `T`-width constraints.
+- [Legacy unbounded shapes](../guide/queues/legacy.md) — the
+  pre-consolidation SPSC / MPSC / SPMC unbounded protocols absorbed
+  into `Queue`.
+- [Managed Ref](../guide/managed-ref.md) — Path-C wrapper for `ref T`.
+- [Managed Slice](../guide/managed-slice.md) — Path-C wrapper for
+  `string` and `seq[T]`.
 - [Memory Management](../guide/memory-management.md) — DEBRA managers,
   deallocation strategies, and the attach/detach lifecycle.
 - [Safety Model](../guide/safety-model.md) — happens-before guarantees.

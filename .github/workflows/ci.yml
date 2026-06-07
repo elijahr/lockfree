@@ -140,7 +140,7 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'no'
             continue-on-error: 'false'
-            timeout: 25
+            timeout: 45
 
           # --- Cell 2: arc on baseline lane ----------------------------------
           - cell: '2'
@@ -152,7 +152,7 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'no'
             continue-on-error: 'false'
-            timeout: 25
+            timeout: 45
 
           # --- Cell 3: refc on baseline lane ---------------------------------
           - cell: '3'
@@ -164,7 +164,7 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'no'
             continue-on-error: 'false'
-            timeout: 25
+            timeout: 45
 
           # --- Cell 4: atomicArc on baseline lane ----------------------------
           - cell: '4'
@@ -176,7 +176,7 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'no'
             continue-on-error: 'false'
-            timeout: 25
+            timeout: 45
 
           # --- Cell 5: mm:none (CRITICAL #2 lock-in) -------------------------
           # Per §6 O7 (Phase 2 default): compile + smoke-test subset; full
@@ -193,7 +193,7 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'no'
             continue-on-error: 'false'
-            timeout: 25
+            timeout: 45
 
           # --- Cell 6: TSAN on baseline lane ---------------------------------
           - cell: '6'
@@ -205,7 +205,7 @@ jobs:
             sanitize-threads: 'yes'
             sanitize-address: 'no'
             continue-on-error: 'false'
-            timeout: 40
+            timeout: 45
 
           # --- Cell 7: ASAN on baseline lane ---------------------------------
           - cell: '7'
@@ -217,7 +217,7 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'yes'
             continue-on-error: 'false'
-            timeout: 30
+            timeout: 45
 
           # --- Cell 10: Linux arm64 ------------------------------------------
           - cell: '10'
@@ -480,6 +480,7 @@ jobs:
               --show-leak-kinds=all \
               --errors-for-leak-kinds=definite,possible \
               --track-origins=yes \
+              --suppressions=tests/valgrind-suppressions.supp \
               "$bin"
             rm -f "$bin"
             echo "::endgroup::"

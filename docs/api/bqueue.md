@@ -8,11 +8,13 @@
 
 
 `BQueue[T, ccProd, ccCons, N, P, C]` is the unified bounded, lock-free
-queue. A single generic type covers all four producer/consumer
-cardinality combinations — SPSC, MPSC, SPMC, and MPMC — selected at
-compile time through the `ccProd` and `ccCons` parameters. It replaces
-the v4.x family-prefixed bounded types (`Sipsic`, `Sipmuc`, `Mupsic`,
-`Mupmuc`).
+queue exposed by lockfree v0.1.0. A single generic type covers all four
+producer/consumer cardinality combinations — SPSC, MPSC, SPMC, and
+MPMC — selected at compile time through the `ccProd` and `ccCons`
+parameters. It replaces the family-prefixed bounded types (`Sipsic`,
+`Sipmuc`, `Mupsic`, `Mupmuc`) shipped by the predecessor package
+`lockfreequeues` through v4.x; the consolidated umbrella `lockfree`
+absorbs that surface verbatim under a single generic.
 
 ## Overview
 
@@ -30,6 +32,17 @@ per-slot `seq`-counter cell array with `Atomic[uint64]` head/tail. The
 sequence-counter protocol carries the producer→consumer and
 consumer→next-producer happens-before edges without a separate
 `committed` flag array.
+
+## Supported `T`
+
+Per Path-C of the lockfree v0.1.0 element-type story, `BQueue[T, …]`
+supports the full Nim type vocabulary, including `ref T`, `string`, and
+`seq[T]`, via the `ManagedRef` / `ManagedSlice` wrappers documented in
+[Managed Ref](../guide/managed-ref.md) and
+[Managed Slice](../guide/managed-slice.md). Plain copyable `T` (POD,
+fixed-size structs) flow through unmodified; GC-managed `T` flow
+through the managed wrappers, which keep the lock-free fast path intact
+while preserving ownership.
 
 ## Type Parameters
 
@@ -51,8 +64,9 @@ The parameter order is load-bearing: `T, ccProd, ccCons, N, P, C`.
 
 `newBQueue[T, ccProd, ccCons, N, P, C]()` is the canonical generic
 smart constructor. Family-named thin wrappers are retained for
-ergonomic continuity with the v3.x/v4.x naming and to minimize churn
-in downstream call sites; all compile to the same `BQueue` type:
+ergonomic continuity with the `lockfreequeues` v3.x/v4.x naming and to
+minimize churn in downstream call sites migrating to lockfree v0.1.0;
+all compile to the same `BQueue` type:
 
 - `newSpscQueue[T, N]()` — `ccSingle × ccSingle` (SPSC)
 - `newMpscQueue[T, N, P]()` — `ccMulti × ccSingle` (MPSC)
@@ -62,7 +76,7 @@ in downstream call sites; all compile to the same `BQueue` type:
 ## Usage
 
 ```nim
-import lockfreequeues
+import lockfree
 
 # SPSC: single producer, single consumer, capacity 16.
 # No handles needed — push/pop go directly on the queue.
@@ -73,10 +87,10 @@ let a = spsc.pop()                 # some(42)
 # MPMC: capacity 64, up to 4 producers and 4 consumers.
 var mpmc = newBQueue[int, ccMulti, ccMulti, 64, 4, 4]()
 var producer = mpmc.getProducer()
-discard producer.bindToThread()  # v5.0.0: replaces v4.x attach()                  # claim the view on this thread
+discard producer.bindToThread()  # claim the view on this thread
 discard producer.push(99)
 var consumer = mpmc.getConsumer()
-discard consumer.bindToThread()  # v5.0.0: replaces v4.x attach()
+discard consumer.bindToThread()
 let b = consumer.pop()             # some(99)
 
 # MPMC: when the calling thread is also the operating thread,
@@ -128,10 +142,15 @@ push/pop/attach/detach operations are state-preserving and emit no
 static transition; only the destructor moves a value to its terminal
 state. Use-after-destroy is a documented limitation (typestates does
 not statically catch a method call on an already-destroyed value); see
-the CHANGELOG `[5.0.0]` entry for details.
+the lockfree CHANGELOG `[0.1.0]` entry for details.
 
 ## See also
 
+- [Bounded Vyukov queues](../guide/queues/bounded-vyukov.md) — the
+  shared bounded protocol used across all four cardinalities.
+- [Managed Ref](../guide/managed-ref.md) — Path-C wrapper for `ref T`.
+- [Managed Slice](../guide/managed-slice.md) — Path-C wrapper for
+  `string` and `seq[T]`.
 - [Safety Model](../guide/safety-model.md) — happens-before guarantees
   and the Vyukov per-slot `seq` protocol.
 - [Slot Ownership Typestates](../guide/slot-ownership-typestates.md) —

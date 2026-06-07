@@ -1,0 +1,40 @@
+# Valgrind memcheck suppression file for the Cell 8 curated subset.
+#
+# Policy: only third-party / test-harness allocations whose lifetime is
+# pinned to the process by design may be suppressed. Any "possibly lost"
+# or "definitely lost" entry whose stack contains a frame from
+# `src/lockfree/...` or `src/debra/...` is a release blocker and must NOT
+# be suppressed.
+#
+# Each entry MUST be annotated with:
+#   - The exact stack frames (`fun:<symbol>`)
+#   - A one-line justification
+#   - A category tag: pre-existing-test-harness, pre-existing-nim-runtime,
+#     or false-positive
+#
+# ---------------------------------------------------------------------------
+# Suppressions below this line:
+
+# Category: pre-existing-test-harness
+# Justification: unittest2's ConsoleOutputFormatter is allocated at
+# PreMain (NimMain) and intentionally lives for the lifetime of the
+# process — there is no shutdown hook that frees it. Valgrind reports
+# "possibly lost: 168 bytes" because the only references live in a
+# thread-local stash that PreMain unwinds before exit. This is a
+# property of the upstream unittest2 framework, not our code; no Nim or
+# lockfree frame appears in the stack.
+{
+   unittest2-console-formatter-premain
+   Memcheck:Leak
+   match-leak-kinds: possible
+   fun:malloc
+   fun:*allocImpl*
+   fun:*allocSharedImpl*
+   fun:*alignedAlloc*
+   fun:*alignedAlloc0*
+   fun:nimNewObj
+   fun:*newConsoleOutputFormatter*
+   fun:*parseParameters*
+   fun:*ensureInitialized*
+   ...
+}
