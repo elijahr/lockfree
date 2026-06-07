@@ -55,6 +55,7 @@
 ## the gate is set.
 
 when defined(adapter_loony_available):
+  import std/typetraits
   import loony
   import ../bench_common
   import ../adapter
@@ -76,6 +77,10 @@ when defined(adapter_loony_available):
       # ``uint64`` by the harness today.
 
   proc makeLoonyAdapter*[T](capacity: int = 0): LoonyAdapter[T] =
+    when not supportsCopyMem(T):
+      {.error: "LoonyAdapter[T] requires POD T (no =copy/=destroy hooks); the underlying queue stores raw uint64 and would bypass user hooks.".}
+    when sizeof(T) != 8:
+      {.error: "LoonyAdapter[T] requires sizeof(T) == 8; the underlying queue stores `uint64` and larger or smaller T would truncate or sign-extend silently.".}
     ## ``capacity`` is ignored — Loony is unbounded.
     discard capacity
     result.queue = newLoonyQueue[uint64]()

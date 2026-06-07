@@ -63,11 +63,19 @@ proc makeLockfreequeuesSpmcAdapter*[N, C: static int, T](
   ## bounded queues.
   doAssert capacity == N, "capacity must equal static N"
   result.queue = create(SpmcQueue[N, C, T])
-  # wasMoved before the deref-assign: `create`'s zero-fill is not tracked by
-  # ARC/ORC, so `result.queue[] = ...` would run the BQueue typestate
-  # `=destroy` on uninitialized storage. Mark the slot moved-from first.
-  wasMoved(result.queue[])
-  result.queue[] = newBQueue[T, ccSingle, ccMulti, N, 0, C]()
+  # Construct the queue on the stack, then `copyMem` the raw bytes into
+  # the heap slot and `wasMoved` the stack temp. This avoids `=sink`
+  # firing on the (zero-filled but typestate-untracked) heap slot under
+  # ARC/ORC — the prior `wasMoved(result.queue[]) ; result.queue[] = ...`
+  # form was undefined behavior because `wasMoved` requires a properly
+  # initialized destination. See `queue_bounded_adapter.nim` for the
+  # canonical example; this is the ARC/ORC-correct form gemini's review
+  # surfaced. The consumer view is acquired AFTER copyMem completes so
+  # the queue is fully initialized in `result.queue[]` before the view
+  # borrows into it.
+  var tmp = newBQueue[T, ccSingle, ccMulti, N, 0, C]()
+  copyMem(result.queue, addr tmp, sizeof(SpmcQueue[N, C, T]))
+  wasMoved(tmp)
   # Pre-allocate consumer 0; bench code that drives multiple consumers
   # registers its own per-thread Consumer via getConsumer(idx = i).
   result.consumer = result.queue[].getConsumerHere(idx = 0)

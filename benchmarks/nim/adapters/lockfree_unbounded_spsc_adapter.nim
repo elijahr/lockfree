@@ -71,12 +71,19 @@ proc makeLockfreequeuesUnboundedSpscAdapter*[S: static int, T](
   var queueInitOk = false
   try:
     result.queue = create(UnboundedSpscAdapterQueue[S, T])
-    # wasMoved before the deref-assign: `create`'s zero-fill is not tracked by
-    # ARC/ORC, so `result.queue[] = ...` would run the unified Queue's
-    # typestate `=destroy` on uninitialized storage. Mark the slot moved-from
-    # first.
-    wasMoved(result.queue[])
-    result.queue[] = newUnboundedSpscQueue[T, stEager, S, SpscMaxThreads]()
+    # Construct the queue on the stack, then `copyMem` the raw bytes into
+    # the heap slot and `wasMoved` the stack temp. This avoids `=sink`
+    # firing on the (zero-filled but typestate-untracked) heap slot under
+    # ARC/ORC — the prior `wasMoved(result.queue[]) ; result.queue[] = ...`
+    # form was undefined behavior because `wasMoved` requires a properly
+    # initialized destination. See `queue_bounded_adapter.nim` for the
+    # canonical example; this is the ARC/ORC-correct form gemini's review
+    # surfaced. The producer view is acquired AFTER copyMem completes so
+    # the queue is fully initialized in `result.queue[]` before the view
+    # borrows into it.
+    var tmpQueue = newUnboundedSpscQueue[T, stEager, S, SpscMaxThreads]()
+    copyMem(result.queue, addr tmpQueue, sizeof(UnboundedSpscAdapterQueue[S, T]))
+    wasMoved(tmpQueue)
     queueValueInitOk = true
     result.producer0 = result.queue[].getProducerHere()
     queueInitOk = true

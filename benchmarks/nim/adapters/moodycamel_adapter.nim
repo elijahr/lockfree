@@ -71,10 +71,6 @@ when defined(adapter_moodycamel_available):
       assert sizeof(T) == 8,
         "MoodycamelAdapter requires sizeof(T) == 8 (the C++ wrapper " &
           "stores `uint64_t`); got sizeof(" & $T & ") = " & $sizeof(T)
-      assert not (T is ref),
-        "MoodycamelAdapter cannot transport ref types: the C++ queue " &
-          "bypasses Nim's GC, so refcounts wouldn't be maintained across " &
-          "the boundary. Use a non-ref 64-bit payload (uint64, ptr, etc)."
     ## ``capacity`` is an initial-block-size hint. ``0`` selects
     ## upstream's default minimum (32) — see
     ## ``moodycamel_wrapper.cpp``.

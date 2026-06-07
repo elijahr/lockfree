@@ -77,10 +77,6 @@ proc makeLockfreequeuesUnboundedSpmcAdapter*[S: static int, T; MaxThreads: stati
     capacity: int = 0, # ignored for unbounded
 ): LockfreequeuesUnboundedSpmcAdapter[S, T, MaxThreads] =
   result.manager = create(DebraManager[MaxThreads, nebr.ccMulti])
-  # wasMoved before the deref-assign: `create`'s zero-fill is not tracked by
-  # ARC/ORC, so `result.manager[] = ...` would run the DebraManager
-  # `=destroy` on uninitialized storage. Mark the slot moved-from first.
-  wasMoved(result.manager[])
 
   # Three-flag guard mirroring the mpmc adapter:
   #  * `managerValueInitOk` — set after `initDebraManager` returns,
@@ -99,13 +95,28 @@ proc makeLockfreequeuesUnboundedSpmcAdapter*[S: static int, T; MaxThreads: stati
   var queueValueInitOk = false
   var queueInitOk = false
   try:
-    result.manager[] = initDebraManager[MaxThreads, nebr.ccMulti]()
+    # Construct the manager on the stack, then `copyMem` the raw bytes into
+    # the heap slot and `wasMoved` the stack temp. This avoids `=sink`
+    # firing on the (zero-filled but typestate-untracked) heap slot under
+    # ARC/ORC — the prior `wasMoved(result.manager[]) ; result.manager[] = ...`
+    # form was undefined behavior because `wasMoved` requires a properly
+    # initialized destination. See `queue_bounded_adapter.nim` for the
+    # canonical example; this is the ARC/ORC-correct form gemini's review
+    # surfaced.
+    var tmpManager = initDebraManager[MaxThreads, nebr.ccMulti]()
+    copyMem(result.manager, addr tmpManager,
+      sizeof(DebraManager[MaxThreads, nebr.ccMulti]))
+    wasMoved(tmpManager)
     managerValueInitOk = true
     result.queue = create(UnboundedSpmcAdapterQueue[S, T, MaxThreads])
-    # Same rationale for the queue: the unified Queue carries a typestate
-    # `=destroy`, so mark the created slot moved-from before assigning into it.
-    wasMoved(result.queue[])
-    result.queue[] = newUnboundedSpmcQueue[T, stEager, S, MaxThreads](result.manager)
+    # Same pattern for the queue: stack-construct, copyMem into the heap
+    # slot, wasMoved the temp. Views are acquired AFTER copyMem completes
+    # so the queue is fully initialized in `result.queue[]` before they
+    # borrow into it.
+    var tmpQueue = newUnboundedSpmcQueue[T, stEager, S, MaxThreads](result.manager)
+    copyMem(result.queue, addr tmpQueue,
+      sizeof(UnboundedSpmcAdapterQueue[S, T, MaxThreads]))
+    wasMoved(tmpQueue)
     queueValueInitOk = true
     # producer0 / consumer0 are the cached views for the smoke / 1p1c
     # round-trip path, where the init thread IS the operating thread.
