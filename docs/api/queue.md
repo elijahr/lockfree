@@ -1,13 +1,10 @@
 # Queue
 
-!!! warning "v5.0.0 — Static Thread-Affinity Endpoint API"
+!!! info "Coming from lockfreequeues v5?"
 
-    v5.0.0 is a hard-break release. The v4.x `Bound[T, Tag, BQueue[...]]` endpoint /
-    `Bound[T, Tag, Queue[...]]` endpoint / `attach()` / `bindConsumer()` API is REMOVED;
-    replaced by the `Unbound → Bound → Closed` endpoint lifecycle.
-    See [`docs/migrations/v5.0.0.md`](../migrations/v5.0.0.md) for the
-    full migration guide + v4.x → v5.0.0 cookbook + breaking-change
-    checklist.
+    See [From lockfreequeues v5](../migrations/from-lockfreequeues-v5.md)
+    for the package rename, import path changes, and the
+    static-thread-affinity endpoint API.
 
 
 `Queue[T, ccProd, ccCons, ST, S, MaxThreads]` is the unified unbounded,
@@ -66,9 +63,9 @@ The parameter order is load-bearing: `T, ccProd, ccCons, ST, S, MaxThreads`.
     `BQueue[T, ccMulti, ccMulti, …]` (bounded MPMC, Vyukov per-slot
     seq) — `BQueue` preserves general `T` support and is unchanged in
     v5.0.0. To keep unbounded MPMC, wrap as `ptr T`; see
-    [`docs/migrations/v5.0.0.md`](../migrations/v5.0.0.md) "Phase B"
-    recipes and `examples/job_scheduler.nim`. The other three
-    unbounded shapes (SPSC / SPMC / MPSC) are unaffected.
+    [From lockfreequeues v5](../migrations/from-lockfreequeues-v5.md)
+    for the `ptr T` recipe and `examples/job_scheduler.nim`. The other
+    three unbounded shapes (SPSC / SPMC / MPSC) are unaffected.
 
 ## Constructors
 
@@ -176,4 +173,4 @@ documented limitation; see the CHANGELOG `[5.0.0]` entry.
 - [Bounded vs Unbounded](../guide/bounded-vs-unbounded.md) — choosing
   between `Queue` and `BQueue`.
 
-::: lockfreequeues/queue
+::: lockfree/queue

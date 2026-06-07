@@ -53,7 +53,7 @@ Additionally in v5.0.0, the unbounded MPMC arm
 `supportsCopyMem(T) AND sizeof(T) <= 8` (Phase B strict-LCRQ migration);
 for wider or move-only `T`, use `BQueue[T, ccMulti, ccMulti, …]` or wrap
 as `ptr T`. See
-[Phase B migration](migrations/v5.0.0.md#phase-b--strict-lcrq-migration-on-unbounded-mpmc).
+[From lockfreequeues v5](migrations/from-lockfreequeues-v5.md).
 
 **Atomics.** All atomics route through `debra/atomics`, which statically
 rejects any `Atomic[T]` instantiation that would fall back to libatomic

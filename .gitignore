@@ -13,6 +13,10 @@ nimblecache/
 # Generated documentation
 /site/
 
+# Working-substrate design / impl-plan / audit / fact-check artifacts.
+# Kept on disk as agent scratch but not published to the repo.
+docs/internal/
+
 # Legacy nim doc artifacts (removed in v4.2.0)
 /json/
 /nimdoc.cfg

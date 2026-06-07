@@ -54,9 +54,48 @@ def _die_usage(msg: str) -> int:
     return 1
 
 
+# Keys that the BMF emitter or the merge step may add at the top level
+# but that are NOT benchmark slugs. The superset check must ignore
+# them or it will report spurious missing-slug failures (e.g., if
+# `pre.json` was emitted before `_meta` was added and `post.json`
+# carries it, the diff is harmless; the reverse — pre carrying a
+# metadata key absent from post — is what previously raised a false
+# positive). Match by exact name and by a leading `_` convention so
+# any future internal/scratch keys are filtered without churn.
+# Per gemini PR feat/v0.1.0 review, 2026-06-07.
+_NON_SLUG_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
+    {
+        "_meta",
+        "_schema",
+        "_generated_at",
+        "_version",
+        "_status",
+        "_temp",
+        "_internal",
+    }
+)
+
+
+def _is_slug_key(key: str) -> bool:
+    """True if `key` is a benchmark slug (not a metadata / temp key)."""
+    if key in _NON_SLUG_TOP_LEVEL_KEYS:
+        return False
+    # Generic underscore-prefix convention for internal keys. Real
+    # benchmark slugs follow `<family>_<config>` form and never start
+    # with an underscore.
+    if key.startswith("_"):
+        return False
+    return True
+
+
 def _load_slugs(path: Path) -> set[str]:
     """Return the set of top-level slug keys in `path`. Raises ValueError
-    on malformed JSON or non-object top-level values."""
+    on malformed JSON or non-object top-level values.
+
+    Filters non-slug metadata / status keys (see
+    `_NON_SLUG_TOP_LEVEL_KEYS` and `_is_slug_key`) so the superset
+    check compares actual benchmark coverage, not emitter scaffolding.
+    """
     try:
         text = path.read_text(encoding="utf-8")
     except OSError as exc:
@@ -70,7 +109,7 @@ def _load_slugs(path: Path) -> set[str]:
             f"top-level value in {path} must be a JSON object; "
             f"got {type(parsed).__name__}"
         )
-    return set(parsed.keys())
+    return {key for key in parsed.keys() if _is_slug_key(key)}
 
 
 def main(argv: list[str]) -> int:

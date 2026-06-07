@@ -1,13 +1,17 @@
 # Migration guide
 
-!!! warning "v5.0.0 — Static Thread-Affinity Endpoint API"
+!!! info "lockfree v0.1.0 — umbrella consolidation"
 
-    v5.0.0 is a hard-break release. The v4.x `Bound[T, Tag, BQueue[...]]` endpoint /
-    `Bound[T, Tag, Queue[...]]` endpoint / `attach()` / `bindConsumer()` API is REMOVED;
-    replaced by the `Unbound → Bound → Closed` endpoint lifecycle.
-    See [`docs/migrations/v5.0.0.md`](migrations/v5.0.0.md) for the
-    full migration guide + v4.x → v5.0.0 cookbook + breaking-change
-    checklist.
+    lockfree v0.1.0 is the consolidated umbrella of the former
+    `lockfreequeues` (v5.0.0) and `nim-debra` (v0.8.0) packages. If
+    you are coming from one of those packages, the per-package
+    migration paths are:
+
+    - [From lockfreequeues v5](migrations/from-lockfreequeues-v5.md)
+      — covers the package rename, import path changes, and the
+      static-thread-affinity endpoint API that shipped in v5.0.0.
+    - [From nim-debra](migrations/from-nim-debra.md) — covers the
+      DEBRA → nebr rename and the absorption into `lockfree/smr/nebr`.
 
 
 Concise upgrade notes for adopters moving forward across major versions.

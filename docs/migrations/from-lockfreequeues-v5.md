@@ -5,9 +5,9 @@ and `nim-debra`. This page covers everything a `lockfreequeues` v5
 user needs to migrate.
 
 If you are coming from `lockfreequeues` v4 or earlier, first read the
-v4 → v5 migration in the
-[v5.0.0 migration page](../migrations/v5.0.0.md), then come back here
-for the v5 → v0.1.0 (umbrella) step.
+v4 → v5 migration notes in the upstream
+[lockfreequeues v5.0.0 release on GitHub](https://github.com/elijahr/lockfreequeues/releases/tag/v5.0.0),
+then come back here for the v5 → v0.1.0 (umbrella) step.
 
 ## Package rename
 
@@ -199,6 +199,7 @@ byte-for-byte. If you see differences, file an issue against
 
 - [Migrating from nim-debra](from-nim-debra.md) — for direct
   `nim-debra` users.
-- [v4 → v5 migration](../migrations/v5.0.0.md) — for users still on v4.
+- [lockfreequeues v4 → v5 upstream release notes](https://github.com/elijahr/lockfreequeues/releases/tag/v5.0.0)
+  — for users still on v4.
 - [ManagedRef](../guide/managed-ref.md), [ManagedSlice](../guide/managed-slice.md) —
   the new payload-type stories.

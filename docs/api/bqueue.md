@@ -1,13 +1,10 @@
 # BQueue
 
-!!! warning "v5.0.0 — Static Thread-Affinity Endpoint API"
+!!! info "Coming from lockfreequeues v5?"
 
-    v5.0.0 is a hard-break release. The v4.x `Bound[T, Tag, BQueue[...]]` endpoint /
-    `Bound[T, Tag, Queue[...]]` endpoint / `attach()` / `bindConsumer()` API is REMOVED;
-    replaced by the `Unbound → Bound → Closed` endpoint lifecycle.
-    See [`docs/migrations/v5.0.0.md`](../migrations/v5.0.0.md) for the
-    full migration guide + v4.x → v5.0.0 cookbook + breaking-change
-    checklist.
+    See [From lockfreequeues v5](../migrations/from-lockfreequeues-v5.md)
+    for the package rename, import path changes, and the
+    static-thread-affinity endpoint API.
 
 
 `BQueue[T, ccProd, ccCons, N, P, C]` is the unified bounded, lock-free
@@ -142,4 +139,4 @@ the CHANGELOG `[5.0.0]` entry for details.
 - [Bounded vs Unbounded](../guide/bounded-vs-unbounded.md) — choosing
   between `BQueue` and `Queue`.
 
-::: lockfreequeues/bqueue
+::: lockfree/bqueue

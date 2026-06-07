@@ -114,15 +114,52 @@ nav:
       - Examples (legacy): guide/examples.md
   - API Reference:
     - Overview: api/index.md
+    - lockfree (umbrella): api/lockfree.md
     - Bounded Queue (BQueue): api/bqueue.md
     - Unbounded Queue (Queue): api/queue.md
+    - ManagedRef: api/managed_ref.md
+    - ManagedSlice: api/managed_slice.md
+    - Chronos: api/chronos.md
+    - atomics: api/atomics.md
+    - SMR:
+      - nebr: api/smr/nebr.md
+    - Typestates:
+      - Facade: api/typestates.md
+      - with_bound: api/typestates/with_bound.md
+      - slot_state: api/typestates/slot_state.md
+      - segment_state: api/typestates/segment_state.md
+    - Internal:
+      - slot_encoding: api/internal/slot_encoding.md
+      - path_c_admit: api/internal/path_c_admit.md
+      - path_c_wrap: api/internal/path_c_wrap.md
   - Examples:
     - Overview: examples/index.md
   - Migrations:
     - Overview: migration.md
     - From lockfreequeues v5: migrations/from-lockfreequeues-v5.md
     - From nim-debra: migrations/from-nim-debra.md
-    - v4 → v5 (legacy): migrations/v5.0.0.md
+  - Legacy:
+    - nim-debra docs (T0):
+      - Provenance: legacy/nim-debra/PROVENANCE.md
+      - Index: legacy/nim-debra/index.md
+      - API: legacy/nim-debra/api.md
+      - Safety model: legacy/nim-debra/safety-model.md
+      - Contributing: legacy/nim-debra/contributing.md
+      - Migration (v0.8.0): legacy/nim-debra/MIGRATION_v0.8.0.md
+      - Guide:
+        - Getting started: legacy/nim-debra/guide/getting-started.md
+        - Concepts: legacy/nim-debra/guide/concepts.md
+        - Atomics: legacy/nim-debra/guide/atomics.md
+        - Thread registration: legacy/nim-debra/guide/thread-registration.md
+        - Pin / unpin: legacy/nim-debra/guide/pin-unpin.md
+        - Retiring objects: legacy/nim-debra/guide/retiring-objects.md
+        - Reclamation: legacy/nim-debra/guide/reclamation.md
+        - Epoch advancement: legacy/nim-debra/guide/epoch-advancement.md
+        - Neutralization: legacy/nim-debra/guide/neutralization.md
+        - Integration: legacy/nim-debra/guide/integration.md
+      - Design:
+        - Batched retire/reclaim: legacy/nim-debra/design/2026-04-25-batched-retire-reclaim.md
+        - Custom atomics: legacy/nim-debra/design/2026-04-25-custom-atomics.md
   - Benchmarks: benchmarks.md
   - Contributing: contributing.md
 

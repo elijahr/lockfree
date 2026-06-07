@@ -1,13 +1,10 @@
 # Bounded vs Unbounded
 
-!!! warning "v5.0.0 — Static Thread-Affinity Endpoint API"
+!!! info "Coming from lockfreequeues v5?"
 
-    v5.0.0 is a hard-break release. The v4.x `Bound[T, Tag, BQueue[...]]` endpoint /
-    `Bound[T, Tag, Queue[...]]` endpoint / `attach()` / `bindConsumer()` API is REMOVED;
-    replaced by the `Unbound → Bound → Closed` endpoint lifecycle.
-    See [`docs/migrations/v5.0.0.md`](../migrations/v5.0.0.md) for the
-    full migration guide + v4.x → v5.0.0 cookbook + breaking-change
-    checklist.
+    See [From lockfreequeues v5](../migrations/from-lockfreequeues-v5.md)
+    for the package rename, import path changes, and the
+    static-thread-affinity endpoint API (`Unbound → Bound → Closed`).
 
 
 A decision guide for picking between the bounded ring-buffer queue
@@ -334,9 +331,9 @@ cell's `(seq, payload)` pair into a single DWCAS word.
   `BQueue[T, ccMulti, ccMulti, …]`. Trade-off is bounded capacity and
   caller-driven backpressure, in exchange for general T support.
 - A common middle path is unbounded MPMC of `ptr T` with caller-owned
-  or debra-owned allocation; see
-  [`docs/migrations/v5.0.0.md`](../migrations/v5.0.0.md) Phase B
-  recipes for the `ptr T` pattern.
+  or nebr-owned allocation; see
+  [From lockfreequeues v5](../migrations/from-lockfreequeues-v5.md)
+  for the `ptr T` pattern.
 
 ## Trade-offs at a glance
 

@@ -378,8 +378,14 @@ proc percentile*(h: Histogram, p: float): float =
     # Top-K rank lookup. topk sorted ascending, length topkLen.
     # Target is the (topkLen - tailCount)-th element (0-based).
     let topk = h.topK()
+    if topk.len == 0:
+      return 0.0
     let pos = float(topkLen) - tailCount
-    let lo = max(0, int(floor(pos)))
+    # Clamp `lo` to the last valid index. When `tailCount` underflows
+    # to ~0 (pc very close to 1.0 but not exactly 1.0), `pos` lands at
+    # `topkLen`, which is one past the end. Without the clamp, `topk[lo]`
+    # is an out-of-bounds read. Gemini PR feat/v0.1.0 review, 2026-06-07.
+    let lo = max(0, min(int(floor(pos)), topk.len - 1))
     let hi = min(lo + 1, topk.len - 1)
     let frac = pos - float(lo)
     return topk[lo] + frac * (topk[hi] - topk[lo])
@@ -429,8 +435,13 @@ proc percentiles*(h: Histogram, ps: openArray[float]): seq[float] =
       continue
     let tailCount = float(h.seenAll) * (1.0 - pc)
     if tailCount <= float(topkLen):
+      if topkSnap.len == 0:
+        result[i] = 0.0
+        continue
       let pos = float(topkLen) - tailCount
-      let lo = max(0, int(floor(pos)))
+      # Clamp `lo` to the last valid index — see sibling `percentile`
+      # proc for rationale (Gemini PR feat/v0.1.0 review, 2026-06-07).
+      let lo = max(0, min(int(floor(pos)), topkSnap.len - 1))
       let hi = min(lo + 1, topkSnap.len - 1)
       let frac = pos - float(lo)
       result[i] = topkSnap[lo] + frac * (topkSnap[hi] - topkSnap[lo])
