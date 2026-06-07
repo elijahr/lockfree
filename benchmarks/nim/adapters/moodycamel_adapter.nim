@@ -29,6 +29,7 @@ when defined(adapter_moodycamel_available):
     {.error: "moodycamel_adapter requires `nim cpp` (concurrentqueue.h is C++).".}
 
   import std/os
+  import std/typetraits
   import ../bench_common
   import ../adapter
 
@@ -55,6 +56,8 @@ when defined(adapter_moodycamel_available):
       ## ``mc_destroy``. Always treated as a void* on the Nim side.
 
   proc makeMoodycamelAdapter*[T](capacity: int = 0): MoodycamelAdapter[T] =
+    when not supportsCopyMem(T):
+      {.error: "MoodycamelAdapter[T] requires POD T (no =copy/=destroy hooks); the C++ queue stores raw uint64 and would bypass user hooks.".}
     ## The C++ wrapper is hardcoded to ``uint64_t`` payload, so ``T`` MUST
     ## be exactly 8 bytes. ``cast[uint64](item)`` / ``cast[T](uint64(raw))``
     ## (push/pop below) round-trip the bit pattern, but the cast is only

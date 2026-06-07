@@ -61,7 +61,11 @@ when defined(adapter_crossbeam_seg_queue_available):
     ## the underlying ``cb_seg_push`` only returns false on a null handle).
     if a.queue == nil:
       return prFull
-    discard cb_seg_push(a.queue, uint64(item))
+    # `cast[uint64](item)` (not `uint64(item)`) so non-numeric 8-byte
+    # payloads (pointers, distinct-int aliases) round-trip through the
+    # Rust u64 wire format by their bit pattern. Per gemini PR
+    # feat/v0.1.0 review, 2026-06-07.
+    discard cb_seg_push(a.queue, cast[uint64](item))
     prSuccess
 
   proc pop*[T](a: var CrossbeamSegQueueAdapter[T]): PopResult[T] =
@@ -69,7 +73,10 @@ when defined(adapter_crossbeam_seg_queue_available):
       return PopResult[T](success: false)
     var raw: uint64
     if cb_seg_pop(a.queue, addr raw):
-      PopResult[T](success: true, value: T(raw))
+      # `cast[T]` mirrors the push side so pointer payloads recover
+      # their original bit pattern. Per gemini PR feat/v0.1.0 review,
+      # 2026-06-07.
+      PopResult[T](success: true, value: cast[T](raw))
     else:
       PopResult[T](success: false)
 

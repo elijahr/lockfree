@@ -29,6 +29,7 @@ when defined(adapter_boost_lockfree_queue_available):
       error: "boost_lockfree_queue_adapter requires `nim cpp` (Boost.LockFree is C++)."
     .}
 
+  import std/typetraits
   import ../bench_common
   import ../adapter
   import lockfree/internal/aligned_alloc
@@ -81,6 +82,10 @@ when defined(adapter_boost_lockfree_queue_available):
   proc makeBoostLockfreeQueueAdapter*[T](
       capacity: int = 1024
   ): BoostLockfreeQueueAdapter[T] =
+    when not supportsCopyMem(T):
+      {.error: "BoostLockfreeQueueAdapter[T] requires POD T (no =copy/=destroy hooks); the C++ queue stores raw uint64 and would bypass user hooks.".}
+    when sizeof(T) > sizeof(uint64):
+      {.error: "BoostLockfreeQueueAdapter[T] requires sizeof(T) <= 8; the C++ cell is uint64 and larger T would truncate silently.".}
     ## ``capacity`` is the fixed node-pool size; pushes that exceed it
     ## return ``prFull``. Default 1024 mirrors other bounded adapters.
     ## Backing storage uses ``allocAligned`` (cache-line aligned, zeroed)
@@ -112,14 +117,21 @@ when defined(adapter_boost_lockfree_queue_available):
   proc push*[T](a: var BoostLockfreeQueueAdapter[T], item: T): PushResult =
     if a.queue == nil:
       return prFull
-    if bpush(a.queue[], culonglong(uint64(item))): prSuccess else: prFull
+    # `cast[uint64](item)` (not `uint64(item)`) so non-numeric 8-byte
+    # payloads (pointers, distinct-int aliases) round-trip through the
+    # C++ uint64 wire format by their bit pattern. Per gemini PR
+    # feat/v0.1.0 review, 2026-06-07.
+    if bpush(a.queue[], culonglong(cast[uint64](item))): prSuccess else: prFull
 
   proc pop*[T](a: var BoostLockfreeQueueAdapter[T]): PopResult[T] =
     if a.queue == nil:
       return PopResult[T](success: false)
     var raw: culonglong
     if bpop(a.queue[], raw):
-      PopResult[T](success: true, value: T(uint64(raw)))
+      # `cast[T]` mirrors the push side so pointer payloads recover
+      # their original bit pattern. Per gemini PR feat/v0.1.0 review,
+      # 2026-06-07.
+      PopResult[T](success: true, value: cast[T](uint64(raw)))
     else:
       PopResult[T](success: false)
 

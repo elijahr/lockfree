@@ -74,14 +74,21 @@ when defined(adapter_crossbeam_array_queue_available):
   proc push*[T](a: var CrossbeamArrayQueueAdapter[T], item: T): PushResult =
     if a.queue == nil:
       return prFull
-    if cb_array_push(a.queue, uint64(item)): prSuccess else: prFull
+    # `cast[uint64](item)` (not `uint64(item)`) so non-numeric 8-byte
+    # payloads (pointers, distinct-int aliases) round-trip through the
+    # Rust u64 wire format by their bit pattern. Per gemini PR
+    # feat/v0.1.0 review, 2026-06-07.
+    if cb_array_push(a.queue, cast[uint64](item)): prSuccess else: prFull
 
   proc pop*[T](a: var CrossbeamArrayQueueAdapter[T]): PopResult[T] =
     if a.queue == nil:
       return PopResult[T](success: false)
     var raw: uint64
     if cb_array_pop(a.queue, addr raw):
-      PopResult[T](success: true, value: T(raw))
+      # `cast[T]` mirrors the push side so pointer payloads recover
+      # their original bit pattern. Per gemini PR feat/v0.1.0 review,
+      # 2026-06-07.
+      PopResult[T](success: true, value: cast[T](raw))
     else:
       PopResult[T](success: false)
 
