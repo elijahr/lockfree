@@ -1,8 +1,8 @@
 import std/[unittest, atomics, options, sysatomics]
-import lockfreequeues/bqueue
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
-import lockfreequeues/spawn
+import lockfree/bqueue
+import lockfree/endpoint
+import lockfree/role_tags
+import lockfree/spawn
 
 # Module-scope worker declarations (REQUIRED — see spawn.nim header):
 defineProducerWorker(TenItemProducer, BQueue[int, ccMulti, ccMulti, 64, 4, 4]):

@@ -7,7 +7,7 @@
 ##   initMpsc[N, P, T]() -> newBQueue[T, ccMulti, ccSingle, ##                                       N, P, 0]()
 ##
 ## NOTE: the queue variable is named `q` (not `queue`) to avoid the
-## name-collision with the imported `lockfreequeues/queue` module.
+## name-collision with the imported `lockfree/queue` module.
 ## Test count parity: 28 tests (matches t_mpsc.nim).
 ##
 ## 7, 5, 6.1.
@@ -15,13 +15,13 @@
 import options
 import unittest2
 
-import lockfreequeues
-import lockfreequeues/bqueue as q_mod
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree
+import lockfree/bqueue as q_mod
+import lockfree/strategy
+import lockfree/reclamation
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 import ./t_integration
 import ./t_mup
 import ./t_sic

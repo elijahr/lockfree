@@ -11,9 +11,9 @@ discard """
 
 {.experimental: "strictEffects".}
 
-import lockfreequeues/bqueue
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/bqueue
+import lockfree/endpoint
+import lockfree/role_tags
 
 proc pureRegion(
     b: var Bound[int, SpscProducerTag, BQueue[int, ccMulti, ccSingle, 64, 4, 0]]

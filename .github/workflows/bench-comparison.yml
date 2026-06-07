@@ -106,7 +106,7 @@ jobs:
           # Mirrors build.yml / bench.yml: include the nimble manifest +
           # lockfile in the key so a dep bump invalidates the cache
           # instead of silently reusing a stale entry.
-          key: cache-bench-comparison-${{ runner.os }}-${{ hashFiles('lockfreequeues.nimble', 'nimble.lock') }}
+          key: cache-bench-comparison-${{ runner.os }}-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
 
       - name: Setup Nim
         uses: jiro4989/setup-nim-action@v2
@@ -119,7 +119,7 @@ jobs:
           sudo apt-get -qq install -y clang
 
       - name: Install dependencies from nimble registry
-        # Uses lockfreequeues.nimble `requires` + nimble.lock SHAs
+        # Uses lockfree.nimble `requires` + nimble.lock SHAs
         # for deterministic dep resolution from registry/git.
         run: |
           nimble install -dy

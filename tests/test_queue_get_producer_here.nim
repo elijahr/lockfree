@@ -1,7 +1,7 @@
 import std/[unittest, options]
-import lockfreequeues/queue
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/queue
+import lockfree/endpoint
+import lockfree/role_tags
 
 suite "getProducerHere / getConsumerHere / bindConsumer (Queue)":
   test "SPSC unbounded: shortcuts work":

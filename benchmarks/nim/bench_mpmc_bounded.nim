@@ -9,15 +9,15 @@
 ## was byte-for-byte identical to the legacy Spmc pop.
 ##
 ## This binary covers the Mpmc + Queue-bounded-mpmc families plus
-## the non-lockfreequeues comparison adapters whose slug shape matches
+## the non-lockfree comparison adapters whose slug shape matches
 ## the Mpmc grid:
 ##
-##   - Mpmc (lockfreequeues, multi-producer + multi-consumer): the
+##   - Mpmc (lockfree, multi-producer + multi-consumer): the
 ##     full {1,2,4}p x {1,2,4}c grid PLUS the 8p8c oversubscription
 ##     case (issue #15 livelock regression coverage).
 ##   - Queue (ccMulti x ccMulti, stEager, rkNone) parity: same shape
 ##     set as Mpmc; slug
-##     `lockfreequeues_queue_bounded_mpmc/mpmc/<P>p<C>c`.
+##     `lockfree_queue_bounded_mpmc/mpmc/<P>p<C>c`.
 ##   - nim_channels (Nim system Channel, MPMC): shapes
 ##     `{1,2,4}p x {1,2,4}c`.
 ##   - MVP comparison adapters (Boost.LockFree, Crossbeam ArrayQueue,
@@ -40,8 +40,8 @@
 import std/[monotimes, options, os, parseopt, sets, strformat, syncio, times]
 import ./bench_common
 import ./adapters/channels_adapter
-import lockfreequeues/backoff
-# The legacy `lockfreequeues/mpmc` module has been deleted; the "mpmc"
+import lockfree/backoff
+# The legacy `lockfree/mpmc` module has been deleted; the "mpmc"
 # variant below now drives the unified
 # `BQueue[T, ccMulti, ccMulti, N, P, C]` generic
 # via the smart-constructor `newMpmcQueue` / `initQueue`. The legacy
@@ -49,11 +49,11 @@ import lockfreequeues/backoff
 # parity variant below uses the same underlying generic at the same
 # Queue instantiation (semantically redundant post-deletion but kept so
 # the historical slug set remains stable for downstream consumers).
-import lockfreequeues/bqueue as q_mod
-import lockfreequeues/strategy
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/bqueue as q_mod
+import lockfree/strategy
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 
 # Comparison adapters, gated by per-library defines.
 when defined(adapter_boost_lockfree_queue_available):
@@ -190,7 +190,7 @@ proc runOneMpmcRun[N, P, C: static int, T](
 proc runMpmcShape[N, P, C: static int, T](
     em: var BMFEmitter, runs, warmup, messageCount: int
 ) =
-  let slug = "lockfreequeues_mpmc/mpmc/" & $P & "p" & $C & "c"
+  let slug = "lockfree_mpmc/mpmc/" & $P & "p" & $C & "c"
   echo fmt"Mpmc {P}p{C}c ({slug}):"
   for _ in 0 ..< warmup:
     var q = q_mod.newBQueue[T, ccMulti, ccMulti, N, P, C]()
@@ -209,7 +209,7 @@ proc runMpmcShape[N, P, C: static int, T](
 
 # ---------- BQueue ccMulti x ccMulti harness ----------
 #
-# Slug `lockfreequeues_queue_bounded_mpmc/mpmc/<P>p<C>c`. Output
+# Slug `lockfree_queue_bounded_mpmc/mpmc/<P>p<C>c`. Output
 # metric / units (throughput_ops_ms) match the legacy Mpmc baseline.
 
 type
@@ -284,7 +284,7 @@ proc runOneQBoundedMpmcRun[N, P, C: static int, T](
 proc runQBoundedMpmcShape[N, P, C: static int, T](
     em: var BMFEmitter, runs, warmup, messageCount: int
 ) =
-  let slug = "lockfreequeues_queue_bounded_mpmc/mpmc/" & $P & "p" & $C & "c"
+  let slug = "lockfree_queue_bounded_mpmc/mpmc/" & $P & "p" & $C & "c"
   echo fmt"QueueBoundedMpmc {P}p{C}c ({slug}):"
   for _ in 0 ..< warmup:
     var q = q_mod.newBQueue[T, ccMulti, ccMulti, N, P, C]()
@@ -333,7 +333,7 @@ proc runChannelsShape(em: var BMFEmitter, p, c: int, runs, warmup, messageCount:
 #
 # Both MVP adapters expose push/pop directly so they go through
 # runThroughputHarness; the {1,2,4}p x {1,2,4}c grid keeps shape parity
-# with the lockfreequeues mpmc baseline (≥ 9 shapes per design 2.4).
+# with the lockfree mpmc baseline (≥ 9 shapes per design 2.4).
 
 when defined(adapter_boost_lockfree_queue_available):
   proc initBoostMpmcQ(capacity: int): BoostLockfreeQueueAdapter[uint64] =

@@ -16,14 +16,14 @@
 
 import std/[monotimes, options, os, parseopt, sets, strformat, syncio, times]
 import ./bench_common
-import lockfreequeues/backoff
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
-from debra import DebraManager, initDebraManager
+import lockfree/backoff
+import lockfree/queue
+import lockfree/strategy
+import lockfree/reclamation
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
+from lockfree/smr/nebr import DebraManager, initDebraManager
 
 const
   UnboundedSpmcRuns* {.intdefine.} = 3
@@ -50,7 +50,7 @@ type
 
   USpmcConsumerCtx[S: static int, T; MaxT: static int] = object
     queue: ptr USpmcQueueT[S, T, MaxT]
-    manager: ptr DebraManager[MaxT, debra.ccMulti]
+    manager: ptr DebraManager[MaxT, nebr.ccMulti]
     count: int
     id: int
       ## Stable thread index used by -d:benchProgress logging so a hang
@@ -97,7 +97,7 @@ proc uspmcConsumerThread[S: static int, T; MaxT: static int](
 
 proc runOneUSpmcRun[S: static int, T; MaxT: static int, C: static int](
     queue: ptr USpmcQueueT[S, T, MaxT],
-    manager: ptr DebraManager[MaxT, debra.ccMulti],
+    manager: ptr DebraManager[MaxT, nebr.ccMulti],
     messageCount: int,
 ): float =
   let baseC = messageCount div C
@@ -125,15 +125,15 @@ proc runOneUSpmcRun[S: static int, T; MaxT: static int, C: static int](
   result = float(messageCount) * 1_000_000.0 / elapsedNs
 
 proc runUSpmcShape[C: static int](em: var BMFEmitter, runs, warmup, messageCount: int) =
-  let slug = "lockfreequeues_unbounded_spmc/mpmc_unbounded/1p" & $C & "c"
+  let slug = "lockfree_unbounded_spmc/mpmc_unbounded/1p" & $C & "c"
   echo fmt"UnboundedSpmc 1p{C}c ({slug}):"
   when defined(benchProgress):
     benchShape = "1p" & $C & "c"
     flushFile(stdout)
   for _ in 0 ..< warmup:
-    var manager = create(DebraManager[MaxThreads, debra.ccMulti])
+    var manager = create(DebraManager[MaxThreads, nebr.ccMulti])
     wasMoved(manager[])
-    manager[] = initDebraManager[MaxThreads, debra.ccMulti]()
+    manager[] = initDebraManager[MaxThreads, nebr.ccMulti]()
     var q = newUnboundedSpmcQueue[uint64, stEager, SegmentSize, MaxThreads](manager)
     discard
       runOneUSpmcRun[SegmentSize, uint64, MaxThreads, C](addr q, manager, messageCount)
@@ -142,9 +142,9 @@ proc runUSpmcShape[C: static int](em: var BMFEmitter, runs, warmup, messageCount
     dealloc(manager)
   var samples: seq[float] = @[]
   for _ in 0 ..< runs:
-    var manager = create(DebraManager[MaxThreads, debra.ccMulti])
+    var manager = create(DebraManager[MaxThreads, nebr.ccMulti])
     wasMoved(manager[])
-    manager[] = initDebraManager[MaxThreads, debra.ccMulti]()
+    manager[] = initDebraManager[MaxThreads, nebr.ccMulti]()
     var q = newUnboundedSpmcQueue[uint64, stEager, SegmentSize, MaxThreads](manager)
     samples.add(
       runOneUSpmcRun[SegmentSize, uint64, MaxThreads, C](addr q, manager, messageCount)

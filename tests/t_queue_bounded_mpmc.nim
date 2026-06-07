@@ -9,19 +9,19 @@
 ## Test count parity: 28 tests (matches t_mpmc.nim).
 ## 7, 5, 6.1.
 
-import debra/atomics
-import debra/atomics/dsl
+import lockfree/atomics
+import lockfree/atomics/dsl
 import options
 import sequtils
 import unittest2
 
-import lockfreequeues
-import lockfreequeues/bqueue as q_mod
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree
+import lockfree/bqueue as q_mod
+import lockfree/strategy
+import lockfree/reclamation
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 import ./t_integration
 import ./t_muc
 import ./t_mup

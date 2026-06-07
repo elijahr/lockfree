@@ -1,7 +1,7 @@
 import std/unittest
-import lockfreequeues/bqueue
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/bqueue
+import lockfree/endpoint
+import lockfree/role_tags
 
 suite "bqueue endpoint compile":
   test "getProducer returns Unbound":

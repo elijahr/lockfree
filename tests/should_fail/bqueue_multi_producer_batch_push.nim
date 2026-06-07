@@ -4,7 +4,7 @@
 ## at `BQueue.getProducer().push(items)`.
 
 import std/options
-import lockfreequeues/bqueue
+import lockfree/bqueue
 
 proc main() =
   var q = newMpmcQueue[int, 8, 4, 4]()

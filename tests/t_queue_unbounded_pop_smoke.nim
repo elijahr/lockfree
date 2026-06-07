@@ -16,7 +16,7 @@
 ##   - §3.5.6 Pin-Claim Ordering: multi-consumer + mpsc-equiv
 ##     variants exercise the `pinScope(unpinned(self.handle))` path.
 ##     The visual-review guarantee that pin is acquired BEFORE the
-##     segment-pointer load is encoded in `src/lockfreequeues/queue.nim`'s
+##     segment-pointer load is encoded in `src/lockfree/queue.nim`'s
 ##     pop body (see the §3.5.6 comment block above each `block:`
 ##     scope in the rkEbr pop body section).
 ##   - Bounded-asymmetry guard (γ): bounded `Queue[..., rkNone, ...]`
@@ -28,12 +28,12 @@
 import unittest2
 import std/options
 
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/queue
+import lockfree/strategy
+import lockfree/reclamation
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 
 suite "rkEbr pop smoke — spsc-equiv (ccSingle × ccSingle)":
   ## §3.0.3: UnboundedSpsc is the canonical SPSC unbounded type;

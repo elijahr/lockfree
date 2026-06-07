@@ -23,14 +23,14 @@
 
 import std/[atomics, monotimes, options, os, parseopt, sets, strformat, syncio, times]
 import ./bench_common
-import lockfreequeues/backoff
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
-from debra import DebraManager, initDebraManager
+import lockfree/backoff
+import lockfree/queue
+import lockfree/strategy
+import lockfree/reclamation
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
+from lockfree/smr/nebr import DebraManager, initDebraManager
 
 # Comparison adapters. Loony, Crossbeam SegQueue, MoodyCamel are
 # unbounded MPMC; all go through runThroughputHarness over the
@@ -73,14 +73,14 @@ type
 
   UMpmcProducerCtx[S: static int, T; MaxT: static int] = object
     queue: ptr UMpmcQueueT[S, T, MaxT]
-    manager: ptr DebraManager[MaxT, debra.ccMulti]
+    manager: ptr DebraManager[MaxT, nebr.ccMulti]
     startIdx: int
     count: int
     id: int ## Stable producer index used by -d:benchProgress logging.
 
   UMpmcConsumerCtx[S: static int, T; MaxT: static int] = object
     queue: ptr UMpmcQueueT[S, T, MaxT]
-    manager: ptr DebraManager[MaxT, debra.ccMulti]
+    manager: ptr DebraManager[MaxT, nebr.ccMulti]
     count: int
     id: int ## Stable consumer index used by -d:benchProgress logging.
 
@@ -136,7 +136,7 @@ proc umpmcConsumerThread[S: static int, T; MaxT: static int](
 
 proc runOneUMpmcRun[S: static int, T; MaxT: static int, P: static int, C: static int](
     queue: ptr UMpmcQueueT[S, T, MaxT],
-    manager: ptr DebraManager[MaxT, debra.ccMulti],
+    manager: ptr DebraManager[MaxT, nebr.ccMulti],
     messageCount: int,
 ): float =
   let baseP = messageCount div P
@@ -179,15 +179,15 @@ proc runOneUMpmcRun[S: static int, T; MaxT: static int, P: static int, C: static
 proc runUMpmcShape[P: static int, C: static int](
     em: var BMFEmitter, runs, warmup, messageCount: int
 ) =
-  let slug = "lockfreequeues_unbounded_mpmc/mpmc_unbounded/" & $P & "p" & $C & "c"
+  let slug = "lockfree_unbounded_mpmc/mpmc_unbounded/" & $P & "p" & $C & "c"
   echo fmt"UnboundedMpmc {P}p{C}c ({slug}):"
   when defined(benchProgress):
     benchShape = $P & "p" & $C & "c"
     flushFile(stdout)
   for _ in 0 ..< warmup:
-    var manager = create(DebraManager[MaxThreads, debra.ccMulti])
+    var manager = create(DebraManager[MaxThreads, nebr.ccMulti])
     wasMoved(manager[])
-    manager[] = initDebraManager[MaxThreads, debra.ccMulti]()
+    manager[] = initDebraManager[MaxThreads, nebr.ccMulti]()
     var q = newUnboundedMpmcQueue[uint64, stEager, SegmentSize, MaxThreads](manager)
     discard runOneUMpmcRun[SegmentSize, uint64, MaxThreads, P, C](
       addr q, manager, messageCount
@@ -197,9 +197,9 @@ proc runUMpmcShape[P: static int, C: static int](
     dealloc(manager)
   var samples: seq[float] = @[]
   for _ in 0 ..< runs:
-    var manager = create(DebraManager[MaxThreads, debra.ccMulti])
+    var manager = create(DebraManager[MaxThreads, nebr.ccMulti])
     wasMoved(manager[])
-    manager[] = initDebraManager[MaxThreads, debra.ccMulti]()
+    manager[] = initDebraManager[MaxThreads, nebr.ccMulti]()
     var q = newUnboundedMpmcQueue[uint64, stEager, SegmentSize, MaxThreads](manager)
     samples.add(
       runOneUMpmcRun[SegmentSize, uint64, MaxThreads, P, C](

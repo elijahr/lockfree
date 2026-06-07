@@ -1,8 +1,8 @@
 discard """
   errormsg: "undeclared field: 'push'"
 """
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/endpoint
+import lockfree/role_tags
 
 type DummyQueue = object
 

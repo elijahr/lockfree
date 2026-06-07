@@ -9,9 +9,9 @@
 ## `ccCons == ccMulti` Queue, so the same `{.error.}` overload fires.
 
 import std/options
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/internal/pinscope_stub
+import lockfree/queue
+import lockfree/strategy
+import lockfree/internal/pinscope_stub
 
 proc main() =
   # Auto-create overload: ccCons=ccMulti unbounded Queue.

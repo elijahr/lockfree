@@ -1,8 +1,8 @@
 import unittest2
-import debra/atomics
-import debra/atomics/dsl
-import lockfreequeues/typestates
-import lockfreequeues/typestates/cas
+import lockfree/atomics
+import lockfree/atomics/dsl
+import lockfree/typestates
+import lockfree/typestates/cas
 
 suite "CAS Typestate":
   test "prepareCAS creates CASPending":

@@ -4,16 +4,16 @@
 ## continue to exercise the spsc surface through the absorbed Queue
 ## via `newUnboundedSpscQueue`.
 
-import debra/atomics
-import debra/atomics/dsl
+import lockfree/atomics
+import lockfree/atomics/dsl
 import options
 import unittest2
 
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/queue
+import lockfree/strategy
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 
 const MT = 4 ## Type-uniform MaxThreads phantom for the spsc-absorbed branch.
 

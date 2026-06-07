@@ -6,9 +6,9 @@
 ## into `Queue[T, ccSingle, ccSingle, stEager, S, MaxThreads]`. The
 ## ref-type guard now triggers on push, not on construction.
 
-import ../src/lockfreequeues/queue
-import ../src/lockfreequeues/strategy
-import ../src/lockfreequeues/internal/pinscope_stub
+import ../src/lockfree/queue
+import ../src/lockfree/strategy
+import ../src/lockfree/internal/pinscope_stub
 
 type Node = ref object
   value: int

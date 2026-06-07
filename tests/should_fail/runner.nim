@@ -1,4 +1,4 @@
-## Driver for lockfreequeues' compile-fail test suite.
+## Driver for lockfree' compile-fail test suite.
 ##
 ## Each entry asserts (a) the expected exit status from `nim c` (zero
 ## for positive cases, non-zero for negative cases) and (b) that the
@@ -11,7 +11,7 @@
 ## that drops the γ bounded-asymmetry guard, or a Strategy/cardinality
 ## phantom-param tightening that silently widens lookup.
 ##
-## Ported from nim-debra 0.8.0's `tests/should_fail/runner.nim`
+## Ported from nebr 0.8.0's `tests/should_fail/runner.nim`
 ## with a project-specific case table covering the
 ## 5 conditions enumerated in :
 ##   1. Consumer ST=stManual vs Queue ST=stEager (Strategy phantom).
@@ -200,6 +200,36 @@ const cases = @[
     # either way.
     substring: "Pair half-type",
   ),
+  # T-MANAGED-SLICE R7 case (#22) REMOVED 2026-06-06: alongside the
+  # §2.5 rows 18-19 ACCEPT directive, the wrap[U] supportsCopyMem guard
+  # in managed_slice.nim was dropped — the box-pattern transport handles
+  # inner-element lifecycle via the compiler-emitted seq =destroy. The
+  # negative compile-fail no longer applies.
+  # T-TEST-COMPOSITION §2.5 REJECT rows. The Path-C admission gate
+  # (src/lockfree/internal/path_c_admit.nim) emits verbatim `{.error.}`
+  # messages for rows 7 (distinct ref alias) and 8 (nested ref). The
+  # admit template expands inside `push`, so each test must actually
+  # invoke push to materialise the static-dispatch chain.
+  Case(
+    name:
+      "t_path_c_matrix §2.5 row 7 (case #23) — distinct ref alias rejected by path_c_admit",
+    file: "tests/composition/should_fail/t_path_c_reject_distinct_ref.nim",
+    outcome: eoCompileFails,
+    substring: "distinct ref alias",
+  ),
+  Case(
+    name:
+      "t_path_c_matrix §2.5 row 8 (case #24) — nested `ref ref X` rejected by path_c_admit",
+    file: "tests/composition/should_fail/t_path_c_reject_nested_ref.nim",
+    outcome: eoCompileFails,
+    substring: "nested ref",
+  ),
+  # T-TEST-COMPOSITION rows 18-19 cases (#25, #26) REMOVED 2026-06-06:
+  # design §2.5 marks these ACCEPT, and the operator confirmed the
+  # box-pattern transport handles inner-element lifecycle correctly
+  # via Nim's compiler-emitted seq =destroy. Positive coverage now
+  # lives in tests/composition/t_path_c_matrix.nim (rows 18, 19, and
+  # the refcount-balanced lifecycle test).
 ]
 
 proc runCase(c: Case): bool =

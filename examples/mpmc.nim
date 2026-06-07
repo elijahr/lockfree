@@ -13,9 +13,9 @@
 import options
 import random
 
-import lockfreequeues
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree
+import lockfree/endpoint
+import lockfree/role_tags
 
 var
   # Queue that can hold 8 ints at a time,

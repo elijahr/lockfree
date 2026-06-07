@@ -1,6 +1,6 @@
 import unittest2
-import lockfreequeues/typestates/virtual_values_n
-import lockfreequeues/typestates/storage_n
+import lockfree/typestates/virtual_values_n
+import lockfree/typestates/storage_n
 
 suite "StorageN[N, T]":
   test "init sets all slots to default":

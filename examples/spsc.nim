@@ -11,7 +11,7 @@
 import options
 import random
 
-import lockfreequeues
+import lockfree
 
 var
   # Queue that can hold 8 ints at a time

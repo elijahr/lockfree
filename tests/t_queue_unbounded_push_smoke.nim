@@ -11,7 +11,7 @@
 ##   - §3.5.6 Pin-Claim Ordering: multi-producer variants exercise the
 ##     `pinScope(unpinned(self.handle))` path. The visual-review
 ##     guarantee that the pin is acquired BEFORE the segment-pointer
-##     load is encoded in `src/lockfreequeues/queue.nim`'s push body
+##     load is encoded in `src/lockfree/queue.nim`'s push body
 ##     (see the §3.5.6 comment block above the `block:` scope in the
 ##     ccProd == ccMulti branch).
 ##
@@ -25,12 +25,12 @@
 
 import unittest2
 
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/queue
+import lockfree/strategy
+import lockfree/reclamation
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 
 suite "rkEbr push smoke — spsc-equiv (ccSingle × ccSingle)":
   test "single item push increments len":

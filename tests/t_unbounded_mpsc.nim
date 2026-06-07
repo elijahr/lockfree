@@ -1,12 +1,12 @@
-import debra/atomics
-import debra/atomics/dsl
+import lockfree/atomics
+import lockfree/atomics/dsl
 import options
 import unittest2
 
-import debra
-import lockfreequeues
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/smr/nebr
+import lockfree
+import lockfree/endpoint
+import lockfree/role_tags
 
 suite "UnboundedMpsc":
   test "newUnboundedMpscQueue creates valid instance":

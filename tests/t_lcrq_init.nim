@@ -26,12 +26,12 @@
 
 import std/unittest
 
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/internal/pinscope_stub
-import debra as debra_mod
-from debra import DebraManager, initDebraManager
-from debra/atomics import load, moRelaxed, Pair
+import lockfree/queue
+import lockfree/strategy
+import lockfree/internal/pinscope_stub
+import lockfree/smr/nebr as debra_mod
+from lockfree/smr/nebr import DebraManager, initDebraManager
+from lockfree/atomics import load, moRelaxed, Pair
 
 suite "T4: MPMC newSegment cell-init contract (design §2.5.1)":
   test "T4.I1: every cell of a fresh MPMC segment is (seq=0, default(T)=0) for T=int":

@@ -12,15 +12,15 @@
 import options
 import unittest2
 
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/queue
+import lockfree/strategy
+import lockfree/reclamation
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 
-import debra as debra_mod
-from debra import DebraManager, initDebraManager, registerThread
+import lockfree/smr/nebr as debra_mod
+from lockfree/smr/nebr import DebraManager, initDebraManager, registerThread
 
 suite "Unbounded auto-create (Mpmc)":
   test "auto-create: push/pop round-trip and scope-exit teardown":

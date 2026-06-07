@@ -1,5 +1,5 @@
 import unittest2
-import ../adapters/lockfreequeues_mpmc_adapter
+import ../adapters/lockfree_mpmc_adapter
 import ../adapter
 
 suite "MpmcAdapter":
@@ -34,4 +34,4 @@ suite "MpmcAdapter":
     var q = initMpmcAdapter[16, int]()
     defer:
       q.deinitMpmcAdapter()
-    check q.name == "lockfreequeues/Mpmc[16]"
+    check q.name == "lockfree/Mpmc[16]"

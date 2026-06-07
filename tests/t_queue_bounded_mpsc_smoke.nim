@@ -7,12 +7,12 @@
 import options
 import unittest2
 
-import lockfreequeues/bqueue
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/bqueue
+import lockfree/strategy
+import lockfree/reclamation
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 
 suite "bounded mpsc-equiv push/pop smoke":
   test "push then pop returns the same value":

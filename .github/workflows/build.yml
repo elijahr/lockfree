@@ -106,10 +106,10 @@ jobs:
         with:
           path: ${HOME}/.cache
           # Include the nimble manifest + lockfile in the cache key so a
-          # dep bump (lockfreequeues.nimble) or a lockfile resolution
+          # dep bump (lockfree.nimble) or a lockfile resolution
           # (nimble.lock) invalidates the cache instead of silently
           # reusing a stale entry built against the previous resolution.
-          key: cache-${{ matrix.runs-on }}-${{ matrix.nim-version }}-${{ hashFiles('lockfreequeues.nimble', 'nimble.lock') }}
+          key: cache-${{ matrix.runs-on }}-${{ matrix.nim-version }}-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
 
       - name: Checkout project
         uses: actions/checkout@v4
@@ -126,7 +126,7 @@ jobs:
           sudo apt-get -qq install -y clang
 
       - name: Install dependencies from nimble registry
-        # Uses lockfreequeues.nimble `requires` lines (typestates >= 0.12.0,
+        # Uses lockfree.nimble `requires` lines (typestates >= 0.12.0,
         # debra >= 0.9.0, unittest2, nim >= 2.2.10) plus the pinned SHAs in
         # nimble.lock for deterministic resolution. `nimble install -dy`
         # fetches every dep without building the package itself; the

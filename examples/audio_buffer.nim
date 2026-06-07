@@ -13,13 +13,13 @@
 ## - Glitches from GC pauses or allocation are unacceptable
 ## - Sample rate is fixed and known
 
-import debra/atomics
-import debra/atomics/dsl
+import lockfree/atomics
+import lockfree/atomics/dsl
 import math
 import os
 import options
 
-import lockfreequeues
+import lockfree
 
 const
   SampleRate = 44100

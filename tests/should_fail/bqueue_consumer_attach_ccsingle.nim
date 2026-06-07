@@ -5,7 +5,7 @@
 ## A ccSingle consumer has no overload and the diagnostic must
 ## reference the user-visible `BQueueConsumer` alias.
 
-import lockfreequeues/bqueue
+import lockfree/bqueue
 
 proc main() =
   var q = newSpscQueue[int, 8]()

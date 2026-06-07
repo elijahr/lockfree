@@ -1,11 +1,11 @@
-import debra/atomics
-import debra/atomics/dsl
+import lockfree/atomics
+import lockfree/atomics/dsl
 import options
 import unittest2
 
-import lockfreequeues
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree
+import lockfree/endpoint
+import lockfree/role_tags
 
 const ItemCount = 10000
 

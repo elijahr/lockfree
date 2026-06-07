@@ -18,13 +18,13 @@
 
 import std/unittest
 
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/endpoint
-import lockfreequeues/internal/pinscope_stub
-import debra as debra_mod
-from debra import DebraManager, initDebraManager
-from debra/atomics import load, moRelaxed, Pair
+import lockfree/queue
+import lockfree/strategy
+import lockfree/endpoint
+import lockfree/internal/pinscope_stub
+import lockfree/smr/nebr as debra_mod
+from lockfree/smr/nebr import DebraManager, initDebraManager
+from lockfree/atomics import load, moRelaxed, Pair
 
 suite "T5: MPMC producer publish writes to LCRQ cell (design §2.5.1, §4)":
   test "T5.P1: single push transitions cell[0] from (0, 0) to (1, 42) for T=int":

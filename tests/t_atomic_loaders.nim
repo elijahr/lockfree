@@ -1,9 +1,9 @@
 import unittest2
-import debra/atomics
-import debra/atomics/dsl
-import lockfreequeues/typestates/virtual_values_n
-import lockfreequeues/typestates/virtual_values_n1
-import lockfreequeues/typestates/atomic_loaders
+import lockfree/atomics
+import lockfree/atomics/dsl
+import lockfree/typestates/virtual_values_n
+import lockfree/typestates/virtual_values_n1
+import lockfree/typestates/atomic_loaders
 
 suite "Atomic loaders for N-slot":
   test "loadAcquireN returns RawLoadedN":

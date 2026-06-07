@@ -20,19 +20,19 @@
 import std/options
 import unittest2
 
-import lockfreequeues/bqueue
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/bqueue
+import lockfree/queue
+import lockfree/strategy
+import lockfree/reclamation
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 
-# nim-debra surface for the manager-borrow smart-constructor tests.
+# nebr surface for the manager-borrow smart-constructor tests.
 # Selective `from ... import` matches the queue.nim convention and
-# keeps `debra.ccSingle` / `debra.ccMulti` qualified-only, avoiding the
+# keeps `nebr.ccSingle` / `nebr.ccMulti` qualified-only, avoiding the
 # unqualified `PinScopeCardinality` collision with the stub.
-from debra import DebraManager, initDebraManager, registerThread
+from lockfree/smr/nebr import DebraManager, initDebraManager, registerThread
 
 suite "bounded smart-constructors (RK = rkNone)":
   test "newSpscQueue: construct + push/pop round-trip":
@@ -100,7 +100,7 @@ suite "unbounded smart-constructors — newUnboundedMpscQueue":
     check lfqConsumer.pop().isNone
 
   test "borrow: construct + push + pop (manager owned externally)":
-    var mgr = initDebraManager[4, debra.ccSingle]()
+    var mgr = initDebraManager[4, nebr.ccSingle]()
     block:
       var q = newUnboundedMpscQueue[int, stEager, 8, 4](addr mgr)
       var p = q.getProducerHere()
@@ -126,7 +126,7 @@ suite "unbounded smart-constructors — newUnboundedSpmcQueue":
     check c.pop().isNone
 
   test "borrow: construct + push + pop (manager owned externally)":
-    var mgr = initDebraManager[4, debra.ccMulti]()
+    var mgr = initDebraManager[4, nebr.ccMulti]()
     block:
       var q = newUnboundedSpmcQueue[int, stEager, 8, 4](addr mgr)
       var p = q.getProducerHere()
@@ -150,7 +150,7 @@ suite "unbounded smart-constructors — newUnboundedMpmcQueue":
     check c.pop().isNone
 
   test "borrow: construct + push + pop (manager owned externally)":
-    var mgr = initDebraManager[4, debra.ccMulti]()
+    var mgr = initDebraManager[4, nebr.ccMulti]()
     block:
       var q = newUnboundedMpmcQueue[int, stEager, 8, 4](addr mgr)
       var p = q.getProducerHere()

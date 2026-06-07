@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>elijahr/lockfree — Release Strategy Decision Wizard</title>
+<style>
+  :root {
+    --bg: #1a1a1d;
+    --bg-card: #212126;
+    --bg-code: #0f0f12;
+    --bg-row-alt: #1f1f23;
+    --bg-row-head: #2a2a30;
+    --fg: #e8e8ea;
+    --fg-muted: #a1a1aa;
+    --accent: #a78bfa;
+    --accent-soft: #c4b5fd;
+    --border: #2e2e33;
+    --good: #86efac;
+    --warn: #fcd34d;
+    --bad: #fca5a5;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+    font-size: 16px;
+  }
+  main {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2.5rem 1.5rem 4rem;
+  }
+  header { margin-bottom: 2rem; }
+  h1 {
+    color: var(--accent);
+    font-size: 2.2rem;
+    font-weight: 600;
+    margin: 0 0 0.4rem;
+    letter-spacing: -0.01em;
+  }
+  .subtitle {
+    color: var(--fg-muted);
+    font-size: 1.05rem;
+    margin: 0 0 0.3rem;
+  }
+  .date {
+    font-style: italic;
+    color: var(--fg-muted);
+    font-size: 0.9rem;
+  }
+  h2 {
+    color: var(--fg);
+    font-size: 1.5rem;
+    font-weight: 500;
+    margin: 2.5rem 0 1rem;
+    padding-bottom: 0.4rem;
+    border-bottom: 1px solid var(--border);
+  }
+  h3 {
+    color: var(--accent-soft);
+    font-size: 1.1rem;
+    font-weight: 500;
+    margin: 0 0 0.6rem;
+  }
+  p { max-width: 75ch; }
+  code, .mono {
+    font-family: Menlo, Monaco, "SF Mono", monospace;
+    background: var(--bg-code);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-size: 0.92em;
+  }
+  ul { padding-left: 1.2rem; margin: 0.4rem 0; }
+  li { margin: 0.2rem 0; }
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 380px;
+    gap: 1.5rem;
+    align-items: start;
+  }
+  @media (max-width: 900px) {
+    .layout { grid-template-columns: 1fr; }
+    .right-col { position: static !important; }
+  }
+  .right-col {
+    position: sticky;
+    top: 1rem;
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.2rem;
+    margin-bottom: 1rem;
+    transition: box-shadow 0.15s ease;
+  }
+  .card.selected {
+    box-shadow: 0 0 0 2px var(--accent);
+  }
+  .grid-4 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+  }
+  .grid-3 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1rem;
+  }
+  .grid-2 {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 1rem;
+  }
+  .big-letter {
+    font-size: 2rem;
+    font-weight: 600;
+    color: var(--accent);
+    margin-right: 0.6rem;
+    line-height: 1;
+  }
+  .card-head {
+    display: flex;
+    align-items: baseline;
+    margin-bottom: 0.6rem;
+  }
+  .card-head h3 { margin: 0; }
+  .meta-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-top: 0.8rem;
+  }
+  .tag {
+    background: var(--bg-row-head);
+    padding: 2px 10px;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    color: var(--fg-muted);
+  }
+  .tag .v { font-weight: 500; }
+  .v-good { color: var(--good); }
+  .v-warn { color: var(--warn); }
+  .v-bad { color: var(--bad); }
+  .sublabel {
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 0.75rem;
+    color: var(--fg-muted);
+    margin: 0.8rem 0 0.2rem;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+  }
+  th, td {
+    border: 1px solid var(--border);
+    padding: 0.6rem 0.7rem;
+    text-align: left;
+    vertical-align: top;
+  }
+  thead th {
+    background: var(--bg-row-head);
+    font-weight: 500;
+    color: var(--fg);
+  }
+  tbody tr:nth-child(even) { background: var(--bg-row-alt); }
+  .stars { color: var(--warn); letter-spacing: 0.1em; white-space: nowrap; }
+  .recommended {
+    border-left: 3px solid var(--accent);
+  }
+  .recommended-banner {
+    display: inline-block;
+    background: var(--accent);
+    color: #1a1a1d;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin-left: 0.5rem;
+    vertical-align: middle;
+  }
+  .checklist {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 1rem 1.4rem;
+    margin-top: 1rem;
+  }
+  .checklist li { margin: 0.35rem 0; }
+
+  fieldset {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.9rem;
+    margin: 0 0 1rem;
+    background: var(--bg-card);
+  }
+  legend {
+    color: var(--accent-soft);
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 0 0.4rem;
+  }
+  fieldset label {
+    display: flex;
+    gap: 0.5rem;
+    padding: 0.4rem;
+    cursor: pointer;
+    border-radius: 4px;
+    align-items: flex-start;
+    font-size: 0.92rem;
+  }
+  fieldset label:hover { background: #2a2a30; }
+  fieldset label input[type="radio"] { margin-top: 0.3rem; flex-shrink: 0; }
+  .option-text { flex: 1; }
+  .option-text .sub {
+    display: block;
+    color: var(--fg-muted);
+    font-size: 0.82rem;
+    margin-top: 0.1rem;
+  }
+
+  textarea#notes {
+    width: 100%;
+    min-height: 80px;
+    background: var(--bg-code);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.5rem;
+    font-family: inherit;
+    font-size: 0.9rem;
+    resize: vertical;
+  }
+
+  textarea#output {
+    width: 100%;
+    background: var(--bg-code);
+    color: var(--fg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 0.7rem;
+    font-family: Menlo, Monaco, "SF Mono", monospace;
+    font-size: 0.85rem;
+    resize: vertical;
+  }
+
+  .copy-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-top: 0.5rem;
+  }
+  button.copy-btn {
+    background: var(--accent);
+    color: #1a1a1d;
+    border: none;
+    border-radius: 5px;
+    padding: 0.5rem 0.9rem;
+    font-weight: 600;
+    font-size: 0.88rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  button.copy-btn:hover { background: var(--accent-soft); }
+  .copy-confirm {
+    color: var(--good);
+    font-size: 0.85rem;
+    opacity: 0;
+    transition: opacity 0.4s ease;
+  }
+  .copy-confirm.show { opacity: 1; }
+
+  .output-label {
+    font-size: 0.78rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--fg-muted);
+    margin: 0.8rem 0 0.3rem;
+  }
+
+  footer {
+    margin-top: 3rem;
+    padding-top: 1rem;
+    border-top: 1px solid var(--border);
+    color: var(--fg-muted);
+    font-style: italic;
+    font-size: 0.9rem;
+  }
+
+  .tldr-live {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 6px;
+    padding: 0.9rem 1.2rem;
+    margin-top: 1rem;
+    font-size: 0.95rem;
+  }
+  .tldr-live strong { color: var(--accent-soft); }
+</style>
+</head>
+<body>
+<main>
+
+<div style="background:#1f3a1f; border:1px solid #4ade80; border-radius:8px; padding:1rem 1.25rem; margin-bottom:1.5rem; color:#bbf7d0;">
+  <strong style="color:#86efac; font-size:1.1rem;">Decision RESOLVED 2026-06-05 PM</strong>
+  <div style="margin-top:0.5rem; line-height:1.55;">
+    Locked in: <strong>v0.1.0 fresh start</strong>, <strong>no tag carry-over</strong> (lockfreequeues' 14 existing tags do NOT come to lockfree-temp), <strong>lockfreequeues stays frozen</strong> until lockfree v0.1.0 ships and is polished, <strong>at-rename-time tag handling deferred</strong> to that future ship event (won't decide A/B/C/D today). The wizard below is preserved as historical decision record; the form controls no longer drive any pending choice.
+  </div>
+</div>
+
+<header>
+  <h1>elijahr/lockfree — Release Strategy Decision Wizard</h1>
+  <p class="subtitle">Phase 1.5 Q7 / Handoff Q14 decision aid — interactive</p>
+  <p class="date">2026-06-05</p>
+</header>
+
+<div class="layout">
+
+<section class="left-col">
+
+<p>
+  We are renaming <code>lockfreequeues</code> to <code>lockfree</code>. The renamed repository
+  inherits every release tag the old project ever published — <code>v4.0.0</code>,
+  <code>v4.1.0</code>, <code>v5.0.0</code> — even though the nimble package name itself is changing.
+  Two questions need answers before we cut the first release of the umbrella: <strong>what version
+  number do we tag first</strong>, and <strong>what do we do with the inherited tags</strong>.
+  Pick options on the right; explanations highlight here in sync.
+</p>
+
+<h2>The two axes</h2>
+
+<div class="card">
+  <h3>Axis 1 — Starting version number</h3>
+  <p>
+    The first tag we cut on <code>elijahr/lockfree</code> signals a promise. <code>v0.x</code>
+    says "still settling — expect breaks." <code>v1.0.0</code> says "this surface is stable,
+    breaking changes will bump to v2." Continuing the old <code>v5.x</code> line is technically
+    possible but misleading because the nimble package name changed underneath.
+  </p>
+</div>
+
+<div class="card">
+  <h3>Axis 2 — Inherited tag handling</h3>
+  <p>
+    The renamed repo's tag list currently shows the lockfreequeues history. Left alone, the
+    GitHub Releases page mixes pre-rename and post-rename tags in confusing order. We can keep
+    them, delete them, or preserve them on an archive repo while cleaning the active one.
+  </p>
+</div>
+
+<h2>The four tag-handling options</h2>
+
+<div class="grid-4">
+
+  <div class="card" id="card-tag-A">
+    <div class="card-head"><span class="big-letter">A</span><h3>Keep all old tags</h3></div>
+    <p>Do nothing. The renamed repo's tag list shows <code>v0.1.0</code> alongside
+    <code>v4.0.0</code>, <code>v4.1.0</code>, <code>v5.0.0</code>.</p>
+    <p class="sublabel">What changes on GitHub</p>
+    <ul>
+      <li>Repo renamed; everything else untouched</li>
+      <li>Tag list mixes eras in non-chronological order</li>
+      <li>Releases page lists old lockfreequeues releases as if they were lockfree releases</li>
+      <li>No git surgery, no destructive ops</li>
+    </ul>
+    <p class="sublabel">What changes for users</p>
+    <ul>
+      <li>Tag-pinned installs of old lockfreequeues tags keep working from the renamed URL</li>
+      <li>Browsing the repo is jarring — old tags look current</li>
+      <li>Changelog continuity is preserved (lossless)</li>
+    </ul>
+    <div class="meta-row">
+      <span class="tag">Operational cost: <span class="v v-good">Trivial</span></span>
+      <span class="tag">Reversibility: <span class="v v-good">Easy</span></span>
+    </div>
+  </div>
+
+  <div class="card" id="card-tag-B">
+    <div class="card-head"><span class="big-letter">B</span><h3>Delete old tags + redirect-stub</h3></div>
+    <p>Delete <code>v4.x</code> and <code>v5.x</code> tags from the renamed repo. Publish one
+    final <code>lockfreequeues v5.0.1</code> to nimble whose package metadata says
+    "use <code>lockfree</code> instead."</p>
+    <p class="sublabel">What changes on GitHub</p>
+    <ul>
+      <li>Tag list is clean — only <code>v0.x</code> onward</li>
+      <li>Old release artifacts on GitHub Releases are gone</li>
+      <li>Destructive op on the renamed repo (no backup)</li>
+      <li>One last nimble publish for the deprecation pointer</li>
+    </ul>
+    <p class="sublabel">What changes for users</p>
+    <ul>
+      <li>Tag-pinned <code>lockfreequeues == v5.0.0</code> resolution breaks at the source URL</li>
+      <li>Nimble users see a clean deprecation hop on next install</li>
+      <li>Historical tarballs disappear from the canonical location</li>
+    </ul>
+    <div class="meta-row">
+      <span class="tag">Operational cost: <span class="v v-warn">Moderate</span></span>
+      <span class="tag">Reversibility: <span class="v v-bad">Difficult</span></span>
+    </div>
+  </div>
+
+  <div class="card recommended" id="card-tag-C">
+    <div class="card-head"><span class="big-letter">C</span><h3>Archive history, clean active <span class="recommended-banner">Recommended</span></h3></div>
+    <p>Before renaming, clone the full lockfreequeues history. Rename, then delete
+    <code>v4.x</code>/<code>v5.x</code> tags from the renamed repo. Push the pre-rename clone
+    (all tags intact) to a fresh <code>lockfreequeues</code> archive repo.</p>
+    <p class="sublabel">What changes on GitHub</p>
+    <ul>
+      <li>Active <code>lockfree</code> repo has a clean tag list (<code>v0.x</code> only)</li>
+      <li>New <code>lockfreequeues</code> archive repo holds the full pre-rename history</li>
+      <li>Archive repo gets a deprecation README pointing at <code>lockfree</code></li>
+      <li>Requires careful sequencing (clone before delete)</li>
+    </ul>
+    <p class="sublabel">What changes for users</p>
+    <ul>
+      <li>Tag-pinned old installs resolve from the archive URL after one redirect</li>
+      <li>Active repo's tag list is honest about what's current</li>
+      <li>Full history remains discoverable and citable</li>
+    </ul>
+    <div class="meta-row">
+      <span class="tag">Operational cost: <span class="v v-warn">Moderate</span></span>
+      <span class="tag">Reversibility: <span class="v v-good">Easy</span></span>
+    </div>
+  </div>
+
+  <div class="card" id="card-tag-D">
+    <div class="card-head"><span class="big-letter">D</span><h3>Tag v1.0.0, leave history</h3></div>
+    <p>No surgery. Tag <code>v1.0.0</code> of the new umbrella on top of inherited history.
+    Old tags stay; new tag follows <code>v5.0.0</code> in raw git but lives in a different
+    nimble package.</p>
+    <p class="sublabel">What changes on GitHub</p>
+    <ul>
+      <li>Tag list shows <code>v1.0.0</code> next to <code>v5.0.0</code> — eyebrow-raising</li>
+      <li>No destructive ops, no archive repo</li>
+      <li>Git history is fully linear and intact</li>
+      <li>Releases page reads strangely without context</li>
+    </ul>
+    <p class="sublabel">What changes for users</p>
+    <ul>
+      <li>Old tag-pinned installs continue to resolve</li>
+      <li>Semver narrative requires a README explainer</li>
+      <li>Stable-promise claim is made on top of unproven new APIs</li>
+    </ul>
+    <div class="meta-row">
+      <span class="tag">Operational cost: <span class="v v-good">Trivial</span></span>
+      <span class="tag">Reversibility: <span class="v v-good">Easy</span></span>
+    </div>
+  </div>
+
+</div>
+
+<h2>Version number choices</h2>
+
+<div class="grid-3">
+
+  <div class="card recommended" id="card-ver-v0.1.0">
+    <div class="card-head"><h3>v0.1.0 <span class="recommended-banner">Recommended</span></h3></div>
+    <p>Signals "umbrella is new, surface still settling, expect breaking changes before 1.0."
+    Honest about a first integrated release that wraps <code>ManagedRef</code>,
+    <code>ManagedSlice</code>, and the nimony port.</p>
+    <div class="meta-row">
+      <span class="tag">Honesty: <span class="v v-good">High</span></span>
+    </div>
+  </div>
+
+  <div class="card" id="card-ver-v1.0.0">
+    <div class="card-head"><h3>v1.0.0</h3></div>
+    <p>Signals "stable promise, well-considered surface, breaking changes bump to v2." Strong
+    claim to make on a first integrated cut of brand-new submodules.</p>
+    <div class="meta-row">
+      <span class="tag">Honesty: <span class="v v-warn">Tension</span></span>
+    </div>
+  </div>
+
+  <div class="card" id="card-ver-v5.1.0">
+    <div class="card-head"><h3>v5.1.0</h3></div>
+    <p>Continues lockfreequeues semver. But the nimble package name changed, so tooling
+    sees this as the first release of a completely new package called <code>lockfree</code>
+    starting at a strange version.</p>
+    <div class="meta-row">
+      <span class="tag">Honesty: <span class="v v-bad">Misleading</span></span>
+    </div>
+  </div>
+
+</div>
+
+<h2>Recommended combinations</h2>
+
+<table>
+  <thead>
+    <tr>
+      <th>Combination</th>
+      <th>Operation complexity</th>
+      <th>Tag UX</th>
+      <th>Semver honesty</th>
+      <th>User pain on upgrade</th>
+      <th>Recommendation</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>C + v0.1.0</strong></td>
+      <td>Moderate (clone, rename, prune, push archive)</td>
+      <td>Clean active tag list, full history on archive</td>
+      <td>High — admits the umbrella is new</td>
+      <td>Low — one redirect for tag-pinned consumers</td>
+      <td class="stars">5/5</td>
+    </tr>
+    <tr>
+      <td>A + v0.1.0</td>
+      <td>Trivial</td>
+      <td>Jarring — mixed eras in tag list</td>
+      <td>High</td>
+      <td>None</td>
+      <td class="stars">3/5</td>
+    </tr>
+    <tr>
+      <td>C + v1.0.0</td>
+      <td>Moderate</td>
+      <td>Clean</td>
+      <td>Low — "stable" claim on unproven surface</td>
+      <td>Low</td>
+      <td class="stars">2/5</td>
+    </tr>
+    <tr>
+      <td>D + v1.0.0</td>
+      <td>Trivial</td>
+      <td>Weird — v1 next to v5</td>
+      <td>Low</td>
+      <td>None</td>
+      <td class="stars">1/5</td>
+    </tr>
+  </tbody>
+</table>
+
+<h2>Cross-cutting sub-questions</h2>
+
+<div class="grid-2">
+
+  <div class="card" id="card-arch-manual-push-history">
+    <h3>Archive: manual push of pre-rename clone <span class="recommended-banner">Recommended</span></h3>
+    <p>
+      Create a fresh empty <code>lockfreequeues</code> repo on GitHub, then push the
+      pre-rename clone (all tags, all branches) into it manually. Cleaner provenance, no
+      false fork signal, accurate network graphs.
+    </p>
+  </div>
+
+  <div class="card" id="card-arch-fresh-empty">
+    <h3>Archive: fresh-empty (no history push)</h3>
+    <p>
+      Create the archive repo as a fresh empty repository with only a deprecation README.
+      No tag history mirrored. Simpler but loses the discoverability of historical tags
+      at the archive URL — tag-pinned downstreams cannot resolve.
+    </p>
+  </div>
+
+  <div class="card" id="card-redirect-yes">
+    <h3>Publish <code>lockfreequeues v5.0.1</code> redirect-stub <span class="recommended-banner">Recommended</span></h3>
+    <p>
+      Existing <code>requires "lockfreequeues == ..."</code> users will eventually
+      <code>nimble refresh</code>. A final lockfreequeues v5.0.1 publish whose description
+      and README point at <code>lockfree</code> turns a silent dead end into a graceful
+      hop. Cost is low; goodwill for pinned downstream consumers is meaningful.
+    </p>
+  </div>
+
+  <div class="card" id="card-redirect-no">
+    <h3>Skip the redirect-stub</h3>
+    <p>
+      Do not publish a final lockfreequeues stub. Pinned downstream users discover the
+      rename by error on their next <code>nimble refresh</code>. Saves one nimble publish
+      step but trades operator effort for downstream confusion.
+    </p>
+  </div>
+
+</div>
+
+<h2>What you're picking</h2>
+
+<div class="tldr-live" id="tldr"></div>
+
+<div class="checklist" id="checklist-block">
+  <strong>If you stay on the recommended path (C + v0.1.0 + manual-push-history + redirect-stub):</strong>
+  <ul>
+    <li>Clone <code>lockfreequeues</code> (all tags, all branches) to a working directory before renaming</li>
+    <li>Rename <code>elijahr/lockfreequeues</code> to <code>elijahr/lockfree</code> on GitHub</li>
+    <li>Delete <code>v4.0.0</code>, <code>v4.1.0</code>, <code>v5.0.0</code> tags from the renamed repo (local + remote)</li>
+    <li>Create a fresh empty <code>elijahr/lockfreequeues</code> archive repo on GitHub</li>
+    <li>Push the pre-rename clone (with all tags) to the archive repo</li>
+    <li>Add a deprecation README to the archive pointing at <code>elijahr/lockfree</code></li>
+    <li>Tag <code>v0.1.0</code> on <code>elijahr/lockfree</code> when the umbrella is ready to ship</li>
+    <li>Publish final <code>lockfreequeues v5.0.1</code> redirect-stub to nimble with deprecation metadata</li>
+  </ul>
+</div>
+
+<footer>
+  After you decide, copy the output on the right back to the develop session. The choices
+  flow into the Phase 2 design doc and the Phase 3 implementation plan.
+</footer>
+
+</section>
+
+<aside class="right-col">
+
+  <fieldset>
+    <legend>Tag handling (axis 2)</legend>
+    <label><input type="radio" name="tag_handling" value="A"><span class="option-text">A — Keep all old tags<span class="sub">No surgery. Mixed eras in tag list.</span></span></label>
+    <label><input type="radio" name="tag_handling" value="B"><span class="option-text">B — Delete old tags + stub<span class="sub">Destructive. No archive backup.</span></span></label>
+    <label><input type="radio" name="tag_handling" value="C" checked><span class="option-text">C — Archive history, clean active<span class="sub">Recommended. Clone-rename-prune-push.</span></span></label>
+    <label><input type="radio" name="tag_handling" value="D"><span class="option-text">D — Tag v1.0.0, leave history<span class="sub">Trivial. Weird v1-next-to-v5 list.</span></span></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Starting version number (axis 1)</legend>
+    <label><input type="radio" name="version" value="v0.1.0" checked><span class="option-text">v0.1.0<span class="sub">Recommended. Honest about a new umbrella.</span></span></label>
+    <label><input type="radio" name="version" value="v1.0.0"><span class="option-text">v1.0.0<span class="sub">Strong stability claim on fresh surface.</span></span></label>
+    <label><input type="radio" name="version" value="v5.1.0"><span class="option-text">v5.1.0<span class="sub">Continues lockfreequeues semver — misleading.</span></span></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Archive repo creation method</legend>
+    <label><input type="radio" name="archive_method" value="manual-push-history" checked><span class="option-text">manual-push-history<span class="sub">Push pre-rename clone w/ all tags. Recommended.</span></span></label>
+    <label><input type="radio" name="archive_method" value="fresh-empty"><span class="option-text">fresh-empty<span class="sub">Empty repo + deprecation README only.</span></span></label>
+  </fieldset>
+
+  <fieldset>
+    <legend>Publish lockfreequeues v5.0.1 redirect-stub</legend>
+    <label><input type="radio" name="redirect_stub" value="yes" checked><span class="option-text">yes<span class="sub">Recommended. Graceful nimble hop.</span></span></label>
+    <label><input type="radio" name="redirect_stub" value="no"><span class="option-text">no<span class="sub">Skip the stub publish.</span></span></label>
+  </fieldset>
+
+  <div class="output-label">Notes / caveats (optional)</div>
+  <textarea id="notes" placeholder="Optional context, deviations, or 'X but only if Y' caveats..."></textarea>
+
+  <div class="output-label">Decision output (copy this back to develop)</div>
+  <textarea id="output" rows="14" readonly></textarea>
+  <div class="copy-row">
+    <button type="button" class="copy-btn" id="copy-btn">Copy to clipboard</button>
+    <span class="copy-confirm" id="copy-confirm">Copied!</span>
+  </div>
+
+</aside>
+
+</div>
+
+</main>
+
+<script>
+(function () {
+  var TAG_LABELS = {
+    A: "Keep all old tags",
+    B: "Delete old tags + redirect-stub",
+    C: "Archive history, clean active",
+    D: "Tag v1.0.0, leave history"
+  };
+  var ARCHIVE_LABELS = {
+    "manual-push-history": "Fresh empty repo + manual push of pre-rename clone (all tags)",
+    "fresh-empty": "Fresh empty repo + deprecation README only (no history push)"
+  };
+  var REDIRECT_LABELS = {
+    yes: "yes — publish final lockfreequeues v5.0.1 deprecation pointer",
+    no: "no — skip the redirect-stub"
+  };
+
+  function val(name) {
+    var el = document.querySelector('input[name="' + name + '"]:checked');
+    return el ? el.value : "";
+  }
+
+  function setSelected(id, on) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    if (on) el.classList.add("selected");
+    else el.classList.remove("selected");
+  }
+
+  function clearGroup(prefix, keys) {
+    keys.forEach(function (k) { setSelected(prefix + k, false); });
+  }
+
+  function render() {
+    var tag = val("tag_handling");
+    var ver = val("version");
+    var arch = val("archive_method");
+    var redir = val("redirect_stub");
+    var notes = document.getElementById("notes").value.trim();
+
+    clearGroup("card-tag-", ["A", "B", "C", "D"]);
+    setSelected("card-tag-" + tag, true);
+
+    clearGroup("card-ver-", ["v0.1.0", "v1.0.0", "v5.1.0"]);
+    setSelected("card-ver-" + ver, true);
+
+    clearGroup("card-arch-", ["manual-push-history", "fresh-empty"]);
+    setSelected("card-arch-" + arch, true);
+
+    clearGroup("card-redirect-", ["yes", "no"]);
+    setSelected("card-redirect-" + redir, true);
+
+    var tldr = document.getElementById("tldr");
+    tldr.innerHTML =
+      "<strong>You're currently picking:</strong> tag handling " +
+      "<strong>" + tag + "</strong> (" + TAG_LABELS[tag] + "), " +
+      "starting version <strong>" + ver + "</strong>, " +
+      "archive method <strong>" + arch + "</strong>, " +
+      "redirect-stub <strong>" + redir + "</strong>.";
+
+    var lines = [];
+    lines.push("RELEASE_STRATEGY_DECISION");
+    lines.push("=========================");
+    lines.push("Date: 2026-06-05");
+    lines.push("Tag handling: " + tag + " (" + TAG_LABELS[tag] + ")");
+    lines.push("Starting version: " + ver);
+    lines.push("Archive repo method: " + arch);
+    lines.push("Publish lockfreequeues v5.0.1 redirect stub: " + redir);
+    lines.push("");
+    lines.push("Notes:");
+    lines.push(notes ? notes : "(none)");
+    lines.push("");
+    lines.push("--- end of decision ---");
+
+    document.getElementById("output").value = lines.join("\n");
+  }
+
+  document.querySelectorAll('input[type="radio"]').forEach(function (el) {
+    el.addEventListener("change", render);
+  });
+  document.getElementById("notes").addEventListener("input", render);
+
+  document.getElementById("copy-btn").addEventListener("click", function () {
+    var text = document.getElementById("output").value;
+    var confirm = document.getElementById("copy-confirm");
+    function flash() {
+      confirm.classList.add("show");
+      setTimeout(function () { confirm.classList.remove("show"); }, 2000);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(flash, function () {
+        var ta = document.getElementById("output");
+        ta.focus();
+        ta.select();
+        try { document.execCommand("copy"); flash(); } catch (e) {}
+      });
+    } else {
+      var ta = document.getElementById("output");
+      ta.focus();
+      ta.select();
+      try { document.execCommand("copy"); flash(); } catch (e) {}
+    }
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>

@@ -10,14 +10,14 @@ import os
 import options
 import random
 import std/monotimes
-import debra/atomics
+import lockfree/atomics
 import times
 
-import lockfreequeues
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree
+import lockfree/endpoint
+import lockfree/role_tags
 
-from debra import DebraManager, initDebraManager
+from lockfree/smr/nebr import DebraManager, initDebraManager
 
 const
   SegmentSize = 64

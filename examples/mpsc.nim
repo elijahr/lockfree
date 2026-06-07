@@ -13,9 +13,9 @@
 import options
 import random
 
-import lockfreequeues
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree
+import lockfree/endpoint
+import lockfree/role_tags
 
 var q = initBQueue[int, ccMulti, ccSingle, 8, 32, 0]()
 

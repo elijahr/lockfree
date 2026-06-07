@@ -95,7 +95,7 @@ suite "bench_latency --bmf-out integration (Task 1.2)":
     check fileExists(bmfPath)
     let node = parseJson(readFile(bmfPath))
     # Expected slug per design 2.2 / table at design line 357.
-    let slug = "lockfreequeues_spsc/spsc/1p1c"
+    let slug = "lockfree_spsc/spsc/1p1c"
     check node.hasKey(slug)
     let s = node[slug]
     check s.hasKey("latency_p50_ns")
@@ -129,8 +129,8 @@ suite "bench_latency --bmf-out integration (Task 1.2)":
     check exitCode == 0
     let node = parseJson(readFile(bmfPath))
     let expectedSlugs = @[
-      "lockfreequeues_spsc/spsc/1p1c", "lockfreequeues_spmc/mpmc/1p1c",
-      "lockfreequeues_mpsc/mpsc/1p1c", "lockfreequeues_mpmc/mpmc/1p1c",
+      "lockfree_spsc/spsc/1p1c", "lockfree_spmc/mpmc/1p1c",
+      "lockfree_mpsc/mpsc/1p1c", "lockfree_mpmc/mpmc/1p1c",
     ]
     for slug in expectedSlugs:
       check node.hasKey(slug)
@@ -170,13 +170,13 @@ suite "bench_latency multi-measure-per-slug merge (Task 1.5)":
     let throughputPath = dir / "throughput.json"
     let latencyPath = dir / "latency.json"
     let mergedPath = dir / "merged.json"
-    let slug = "lockfreequeues_spsc/spsc/1p1c"
+    let slug = "lockfree_spsc/spsc/1p1c"
 
     # Synthetic throughput fragment.
     writeFile(
       throughputPath,
       """{
-  "lockfreequeues_spsc/spsc/1p1c": {
+  "lockfree_spsc/spsc/1p1c": {
     "throughput_ops_ms": {
       "value": 1234.5,
       "lower_value": 1200.0,
@@ -189,7 +189,7 @@ suite "bench_latency multi-measure-per-slug merge (Task 1.5)":
     writeFile(
       latencyPath,
       """{
-  "lockfreequeues_spsc/spsc/1p1c": {
+  "lockfree_spsc/spsc/1p1c": {
     "latency_p50_ns": { "value": 250.0 },
     "latency_p99_ns": { "value": 875.0 }
   }
@@ -232,7 +232,7 @@ suite "bench_latency multi-measure-per-slug merge (Task 1.5)":
     writeFile(
       aPath,
       """{
-  "lockfreequeues_spsc/spsc/1p1c": {
+  "lockfree_spsc/spsc/1p1c": {
     "throughput_ops_ms": { "value": 100.0 }
   }
 }""",
@@ -240,7 +240,7 @@ suite "bench_latency multi-measure-per-slug merge (Task 1.5)":
     writeFile(
       bPath,
       """{
-  "lockfreequeues_spsc/spsc/1p1c": {
+  "lockfree_spsc/spsc/1p1c": {
     "throughput_ops_ms": { "value": 200.0 }
   }
 }""",

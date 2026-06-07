@@ -10,14 +10,14 @@
 ## views). Consumers are obtained via `q.getConsumer(idx)` with an
 ## explicit consumer index per thread.
 
-import debra/atomics
-import debra/atomics/dsl
+import lockfree/atomics
+import lockfree/atomics/dsl
 import os
 import options
 
-import lockfreequeues
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree
+import lockfree/endpoint
+import lockfree/role_tags
 
 const
   NumItems = 100

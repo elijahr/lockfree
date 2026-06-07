@@ -1,12 +1,15 @@
-[![build](https://github.com/elijahr/lockfreequeues/actions/workflows/build.yml/badge.svg)](https://github.com/elijahr/lockfreequeues/actions/workflows/build.yml)
+[![build](https://github.com/elijahr/lockfree/actions/workflows/build.yml/badge.svg)](https://github.com/elijahr/lockfree/actions/workflows/build.yml)
 
-# lockfreequeues
+# lockfree
+
+> Renamed from `lockfreequeues` as part of the v0.1.0 umbrella consolidation.
+> See `CHANGELOG.md` (v0.1.0 entry) for the migration overview.
 
 Lock-free queues for Nim. Bounded queues are ring buffers; unbounded queues are
 linked segments reclaimed via [DEBRA](https://github.com/elijahr/nim-debra).
 All variants cover SPSC, SPMC, MPSC, and MPMC.
 
-API documentation: <https://elijahr.github.io/lockfreequeues>
+API documentation: <https://elijahr.github.io/lockfree>
 
 ## Compatibility
 
@@ -41,7 +44,7 @@ API documentation: <https://elijahr.github.io/lockfreequeues>
 If two threads need to hand items to each other and you cannot afford a mutex,
 the answer is a lock-free queue. Picking the right one is the hard part: do you
 have one producer or many, one consumer or many, a fixed capacity or not? Each
-choice changes the algorithm and the cost. `lockfreequeues` covers all eight
+choice changes the algorithm and the cost. `lockfree` covers all eight
 cells of that grid (four bounded cardinality arms on `BQueue` and four
 unbounded cardinality arms on `Queue`) with a uniform API and verified
 ordering guarantees.
@@ -60,7 +63,7 @@ the whole system if a holder is preempted.
 ## Installation
 
 ```sh
-nimble install lockfreequeues
+nimble install lockfree
 ```
 
 ## Quick Start
@@ -77,7 +80,7 @@ family-named smart constructor (`newSpscQueue`, `newMpmcQueue`,
 
 ```nim
 import options
-import lockfreequeues
+import lockfree
 
 # Bounded single-producer, single-consumer queue, capacity 16.
 # Single-cardinality sides push/pop directly on the queue.
@@ -100,7 +103,7 @@ obtained with `getProducer()` / `getConsumer()`:
 
 ```nim
 import options
-import lockfreequeues
+import lockfree
 
 # Unbounded MPMC: segment size 8, registry sized for 4 lifetime threads.
 var queue = newUnboundedMpmcQueue[int, stEager, 8, 4]()
@@ -212,7 +215,7 @@ Unbounded queues are linked segments that grow as needed. Use them when:
 
 ## Thread safety
 
-By design, `lockfreequeues` rejects queues whose item type is `ref T` under arc, orc, or atomicArc. This is intentional: a queue holding `ref` items is not safe under our concurrency model.
+By design, `lockfree` rejects queues whose item type is `ref T` under arc, orc, or atomicArc. This is intentional: a queue holding `ref` items is not safe under our concurrency model.
 
 Slots are stored in a plain `array[S, T]` and shared across threads. When a producer writes `seg.data[i] = item` and a consumer reads `seg.data[i]`, those assignments fire Nim's `=copy`/`=sink` hooks for ref types, which mutate the refcount on the same object that other threads are reading or writing concurrently. That race exists regardless of whether the underlying refcount itself is atomic — arc's refcount is non-atomic, and even orc/atomicArc's atomic refcount can't make a torn read/write of the slot value safe.
 
@@ -223,7 +226,7 @@ The full safety model — slot-ownership typestates, why the queue itself is loc
 ## Benchmarks
 
 The numbers below are a hand-curated summary of the four bounded
-lockfreequeues variants on `ubuntu-latest` (4 vCPU, x86_64) at one
+lockfree variants on `ubuntu-latest` (4 vCPU, x86_64) at one
 representative shape each. They are updated at release prep, NOT on
 every devel push, and may lag the live data by up to one release
 cycle. The "always-fresh" view lives at the chart page below.
@@ -243,7 +246,7 @@ contention.
 
 Numbers are pulled from `docs/assets/bench-results/example.json`, the
 checked-in `ubuntu-latest` snapshot used as the chart's offline fallback.
-Live updating chart: <https://elijahr.github.io/lockfreequeues/latest/benchmarks/>.
+Live updating chart: <https://elijahr.github.io/lockfree/latest/benchmarks/>.
 <!-- BENCHMARKS:end -->
 
 See [`benchmarks/`](benchmarks/) for the full suite, methodology, the

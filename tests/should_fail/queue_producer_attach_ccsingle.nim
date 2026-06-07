@@ -3,7 +3,7 @@
 ## Same shape as the BQueue counterpart, but exercising the
 ## QueueClaimState typestate on the unbounded Queue's view types.
 
-import lockfreequeues/queue
+import lockfree/queue
 
 proc main() =
   var q = newUnboundedSpscQueue[int, Manual, 8, 4]()

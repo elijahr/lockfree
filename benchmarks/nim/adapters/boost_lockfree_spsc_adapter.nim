@@ -24,7 +24,7 @@ when defined(adapter_boost_lockfree_spsc_available):
 
   import ../bench_common
   import ../adapter
-  import lockfreequeues/internal/aligned_alloc
+  import lockfree/internal/aligned_alloc
 
   when defined(boostIncludeDir):
     {.passC: "-I" & boostIncludeDir.}

@@ -21,20 +21,20 @@
 ##
 ## lists this file by name; the assertion inventory is
 ## explicit at §6.3 (positive phantom). Earlier draft
-## lockfreequeues v5.0.0 implementation.
+## lockfree v5.0.0 implementation.
 
 import std/options
 import unittest2
 
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/queue
+import lockfree/strategy
+import lockfree/reclamation
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 
-import debra as debra_mod
-from debra import initDebraManager, registerThread
+import lockfree/smr/nebr as debra_mod
+from lockfree/smr/nebr import initDebraManager, registerThread
 
 suite "Strategy phantom — mpsc-equiv (ccMulti × ccSingle)":
   test "stManual: drained segments are retained (segmentCount stays at 3)":

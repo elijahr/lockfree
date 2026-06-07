@@ -17,21 +17,21 @@
 ## padding checks now go through the unified Queue + Segment helpers
 ## like the other three variants.
 
-import debra/atomics
-import debra/atomics/dsl
+import lockfree/atomics
+import lockfree/atomics/dsl
 
-import lockfreequeues/queue as q_mod
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/queue as q_mod
+import lockfree/strategy
+import lockfree/reclamation
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 
-# nim-debra surface for the unbounded smart-constructor manager. Selective
+# nebr surface for the unbounded smart-constructor manager. Selective
 # `from ... import` matches the queue.nim convention and keeps
-# `debra.ccSingle` / `debra.ccMulti` qualified-only, avoiding the
+# `nebr.ccSingle` / `nebr.ccMulti` qualified-only, avoiding the
 # unqualified `PinScopeCardinality` collision with the stub.
-from debra import DebraManager, initDebraManager, registerThread
+from lockfree/smr/nebr import DebraManager, initDebraManager, registerThread
 
 import unittest2
 
@@ -87,7 +87,7 @@ suite "Unbounded queue Segment cache-line padding":
     check (cast[uint](segPtr) mod Cl.uint) == 0
 
   test "freshly-allocated Segment base is CacheLineBytes-aligned (spmc)":
-    var manager = initDebraManager[4, debra.ccMulti]()
+    var manager = initDebraManager[4, nebr.ccMulti]()
     var q = newUnboundedSpmcQueue[uint64, stEager, 64, 4](addr manager)
     let segPtr = headSegmentForTest(q)
     check segPtr != nil
@@ -101,7 +101,7 @@ suite "Unbounded queue Segment cache-line padding":
     check (cast[uint](segPtr) mod Cl.uint) == 0
 
   test "freshly-allocated Segment base is CacheLineBytes-aligned (mpmc)":
-    var manager = initDebraManager[4, debra.ccMulti]()
+    var manager = initDebraManager[4, nebr.ccMulti]()
     var q = newUnboundedMpmcQueue[uint64, stEager, 64, 4](addr manager)
     let segPtr = headSegmentForTest(q)
     check segPtr != nil

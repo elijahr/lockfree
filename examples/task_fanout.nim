@@ -16,16 +16,16 @@
 ## - Image processing pipeline
 ## - Game engine job distribution
 
-import debra/atomics
-import debra/atomics/dsl
+import lockfree/atomics
+import lockfree/atomics/dsl
 import os
 import options
 import std/monotimes
 import times
 
-import lockfreequeues
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree
+import lockfree/endpoint
+import lockfree/role_tags
 
 const
   QueueCapacity = 128

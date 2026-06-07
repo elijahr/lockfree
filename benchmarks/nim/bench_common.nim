@@ -11,7 +11,7 @@
 ##   queue type.
 ##
 ## See design doc section 2.1 at
-## /Users/eek/.local/spellbook/docs/Users-eek-Development-lockfreequeues/plans/2026-05-01-bench-rollup-design.md
+## /Users/eek/.local/spellbook/docs/Users-eek-Development-lockfree/plans/2026-05-01-bench-rollup-design.md
 ## for the contract.
 ##
 ## The initial scaffold shipped as a compile-only stub: types and
@@ -25,7 +25,7 @@ import
     times,
   ]
 import ./adapter_versions
-import lockfreequeues/backoff as queue_backoff
+import lockfree/backoff as queue_backoff
 
 # ---------- Harness backoff runtime toggle ----------
 #
@@ -46,11 +46,11 @@ import lockfreequeues/backoff as queue_backoff
 let disableHarnessBackoff* = getEnv("LFQ_BENCH_HARNESS_BACKOFF", "1") == "0"
 
 proc benchBackoffOnPeerWait*() {.inline.} =
-  ## Harness-side wrapper over `lockfreequeues/backoff.backoffOnPeerWait`
+  ## Harness-side wrapper over `lockfree/backoff.backoffOnPeerWait`
   ## that respects the `LFQ_BENCH_HARNESS_BACKOFF=0` runtime kill-switch.
   ## Bench drivers call this instead of `backoffOnPeerWait` directly so
   ## the toggle only affects harness call sites, never the queue-internal
-  ## peer-flag spins inside `src/lockfreequeues/`.
+  ## peer-flag spins inside `src/lockfree/`.
   if disableHarnessBackoff:
     return
   queue_backoff.backoffOnPeerWait()
@@ -541,7 +541,7 @@ proc runOneLatencyRun[Q](queueInit: proc(): Q, messageCount: int): LatencyMetric
   )
 
   # Drop heap-allocated queue state. Adapters whose `Q` heap-allocates
-  # (e.g. lockfreequeues bounded adapters via `create(...)`) leak the
+  # (e.g. lockfree bounded adapters via `create(...)`) leak the
   # backing queue otherwise — `var fwd: Q` only frees the adapter
   # struct's own stack slot at scope exit, not the pointee. `when
   # compiles` keeps the harness usable for value-type adapters that

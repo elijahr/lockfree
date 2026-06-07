@@ -31,7 +31,7 @@ when defined(adapter_boost_lockfree_queue_available):
 
   import ../bench_common
   import ../adapter
-  import lockfreequeues/internal/aligned_alloc
+  import lockfree/internal/aligned_alloc
 
   # Header search paths. Order: explicit override -> brew arm64 -> brew/macports
   # x86_64 / FreeBSD ports -> Linux apt default.

@@ -1,5 +1,5 @@
 ## Smoke test: `LCRQCell[T]` type alias + `CLOSED_BIT` from
-## `lockfreequeues/queue`.
+## `lockfree/queue`.
 ##
 ## Phase B Task T1 of the strict-LCRQ migration. Pure type-level
 ## introduction — no primitives, no behavior. This file proves four
@@ -14,7 +14,7 @@
 ##    every debra-supported target.
 ##
 ## 2. `Pair[A, B]` is spellable from a downstream module that imports
-##    both `lockfreequeues/queue` (for the alias) and `debra/atomics`
+##    both `lockfree/queue` (for the alias) and `debra/atomics`
 ##    (for `Atomic` / `Pair`). The public alias `LCRQCell[T]` is the
 ##    intended downstream entry point; spelling out the payload pair
 ##    is only used here to prove the alias is transparent.
@@ -47,8 +47,8 @@ import std/unittest
 # here only so the test can spell out the alias's RHS and prove
 # transparency in test 1. Downstream code that only uses `LCRQCell[T]`
 # does not need this extra import.
-import lockfreequeues/queue
-import debra/atomics
+import lockfree/queue
+import lockfree/atomics
 
 suite "LCRQCell[T] alias + CLOSED_BIT + Pair re-export (T1 smoke)":
   test "1. LCRQCell[int] is a transparent alias for Atomic[Pair[uint, int]]":

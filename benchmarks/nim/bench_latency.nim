@@ -6,7 +6,7 @@
 ##   bench_latency [--bmf-out=<path>] [<variant>...]
 ##
 ## Positional args filter the variants to run (legacy, preserved); without
-## any positional arg, all four bounded lockfreequeues variants run at the
+## any positional arg, all four bounded lockfree variants run at the
 ## 1p1c smoke shape (`spsc`, `mpmc`, `spmc`, `mpsc`). `--bmf-out`
 ## emits Bencher Metric Format JSON natively. Stdout text is preserved.
 ##
@@ -24,15 +24,15 @@
 
 import std/[options, os, parseopt, sets, strformat, syncio]
 import ./bench_common
-import ./adapters/lockfreequeues_spsc_adapter
-import ./adapters/lockfreequeues_spmc_adapter
-import ./adapters/lockfreequeues_mpsc_adapter
-import ./adapters/lockfreequeues_mpmc_adapter
+import ./adapters/lockfree_spsc_adapter
+import ./adapters/lockfree_spmc_adapter
+import ./adapters/lockfree_mpsc_adapter
+import ./adapters/lockfree_mpmc_adapter
 # Consolidated Queue-based parity adapter.
 import ./adapters/queue_bounded_adapter
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
-import lockfreequeues/internal/pinscope_stub
+import lockfree/strategy
+import lockfree/reclamation
+import lockfree/internal/pinscope_stub
 
 const
   ## Per-binary intdefines for latency wall-time control. Mirror the
@@ -131,21 +131,21 @@ proc slugFor(variant: string): string =
   ## smoke shape only; PR 2's topology split adds the full grid.
   case variant
   of "spsc":
-    "lockfreequeues_spsc/spsc/1p1c"
+    "lockfree_spsc/spsc/1p1c"
   of "spmc":
-    "lockfreequeues_spmc/mpmc/1p1c"
+    "lockfree_spmc/mpmc/1p1c"
   of "mpsc":
-    "lockfreequeues_mpsc/mpsc/1p1c"
+    "lockfree_mpsc/mpsc/1p1c"
   of "mpmc":
-    "lockfreequeues_mpmc/mpmc/1p1c"
+    "lockfree_mpmc/mpmc/1p1c"
   of "queue_bounded_spsc":
-    "lockfreequeues_queue_bounded_spsc/spsc/1p1c"
+    "lockfree_queue_bounded_spsc/spsc/1p1c"
   of "queue_bounded_spmc":
-    "lockfreequeues_queue_bounded_spmc/mpmc/1p1c"
+    "lockfree_queue_bounded_spmc/mpmc/1p1c"
   of "queue_bounded_mpsc":
-    "lockfreequeues_queue_bounded_mpsc/mpsc/1p1c"
+    "lockfree_queue_bounded_mpsc/mpsc/1p1c"
   of "queue_bounded_mpmc":
-    "lockfreequeues_queue_bounded_mpmc/mpmc/1p1c"
+    "lockfree_queue_bounded_mpmc/mpmc/1p1c"
   else:
     raise newException(ValueError, "unknown variant: " & variant)
 

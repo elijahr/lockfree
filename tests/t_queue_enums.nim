@@ -12,8 +12,8 @@
 
 import unittest2
 
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
+import lockfree/strategy
+import lockfree/reclamation
 
 suite "v5.0.0 enum modules":
   test "DeallocationStrategy has stManual + stEager with documented ords":

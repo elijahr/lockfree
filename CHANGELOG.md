@@ -7,7 +7,130 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-(No entries yet — post-5.0.0 work lands here.)
+(No entries yet — post-v0.1.0 work lands here.)
+
+## [0.1.0] - umbrella consolidation (in progress)
+
+Fresh-start umbrella consolidation of `elijahr/lockfreequeues` (v5.0.0)
+and `elijahr/nim-debra` (v0.10.0) into a single library
+`elijahr/lockfree`. Package renamed from `lockfreequeues` to `lockfree`;
+module paths moved from `src/lockfreequeues/` to `src/lockfree/`. See
+the migration guide (`docs/migration.md`) for the symbol-level
+import-rewrite map. Historical CHANGELOG entries below (v5.0.0 and
+earlier) retain the original `lockfreequeues` package name and are
+preserved verbatim as "Prior history (lockfreequeues v5.x and
+earlier)" — they describe the substrate that was lifted into the
+umbrella, not separate releases of the umbrella package itself.
+
+### Added
+
+- **Lifted lock-free queues (8 cardinality arms × bounded/unbounded).**
+  `BQueue[T, ccProd, ccCons, N, P, C]` and
+  `Queue[T, ccProd, ccCons, ST, S, MaxThreads]` cover SPSC, SPMC, MPSC,
+  MPMC across the bounded and unbounded families. Lifted from
+  `lockfreequeues` v5.0.0 with full per-arm test parity (mpsc 28/28,
+  spmc 27/27, mpmc 28/28, spsc 21/21, threaded variants 2/2 each).
+- **Lifted nebr SMR substrate.** Neutralizable Epoch-Based Reclamation,
+  lifted in-tree from `nim-debra` v0.10.0 under
+  `src/lockfree/smr/nebr/`. The unbounded queue family uses nebr for
+  segment reclamation via `PinScope` / `retireOnCAS` /
+  `retireOnPublish`. nebr is also a first-class public surface for
+  downstream SMR users; the 311-test aggregator (`smr/debra-legacy/`)
+  ships unchanged and runs under `--mm:arc` in every `nimble test`.
+- **`ManagedRef[X]` Path-C transport** (net-new). Internal encoding
+  type that lets `ref T` user-facing payloads travel through the
+  bit-transport queue surface under the unified `SlotEncoding(T)`
+  cell-layer encoding. Path-C dispatch logic lives inline in
+  `queue.nim` (`when T is ref:` arm).
+- **`ManagedSlice[T]` Path-C transport** (net-new). Box pattern that
+  carries `string` / `seq[T]` payloads through the bit-transport
+  surface. Compile-time guard rejects `seq[non-POD T]` via inline
+  `when T is seq:` arm with a pointer to the migration path.
+- **Unified `SlotEncoding(T)` cell-layer encoding.** Single
+  compile-time predicate centralises cell-layout decisions across the
+  bounded and unbounded surfaces; eliminates per-arm divergence
+  between BQueue and Queue payload handling.
+- **`ref T`, `string`, `seq[T]` user-facing APIs** routed through
+  Path-C transports. The v5.x `ref T` rejection (§7.7) becomes a
+  Path-C delegation when the user opts in.
+- **Tier 1 sync iterators.** `items`, `pairs`, and `drain` on both
+  queue families (~30 lines per queue arm). Drain helpers integrate
+  with the strict `mm:none` bit-transport contract.
+- **Tier 3 chronos async adapter** (`src/lockfree/chronos.nim`).
+  Optional dependency — chronos is **NOT** listed in
+  `lockfree.nimble` `requires`; the adapter is gated by a
+  compile-time `when (compiles do: import chronos/[asyncsync]):`
+  probe. Activated via `-d:lockfreeChronos` in projects that opt in.
+  A dedicated CI cell exercises the adapter under a pinned chronos
+  version; `t_chronos.nim` is silently skipped when chronos is
+  absent. `try/finally` PinScope unwind hardened per R10.
+- **`mm:none` strict bit-transport contract.** Queue payloads are
+  required to be transportable as raw bits with no destructor side
+  effects across the cell boundary. Drain helpers + the typestate
+  Claim-state graph make the contract enforceable. Cell 14 of the CI
+  matrix exercises this lane.
+- **Nimony first-class architecture.** The bit-transport contract is
+  designed to satisfy nimony's MM-free / continue-on-error compilation
+  model; CI cell 14 runs the suite under nimony with
+  continue-on-error so per-arm churn does not block the matrix. Pinned
+  nimony SHA per R4 mitigation.
+- **Typestate dual API.** `withBoundEndpoint` RAII wrapper for the
+  common single-thread pattern, plus a `Queueable[T]` concept for
+  generic code that needs to abstract over both queue families.
+  Wrapped around the lifted typestate machinery; the `typestates >=
+  0.12.0` pin (R14) supplies the underlying state-graph DSL.
+- **CI matrix: 17 jobs (1 lint + 16 test cells).** Cell numbering
+  runs 1-14 + 17-18, with 15 and 16 reserved per §6.3. Covers 5 MM
+  lanes (orc, arc, refc, atomicArc TSAN, ASAN), `nim c` and `nim
+  cpp` backends, Windows (MSVC + orc, cell 17), nimony
+  (continue-on-error, cell 14), `mm:none` strict-transport (cell
+  18), and the chronos adapter cell. Replaces the v5.x 6-cell matrix.
+- **Documentation IA rebuild.** Net-new `docs/guide/` tree
+  (queues, smr, managed-payloads, async, concepts), three migration
+  documents (v5.x→v0.1.0, nim-debra→nebr, async-tier overview), and a
+  rebuilt `docs/api/` mkdocstrings index. The `lockfreequeues`
+  guide/design pages are condensed and re-anchored under the
+  umbrella IA.
+
+### Changed
+
+- **Package name**: `lockfreequeues` → `lockfree` (filename:
+  `lockfreequeues.nimble` → `lockfree.nimble`; module path:
+  `src/lockfreequeues/` → `src/lockfree/`).
+- **`nim-debra` dependency removed.** The DEBRA substrate is lifted
+  in-tree as nebr; no external `requires "debra"` line. Downstream
+  users import `lockfree/smr/nebr` instead of `debra/...`.
+- **Dependencies**: `nim >= 2.2.10`, `unittest2`, `typestates >=
+  0.12.0`. Chronos is optional (see Added).
+
+### Removed
+
+- External `nim-debra` package dependency (lifted in-tree as nebr).
+- The standalone `lockfreequeues` package name (renamed to
+  `lockfree`).
+
+### Migration
+
+See `docs/migration.md` for the full v5.x → v0.1.0 import-rewrite
+table. Common substitutions:
+
+- `import lockfreequeues` → `import lockfree`
+- `import lockfreequeues/queue` → `import lockfree/queue`
+- `import debra` → `import lockfree/smr/nebr`
+
+The queue surface (`BQueue`, `Queue`, smart constructors, endpoint
+types, typestates) is API-compatible with v5.0.0 modulo the package
+rename. The nebr surface preserves the `nim-debra` v0.10.0 API
+under the new module path.
+
+---
+
+## Prior history (lockfreequeues v5.x and earlier)
+
+The entries below describe the `lockfreequeues` package that was
+lifted into the `lockfree` umbrella at v0.1.0. They are preserved
+verbatim as the substrate's release history; the dates and version
+numbers refer to `elijahr/lockfreequeues`, not `elijahr/lockfree`.
 
 ## [5.0.0] - 2026-05-25
 

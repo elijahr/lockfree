@@ -1,5 +1,5 @@
 import unittest2
-import lockfreequeues/typestates
+import lockfree/typestates
 
 suite "Typestates module exports":
   test "all types accessible":

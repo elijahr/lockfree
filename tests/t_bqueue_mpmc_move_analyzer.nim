@@ -3,7 +3,7 @@
 ## Bounded-side twin of `tests/t_queue_unbounded_mpmc_move_analyzer.nim`.
 ## Demonstrates that v5's bounded MPMC push/pop chain can carry a genuinely
 ## non-copyable, sink-only `T` end-to-end through the Vyukov per-slot
-## sequence-counter protocol (`src/lockfreequeues/typestates/mpmc_push.nim`,
+## sequence-counter protocol (`src/lockfree/typestates/mpmc_push.nim`,
 ## `mpmc_pop.nim`, `mpmc_cell.nim`).
 ##
 ## A type whose `=copy` is disabled (`{.error.}`) cannot be copied by the
@@ -27,9 +27,9 @@
 import options
 import unittest2
 
-import lockfreequeues/bqueue
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/bqueue
+import lockfree/endpoint
+import lockfree/role_tags
 
 type
   ## Move-only payload — same shape as the unbounded MPMC analog.

@@ -18,12 +18,12 @@
 
 import unittest2
 
-import lockfreequeues/bqueue
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/bqueue
+import lockfree/queue
+import lockfree/strategy
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 
 suite "BQueue type shell — positive instantiations":
   test "bounded mpsc-equivalent shape compiles and validates":

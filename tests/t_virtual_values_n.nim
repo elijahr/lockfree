@@ -1,5 +1,5 @@
 import unittest2
-import lockfreequeues/typestates/virtual_values_n
+import lockfree/typestates/virtual_values_n
 
 suite "VirtualValueN[N] - N-slot design":
   test "initRawN creates RawLoadedN":

@@ -70,9 +70,9 @@ suite "topology split: pre-split fixture (Task 2.1)":
     check node.len >= 11
     # Spot-check three representative slugs from the four variant groups
     # so a corruption of the file is caught early.
-    check node.hasKey("lockfreequeues_spsc/spsc/1p1c")
-    check node.hasKey("lockfreequeues_mpmc/mpmc/4p4c")
-    check node.hasKey("lockfreequeues_unbounded_mpsc/mpsc_unbounded/4p1c")
+    check node.hasKey("lockfree_spsc/spsc/1p1c")
+    check node.hasKey("lockfree_mpmc/mpmc/4p4c")
+    check node.hasKey("lockfree_unbounded_mpsc/mpsc_unbounded/4p1c")
     check node.hasKey("nim_channels/mpmc/4p4c")
 
 # ---------- Helpers shared across Tasks 2.3-2.6 ----------
@@ -97,7 +97,7 @@ proc parseBmf(path: string): JsonNode =
 # ---------- Task 2.3: bench_spsc emits spsc/spsc/1p1c ----------
 
 suite "topology split: bench_spsc (Task 2.3)":
-  test "compiles + emits BMF containing lockfreequeues_spsc/spsc/1p1c":
+  test "compiles + emits BMF containing lockfree_spsc/spsc/1p1c":
     let bin = compileBench(
       BenchSpscSrc,
       ["BenchSpscMessageCount=1000", "BenchSpscRuns=2", "BenchSpscWarmup=0"],
@@ -111,8 +111,8 @@ suite "topology split: bench_spsc (Task 2.3)":
     check exitCode == 0
     check fileExists(bmf)
     let node = parseBmf(bmf)
-    check node.hasKey("lockfreequeues_spsc/spsc/1p1c")
-    let slug = node["lockfreequeues_spsc/spsc/1p1c"]
+    check node.hasKey("lockfree_spsc/spsc/1p1c")
+    let slug = node["lockfree_spsc/spsc/1p1c"]
     check slug.hasKey("throughput_ops_ms")
     check slug["throughput_ops_ms"]["value"].getFloat() > 0.0
     removeFile(bmf)
@@ -134,7 +134,7 @@ suite "topology split: bench_mpsc (Task 2.4)":
     check exitCode == 0
     let node = parseBmf(bmf)
     for shape in ["1p1c", "2p1c", "4p1c"]:
-      let slug = "lockfreequeues_mpsc/mpsc/" & shape
+      let slug = "lockfree_mpsc/mpsc/" & shape
       check node.hasKey(slug)
       check node[slug].hasKey("throughput_ops_ms")
       check node[slug]["throughput_ops_ms"]["value"].getFloat() > 0.0
@@ -166,10 +166,10 @@ suite "topology split: bench_mpmc_bounded (Task 2.5a)":
     # from pre-split fixture; #15 livelock regression coverage).
     for p in [1, 2, 4]:
       for c in [1, 2, 4]:
-        let slug = "lockfreequeues_mpmc/mpmc/" & $p & "p" & $c & "c"
+        let slug = "lockfree_mpmc/mpmc/" & $p & "p" & $c & "c"
         check node.hasKey(slug)
         check node[slug]["throughput_ops_ms"]["value"].getFloat() > 0.0
-    check node.hasKey("lockfreequeues_mpmc/mpmc/8p8c")
+    check node.hasKey("lockfree_mpmc/mpmc/8p8c")
     # Channels (Nim system Channel) — full {1,2,4}p{1,2,4}c grid.
     for p in [1, 2, 4]:
       for c in [1, 2, 4]:
@@ -179,7 +179,7 @@ suite "topology split: bench_mpmc_bounded (Task 2.5a)":
     # Spmc slugs must NOT appear in this binary (they live in
     # bench_spmc_bounded; co-compiling the two families was the
     # iCache-contention regression the split addresses).
-    check (not node.hasKey("lockfreequeues_spmc/mpmc/1p1c"))
+    check (not node.hasKey("lockfree_spmc/mpmc/1p1c"))
     removeFile(bmf)
 
 # ---------- Task 2.5b: bench_spmc_bounded emits spmc 1p{1,2,4}c ----------
@@ -201,11 +201,11 @@ suite "topology split: bench_spmc_bounded (Task 2.5b)":
     # Spmc — single producer, multi consumer, lives under mpmc per
     # design 2.4.
     for c in [1, 2, 4]:
-      let slug = "lockfreequeues_spmc/mpmc/1p" & $c & "c"
+      let slug = "lockfree_spmc/mpmc/1p" & $c & "c"
       check node.hasKey(slug)
       check node[slug]["throughput_ops_ms"]["value"].getFloat() > 0.0
     # Mpmc + channels slugs must NOT appear here (split contract).
-    check (not node.hasKey("lockfreequeues_mpmc/mpmc/1p1c"))
+    check (not node.hasKey("lockfree_mpmc/mpmc/1p1c"))
     check (not node.hasKey("nim_channels/mpmc/1p1c"))
     removeFile(bmf)
 
@@ -232,11 +232,11 @@ suite "topology split: bench_unbounded_spsc (Task 2.6a)":
     let (_, exitCode) = execCmdEx(cmd)
     check exitCode == 0
     let node = parseBmf(bmf)
-    check node.hasKey("lockfreequeues_unbounded_spsc/spsc_unbounded/1p1c")
+    check node.hasKey("lockfree_unbounded_spsc/spsc_unbounded/1p1c")
     # Other unbounded families must NOT appear here (split contract).
-    check (not node.hasKey("lockfreequeues_unbounded_spmc/mpmc_unbounded/1p1c"))
-    check (not node.hasKey("lockfreequeues_unbounded_mpsc/mpsc_unbounded/1p1c"))
-    check (not node.hasKey("lockfreequeues_unbounded_mpmc/mpmc_unbounded/1p1c"))
+    check (not node.hasKey("lockfree_unbounded_spmc/mpmc_unbounded/1p1c"))
+    check (not node.hasKey("lockfree_unbounded_mpsc/mpsc_unbounded/1p1c"))
+    check (not node.hasKey("lockfree_unbounded_mpmc/mpmc_unbounded/1p1c"))
     removeFile(bmf)
 
 # ---------- Task 2.6b: bench_unbounded_spmc emits spmc 1p{1,2,4}c -----
@@ -256,11 +256,11 @@ suite "topology split: bench_unbounded_spmc (Task 2.6b)":
     check exitCode == 0
     let node = parseBmf(bmf)
     for c in [1, 2, 4]:
-      check node.hasKey("lockfreequeues_unbounded_spmc/mpmc_unbounded/1p" & $c & "c")
+      check node.hasKey("lockfree_unbounded_spmc/mpmc_unbounded/1p" & $c & "c")
     # Other unbounded families must NOT appear here (split contract).
-    check (not node.hasKey("lockfreequeues_unbounded_spsc/spsc_unbounded/1p1c"))
-    check (not node.hasKey("lockfreequeues_unbounded_mpsc/mpsc_unbounded/1p1c"))
-    check (not node.hasKey("lockfreequeues_unbounded_mpmc/mpmc_unbounded/1p1c"))
+    check (not node.hasKey("lockfree_unbounded_spsc/spsc_unbounded/1p1c"))
+    check (not node.hasKey("lockfree_unbounded_mpsc/mpsc_unbounded/1p1c"))
+    check (not node.hasKey("lockfree_unbounded_mpmc/mpmc_unbounded/1p1c"))
     removeFile(bmf)
 
 # ---------- Task 2.6c: bench_unbounded_mpsc emits mpsc {1,2,4}p1c -----
@@ -280,11 +280,11 @@ suite "topology split: bench_unbounded_mpsc (Task 2.6c)":
     check exitCode == 0
     let node = parseBmf(bmf)
     for p in [1, 2, 4]:
-      check node.hasKey("lockfreequeues_unbounded_mpsc/mpsc_unbounded/" & $p & "p1c")
+      check node.hasKey("lockfree_unbounded_mpsc/mpsc_unbounded/" & $p & "p1c")
     # Other unbounded families must NOT appear here (split contract).
-    check (not node.hasKey("lockfreequeues_unbounded_spsc/spsc_unbounded/1p1c"))
-    check (not node.hasKey("lockfreequeues_unbounded_spmc/mpmc_unbounded/1p1c"))
-    check (not node.hasKey("lockfreequeues_unbounded_mpmc/mpmc_unbounded/1p1c"))
+    check (not node.hasKey("lockfree_unbounded_spsc/spsc_unbounded/1p1c"))
+    check (not node.hasKey("lockfree_unbounded_spmc/mpmc_unbounded/1p1c"))
+    check (not node.hasKey("lockfree_unbounded_mpmc/mpmc_unbounded/1p1c"))
     removeFile(bmf)
 
 # ---------- Task 2.6d: bench_unbounded_mpmc emits mpmc full grid -----
@@ -306,12 +306,12 @@ suite "topology split: bench_unbounded_mpmc (Task 2.6d)":
     for p in [1, 2, 4]:
       for c in [1, 2, 4]:
         check node.hasKey(
-          "lockfreequeues_unbounded_mpmc/mpmc_unbounded/" & $p & "p" & $c & "c"
+          "lockfree_unbounded_mpmc/mpmc_unbounded/" & $p & "p" & $c & "c"
         )
     # Other unbounded families must NOT appear here (split contract).
-    check (not node.hasKey("lockfreequeues_unbounded_spsc/spsc_unbounded/1p1c"))
-    check (not node.hasKey("lockfreequeues_unbounded_spmc/mpmc_unbounded/1p1c"))
-    check (not node.hasKey("lockfreequeues_unbounded_mpsc/mpsc_unbounded/1p1c"))
+    check (not node.hasKey("lockfree_unbounded_spsc/spsc_unbounded/1p1c"))
+    check (not node.hasKey("lockfree_unbounded_spmc/mpmc_unbounded/1p1c"))
+    check (not node.hasKey("lockfree_unbounded_mpsc/mpsc_unbounded/1p1c"))
     removeFile(bmf)
 
 # ---------- Task 2.7: strict-superset deletion-safety check ----------

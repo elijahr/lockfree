@@ -1,8 +1,8 @@
 import std/unittest
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
-import lockfreequeues/bqueue
-import lockfreequeues/queue
+import lockfree/endpoint
+import lockfree/role_tags
+import lockfree/bqueue
+import lockfree/queue
 
 suite "close":
   test "Bound -> Closed transition (BQueue backend, no debra unregister)":

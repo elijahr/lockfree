@@ -1,5 +1,5 @@
-## Consolidated adapter for lockfreequeues' bounded `BQueue` generic.
-## Replaces the 4 parallel `lockfreequeues_queue_bounded_*` adapters
+## Consolidated adapter for lockfree' bounded `BQueue` generic.
+## Replaces the 4 parallel `lockfree_queue_bounded_*` adapters
 ## with a single type parameterized over `ccProd, ccCons, N, P, C, T`.
 ##
 ## The adapter targets the dedicated 6-param `BQueue` generic rather
@@ -20,11 +20,11 @@
 ##   - pop: mirror for `ccCons`.
 
 import options
-import lockfreequeues/bqueue as q_mod
-import lockfreequeues/strategy
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/bqueue as q_mod
+import lockfree/strategy
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 import ../bench_common
 
 type QueueBoundedAdapter*[
@@ -134,5 +134,5 @@ proc name*[
     N, P, C: static int,
     T;
 ](a: QueueBoundedAdapter[ccProd, ccCons, ST, N, P, C, T]): string =
-  "lockfreequeues/BQueue[" & $ccProd & "," & $ccCons & "," & $N & "," & $P & "," & $C &
+  "lockfree/BQueue[" & $ccProd & "," & $ccCons & "," & $N & "," & $P & "," & $C &
     "]"

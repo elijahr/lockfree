@@ -1,7 +1,7 @@
 import std/unittest
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
-import lockfreequeues/bqueue
+import lockfree/endpoint
+import lockfree/role_tags
+import lockfree/bqueue
 
 suite "bindToThread":
   test "Unbound -> Bound transition (BQueue backend, no debra)":

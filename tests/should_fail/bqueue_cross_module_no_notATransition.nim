@@ -23,7 +23,7 @@
 ## typestate declarations AND their consuming procs MUST live in the
 ## same module ... to avoid the cross-module prohibition firing."
 
-import lockfreequeues/bqueue
+import lockfree/bqueue
 import typestates
 
 # A `{.transition.}` proc on the BQueueLifecycle states, declared in

@@ -1,6 +1,6 @@
 ## ccSingle QueueConsumer cannot call `attach()`.
 
-import lockfreequeues/queue
+import lockfree/queue
 
 proc main() =
   var q = newUnboundedSpscQueue[int, Manual, 8, 4]()

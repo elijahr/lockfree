@@ -12,13 +12,13 @@
 ##   -d:BenchMpscMessageCount=<N>  (default 1_000_000)
 ##   -d:BenchMpscWarmup=<N>        (default 3)
 ##
-## Slug shape: `lockfreequeues_mpsc/mpsc/<P>p1c`. Emitted measure:
+## Slug shape: `lockfree_mpsc/mpsc/<P>p1c`. Emitted measure:
 ## `throughput_ops_ms` (mean, lower=mean-1σ, upper=mean+1σ).
 
 import std/[monotimes, options, os, parseopt, sets, strformat, syncio, times]
 import ./bench_common
-import lockfreequeues/backoff
-# The legacy `lockfreequeues/mpsc` module has been deleted; the "mpsc"
+import lockfree/backoff
+# The legacy `lockfree/mpsc` module has been deleted; the "mpsc"
 # variant below now drives the unified
 # `BQueue[T, ccMulti, ccSingle, N, P, 0]` generic
 # via the smart-constructor `newMpscQueue` / `initQueue`. The legacy
@@ -26,11 +26,11 @@ import lockfreequeues/backoff
 # parity variant below uses the same underlying generic at the same
 # Queue instantiation (semantically redundant post-deletion but kept so
 # the historical slug set remains stable for downstream consumers).
-import lockfreequeues/bqueue as q_mod
-import lockfreequeues/strategy
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/bqueue as q_mod
+import lockfree/strategy
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 
 # Comparison adapter: Nim's stdlib system.Channel wired here under the
 # MPSC slot. Blocking-on-full producer; see the adapter file for the
@@ -135,7 +135,7 @@ proc runOneMpscRun[N, P: static int, T](
 proc runMpscShape[N, P: static int, T](
     em: var BMFEmitter, runs, warmup, messageCount: int
 ) =
-  let slug = "lockfreequeues_mpsc/mpsc/" & $P & "p1c"
+  let slug = "lockfree_mpsc/mpsc/" & $P & "p1c"
   echo fmt"Mpsc {P}p1c ({slug}):"
   for _ in 0 ..< warmup:
     var q = q_mod.newBQueue[T, ccMulti, ccSingle, N, P, 0]()
@@ -156,7 +156,7 @@ proc runMpscShape[N, P: static int, T](
 #
 # Parallel to the Mpsc harness above, but exercises the unified
 # `BQueue[uint64, ccMulti, ccSingle, N, P, 0]`
-# generic. Slug `lockfreequeues_queue_bounded_mpsc/mpsc/<P>p1c`.
+# generic. Slug `lockfree_queue_bounded_mpsc/mpsc/<P>p1c`.
 # Output metric / units (throughput_ops_ms) match the Mpsc baseline
 # so B3 can compute a per-shape % delta.
 
@@ -219,7 +219,7 @@ proc runOneQMpscRun[N, P: static int, T](
 proc runQMpscShape[N, P: static int, T](
     em: var BMFEmitter, runs, warmup, messageCount: int
 ) =
-  let slug = "lockfreequeues_queue_bounded_mpsc/mpsc/" & $P & "p1c"
+  let slug = "lockfree_queue_bounded_mpsc/mpsc/" & $P & "p1c"
   echo fmt"QueueBoundedMpsc {P}p1c ({slug}):"
   for _ in 0 ..< warmup:
     var q = q_mod.newBQueue[T, ccMulti, ccSingle, N, P, 0]()
@@ -240,7 +240,7 @@ proc runQMpscShape[N, P: static int, T](
 #
 # system.Channel exposes uniform push/pop through the adapter, so it
 # fits the stock runThroughputHarness on the MPSC {1,2,4}p1c matrix
-# in parity with the lockfreequeues mpsc baseline.
+# in parity with the lockfree mpsc baseline.
 
 when defined(adapter_nim_channel_available):
   proc initNimChannelQ(capacity: int): NimChannelAdapter[uint64] =

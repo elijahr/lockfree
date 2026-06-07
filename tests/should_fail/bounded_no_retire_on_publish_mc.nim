@@ -9,13 +9,13 @@
 
 import std/atomics
 
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
-import lockfreequeues/internal/pinscope_stub
+import lockfree/queue
+import lockfree/strategy
+import lockfree/reclamation
+import lockfree/internal/pinscope_stub
 
-import debra as debra_mod
-from debra import initDebraManager, registerThread, pinScope, unpinned, Destructor
+import lockfree/smr/nebr as debra_mod
+from lockfree/smr/nebr import initDebraManager, registerThread, pinScope, unpinned, Destructor
 
 proc main() =
   var manager = initDebraManager[4, debra_mod.ccMulti]()

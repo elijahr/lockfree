@@ -5,7 +5,7 @@
 ## version mapping captured at run time, so downstream consumers (charts,
 ## archived snapshots, cross-run comparisons) can disambiguate apparent
 ## regressions caused by upstream-library bumps from regressions in
-## `lockfreequeues` itself.
+## `lockfree` itself.
 ##
 ## Schema (matches the v5.0.0-wave spec):
 ##
@@ -13,7 +13,7 @@
 ##     schema:                 1
 ##     generated_at:           ISO-8601 UTC
 ##     host:                   { os, arch }
-##     lockfreequeues_version: <const from src/lockfreequeues.nim>
+##     lockfree_version: <const from src/lockfree.nim>
 ##     nim_version:            <NimVersion>
 ##     adapters:               <adapter slug -> { version, fingerprint, kind, ... }>
 ##     absent_adapters:        [<slug>, ...]
@@ -68,8 +68,8 @@
 ##   Item 4 in the spec. Gated by `when defined(adapter_boost_lockfree_*)`
 ##   so absent-Boost builds compile clean.
 ## - Nim builtin: `NimVersion` from `system`.
-## - In-tree `lockfreequeues`: the `LockfreequeuesVersion` constant from
-##   `src/lockfreequeues.nim`.
+## - In-tree `lockfree`: the `LockfreeVersion` constant from
+##   `src/lockfree.nim`.
 ##
 ## The output is best-effort: failures resolving any single adapter
 ## version are caught and recorded as `{"status": "unknown", ...}` rather
@@ -78,7 +78,7 @@
 ## failure.
 
 import std/[json, os, osproc, sha1, strutils, times]
-import ../../src/lockfreequeues
+import ../../src/lockfree
 
 # ---------- Compile-time content fingerprints ----------
 #
@@ -435,7 +435,7 @@ proc getAdapterVersions*(): JsonNode =
   host["arch"] = newJString(hostCPU)
   result["host"] = host
 
-  result["lockfreequeues_version"] = newJString(LockfreequeuesVersion)
+  result["lockfree_version"] = newJString(LockfreeVersion)
   result["nim_version"] = newJString(NimVersion)
 
   let adapters = newJObject()
@@ -567,7 +567,7 @@ proc getAdapterVersions*(): JsonNode =
   adapters["nim_channel"] = adapterEntry(NimVersion, "compiler-builtin")
 
   # ---- In-tree ----
-  adapters["lockfreequeues"] = adapterEntry(LockfreequeuesVersion, "in-tree")
+  adapters["lockfree"] = adapterEntry(LockfreeVersion, "in-tree")
 
   result["adapters"] = adapters
   let absentNode = newJArray()

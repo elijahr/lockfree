@@ -1,9 +1,9 @@
 import options
 import unittest2
 
-import lockfreequeues
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree
+import lockfree/endpoint
+import lockfree/role_tags
 import ./t_integration
 import ./t_mup
 import ./t_sic

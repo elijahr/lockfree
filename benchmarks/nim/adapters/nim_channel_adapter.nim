@@ -9,7 +9,7 @@
 ## - ``push`` calls ``send``, which **blocks** the producer thread
 ##   when the channel is full. **Important — apples-to-oranges
 ##   caveat (design §2.4 footnote):** the lock-free comparison
-##   adapters (Boost / MoodyCamel / lockfreequeues) report
+##   adapters (Boost / MoodyCamel / lockfree) report
 ##   ``prFull`` and let the harness loop retry; ``system.Channel``
 ##   instead suspends the producer until the consumer drains a slot.
 ##   For bench numbers this means the recorded throughput captures
@@ -30,7 +30,7 @@
 ## drain.
 ##
 ## Topology: ``mpsc`` bounded. The stdlib ``Channel`` is technically
-## MPMC-safe internally, but the lockfreequeues bench taxonomy
+## MPMC-safe internally, but the lockfree bench taxonomy
 ## reserves the ``mpsc`` slot for blocking-producer adapters and the
 ## ``mpmc`` slot (existing ``channels_adapter.nim``) for the
 ## non-blocking ``trySend``-based variant — so a single Nim binary

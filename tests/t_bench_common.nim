@@ -2,7 +2,7 @@
 ##
 ## Task 0.1 RED test: this file must fail to compile until bench_common.nim
 ## exists and exports the public API surface described in the design doc
-## (`/Users/eek/.local/spellbook/docs/Users-eek-Development-lockfreequeues/plans/2026-05-01-bench-rollup-design.md`
+## (`/Users/eek/.local/spellbook/docs/Users-eek-Development-lockfree/plans/2026-05-01-bench-rollup-design.md`
 ##  section 2.1). The test's only job at this stage is to reference each
 ## promised symbol so the compiler enforces the contract.
 ##
@@ -354,14 +354,14 @@ suite "bench_common runLatencyHarness":
     check metrics.p99_ns >= metrics.p50_ns
     check metrics.max_ns >= metrics.p99_ns
 
-# ---------- Task 0.8: lockfreequeues adapter smoke tests ----------
+# ---------- Task 0.8: lockfree adapter smoke tests ----------
 
 import std/sets
-import ../benchmarks/nim/adapters/lockfreequeues_spmc_adapter
-import ../benchmarks/nim/adapters/lockfreequeues_mpsc_adapter
-import ../benchmarks/nim/adapters/lockfreequeues_unbounded_spsc_adapter
-import ../benchmarks/nim/adapters/lockfreequeues_unbounded_spmc_adapter
-import ../benchmarks/nim/adapters/lockfreequeues_unbounded_mpmc_adapter
+import ../benchmarks/nim/adapters/lockfree_spmc_adapter
+import ../benchmarks/nim/adapters/lockfree_mpsc_adapter
+import ../benchmarks/nim/adapters/lockfree_unbounded_spsc_adapter
+import ../benchmarks/nim/adapters/lockfree_unbounded_spmc_adapter
+import ../benchmarks/nim/adapters/lockfree_unbounded_mpmc_adapter
 
 const SmokeMessageCount = 100
 
@@ -383,7 +383,7 @@ proc roundTripUint64Set[A](adapter: var A, count: int): tuple[popped: int, ok: b
     expected.incl(uint64(i))
   result = (seen.len, seen == expected)
 
-suite "bench_common adapters: lockfreequeues smoke (Task 0.8)":
+suite "bench_common adapters: lockfree smoke (Task 0.8)":
   test "Spmc 1024-cap, 1p1c, 100 sequential round-trip":
     var a = makeLockfreequeuesSpmcAdapter[1024, 1, uint64](1024)
     let r = roundTripUint64Set(a, SmokeMessageCount)
@@ -423,7 +423,7 @@ suite "bench_common adapters: lockfreequeues smoke (Task 0.8)":
 #
 # Earlier versions compiled bench_throughput.nim against `--bmf-out=`
 # and asserted the emitted BMF carried the expected
-# `lockfreequeues_spsc/spsc/1p1c` slug. bench_throughput.nim has since
+# `lockfree_spsc/spsc/1p1c` slug. bench_throughput.nim has since
 # been deleted in favor of topology-split binaries, and
 # tests/t_topology_split.nim now covers the equivalent BMF-emission
 # contract for each new binary (bench_spsc covers the spsc/spsc/1p1c

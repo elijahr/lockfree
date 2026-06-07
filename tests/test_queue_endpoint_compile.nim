@@ -1,7 +1,7 @@
 import std/unittest
-import lockfreequeues/queue
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/queue
+import lockfree/endpoint
+import lockfree/role_tags
 
 suite "queue endpoint compile":
   test "getProducer returns Unbound (SPSC)":

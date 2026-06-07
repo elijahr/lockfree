@@ -9,7 +9,7 @@
 ## for them.
 
 import std/options
-import lockfreequeues/bqueue
+import lockfree/bqueue
 
 proc main() =
   var q = newSpmcQueue[int, 8, 4]()

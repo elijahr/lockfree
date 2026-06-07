@@ -8,7 +8,7 @@
 ## `newBQueue[..., ccMulti, ccSingle, ...]()`, so the same `{.error.}`
 ## overload fires for it.
 
-import lockfreequeues/bqueue
+import lockfree/bqueue
 
 proc main() =
   var q = newMpscQueue[int, 8, 4]()

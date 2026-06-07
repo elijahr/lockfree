@@ -26,19 +26,19 @@
 
 import unittest2
 
-import lockfreequeues
-import debra/atomics
-import debra/atomics/dsl
+import lockfree
+import lockfree/atomics
+import lockfree/atomics/dsl
 
-import lockfreequeues/typestates/mpmc_cell
-import lockfreequeues/typestates/mpmc_push
-import lockfreequeues/typestates/mpmc_pop
-import lockfreequeues/typestates/spmc_push
-import lockfreequeues/typestates/spmc_pop
-import lockfreequeues/typestates/mpsc_push
-import lockfreequeues/typestates/mpsc_pop
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/typestates/mpmc_cell
+import lockfree/typestates/mpmc_push
+import lockfree/typestates/mpmc_pop
+import lockfree/typestates/spmc_push
+import lockfree/typestates/spmc_pop
+import lockfree/typestates/mpsc_push
+import lockfree/typestates/mpsc_pop
+import lockfree/endpoint
+import lockfree/role_tags
 
 # ---------------------------------------------------------------------------
 # Mpmc walkthrough

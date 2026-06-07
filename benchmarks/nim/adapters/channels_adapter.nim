@@ -23,7 +23,7 @@ proc deinitChannelsAdapter*[T](a: var ChannelsAdapter[T]) =
     a.chan = nil
 
 proc cleanup*[T](a: var ChannelsAdapter[T]) =
-  ## Alias for `deinitChannelsAdapter` matching the lockfreequeues
+  ## Alias for `deinitChannelsAdapter` matching the lockfree
   ## adapter naming convention. Lets the bench harness drop the channel
   ## via a uniform `cleanup(queue)` mixin call.
   deinitChannelsAdapter(a)

@@ -1,5 +1,5 @@
 import unittest2
-import lockfreequeues/backoff
+import lockfree/backoff
 
 suite "backoff":
   test "backoffOnRetry mutates spins exponentially and caps at MaxSpin":

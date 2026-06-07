@@ -50,11 +50,11 @@
 import std/options
 import std/unittest
 
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/endpoint
-import debra as debra_mod
-from debra import DebraManager, initDebraManager
+import lockfree/queue
+import lockfree/strategy
+import lockfree/endpoint
+import lockfree/smr/nebr as debra_mod
+from lockfree/smr/nebr import DebraManager, initDebraManager
 
 suite "T8: MPMC pop §5.2 slow-path inline-skip (HIGH-2)":
   test "T8.S1: pop on empty queue returns none(T) cleanly":

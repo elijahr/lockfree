@@ -1,8 +1,8 @@
 import unittest2
-import debra/atomics
-import debra/atomics/dsl
-import lockfreequeues/typestates/virtual_values_n
-import lockfreequeues/typestates/slot_seq_n
+import lockfree/atomics
+import lockfree/atomics/dsl
+import lockfree/typestates/virtual_values_n
+import lockfree/typestates/slot_seq_n
 
 # Helper: convert a raw int slot index to a PhysicalSlotN[N] via the
 # typestate-blessed path (initRawN -> validate -> index). This mirrors how

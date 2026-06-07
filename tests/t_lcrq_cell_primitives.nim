@@ -16,8 +16,8 @@
 import std/unittest
 import std/options
 
-import lockfreequeues/queue
-import debra/atomics
+import lockfree/queue
+import lockfree/atomics
 
 # Convenience constructors — explicit Pair[uint, T] literals for the
 # DWCAS-shape cell init. Mirrors design §2.3 / §2.5.1 state-machine

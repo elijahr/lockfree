@@ -1,7 +1,7 @@
 import std/[unittest, options]
-import lockfreequeues/bqueue
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/bqueue
+import lockfree/endpoint
+import lockfree/role_tags
 
 suite "getProducerHere / getConsumerHere (BQueue)":
   test "MPMC: shortcut returns Bound[AnyThreadTag] + push works":

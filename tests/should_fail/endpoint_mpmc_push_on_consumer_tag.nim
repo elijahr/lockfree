@@ -5,9 +5,9 @@ discard """
 ## Bound[T, MpmcConsumerTag, ...] endpoint must reject because the push
 ## Tag-constraint excludes consumer tags.
 
-import lockfreequeues/bqueue
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/bqueue
+import lockfree/endpoint
+import lockfree/role_tags
 
 var q: BQueue[int, ccMulti, ccMulti, 64, 4, 4]
 var wrongTagBound: Bound[int, MpmcConsumerTag, typeof(q)]

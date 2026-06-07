@@ -12,11 +12,11 @@
 ## contention surface at the source.
 ##
 ## Covers:
-##   - Spmc (lockfreequeues, single-producer + multi-consumer):
+##   - Spmc (lockfree, single-producer + multi-consumer):
 ##     shapes `1p{1,2,4}c`. Spmc lives under `mpmc` per design 2.4
 ##     (single producer is just N=1 of multi-producer).
 ##   - Queue (ccSingle x ccMulti, stEager, rkNone) parity: same shapes,
-##     `lockfreequeues_queue_bounded_spmc/mpmc/1p<C>c`.
+##     `lockfree_queue_bounded_spmc/mpmc/1p<C>c`.
 ##
 ## Per-binary intdefines (design §2.5; shared with the mpmc binary
 ## so existing CI overrides continue to work unchanged):
@@ -33,8 +33,8 @@
 
 import std/[monotimes, options, os, parseopt, sets, strformat, syncio, times]
 import ./bench_common
-import lockfreequeues/backoff
-# The legacy `lockfreequeues/spmc` module has been deleted; the "spmc"
+import lockfree/backoff
+# The legacy `lockfree/spmc` module has been deleted; the "spmc"
 # variant below now drives the unified
 # `BQueue[T, ccSingle, ccMulti, N, 0, C]` generic
 # via the smart-constructor `newSpmcQueue` / `initQueue`. The legacy
@@ -42,11 +42,11 @@ import lockfreequeues/backoff
 # parity variant below uses the same underlying generic at the same
 # Queue instantiation (semantically redundant post-deletion but kept so
 # the historical slug set remains stable for downstream consumers).
-import lockfreequeues/bqueue as q_mod
-import lockfreequeues/strategy
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/bqueue as q_mod
+import lockfree/strategy
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 
 const
   BenchMpmcRuns* {.intdefine.} = 33
@@ -135,7 +135,7 @@ proc runOneSpmcRun[N, C: static int, T](
 proc runSpmcShape[N, C: static int, T](
     em: var BMFEmitter, runs, warmup, messageCount: int
 ) =
-  let slug = "lockfreequeues_spmc/mpmc/1p" & $C & "c"
+  let slug = "lockfree_spmc/mpmc/1p" & $C & "c"
   echo fmt"Spmc 1p{C}c ({slug}):"
   for _ in 0 ..< warmup:
     var q = q_mod.newBQueue[T, ccSingle, ccMulti, N, 0, C]()
@@ -154,7 +154,7 @@ proc runSpmcShape[N, C: static int, T](
 
 # ---------- BQueue ccSingle x ccMulti harness ----------
 #
-# Slug `lockfreequeues_queue_bounded_spmc/mpmc/1p<C>c`. Output metric /
+# Slug `lockfree_queue_bounded_spmc/mpmc/1p<C>c`. Output metric /
 # units (throughput_ops_ms) match the legacy Spmc baseline so the
 # parity delta is a simple per-shape division across the two emitted
 # measures.
@@ -220,7 +220,7 @@ proc runOneQBoundedSpmcRun[N, C: static int, T](
 proc runQBoundedSpmcShape[N, C: static int, T](
     em: var BMFEmitter, runs, warmup, messageCount: int
 ) =
-  let slug = "lockfreequeues_queue_bounded_spmc/mpmc/1p" & $C & "c"
+  let slug = "lockfree_queue_bounded_spmc/mpmc/1p" & $C & "c"
   echo fmt"QueueBoundedSpmc 1p{C}c ({slug}):"
   for _ in 0 ..< warmup:
     var q = q_mod.newBQueue[T, ccSingle, ccMulti, N, 0, C]()

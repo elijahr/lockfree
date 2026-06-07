@@ -23,12 +23,12 @@
 
 import std/[monotimes, options, os, parseopt, sets, strformat, syncio, times]
 import ./bench_common
-import lockfreequeues/backoff
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/backoff
+import lockfree/queue
+import lockfree/strategy
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 
 const
   UnboundedSpscRuns* {.intdefine.} = 3
@@ -106,7 +106,7 @@ proc runOneUSpscRun[S: static int, T](
   result = float(messageCount) * 1_000_000.0 / elapsedNs
 
 proc runUSpscShape(em: var BMFEmitter, runs, warmup, messageCount: int) =
-  let slug = "lockfreequeues_unbounded_spsc/spsc_unbounded/1p1c"
+  let slug = "lockfree_unbounded_spsc/spsc_unbounded/1p1c"
   echo fmt"UnboundedSpsc 1p1c ({slug}):"
   for _ in 0 ..< warmup:
     var q = newUnboundedSpscQueue[uint64, stEager, SegmentSize, SpscMaxThreads]()

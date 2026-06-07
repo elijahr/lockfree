@@ -6,11 +6,11 @@
 ## deleted `QueueConsumer`. The phantom-param mismatch still trips at
 ## type-check because the Queue's `ST` doesn't match.
 
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/queue
+import lockfree/strategy
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 
 # A proc that only accepts a stManual endpoint. Calling this with the
 # result of `q.getConsumer()` from a stEager queue must fail at type-check.

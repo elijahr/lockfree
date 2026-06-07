@@ -12,16 +12,16 @@
 ##   -d:BenchSpscWarmup=<N>        (default 3)
 ##
 ## Emitted measure per slug: `throughput_ops_ms` (mean, lower=mean-1σ,
-## upper=mean+1σ). Slug shape: `lockfreequeues_spsc/spsc/1p1c`.
+## upper=mean+1σ). Slug shape: `lockfree_spsc/spsc/1p1c`.
 
 import std/[options, os, parseopt, sets, strformat, syncio]
 import ./bench_common
-import ./adapters/lockfreequeues_spsc_adapter
+import ./adapters/lockfree_spsc_adapter
 # Consolidated Queue-based parity adapter.
 import ./adapters/queue_bounded_adapter
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
-import lockfreequeues/internal/pinscope_stub
+import lockfree/strategy
+import lockfree/reclamation
+import lockfree/internal/pinscope_stub
 
 # Comparison adapters. Each is included only when its
 # `-d:adapter_<lib>_available` gate is set; absent gate yields no
@@ -82,7 +82,7 @@ proc initSpscQ(capacity: int): SpscAdapter[SpscCapacity, uint64] =
 
 # Parallel factory via the consolidated
 # QueueBoundedAdapter at SPSC cardinality. Slug
-# `lockfreequeues_queue_bounded_spsc/spsc/1p1c`. Output metric +
+# `lockfree_queue_bounded_spsc/spsc/1p1c`. Output metric +
 # units (throughput_ops_ms) identical to the legacy spsc baseline
 # so parity tooling can compute a % delta directly.
 proc initQueueBoundedSpscQ(
@@ -164,7 +164,7 @@ proc runMvpVariant[A](
 proc runVariant(variant: string, em: var BMFEmitter) =
   case variant
   of "spsc":
-    let slug = "lockfreequeues_spsc/spsc/1p1c"
+    let slug = "lockfree_spsc/spsc/1p1c"
     echo fmt"{variant} ({slug}):"
     let metrics = runThroughputHarness[SpscAdapter[SpscCapacity, uint64]](
       queueInit = initSpscQ,
@@ -192,7 +192,7 @@ proc runVariant(variant: string, em: var BMFEmitter) =
     # rkNone, N, 0, 0, 0, 0]` generic via `QueueBoundedAdapter`. Slug +
     # metric mirror so the parity delta is a simple per-shape division
     # across the two emitted measures.
-    let slug = "lockfreequeues_queue_bounded_spsc/spsc/1p1c"
+    let slug = "lockfree_queue_bounded_spsc/spsc/1p1c"
     echo fmt"{variant} ({slug}):"
     let metrics = runThroughputHarness[
       QueueBoundedAdapter[ccSingle, ccSingle, stEager, SpscCapacity, 0, 0, uint64]

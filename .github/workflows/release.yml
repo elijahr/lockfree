@@ -1,7 +1,7 @@
 name: release
 
 # Two release paths:
-#   1. push to devel: parse the version from lockfreequeues.nimble,
+#   1. push to devel: parse the version from lockfree.nimble,
 #      idempotently create+push v{version} tag if it does not already
 #      exist, then create the GitHub Release.
 #   2. manual v* tag push: just create the GitHub Release.
@@ -41,11 +41,11 @@ jobs:
             echo "Triggered by tag push: $TAG"
             echo "skip=false" >> "$GITHUB_OUTPUT"
           else
-            VERSION=$(grep -E '^version[[:space:]]*=' lockfreequeues.nimble \
+            VERSION=$(grep -E '^version[[:space:]]*=' lockfree.nimble \
               | sed -E 's/version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/' \
               | head -n1)
             if [ -z "$VERSION" ]; then
-              echo "::error::could not parse version from lockfreequeues.nimble"
+              echo "::error::could not parse version from lockfree.nimble"
               exit 1
             fi
             TAG="v$VERSION"

@@ -1,4 +1,4 @@
-# Contributing to lockfreequeues
+# Contributing to lockfree
 
 The contributors are listed in AUTHORS (add yourself). This project uses the MIT license, see LICENSE.
 

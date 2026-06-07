@@ -20,11 +20,11 @@
 import std/options
 import std/unittest
 
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/endpoint
-import debra as debra_mod
-from debra import DebraManager, initDebraManager
+import lockfree/queue
+import lockfree/strategy
+import lockfree/endpoint
+import lockfree/smr/nebr as debra_mod
+from lockfree/smr/nebr import DebraManager, initDebraManager
 
 suite "T6: MPMC consumer claim returns published values (design §5.2, §6, §8)":
   test "T6.C1: push 1..4 then pop 4 times returns 1,2,3,4 FIFO":

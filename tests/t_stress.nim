@@ -6,11 +6,11 @@ when not compileOption("threads"):
 
 import std/options
 import unittest2
-import lockfreequeues
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
-import debra/atomics
-import debra/atomics/dsl
+import lockfree
+import lockfree/endpoint
+import lockfree/role_tags
+import lockfree/atomics
+import lockfree/atomics/dsl
 
 const
   SmallBuffer = 16

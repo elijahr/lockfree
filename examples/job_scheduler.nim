@@ -24,9 +24,9 @@ import std/monotimes
 import strutils
 import times
 
-import lockfreequeues
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree
+import lockfree/endpoint
+import lockfree/role_tags
 
 import ./debra_cc_helpers
 
@@ -66,7 +66,7 @@ type
 var
   # `initMultiConsumerManager` (from `./debra_cc_helpers`) walls off the
   # `debra` import so the `ccMulti` token here resolves unambiguously
-  # to `lockfreequeues/internal/pinscope_stub.ccMulti` when the Queue
+  # to `lockfree/internal/pinscope_stub.ccMulti` when the Queue
   # type is instantiated below.
   manager = initMultiConsumerManager[MaxThreads]()
   queue = newUnboundedMpmcQueue[ptr Job, stEager, SegmentSize, MaxThreads](addr manager)

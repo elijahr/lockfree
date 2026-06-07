@@ -16,15 +16,15 @@
 
 import std/[atomics, monotimes, options, os, parseopt, sets, strformat, syncio, times]
 import ./bench_common
-import ./adapters/lockfreequeues_unbounded_mpsc_adapter
-import lockfreequeues/backoff
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
-from debra import DebraManager, initDebraManager
+import ./adapters/lockfree_unbounded_mpsc_adapter
+import lockfree/backoff
+import lockfree/queue
+import lockfree/strategy
+import lockfree/reclamation
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
+from lockfree/smr/nebr import DebraManager, initDebraManager
 
 const
   UnboundedMpscRuns* {.intdefine.} = 3
@@ -47,7 +47,7 @@ type
 
   UMpscProducerCtx2[S: static int, T; MaxT: static int] = object
     queue: ptr UMpscQueueT[S, T, MaxT]
-    manager: ptr DebraManager[MaxT, debra.ccSingle]
+    manager: ptr DebraManager[MaxT, nebr.ccSingle]
     startIdx: int
     count: int
     id: int ## Stable producer index used by -d:benchProgress logging.
@@ -79,7 +79,7 @@ proc umpscProducerThread[S: static int, T; MaxT: static int](
 
 proc runOneUMpscRun[S: static int, T; MaxT: static int, P: static int](
     queue: ptr UMpscQueueT[S, T, MaxT],
-    manager: ptr DebraManager[MaxT, debra.ccSingle],
+    manager: ptr DebraManager[MaxT, nebr.ccSingle],
     messageCount: int,
 ): float =
   let baseP = messageCount div P
@@ -119,7 +119,7 @@ proc runOneUMpscRun[S: static int, T; MaxT: static int, P: static int](
   result = float(messageCount) * 1_000_000.0 / elapsedNs
 
 proc runUMpscShape[P: static int](em: var BMFEmitter, runs, warmup, messageCount: int) =
-  let slug = "lockfreequeues_unbounded_mpsc/mpsc_unbounded/" & $P & "p1c"
+  let slug = "lockfree_unbounded_mpsc/mpsc_unbounded/" & $P & "p1c"
   echo fmt"UnboundedMpsc {P}p1c ({slug}):"
   when defined(benchProgress):
     benchShape = $P & "p1c"

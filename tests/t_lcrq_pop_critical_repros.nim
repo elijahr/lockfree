@@ -61,14 +61,14 @@ import std/options
 import std/os
 import std/unittest
 
-import debra/atomics
+import lockfree/atomics
 
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/endpoint
-import lockfreequeues/internal/pinscope_stub
-import debra as debra_mod
-from debra import DebraManager, initDebraManager
+import lockfree/queue
+import lockfree/strategy
+import lockfree/endpoint
+import lockfree/internal/pinscope_stub
+import lockfree/smr/nebr as debra_mod
+from lockfree/smr/nebr import DebraManager, initDebraManager
 
 const S = 8
 

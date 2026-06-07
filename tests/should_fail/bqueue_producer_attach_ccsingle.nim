@@ -10,7 +10,7 @@
 ## user-visible alias type `BQueueProducer` (NOT a `*Multi`/`*Single`
 ## backing type).
 
-import lockfreequeues/bqueue
+import lockfree/bqueue
 
 proc main() =
   var q = newSpscQueue[int, 8]()

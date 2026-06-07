@@ -1,8 +1,8 @@
 import unittest2
-import debra/atomics
-import debra/atomics/dsl
-import lockfreequeues/typestates/virtual_values_n
-import lockfreequeues/typestates/mpmc_cell
+import lockfree/atomics
+import lockfree/atomics/dsl
+import lockfree/typestates/virtual_values_n
+import lockfree/typestates/mpmc_cell
 
 proc slot[N: static int](i: int): PhysicalSlotN[N] {.inline.} =
   initRawN[N](i).validate().index()

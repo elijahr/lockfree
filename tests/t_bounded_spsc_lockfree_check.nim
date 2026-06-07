@@ -6,9 +6,9 @@
 ## Mirrors `tests/t_unbounded_spsc_lockfree_check.nim`, but exercises
 ## the bounded surface (`BQueue` via `newSpscQueue`) and the BQueue-
 ## family ref-T guard added on every single-item push/pop overload of
-## `src/lockfreequeues/bqueue.nim`.
+## `src/lockfree/bqueue.nim`.
 
-import ../src/lockfreequeues/bqueue
+import ../src/lockfree/bqueue
 
 type Node = ref object
   value: int

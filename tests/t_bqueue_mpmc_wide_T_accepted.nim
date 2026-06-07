@@ -27,9 +27,9 @@
 import options
 import unittest2
 
-import lockfreequeues/bqueue
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/bqueue
+import lockfree/endpoint
+import lockfree/role_tags
 
 suite "Phase B T14: BQueue MPMC accepts wide T (positive control)":
   test "BQueue[array[3, int], ccMulti, ccMulti, 64, 8, 8] compiles + round-trips 4 distinct values":

@@ -28,9 +28,9 @@
 ## together they form the SCOPE-7 tripwire against accidental
 ## cross-queue constraint extension during Phase B.
 
-import lockfreequeues/queue
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/queue
+import lockfree/endpoint
+import lockfree/role_tags
 
 proc main() =
   var q = newUnboundedMpmcQueue[array[3, int], stEager, 16, 4]()

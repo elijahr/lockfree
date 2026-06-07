@@ -1,7 +1,7 @@
 import unittest2
-import lockfreequeues/typestates/virtual_values_n
-import lockfreequeues/typestates/virtual_values_n1
-import lockfreequeues/typestates/fullness_checks
+import lockfree/typestates/virtual_values_n
+import lockfree/typestates/virtual_values_n1
+import lockfree/typestates/fullness_checks
 
 suite "N-slot fullness (for MPSC/SPMC/MPMC)":
   test "empty when head == tail":

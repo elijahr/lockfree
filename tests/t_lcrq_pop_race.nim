@@ -65,19 +65,19 @@
 ## pre-fix, this test serves as a forward-looking regression guard
 ## against re-introduction of the case-(b) `continue` pattern.
 
-import debra/atomics
-import debra/atomics/dsl
+import lockfree/atomics
+import lockfree/atomics/dsl
 import options
 import unittest2
 
-import lockfreequeues/queue
-import lockfreequeues/strategy
-import lockfreequeues/reclamation
-import lockfreequeues/internal/pinscope_stub
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
+import lockfree/queue
+import lockfree/strategy
+import lockfree/reclamation
+import lockfree/internal/pinscope_stub
+import lockfree/endpoint
+import lockfree/role_tags
 
-from debra import DebraManager, registerThread
+from lockfree/smr/nebr import DebraManager, registerThread
 import ./debra_cc_helpers
 
 const

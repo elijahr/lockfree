@@ -5,9 +5,9 @@
 
 import std/options
 import unittest2
-import ../src/lockfreequeues/queue
-import ../src/lockfreequeues/strategy
-import ../src/lockfreequeues/internal/pinscope_stub
+import ../src/lockfree/queue
+import ../src/lockfree/strategy
+import ../src/lockfree/internal/pinscope_stub
 
 suite "UnboundedSpsc lock-free types":
   test "int is lock-free":

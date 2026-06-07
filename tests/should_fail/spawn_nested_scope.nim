@@ -9,10 +9,10 @@ discard """
 ## createThread. The macro's emitted `export <workerName>` trips the
 ## "'export' is only allowed at top level" error and fails cleanly.
 
-import lockfreequeues/bqueue
-import lockfreequeues/endpoint
-import lockfreequeues/role_tags
-import lockfreequeues/spawn
+import lockfree/bqueue
+import lockfree/endpoint
+import lockfree/role_tags
+import lockfree/spawn
 
 proc badNestedInvocation() =
   defineProducerWorker(BadWorker, BQueue[int, ccMulti, ccMulti, 64, 4, 4]):

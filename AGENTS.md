@@ -1,4 +1,8 @@
-# lockfreequeues — agent notes
+# lockfree — agent notes
+
+> Renamed from `lockfreequeues` as part of the v0.1.0 umbrella consolidation
+> (T-INTEGRATE-RENAME, 2026-06-06). Historical CHANGELOG entries below
+> v0.1.0 retain the old name as part of the project record.
 
 Onboarding notes for AI coding harnesses working in this repository. The README is the user-facing entry point; this file is the operational reference for harnesses that need to understand the algorithms, invariants, build/test surface, and the gotchas that are not obvious from reading the code in isolation.
 
@@ -8,17 +12,29 @@ If you are reading this for the first time, scan §1–§6 to orient, then jump 
 
 ## 1. What this library is
 
-Lock-free queue implementations for Nim, covering all eight cells of the
-(bounded vs unbounded) × (SPSC, SPMC, MPSC, MPMC) grid through two
-generic types:
+`lockfree` is the v0.1.0 umbrella consolidation of three previously
+separate substrates:
+
+1. **Lock-free queues** — the lifted `lockfreequeues` v5.0.0 surface
+   (eight cells of (bounded vs unbounded) × (SPSC, SPMC, MPSC, MPMC)).
+2. **nebr SMR** — the lifted `nim-debra` v0.10.0 substrate, renamed to
+   *nebr* (Neutralizable Epoch-Based Reclamation) and resident in-tree
+   at `src/lockfree/smr/nebr/`. The unbounded queue family uses nebr
+   for segment reclamation; nebr itself is also a public surface for
+   downstream SMR users.
+3. **Managed-payload Path-C transports** — net-new `ManagedRef[X]` and
+   `ManagedSlice[T]` types that let `ref T`, `string`, and `seq[T]`
+   travel through the bit-transport queue surface under a unified
+   `SlotEncoding(T)` cell-layer encoding.
+
+Queues are covered by two generic types:
 
 - `BQueue[T, ccProd, ccCons, N, P, C]` — bounded ring buffer, no
   reclamation needed (slots are reused in place under Vyukov per-slot
   sequence counters).
 - `Queue[T, ccProd, ccCons, ST, S, MaxThreads]` — unbounded linked
-  segments, reclaimed via DEBRA epoch-based reclamation
-  (`nim-debra >= 0.10.0`). The `(ccSingle, ccSingle)` arm is
-  DEBRA-free.
+  segments, reclaimed via nebr epoch-based reclamation. The
+  `(ccSingle, ccSingle)` arm is reclamation-free.
 
 `ccProd` / `ccCons` are `ccSingle` / `ccMulti`. Cardinality-illegal
 direct-on-queue calls are blocked at compile time with `{.error.}`
@@ -33,8 +49,8 @@ etc.) wrap the two generics for ergonomic continuity.
 ## 2. Project structure
 
 ```
-src/lockfreequeues.nim                  # umbrella import
-src/lockfreequeues/
+src/lockfree.nim                  # umbrella import
+src/lockfree/
     queue.nim                           # Queue[T, ccProd, ccCons, ST, S, MaxThreads]
     bqueue.nim                          # BQueue[T, ccProd, ccCons, N, P, C]
     endpoint.nim, endpoint_types.nim    # Producer/Consumer endpoint types
@@ -79,7 +95,7 @@ docs/                                   # mkdocs site (guide/, design/, api/)
 .github/workflows/build.yml             # CI matrix (lint + 6-cell test matrix)
 nim.cfg                                 # platform-specific DWCAS flags
 config.nims                             # nimble.paths include
-lockfreequeues.nimble                   # tasks: test, examples, benchmarks, …
+lockfree.nimble                   # tasks: test, examples, benchmarks, …
 ```
 
 ---
@@ -121,6 +137,34 @@ Both default to "yes" in `nimble test`.
 `nim.cfg` sets `--outdir:".tmp"`. All compiled binaries land in `.tmp/`
 (gitignored). Bench JSONs land in `benchmarks/results/`.
 
+### 3.5 Fast-iteration discipline for agent dispatches
+
+Full `nimble test` runs 5 MM lanes (C orc/arc/refc, C++ orc, atomicArc TSAN, ASAN) plus the nebr aggregator (311 tests) plus should_fail. Each lane = compile + run for ~10-20 test files. Nim 2.x compile time dominates; cold full-suite is **30+ minutes**.
+
+**Do NOT run the full matrix on every per-task dispatch during development.** Per-task dispatches should default to:
+
+```sh
+# Single MM, single test file — typical per-task verification (~30s-2min)
+nim c --threads:on --mm:arc --path:src -r tests/t_<your-new-test>.nim
+```
+
+Only the multi-MM matrix verification needs to happen at:
+
+1. **PG closure points** — quick `nimble test` sanity check before declaring a PG (parallel group) done
+2. **PG-9 T-TEST-COMPOSITION** — the dedicated cross-cardinality cross-MM matrix test task
+3. **PG-10 CI cells** — the actual full matrix runs in CI; that is the authoritative verification
+
+**Dispatch brief default**: when authoring a brief for a per-task subagent, scope verification to `--mm:arc + single test file`. Do NOT include `for mm in arc orc atomicArc refc none; do ...` loops in per-task briefs unless the task is specifically MM-portability-focused. If the task touches MM-conditional code (`when defined(gcArc):` arms etc.), 5-MM `nim check` (NOT `-r` run) on `src/lockfree.nim` is a cheaper sanity check — compile-only is ~5s per MM vs minutes for full test run.
+
+**When to escalate to slim multi-MM**: only when (a) a per-MM bug is suspected, (b) you've finished a PG and need a baseline check, or (c) you're closing PG-9 / PG-10. Even then, prefer single-test multi-MM (`for mm in arc orc; do nim c -r tests/t_<file>.nim; done`) over full `nimble test` until you really need the wide net.
+
+**Watch out**:
+- The smr/debra-legacy aggregator runs 311 nebr tests under arc on every `nimble test`. Skip it during dev unless you touched smr code.
+- `nim check` vs `nim c -r`: `nim check` only type-checks (no codegen, ~5s); use it for compile-validity checks. `nim c -r` compiles + links + runs (minutes); use it only when you need actual test results.
+- Apple Silicon thermal throttling can extend runs 2-3x under sustained load; if you must run the full matrix, give the machine a cooldown break between cycles (NOT relevant for measurement accuracy in CI-cost work — different concern).
+
+This discipline was established 2026-06-06 after several per-task dispatches consumed 30-60+ minutes on multi-MM verification that contributed marginal value over CI's own matrix run.
+
 ### 3.4 Pre-commit hooks
 
 `.pre-commit-config.yaml` runs:
@@ -136,6 +180,24 @@ hook`, **re-stage and retry**. Do not pass `--no-verify` to bypass — the
 formatter changes are project-canonical. The retry-after-nph pattern
 arises every few commits when you write code that doesn't already match
 `nph` output; it is normal and not an error.
+
+**R13 gotcha — `nph --version` banner is unreliable.** The pinned
+`nph` binary always prints a prerelease-shaped banner
+(`X.Y.Z-prerelease-0-g<hash>`) even when built from a release tag.
+**Do not** discriminate format drift by parsing the banner; the only
+trustworthy signal is `nph --check` against the baseline-canonical
+files. If `--check` is clean, the version is correct. See the
+`project_nph_version_banner_unreliable` memory tag for context.
+
+**R14 gotcha — typestates v0.12.0 srcDir flattening.** The `requires
+"typestates >= 0.12.0"` pin in `lockfree.nimble` brings the upstream
+`nim-typestates` package whose v0.12.0 flattened `src/` into the
+package root. CI uses an `ln -s . src` symlink hack inside the
+typestates install dir to keep the include path working. If you see
+`Error: cannot open file: typestates/...` after a fresh `nimble
+install`, that symlink is missing. See the
+`project_typestates_0.10.0_ast_verifier` memory for the AST-verifier
+history that motivated the pin floor.
 
 ---
 
@@ -218,6 +280,31 @@ Unbounded MPMC's `pop` / `push` uses **strict-LCRQ cells** with
 double-word CAS (DWCAS) via `nim-debra >= 0.10.0`. The cell carries
 `Pair[uint, T]` (seq, value) atomically. See §7.4 for the invariants
 this introduced.
+
+### 4.7 Umbrella substrates (nebr, chronos, nimony)
+
+- **nebr SMR** lives at `src/lockfree/smr/nebr/`. Lifted in-tree from
+  `nim-debra` v0.10.0 with rename (DEBRA → nebr, "Neutralizable EBR").
+  The unbounded queue family's `PinScope` / `retireOnCAS` /
+  `retireOnPublish` calls dispatch to nebr; the `(ccSingle, ccSingle)`
+  arm uses the nebr-free `pinscope_stub.nim`. See
+  `docs/guide/smr/` for the nebr-as-public-surface documentation.
+- **chronos adapter (Tier 3 async)** lives at
+  `src/lockfree/chronos.nim` and is **gated on chronos being
+  importable** (compile-time `when (compiles do: import
+  chronos/[asyncsync]):`). Chronos is **NOT** listed in
+  `lockfree.nimble` `requires` — it is an optional dependency
+  installed only in the CI cell that exercises the adapter and in
+  user projects that opt in. The same gating pattern appears in
+  `tests/test.nim` for `t_chronos.nim`. **Do not add chronos to
+  `requires`** — that would force every downstream user to pull
+  chronos.
+- **Nimony first-class architecture.** The bit-transport contract is
+  designed to satisfy nimony's MM-free / continue-on-error compilation
+  model. Cell 14 of the CI matrix runs the suite under nimony to keep
+  the surface honest. The `mm:none` lane + drain helpers are part of
+  the same contract — every payload must be transportable as raw bits
+  with no destructor side effects across the cell boundary.
 
 ---
 
@@ -655,7 +742,7 @@ since 2019, ubuntu-24.04-arm runners. The CI matrix runs only on
 supported hardware.
 
 Users on older arm64 must either upgrade or pin to pre-v5.0.0
-lockfreequeues + pre-0.10.0 nim-debra (no DWCAS requirement).
+lockfree + pre-0.10.0 nim-debra (no DWCAS requirement).
 
 ### 14.2 amd64 / x86_64 requires `-mcx16` for cmpxchg16b
 

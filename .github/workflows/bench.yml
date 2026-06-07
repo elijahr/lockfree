@@ -83,7 +83,7 @@ jobs:
     # Compiles and runs `tests/t_bench_*.nim` (the bench harness's own
     # unit tests: t_bench_common, t_bench_latency, t_bench_adapters).
     # These tests live outside `srcDir` and are intentionally NOT
-    # imported by tests/test.nim (see lockfreequeues.nimble) so the
+    # imported by tests/test.nim (see lockfree.nimble) so the
     # regular `nimble test` matrix (8 invocations across MM/sanitizer
     # combos) does not pull in the bench harness's threading/atomic
     # dependencies. Without this job the HistogramTopK / latency CLI /
@@ -94,7 +94,7 @@ jobs:
     # guard prevents loop-back from the bench-snapshot push commit
     # (see docs.yml). Sibling Nim deps are pinned to release tags
     # (not `main`) for deterministic CI; bump in lockstep with
-    # build.yml/bench.yml's `benchmark` job and lockfreequeues.nimble's
+    # build.yml/bench.yml's `benchmark` job and lockfree.nimble's
     # `requires`.
     name: bench-tests (ubuntu-22.04)
     # Pinned to ubuntu-22.04 (not ubuntu-latest) so bench wall-clock
@@ -121,7 +121,7 @@ jobs:
           sudo apt-get -qq install -y clang
 
       - name: Install dependencies from nimble registry
-        # Uses lockfreequeues.nimble `requires` + nimble.lock SHAs
+        # Uses lockfree.nimble `requires` + nimble.lock SHAs
         # for deterministic dep resolution from registry/git.
         run: |
           nimble install -dy
@@ -187,7 +187,7 @@ jobs:
           # Include the nimble manifest + lockfile in the cache key so a
           # dep bump invalidates the cache instead of silently reusing a
           # stale entry. Mirrors build.yml.
-          key: cache-${{ matrix.binary }}-${{ runner.os }}-${{ hashFiles('lockfreequeues.nimble', 'nimble.lock') }}
+          key: cache-${{ matrix.binary }}-${{ runner.os }}-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
 
       - name: Checkout project
         uses: actions/checkout@v4
@@ -203,7 +203,7 @@ jobs:
           sudo apt-get -qq install -y clang
 
       - name: Install dependencies from nimble registry
-        # Uses lockfreequeues.nimble `requires` + nimble.lock SHAs
+        # Uses lockfree.nimble `requires` + nimble.lock SHAs
         # for deterministic dep resolution from registry/git.
         run: |
           nimble install -dy

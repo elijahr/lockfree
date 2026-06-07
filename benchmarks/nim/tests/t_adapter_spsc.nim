@@ -1,5 +1,5 @@
 import unittest2
-import ../adapters/lockfreequeues_spsc_adapter
+import ../adapters/lockfree_spsc_adapter
 import ../adapter
 
 suite "SpscAdapter":
@@ -26,4 +26,4 @@ suite "SpscAdapter":
 
   test "name":
     var q = initSpscAdapter[16, int]()
-    check q.name == "lockfreequeues/Spsc[16]"
+    check q.name == "lockfree/Spsc[16]"
