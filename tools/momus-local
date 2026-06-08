@@ -80,11 +80,21 @@ echo "momus-local: invoking act issue_comment -W .github/workflows/momus.yml ...
 # Image is ~60GB extracted but cached locally after first pull. Image-pin is
 # scoped to this driver only; .actrc keeps `act-latest` as the default for
 # tools/act-cell so per-cell CI iteration stays on the slim image.
+GH_PAT="$(gh auth token)"
+# Pass GH_TOKEN as a container env var as well as a secret: act does not always
+# expand the upstream workflow's `env: GH_TOKEN: ${{ ... || secrets.GITHUB_TOKEN }}`
+# correctly when the LHS step is skipped (e.g. app_token), so steps that shell to
+# `gh` see an empty GH_TOKEN. --env injects it container-wide as a guaranteed
+# fallback; real GHA evaluates the expression correctly without this.
 exec act issue_comment \
   -W .github/workflows/momus.yml \
   -e "${EVENT_FILE}" \
-  -s GITHUB_TOKEN="$(gh auth token)" \
+  -s GITHUB_TOKEN="${GH_PAT}" \
   -s LLM_API_KEY="${LLM_API_KEY}" \
+  --env GH_TOKEN="${GH_PAT}" \
+  --env GITHUB_TOKEN="${GH_PAT}" \
+  --env GITHUB_REPOSITORY="${REPO}" \
+  --env GITHUB_REPOSITORY_OWNER="${REPO%%/*}" \
   --local-repository "axiomantic/.github@devel=${CACHE_PATH}" \
   -P ubuntu-latest=catthehacker/ubuntu:full-latest \
   --container-architecture linux/amd64 \
