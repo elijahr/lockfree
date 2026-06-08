@@ -58,7 +58,7 @@ import ./exceptions
 from lockfree/smr/nebr import
   DebraManager, ThreadHandle, PinnedScope, Destructor, initDebraManager, registerThread,
   bindClient, unbindClient, unpinned, pinScope, advanceEvery, reclaimNow,
-  DebraRegistrationError, ThreadId, currentThreadId, `==`
+  DebraRegistrationError, ThreadId, `==`
 
 from lockfree/smr/nebr import retireOnCAS, retireOnPublish
 
@@ -403,21 +403,6 @@ type
         producerCount*: Atomic[int]
       when ccCons == ccMulti:
         consumerCount*: Atomic[int]
-      when ccProd == ccMulti and ccCons == ccSingle:
-        handle*: ThreadHandle[MaxThreads, nebr.ccSingle]
-        # mpsc-equiv: the single consumer's debra handle is registered
-        # at attach-time (`attachConsumer`) on the operating consumer
-        # thread, NOT at construction (registerThread is thread-affine).
-        # This flag records that attachConsumer has run; the mpsc
-        # `pop` asserts it in debug builds.
-        consumerAttached*: bool
-        when defined(debug):
-          # Debug-only thread-affinity stamp. Records the thread that ran
-          # `attachConsumer()` (which registered the debra handle via
-          # debra's `currentThreadId()`). The mpsc `pop()` asserts the
-          # operating thread matches. `when defined(debug):` so release
-          # builds carry NO field — zero layout change, zero cost.
-          attachedTid*: ThreadId
 
 ## ----------------------------------------------------------------------
 ## Param-coherence guards — unbounded subset of legacy
@@ -494,6 +479,94 @@ proc newSegment[T; ccProd, ccCons: static PinScopeCardinality, S: static int]():
       result.committed[i].store(false, moRelaxed)
   when ccCons == ccMulti:
     result.prevConsumerIdx.store(-1, moRelaxed)
+
+## ----------------------------------------------------------------------
+## Pre-retire foreclosure helper (push-10 race fix).
+##
+## Invariant being enforced: a segment may be retired off `headSegment`
+## ONLY AFTER every cell in `[fromIdx, S-1]` is permanently CLOSED — i.e.,
+## no producer can ever publish a value into it. This eliminates the
+## "producer publishes into retired segment" orphan documented in
+## `docs/internal/push-10-lcrq-race-investigation.md`.
+##
+## The pre-existing slow-path inline scan (queue.nim ~1631) only closes
+## cells in `[mySlot, observed_tail)`. Cells in `[observed_tail, S-1]`
+## may be tail-CAS-reserved by in-flight producers whose `tryPublish`
+## has not yet executed; retiring while those reservations remain
+## allows the producer's later `tryPublish` to land in an orphaned
+## segment, and no consumer ever revisits it (data loss).
+##
+## `forecloseSegmentForRetire(seg, fromIdx)` closes the full
+## `[fromIdx, S-1]` range. If any cell is FILLED (`seq == 1`, not
+## CLOSED) at scan-time, foreclosure returns `false` — the caller MUST
+## abort the retire and route back through the outer pop loop so the
+## fast-path can claim the value via prevConsumerIdx-CAS.
+##
+## Race interactions:
+##  - Producer P reserved tail at index k, has NOT yet `tryPublish`'d:
+##    foreclose's `tryCloseOnEmpty(k, 0)` succeeds. P's eventual
+##    `tryPublish` fails → P escalates to `seg.next` per T9. No orphan.
+##  - Producer P has `tryPublish`'d (cell at k is `seq=1`):
+##    foreclose returns `false`. Caller aborts retire. Outer loop's
+##    fast-path will reach k via prevConsumerIdx-CAS and claim. No orphan.
+##  - Producer P `tryPublish`'s between foreclose's load and CAS at k:
+##    CAS fails (expected `seq=0`, actual `seq=1`); recheck shows
+##    FILLED → return `false`. Caller aborts retire. Outer loop claims.
+##
+## Livelock argument: every iteration of the outer pop loop either
+## claims a value (forward progress) OR foreclose returns true and
+## retire fires (segment advance, also progress) OR foreclose returns
+## false and the next iteration's fast-path claims the discovered
+## FILLED cell. There is no path that loops without progress.
+##
+## Memory-leak argument: every segment becomes foreclosable in finite
+## time because producers can only reserve up to `S` tail slots and
+## each slot will either be claimed (advancing prevConsumerIdx) or
+## closed (foreclose succeeds on next attempt).
+## ----------------------------------------------------------------------
+
+proc forecloseSegmentForRetire[T; S: static int](
+    seg: ptr Segment[T, ccMulti, ccMulti, S], fromIdx: int
+): bool =
+  ## NOTE: `T` is the user-facing payload type; `seg.cells` holds
+  ## `LCRQCell[SlotEncoding(T)]`. The DWCAS primitives are invoked on
+  ## the wire type via `SlotEncoding(T)` to stay aligned with the
+  ## producer/consumer call sites in push/pop.
+  ## Pre-retire scan. Closes cells `[fromIdx, S-1]`. Returns:
+  ##   - `true` if all cells in range are CLOSED (safe to retire).
+  ##   - `false` if a FILLED-not-yet-CLOSED cell is observed (retire
+  ##     would orphan it; caller must abort and let the outer loop's
+  ##     fast-path claim it via prevConsumerIdx-CAS).
+  ##
+  ## Cells in range `[fromIdx, S-1]` are unaccounted-for by the caller
+  ## (caller is at a retire site where prevConsumerIdx points at
+  ## `fromIdx - 1`). A `seq == 1, not CLOSED_BIT` reading there means
+  ## a producer has published into the cell but no consumer has
+  ## claimed it yet — retiring would lose the value.
+  var i = fromIdx
+  while i < S:
+    let cur = load(seg.cells[i], moAcquire)
+    if seqIsClosed(cur.first):
+      inc i
+      continue
+    if cur.first == 0'u:
+      # Empty (possibly tail-CAS-reserved by a producer who hasn't
+      # tryPublish'd yet). Race for the close.
+      if tryCloseOnEmpty[SlotEncoding(T)](seg.cells[i], 0'u):
+        inc i
+        continue
+      # CAS failed — either CLOSED by a concurrent consumer, or
+      # producer just published. Re-read to discriminate.
+      let recheck = load(seg.cells[i], moAcquire)
+      if seqIsClosed(recheck.first):
+        inc i
+        continue
+      # Producer published during our CAS attempt. Abort retire.
+      return false
+    # Cell is FILLED (seq != 0, not CLOSED). Abort retire — there is
+    # an unconsumed value the outer loop must claim.
+    return false
+  return true
 
 ## ----------------------------------------------------------------------
 ## Per-queue retire wrappers — + γ guard.
@@ -640,21 +713,7 @@ proc newQueue*[
   result.itemCount.store(0, moRelaxed)
   when ccProd == ccMulti:
     result.producerCount.store(0, moRelaxed)
-    result.handle = handle
-    # Escape hatch: the caller registered the consumer thread itself and
-    # supplied the handle, so the queue is already attached on the
-    # consumer side. Record it so the mpsc `pop` debug assert passes
-    # without requiring a redundant `attachConsumer` call. (The auto-
-    # create path leaves this false until `attachConsumer` runs.)
-    result.consumerAttached = true
-    when defined(debug):
-      # Stamp the thread-affinity tid for the debug pop assert. The
-      # escape-hatch contract is that the caller registered the consumer
-      # handle on the thread that will pop; that thread also runs this
-      # constructor, so `currentThreadId()` here is that pop thread.
-      result.attachedTid = currentThreadId()
-  else:
-    discard handle
+  discard handle
   let seg = newSegment[T, ccProd, ccSingle, S]()
   result.headSegment.store(seg, moRelaxed)
   result.tailSegment.store(seg, moRelaxed)
@@ -1678,6 +1737,19 @@ proc pop*[
         let nextSeg = seg.next.load(moAcquire)
         if nextSeg == nil:
           break
+        # push-10 race fix: foreclose the full unconsumed cell range
+        # `[prevConsumerIdx+1, S-1]` BEFORE retiring so an in-flight
+        # producer cannot publish into a retired segment. If
+        # foreclosure reports a FILLED cell, abort retire and let the
+        # outer loop's fast-path claim it.
+        let
+          curPrevIdx = seg.prevConsumerIdx.load(moAcquire)
+          forecloseFrom = max(curPrevIdx + 1, 0)
+        if not forecloseSegmentForRetire[T, S](
+          seg, forecloseFrom
+        ):
+          backoffOnRetry(spins)
+          continue
         if self.queue[].retireOnCAS(
           scope,
           self.queue.headSegment,
@@ -1749,6 +1821,15 @@ proc pop*[
             let nextSeg = seg.next.load(moAcquire)
             if nextSeg == nil:
               break
+            # push-10 race fix: foreclose `[mySlot+1, S-1]` before
+            # retire. `mySlot` was just processed (skipped-closed via
+            # the recheck above); cells beyond may still be tail-CAS-
+            # reserved by in-flight producers.
+            if not forecloseSegmentForRetire[T, S](
+              seg, mySlot + 1
+            ):
+              backoffOnRetry(spins)
+              continue
             if self.queue[].retireOnCAS(
               scope,
               self.queue.headSegment,
@@ -1849,6 +1930,13 @@ proc pop*[
             let nextSeg = seg.next.load(moAcquire)
             if nextSeg == nil:
               break
+            # push-10 race fix: foreclose `[mySlot+1, S-1]` before
+            # retire. See site-1 / site-2 rationale above.
+            if not forecloseSegmentForRetire[T, S](
+              seg, mySlot + 1
+            ):
+              backoffOnRetry(spins)
+              continue
             if self.queue[].retireOnCAS(
               scope,
               self.queue.headSegment,
