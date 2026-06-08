@@ -74,15 +74,20 @@ type
 # `=destroy(DestroyTarget)` hook. Row 14 below pins round-trip semantics;
 # Row 18 below pins the destroy/refcount-balance contract via `liveCount`.)
 type
-  CountedRef = ref object
+  CountedRefObj = object
     v: int
+  CountedRef = ref CountedRefObj
 
 var seqRefLiveCounter {.global.}: atomics.Atomic[int]
 
-proc `=destroy`(x: typeof(CountedRef()[])) =
+# Nim 2.x requires the named-object form `var T` (not `typeof(...)`)
+# for type-hook signatures; the prior `typeof(CountedRef()[])` form
+# compiled under earlier toolchains but fails parser validation on
+# Nim 2.2.10 ("signature for '=destroy' must be proc[T: object](x: var T)").
+proc `=destroy`(x: var CountedRefObj) =
   discard seqRefLiveCounter.fetchSub(1, moRelaxed)
 
-proc `=copy`(dest: var typeof(CountedRef()[]); src: typeof(CountedRef()[])) =
+proc `=copy`(dest: var CountedRefObj; src: CountedRefObj) =
   discard seqRefLiveCounter.fetchAdd(1, moRelaxed)
   dest = src
 
@@ -338,23 +343,33 @@ suite "§2.5 ACCEPT rows — Path-C 25-row composition matrix":
   # module scope above tick the live counter on construction/copy and
   # decrement on =destroy. If the box-pattern transport leaks an inner
   # ref through the queue boundary, the counter ends non-zero.
-  test "row 18 lifecycle: seq[CountedRef] inner refcounts balance through transit":
-    let baseline = seqRefLiveCounter.load(moRelaxed)
-    block scoped:
-      var q: BQueue[seq[CountedRef], ccSingle, ccSingle, 16, 0, 0]
-      proc help(q: var BQueue[seq[CountedRef], ccSingle, ccSingle, 16, 0, 0]) =
-        let s = @[mkCounted(10), mkCounted(20)]
-        discard q.push(s)
-      help(q)
-      let popped = q.pop().get
-      check popped.len == 2
-      check popped[0].v == 10
-      check popped[1].v == 20
-      # `popped` falls out of scope at end of `block scoped`; its
-      # =destroy fires, the seq's =destroy fires per-element =destroy
-      # on each CountedRef.
-    let finalCount = seqRefLiveCounter.load(moRelaxed)
-    if finalCount != baseline:
-      echo "seq[CountedRef] leaked: baseline=", baseline,
-           " final=", finalCount
-    check finalCount == baseline
+  #
+  # NOTE: gated to arc/orc/atomicArc only. Refc uses Nim's traditional
+  # tracing GC for ref types and does NOT invoke the user-defined
+  # `=destroy` hook on the underlying object when the ref drops — so the
+  # liveCounter never decrements under refc and this test cannot pass
+  # there by design. The contract being verified ("=destroy fires on
+  # ref drop") is an ARC/ORC contract. Refc reclamation of `seq[ref U]`
+  # is exercised by the queue's broader test surface (rows 1, 14, 25)
+  # which do not depend on user-hook timing.
+  when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc):
+    test "row 18 lifecycle: seq[CountedRef] inner refcounts balance through transit":
+      let baseline = seqRefLiveCounter.load(moRelaxed)
+      block scoped:
+        var q: BQueue[seq[CountedRef], ccSingle, ccSingle, 16, 0, 0]
+        proc help(q: var BQueue[seq[CountedRef], ccSingle, ccSingle, 16, 0, 0]) =
+          let s = @[mkCounted(10), mkCounted(20)]
+          discard q.push(s)
+        help(q)
+        let popped = q.pop().get
+        check popped.len == 2
+        check popped[0].v == 10
+        check popped[1].v == 20
+        # `popped` falls out of scope at end of `block scoped`; its
+        # =destroy fires, the seq's =destroy fires per-element =destroy
+        # on each CountedRef.
+      let finalCount = seqRefLiveCounter.load(moRelaxed)
+      if finalCount != baseline:
+        echo "seq[CountedRef] leaked: baseline=", baseline,
+             " final=", finalCount
+      check finalCount == baseline
