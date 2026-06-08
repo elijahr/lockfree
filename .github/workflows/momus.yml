@@ -24,16 +24,11 @@ jobs:
       event_name: ${{ github.event_name }}
       trigger_command: /ai-review
       trigger_mention: "@axiomantic-momus[bot]"
-      # Override the reusable workflow's deepseek default. deepseek-v4-pro
-      # hit phase2 provider errors (finish_reason: error and Upstream idle
-      # timeout exceeded) on PR-sized diffs. Three Anthropic slugs were
-      # attempted via OpenRouter (claude-3.5-sonnet, claude-sonnet-latest,
-      # claude-3.7-sonnet) and all rejected with 404 No-endpoints-found —
-      # the account does not currently route Anthropic. Pivoting to
-      # OpenAI gpt-4o: broadly accessible on OpenRouter, 128K context
-      # headroom, strong code-reasoning consistency. Same LLM_API_KEY,
-      # same base URL.
-      model: openai/gpt-4o
+      # Intentional: use the reusable workflow's deepseek-v4-pro default.
+      # Cost-conscious — frontier closed-model overrides (Claude, GPT-4o)
+      # are explicitly avoided. Phase2 robustness on large diffs is
+      # addressed in the action itself (auto-fill summary, raised tool
+      # output limits) rather than by escalating to a pricier model.
     secrets:
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
       MOMUS_APP_ID: ${{ secrets.MOMUS_APP_ID }}
