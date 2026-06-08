@@ -1,60 +1,51 @@
 # yamllint disable rule:line-length
 #
-# ci.yml — 18-cell CI matrix (1 lint + 17 test cells) per design §6.3.
+# ci.yml — tiered CI workflow per docs/internal/2026-06-08-ci-resource-audit.md
+# §4 (Tier A / Tier C) and design §6.3 cell catalog.
 #
 # Design cite: docs/internal/2026-06-05-umbrella-v0.1.0-design.md §6.3.
 # Impl plan:   docs/internal/2026-06-06-umbrella-v0.1.0-impl-plan.md
 #              T-CI-MATRIX (PG-10).
+# Audit:       docs/internal/2026-06-08-ci-resource-audit.md
+#              (per-push GHA-minute budget; tier assignments).
 #
-# Cell enumeration (§6.3):
-#   L   Lint                                ubuntu-latest stable                   (typestates verify, nph --check)
-#   1   Baseline                            ubuntu-latest stable      orc   gcc
-#   2   arc                                 ubuntu-latest stable      arc   gcc
-#   3   refc                                ubuntu-latest stable      refc  gcc
-#   4   atomicArc                           ubuntu-latest stable      atomicArc gcc
-#   5   mm:none                             ubuntu-latest stable      none  gcc
+# Tier A — runs on every push AND on every pull_request (always-on):
+#   L   Lint                                ubuntu-latest stable                   (typestates verify)
+#   1   Baseline                            ubuntu-latest stable      orc   gcc    (the nimble test task runs orc/cpp/arc/refc internally — one cell covers the full MM matrix)
+#  12   chronos Tier 3 adapter              ubuntu-latest stable      arc   gcc   -d:lockfreeChronos
+#  13   nim devel (informational)           ubuntu-latest devel       orc   gcc   continue-on-error: true
+#  14   nimony aufbruch (informational)     ubuntu-latest nimony      arc   gcc   continue-on-error: true (pinned SHA + actions/cache@v4)
+#
+# Tier C — runs ONLY on push to main/devel (post-merge gate, skipped on PR triggers):
 #   6   TSAN                                ubuntu-latest stable      orc   gcc   SANITIZE_THREADS=yes
 #   7   ASAN                                ubuntu-latest stable      orc   gcc   SANITIZE_ADDRESS=yes
-#   8   Valgrind memcheck (subset)          ubuntu-latest stable      orc   gcc   (curated subset — see docs/internal/ci-cells.md)
-#   9   Helgrind (subset)                   ubuntu-latest stable      orc   gcc   (curated subset — see docs/internal/ci-cells.md)
+#   8   Valgrind memcheck (subset)          ubuntu-latest stable      orc   gcc
+#   9   Helgrind (subset)                   ubuntu-latest stable      orc   gcc
 #  10   Linux arm64                         ubuntu-24.04-arm stable   orc   gcc
 #  11   macOS arm64                         macos-latest stable       orc   clang
-#  12   chronos Tier 3 adapter              ubuntu-latest stable      arc   gcc   -d:lockfreeChronos (chronos@>= 4.0.0 installed at CI step; see docs/internal/ci-cells.md)
-#  13   nim devel (informational)           ubuntu-latest devel       orc   gcc   continue-on-error: true
-#  14   nimony aufbruch (informational)     ubuntu-latest nimony      arc   gcc   continue-on-error: true (pinned SHA + actions/cache@v4; see docs/internal/ci-cells.md)
-#  17   Windows + MSVC                      windows-latest stable     orc   MSVC  (per O4 — sanitizers omitted)
-#  18   nim cpp backend                     ubuntu-latest stable      orc   cpp   (per O5 — C++ emit coverage)
+#  17   Windows + MSVC                      windows-latest stable     orc   MSVC
 #
-# Note: cell numbering follows §6.3 verbatim; cells 15-16 are reserved
-# (the design renumbered "Nim devel" to cell 13 and "nimony" to cell 14;
-# no cell carries the numbers 15 or 16 in the §6.3 table).
+# Deleted cells (per audit §3 green-mirage analysis):
+#   2 (arc), 3 (refc), 4 (atomicArc), 5 (mm:none) — `LOCKFREE_MM` env var
+#       is never consumed by lockfree.nimble or any source; these cells
+#       produced signal identical to cell 1.
+#  18 (nim cpp) — already covered by cell 1's inner `nim cpp` exec inside
+#       the nimble test task.
 #
 # Resolved Open Questions (§6.13, all RESOLVED 2026-06-06):
 #   O1  Wall-clock thresholds: GREEN <=20m / YELLOW 20-30m / RED >30m.
-#       Post-run classification is a MANUAL gate per §6.4.2 — CI itself
-#       does NOT auto-trim. After the first end-to-end run on this
-#       workflow, T-CI-MATRIX surfaces the longest cell's wall-clock to
-#       the operator via AskUserQuestion (band + §6.4.2 options) before
-#       the PR can merge. No autonomous scope cuts.
 #   O4  Windows IN  (cell 17, MSVC + orc, sanitizers omitted).
-#   O5  nim cpp IN  (cell 18, ubuntu-latest + orc + cpp).
+#   O5  nim cpp IN  (covered by cell 1 inner exec; standalone cell 18 retired).
 #   O8  Lint is Linux-only (one cell, OS-independent).
 #   O9  actions/cache@v4 keyed on lockfree.nimble + nimble.lock.
 #   O10 No macOS x86_64 (v0.2 backlog).
 #
-# Inherited from build.yml (preserved load-bearing patterns):
+# Inherited from the retired build.yml (preserved load-bearing patterns):
 #   - typestates v0.12.0 srcDir flattening workaround (self-referential
 #     `src` symlink inside the pkg dir).
 #   - nimble v0.20.x exit-code workaround (`nimble_run` wrapper greps
 #     stdout for `Error:` and forces non-zero exit when nimble exits 0
 #     after an inner exec abort).
-#
-# Coexistence with build.yml: this workflow is additive. build.yml's
-# 6-cell test job remains in place for the legacy gating path until the
-# PR-merge gate confirms ci.yml's 18-cell matrix is healthy; at that
-# point a follow-up commit retires build.yml. The lint job is duplicated
-# (both build.yml and ci.yml run it) — this is intentional during the
-# transition; the duplicate is removed when build.yml is retired.
 
 name: ci
 
@@ -81,6 +72,7 @@ jobs:
 
   # ===========================================================================
   # Cell L — Lint (typestates verify + nph --check). Linux only per §6 O8.
+  # Tier A: always on.
   # ===========================================================================
   lint:
     name: 'L: Lint (typestates verify)'
@@ -99,7 +91,7 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          # typestates v0.12.0 srcDir flattening workaround (see build.yml).
+          # typestates v0.12.0 srcDir flattening workaround.
           for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
@@ -108,19 +100,17 @@ jobs:
         run: typestates verify -W --format=github src/
 
   # ===========================================================================
-  # Cells 1-13, 17, 18 — Standard matrix (Linux + macOS + Windows test cells).
+  # Tier A — test-fast matrix.
   #
-  # Each cell defines a (runs-on, nim-version, mm, backend, sanitizer-flags)
-  # tuple. The matrix `include:` list enumerates each cell explicitly rather
-  # than using cross-product axes — this matches §6.3's "explicit enumeration"
-  # design intent and keeps per-cell knobs (timeout, continue-on-error, env
-  # flags) readable next to the cell they apply to.
+  # Per audit §4: cell 1's `nimble test` already exercises orc/cpp/arc/refc
+  # internally, so a single Linux baseline cell covers the MM matrix.
+  # Chronos (12) is cheap; nim devel (13) and nimony (14) are informational
+  # but kept on every push so upstream-breakage badges stay current.
   #
-  # Cells 14 (nimony) and 8/9 (Valgrind/Helgrind) are split into separate
-  # jobs below because their job shape diverges substantially from the
-  # standard matrix (extra preflight steps, different test-runner command).
+  # Standalone-job-shaped Tier-A cells (chronos, nimony) live below as
+  # separate jobs because their preflight/test-runner shape diverges.
   # ===========================================================================
-  test:
+  test-fast:
     name: '${{ matrix.cell }}: ${{ matrix.label }}'
     runs-on: ${{ matrix.runs-on }}
     timeout-minutes: ${{ matrix.timeout }}
@@ -131,110 +121,12 @@ jobs:
       matrix:
         include:
           # --- Cell 1: Baseline (orc + gcc + Linux x86_64) -------------------
+          # Keystone cell: `nimble test` runs all four MM lanes
+          # (orc / cpp / arc / refc) plus the debra-legacy aggregator and
+          # `nimble examples` inside this single cell.
           - cell: '1'
             label: 'baseline orc/gcc/linux'
             runs-on: ubuntu-latest
-            nim-version: 'stable'
-            mm: 'orc'
-            backend: 'c'
-            sanitize-threads: 'no'
-            sanitize-address: 'no'
-            continue-on-error: 'false'
-            timeout: 45
-
-          # --- Cell 2: arc on baseline lane ----------------------------------
-          - cell: '2'
-            label: 'arc'
-            runs-on: ubuntu-latest
-            nim-version: 'stable'
-            mm: 'arc'
-            backend: 'c'
-            sanitize-threads: 'no'
-            sanitize-address: 'no'
-            continue-on-error: 'false'
-            timeout: 45
-
-          # --- Cell 3: refc on baseline lane ---------------------------------
-          - cell: '3'
-            label: 'refc'
-            runs-on: ubuntu-latest
-            nim-version: 'stable'
-            mm: 'refc'
-            backend: 'c'
-            sanitize-threads: 'no'
-            sanitize-address: 'no'
-            continue-on-error: 'false'
-            timeout: 45
-
-          # --- Cell 4: atomicArc on baseline lane ----------------------------
-          - cell: '4'
-            label: 'atomicArc'
-            runs-on: ubuntu-latest
-            nim-version: 'stable'
-            mm: 'atomicArc'
-            backend: 'c'
-            sanitize-threads: 'no'
-            sanitize-address: 'no'
-            continue-on-error: 'false'
-            timeout: 45
-
-          # --- Cell 5: mm:none (CRITICAL #2 lock-in) -------------------------
-          # Per §6 O7 (Phase 2 default): compile + smoke-test subset; full
-          # suite under mm:none likely fails because the test framework
-          # allocates. Smoke-test subset finalized in a follow-up task; for
-          # now this cell runs `nimble test` and is allowed to surface any
-          # GC-dependent failures so the subset can be enumerated.
-          - cell: '5'
-            label: 'mm:none'
-            runs-on: ubuntu-latest
-            nim-version: 'stable'
-            mm: 'none'
-            backend: 'c'
-            sanitize-threads: 'no'
-            sanitize-address: 'no'
-            continue-on-error: 'false'
-            timeout: 45
-
-          # --- Cell 6: TSAN on baseline lane ---------------------------------
-          - cell: '6'
-            label: 'TSAN orc/gcc'
-            runs-on: ubuntu-latest
-            nim-version: 'stable'
-            mm: 'orc'
-            backend: 'c'
-            sanitize-threads: 'yes'
-            sanitize-address: 'no'
-            continue-on-error: 'false'
-            timeout: 45
-
-          # --- Cell 7: ASAN on baseline lane ---------------------------------
-          - cell: '7'
-            label: 'ASAN orc/gcc'
-            runs-on: ubuntu-latest
-            nim-version: 'stable'
-            mm: 'orc'
-            backend: 'c'
-            sanitize-threads: 'no'
-            sanitize-address: 'yes'
-            continue-on-error: 'false'
-            timeout: 45
-
-          # --- Cell 10: Linux arm64 ------------------------------------------
-          - cell: '10'
-            label: 'arm64 linux'
-            runs-on: ubuntu-24.04-arm
-            nim-version: 'stable'
-            mm: 'orc'
-            backend: 'c'
-            sanitize-threads: 'no'
-            sanitize-address: 'no'
-            continue-on-error: 'false'
-            timeout: 45
-
-          # --- Cell 11: macOS arm64 (Apple Silicon + Apple Clang) ------------
-          - cell: '11'
-            label: 'macOS arm64'
-            runs-on: macos-latest
             nim-version: 'stable'
             mm: 'orc'
             backend: 'c'
@@ -255,13 +147,230 @@ jobs:
             continue-on-error: 'true'
             timeout: 45
 
+    steps:
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: ${HOME}/.cache
+          key: ci-${{ matrix.cell }}-${{ matrix.runs-on }}-${{ matrix.nim-version }}-${{ matrix.mm }}-${{ matrix.backend }}-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Setup Nim ${{ matrix.nim-version }}
+        uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: ${{ matrix.nim-version }}
+
+      - name: Install clang (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -q -y
+          sudo apt-get -qq install -y clang
+
+      - name: Install dependencies from nimble registry
+        run: |
+          nimble install -dy
+          nimble setup
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+            [ -e "$d/src" ] || ln -s . "$d/src"
+          done
+
+      - name: Run tests
+        run: |
+          set -o pipefail
+          export SANITIZE_THREADS=${{ matrix.sanitize-threads }}
+          export SANITIZE_ADDRESS=${{ matrix.sanitize-address }}
+          # Workaround for nimble v0.20.x: `nimble <task>` exits 0 even when
+          # an inner `exec` aborts the script (it logs `Error:` but does not
+          # propagate the failure). Tee output and grep for nimble's error
+          # markers to force a non-zero exit.
+          nimble_run() {
+            local logfile
+            logfile="$(mktemp)"
+            "$@" 2>&1 | tee "$logfile"
+            local rc=${PIPESTATUS[0]}
+            if [[ $rc -ne 0 ]]; then
+              return $rc
+            fi
+            if grep -Eq '^[[:space:]]*Error:' "$logfile"; then
+              echo "::error::nimble reported an error but exited 0; failing the step."
+              return 1
+            fi
+          }
+          echo "::group::Run test suite (nimble test covers orc/cpp/arc/refc internally)"
+          nimble_run nimble test
+          echo "::endgroup::"
+          echo "::group::Run examples"
+          nimble_run nimble examples
+          echo "::endgroup::"
+
+  # ===========================================================================
+  # Cell 12 — chronos Tier 3 adapter (-d:lockfreeChronos). Tier A.
+  # ===========================================================================
+  chronos:
+    name: '12: chronos Tier 3 adapter'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Setup Nim stable
+        uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: 'stable'
+
+      - name: Install dependencies + chronos
+        # CRITICAL #4 preservation: chronos is NOT in lockfree.nimble's
+        # `requires` — Tier 3 adapter must compile/run without chronos
+        # for the rest of the matrix. We install chronos here at the CI
+        # step only, with the version pin per R3 (>= 4.0.0).
+        run: |
+          nimble install -dy
+          nimble setup
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+            [ -e "$d/src" ] || ln -s . "$d/src"
+          done
+          nimble install -y 'chronos@>= 4.0.0'
+
+      - name: Compile + run with -d:lockfreeChronos
+        run: |
+          set -o pipefail
+          echo "::group::chronos adapter (-d:lockfreeChronos, mm:arc)"
+          nim c \
+            --threads:on \
+            --mm:arc \
+            -d:lockfreeChronos \
+            -r \
+            tests/t_chronos.nim
+          echo "::endgroup::"
+
+  # ===========================================================================
+  # Cell 14 — nimony aufbruch (informational, continue-on-error: true). Tier A.
+  # ===========================================================================
+  nimony:
+    name: '14: nimony aufbruch (informational)'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    env:
+      # Pinned nimony commit SHA per §6 O3.
+      NIMONY_SHA: '751121f9ee0fc7584015fc03f5326fe521029d84'
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Setup Nim stable (for bootstrap)
+        uses: jiro4989/setup-nim-action@v2
+        with:
+          nim-version: 'stable'
+
+      - name: Cache nimony build
+        uses: actions/cache@v4
+        id: nimony-cache
+        with:
+          path: |
+            /tmp/nimony
+            ~/.nimble/bin/nimony
+          key: nimony-${{ runner.os }}-${{ env.NIMONY_SHA }}
+
+      - name: Install dependencies from nimble registry
+        run: |
+          nimble install -dy
+          nimble setup
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+            [ -e "$d/src" ] || ln -s . "$d/src"
+          done
+
+      - name: Build nimony from source (pinned SHA)
+        if: steps.nimony-cache.outputs.cache-hit != 'true'
+        run: |
+          set -o pipefail
+          git clone https://github.com/nim-lang/nimony.git /tmp/nimony
+          cd /tmp/nimony
+          git checkout "${NIMONY_SHA}"
+          nimble install -y
+
+      - name: Run aufbruch baseline under nimony
+        run: |
+          set -o pipefail
+          echo "::group::nimony aufbruch baseline"
+          nim c \
+            --threads:on \
+            --mm:arc \
+            -d:nimony \
+            -r \
+            tests/nimony/t_nimony_arc_baseline.nim
+          echo "::endgroup::"
+
+  # ===========================================================================
+  # Tier C — test-heavy matrix.
+  #
+  # Gated to push events on main/devel only (skipped on pull_request
+  # triggers and skipped on direct pushes to feature branches). The
+  # heavy-cell set is what bench.yml already restricts post-push-7;
+  # mirror the same gate so feature-branch iteration stays cheap and the
+  # heavy cells fire when work lands on the release branches.
+  #
+  # The matrix carries cells 6 (TSAN), 7 (ASAN), 10 (Linux arm64),
+  # 11 (macOS arm64), 17 (Windows MSVC).
+  # ===========================================================================
+  test-heavy:
+    name: '${{ matrix.cell }}: ${{ matrix.label }}'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')
+    runs-on: ${{ matrix.runs-on }}
+    timeout-minutes: ${{ matrix.timeout }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # --- Cell 6: TSAN on baseline lane ---------------------------------
+          - cell: '6'
+            label: 'TSAN orc/gcc'
+            runs-on: ubuntu-latest
+            nim-version: 'stable'
+            mm: 'orc'
+            backend: 'c'
+            sanitize-threads: 'yes'
+            sanitize-address: 'no'
+            timeout: 45
+
+          # --- Cell 7: ASAN on baseline lane ---------------------------------
+          - cell: '7'
+            label: 'ASAN orc/gcc'
+            runs-on: ubuntu-latest
+            nim-version: 'stable'
+            mm: 'orc'
+            backend: 'c'
+            sanitize-threads: 'no'
+            sanitize-address: 'yes'
+            timeout: 45
+
+          # --- Cell 10: Linux arm64 ------------------------------------------
+          - cell: '10'
+            label: 'arm64 linux'
+            runs-on: ubuntu-24.04-arm
+            nim-version: 'stable'
+            mm: 'orc'
+            backend: 'c'
+            sanitize-threads: 'no'
+            sanitize-address: 'no'
+            timeout: 45
+
+          # --- Cell 11: macOS arm64 (Apple Silicon + Apple Clang) ------------
+          - cell: '11'
+            label: 'macOS arm64'
+            runs-on: macos-latest
+            nim-version: 'stable'
+            mm: 'orc'
+            backend: 'c'
+            sanitize-threads: 'no'
+            sanitize-address: 'no'
+            timeout: 45
+
           # --- Cell 17: Windows + MSVC + orc (per O4) ------------------------
-          # MSVC's cl.exe is the default Nim `cc` on Windows — no explicit
-          # backend pin. Sanitizers deliberately omitted (TSAN/ASAN require
-          # clang-cl + special instrumentation not provided by the default
-          # setup-nim-action; Valgrind/Helgrind don't run on Windows).
-          # Per T-WINDOWS-VERIFY: execution deferred from local to CI; this
-          # cell IS the validator.
           - cell: '17'
             label: 'windows MSVC orc'
             runs-on: windows-latest
@@ -270,28 +379,10 @@ jobs:
             backend: 'c'
             sanitize-threads: 'no'
             sanitize-address: 'no'
-            continue-on-error: 'false'
             timeout: 45
-
-          # --- Cell 18: nim cpp backend (per O5) -----------------------------
-          # Same source tree, C++ backend. Catches C-only constructs that
-          # would silently break nim cpp users. Per T-NIMCPP-VERIFY: green
-          # locally; CI just confirms portability.
-          - cell: '18'
-            label: 'nim cpp backend'
-            runs-on: ubuntu-latest
-            nim-version: 'stable'
-            mm: 'orc'
-            backend: 'cpp'
-            sanitize-threads: 'no'
-            sanitize-address: 'no'
-            continue-on-error: 'false'
-            timeout: 30
 
     steps:
       - name: Restore cache
-        # Per §6 O9: actions/cache@v4 keyed on lockfree.nimble + nimble.lock
-        # so a dep bump or lockfile resolution invalidates the cache.
         uses: actions/cache@v4
         with:
           path: ${HOME}/.cache
@@ -316,7 +407,6 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          # typestates v0.12.0 srcDir flattening workaround (see build.yml).
           for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
@@ -324,11 +414,6 @@ jobs:
       - name: Install dependencies from nimble registry (Windows)
         if: runner.os == 'Windows'
         shell: bash
-        # Same logic as the POSIX step, but run under Git-bash on Windows
-        # so `find` + `ln -s` behave consistently. nimble + Nim resolve
-        # paths through `~/.nimble/pkgs2` identically on Windows; the
-        # symlink workaround is still needed because typestates v0.12.0
-        # ships flat regardless of OS.
         run: |
           nimble install -dy
           nimble setup
@@ -342,12 +427,6 @@ jobs:
           set -o pipefail
           export SANITIZE_THREADS=${{ matrix.sanitize-threads }}
           export SANITIZE_ADDRESS=${{ matrix.sanitize-address }}
-          export LOCKFREE_MM=${{ matrix.mm }}
-          export LOCKFREE_BACKEND=${{ matrix.backend }}
-          # Workaround for nimble v0.20.x: `nimble <task>` exits 0 even when
-          # an inner `exec` aborts the script (it logs `Error:` but does not
-          # propagate the failure). Tee output and grep for nimble's error
-          # markers to force a non-zero exit. See build.yml / nimble issue.
           nimble_run() {
             local logfile
             logfile="$(mktemp)"
@@ -361,39 +440,20 @@ jobs:
               return 1
             fi
           }
-          if [[ "${{ matrix.backend }}" == "cpp" ]]; then
-            # Cell 18: the `nimble test` task does not accept a backend
-            # override on the lockfreequeues v5.0.0 task definition (it
-            # hard-codes `nim c`), so cell 18 invokes the test entrypoint
-            # directly under `nim cpp`. This sidesteps the nimble exit-code
-            # workaround because `nim cpp -r` propagates exit codes
-            # natively. If the umbrella consolidation later parameterizes
-            # the nimble test task on backend, this branch collapses back
-            # to `nimble_run nimble test`.
-            echo "::group::Run test suite under nim cpp"
-            nim cpp --threads:on --mm:${{ matrix.mm }} -r tests/test.nim
-            echo "::endgroup::"
-          else
-            echo "::group::Run test suite (mm=${{ matrix.mm }}, backend=${{ matrix.backend }})"
-            nimble_run nimble test
-            echo "::endgroup::"
-            echo "::group::Run examples"
-            nimble_run nimble examples
-            echo "::endgroup::"
-          fi
+          echo "::group::Run test suite (mm=${{ matrix.mm }}, backend=${{ matrix.backend }})"
+          nimble_run nimble test
+          echo "::endgroup::"
+          echo "::group::Run examples"
+          nimble_run nimble examples
+          echo "::endgroup::"
 
       - name: Run tests (Windows)
         if: runner.os == 'Windows'
         shell: bash
-        # Cell 17 (windows-latest + MSVC + orc). Git-bash provides a POSIX
-        # shell on Windows runners so the same `nimble_run` wrapper works.
-        # MSVC's cl.exe is the default `cc` for Nim on Windows; no explicit
-        # backend pin needed. Sanitizer env flags are unset (per §6.3
-        # row 17: sanitizers omitted on Windows).
+        # Cell 17 (windows-latest + MSVC + orc). MSVC's cl.exe is the
+        # default `cc` for Nim on Windows; sanitizers omitted per §6.3.
         run: |
           set -o pipefail
-          export LOCKFREE_MM=${{ matrix.mm }}
-          export LOCKFREE_BACKEND=${{ matrix.backend }}
           nimble_run() {
             local logfile
             logfile="$(mktemp)"
@@ -412,15 +472,11 @@ jobs:
           echo "::endgroup::"
 
   # ===========================================================================
-  # Cell 8 — Valgrind memcheck (curated subset).
-  # Placeholder shape; subset finalized in T-CI-VALGRIND-HELGRIND (PG-10).
-  # Job is split out from the main matrix because its preflight (apt-install
-  # valgrind, special compile flags `--debugger:native --opt:none -d:useMalloc`)
-  # and its test-runner command (curated subset, not `nimble test`) diverge
-  # substantially from the standard matrix shape (§6.6.2).
+  # Cell 8 — Valgrind memcheck (curated subset). Tier C.
   # ===========================================================================
   valgrind:
     name: '8: Valgrind memcheck (subset)'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -449,11 +505,6 @@ jobs:
         # Curated subset per §6.6.2 / docs/internal/ci-cells.md: covers
         # all four queue cardinalities (SPSC + MPSC + MPMC) and the two
         # highest-risk lifecycle surfaces (drain + destructor walk).
-        # Compile flags per §6.6.2: --debugger:native --opt:none
-        # -d:useMalloc (so Valgrind sees the C allocator, not Nim's
-        # GC-aware fast path). Per-PR gating per §6.4 GREEN disposition;
-        # if §6.4 baseline classifies this cell YELLOW/RED, operator
-        # moves it to nightly per §6 O6.
         run: |
           set -o pipefail
           SUBSET=(
@@ -487,11 +538,11 @@ jobs:
           done
 
   # ===========================================================================
-  # Cell 9 — Helgrind race detector (curated subset).
-  # Placeholder shape; subset finalized in T-CI-VALGRIND-HELGRIND.
+  # Cell 9 — Helgrind race detector (curated subset). Tier C.
   # ===========================================================================
   helgrind:
     name: '9: Helgrind (subset)'
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -517,12 +568,6 @@ jobs:
           done
 
       - name: Run Helgrind on curated subset
-        # Curated subset per §6.6.2 / docs/internal/ci-cells.md: MPMC
-        # bounded + MPMC unbounded stress (where races materialize
-        # cross-cardinality) + nebr retire path (the highest-risk
-        # lifecycle race surface). Helgrind's lockset analysis catches
-        # a different class of races than TSAN (cell 6); defense-in-
-        # depth per §6.6.1.
         run: |
           set -o pipefail
           SUBSET=(
@@ -548,143 +593,3 @@ jobs:
             rm -f "$bin"
             echo "::endgroup::"
           done
-
-  # ===========================================================================
-  # Cell 12 — chronos Tier 3 adapter (-d:lockfreeChronos).
-  # Placeholder shape; finalized in T-CI-CHRONOS (PG-10) which pins the
-  # chronos version range (>= 4.0.0 per R3) and the actual test entry
-  # points (tests/t_chronos_smoke.nim, tests/t_chronos_mpmc.nim per §6.8.2).
-  # ===========================================================================
-  chronos:
-    name: '12: chronos Tier 3 adapter'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Checkout project
-        uses: actions/checkout@v4
-
-      - name: Setup Nim stable
-        uses: jiro4989/setup-nim-action@v2
-        with:
-          nim-version: 'stable'
-
-      - name: Install dependencies + chronos
-        # CRITICAL #4 preservation: chronos is NOT in lockfree.nimble's
-        # `requires` — Tier 3 adapter must compile/run without chronos
-        # for cells 1-11/13/17/18. We install chronos here at the CI
-        # step only, with the version pin per R3 (>= 4.0.0).
-        run: |
-          nimble install -dy
-          nimble setup
-          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
-            [ -e "$d/src" ] || ln -s . "$d/src"
-          done
-          # Version pin per R3 / §6.8 / T-CI-CHRONOS acceptance criteria.
-          nimble install -y 'chronos@>= 4.0.0'
-
-      - name: Compile + run with -d:lockfreeChronos
-        # Adapter test entry point: tests/t_chronos.nim (the §5.6 Tier 3
-        # adapter test). Exercised under the `-d:lockfreeChronos` opt-in
-        # path with --threads:on --mm:arc (per task spec). PR fails on
-        # adapter regression — no `continue-on-error` here; CRITICAL #4
-        # behavior must not rot silently.
-        run: |
-          set -o pipefail
-          echo "::group::chronos adapter (-d:lockfreeChronos, mm:arc)"
-          nim c \
-            --threads:on \
-            --mm:arc \
-            -d:lockfreeChronos \
-            -r \
-            tests/t_chronos.nim
-          echo "::endgroup::"
-
-  # ===========================================================================
-  # Cell 14 — nimony aufbruch (informational, continue-on-error: true).
-  # Placeholder shape; finalized in T-CI-NIMONY (PG-10) which adds:
-  #   - nimony build-from-source step (~10 min uncached, ~0 min on cache hit)
-  #   - actions/cache@v4 keyed on the pinned nimony commit SHA (per O3 + O9)
-  #   - the actual aufbruch invocation (§6.7.2 sketches `nim c --mm:atomicArc -d:nimony tests/test.nim`)
-  # Uses atomicArc deliberately (NOT orc) per §6.7.3 — nimony's ref
-  # semantics under orc are not yet stable enough for the full
-  # ManagedRef / ManagedSlice surface.
-  # ===========================================================================
-  nimony:
-    name: '14: nimony aufbruch (informational)'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    # Per §6.7 + R4: nimony is pre-release; cell is informational, does
-    # NOT gate PR merge. Status surfaces via the dedicated nimony badge
-    # per §6.7.5 (added to README in a follow-up task). Upstream nimony
-    # churn must never block this PR — `continue-on-error: true` is the
-    # R4 mitigation.
-    continue-on-error: true
-    env:
-      # Pinned nimony commit SHA per §6 O3 (Phase 2.5 resolved). Bumping
-      # this value is the documented mechanism for cell-14 upgrades; the
-      # actions/cache@v4 key below is keyed on this SHA so a bump
-      # invalidates the cache and forces a rebuild. Pinned to
-      # nim-lang/nimony@master HEAD as observed 2026-06-06.
-      NIMONY_SHA: '751121f9ee0fc7584015fc03f5326fe521029d84'
-    steps:
-      - name: Checkout project
-        uses: actions/checkout@v4
-
-      - name: Setup Nim stable (for bootstrap)
-        uses: jiro4989/setup-nim-action@v2
-        with:
-          nim-version: 'stable'
-
-      - name: Cache nimony build
-        # Per §6 O9: cache the built nimony source tree (including the
-        # installed binary at ./bin/nimony) keyed on NIMONY_SHA. Cache
-        # hit brings the cell from ~30 min (cold rebuild) to ~20 min;
-        # cold-cache runs after a SHA bump are expected. Cache hit rate
-        # expectation: ~95% steady-state (only misses on SHA bump or
-        # weekly cache eviction).
-        uses: actions/cache@v4
-        id: nimony-cache
-        with:
-          path: |
-            /tmp/nimony
-            ~/.nimble/bin/nimony
-          key: nimony-${{ runner.os }}-${{ env.NIMONY_SHA }}
-
-      - name: Install dependencies from nimble registry
-        run: |
-          nimble install -dy
-          nimble setup
-          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
-            [ -e "$d/src" ] || ln -s . "$d/src"
-          done
-
-      - name: Build nimony from source (pinned SHA)
-        # Skipped on cache hit. The `git clone` + `git checkout` pair
-        # pins to NIMONY_SHA; without the pin, upstream master HEAD
-        # would drift between runs and silently change cell-14 behavior.
-        if: steps.nimony-cache.outputs.cache-hit != 'true'
-        run: |
-          set -o pipefail
-          git clone https://github.com/nim-lang/nimony.git /tmp/nimony
-          cd /tmp/nimony
-          git checkout "${NIMONY_SHA}"
-          nimble install -y
-
-      - name: Run aufbruch baseline under nimony
-        # Test entry point per impl-plan T-TEST-NIMONY: tests/nimony/
-        # t_nimony_arc_baseline.nim. Compiled under --mm:arc per the task
-        # spec (per §6.7.3 the cell uses atomicArc for the broader nimony
-        # surface; the arc-baseline test specifically uses arc as a
-        # nimony smoke-test of arc semantics). `continue-on-error: true`
-        # at the job level (per R4) means a failure here surfaces as a
-        # yellow status on the nimony badge but does NOT block PR merge.
-        run: |
-          set -o pipefail
-          echo "::group::nimony aufbruch baseline"
-          nim c \
-            --threads:on \
-            --mm:arc \
-            -d:nimony \
-            -r \
-            tests/nimony/t_nimony_arc_baseline.nim
-          echo "::endgroup::"

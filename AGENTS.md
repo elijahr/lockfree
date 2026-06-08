@@ -92,7 +92,7 @@ benchmarks/                             # bench harness + per-binary drivers
 
 examples/                               # runnable usage examples (also in CI)
 docs/                                   # mkdocs site (guide/, design/, api/)
-.github/workflows/build.yml             # CI matrix (lint + 6-cell test matrix)
+.github/workflows/ci.yml                # CI matrix (Tier A always-on + Tier C main/devel-only)
 nim.cfg                                 # platform-specific DWCAS flags
 config.nims                             # nimble.paths include
 lockfree.nimble                   # tasks: test, examples, benchmarks, …
@@ -169,16 +169,37 @@ This discipline was established 2026-06-06 after several per-task dispatches con
 
 Run Linux ci.yml cells locally via [nektos/act](https://github.com/nektos/act) so matrix
 iteration does not burn GitHub Actions credits and the feedback loop is seconds-to-minutes
-instead of pull-request-round-trips. `.actrc` at repo root pins the runner image
-(`catthehacker/ubuntu:act-latest`) and forces `linux/amd64` so setup-nim-action's binaries
-load. The `tools/act-cell` wrapper translates a cell number into the right `act -j ... --matrix ...` invocation.
+instead of pull-request-round-trips. `.actrc` at repo root pins the default runner image
+(`catthehacker/ubuntu:act-latest` — the slim variant) and forces `linux/amd64` so
+setup-nim-action's binaries load. The `tools/act-cell` wrapper translates a cell number
+into the right `act -j ... --matrix ...` invocation.
 
 ```sh
 tools/act-cell lint        # cell L — typestates verify + lint
 tools/act-cell 1           # cell 1 — baseline orc/gcc
-tools/act-cell 6           # cell 6 — TSAN
-tools/act-cell 18 -v       # cell 18 — nim cpp backend, verbose
+tools/act-cell 6           # cell 6 — TSAN (Tier C; fires on main/devel pushes in GHA)
+tools/act-cell 12 -v       # cell 12 — chronos adapter, verbose
 ```
+
+`ci.yml` is split into two tiers (see workflow header for the
+authoritative catalog and the audit at
+`docs/internal/2026-06-08-ci-resource-audit.md` for the rationale):
+
+- **Tier A — every push + every PR.** Cells L (lint), 1 (baseline
+  orc/gcc/linux — the keystone; runs orc/cpp/arc/refc internally via
+  `nimble test`), 12 (chronos), 13 (nim devel, informational),
+  14 (nimony, informational).
+- **Tier C — push to main/devel only.** Cells 6 (TSAN), 7 (ASAN),
+  8 (Valgrind), 9 (Helgrind), 10 (Linux arm64), 11 (macOS arm64),
+  17 (Windows MSVC). These do NOT fire on PR triggers or on direct
+  pushes to feature branches; they gate the merge commit on the
+  release branches.
+
+Cells 2 (arc), 3 (refc), 4 (atomicArc), 5 (mm:none), and 18 (nim cpp)
+were retired as green mirages: their matrix `mm`/`backend` axes were
+exported as `LOCKFREE_MM` / `LOCKFREE_BACKEND` env vars that no source
+ever read, and `nimble test` already runs the same orc/cpp/arc/refc
+inner loop inside cell 1.
 
 **Caveats:**
 
@@ -191,6 +212,36 @@ tools/act-cell 18 -v       # cell 18 — nim cpp backend, verbose
   test cell only when you need to reproduce a GHA failure.
 - Docker Desktop must be running; act surfaces `Cannot connect to the
   Docker daemon` if it is not.
+
+#### Local Momus AI review
+
+`tools/momus-local` runs the Momus AI review workflow (`.github/workflows/momus.yml`)
+under act instead of GHA, so review iterations do not burn Actions credits. Momus
+posts the same real review comments to the PR as it would when invoked on GHA.
+
+Setup (one-time): export `LLM_API_KEY` in your shell (it lives in
+`~/.config/zsh/secrets.zsh`, which the wrapper auto-sources if the var is unset).
+`gh` must be authenticated; the wrapper passes `gh auth token` as `GITHUB_TOKEN`.
+
+```sh
+tools/momus-local        # review PR 1 on axiomantic/lockfree-temp (default)
+tools/momus-local 1 -v   # explicit PR, verbose act output
+```
+
+Caveats:
+
+- Posts **real** comments to the real PR — only run when you want bot signal.
+- Requires a local clone of `axiomantic/.github@devel` at
+  `~/.cache/lockfree-act/axiomantic-github` for reusable-workflow resolution.
+  Clone manually if missing: `gh repo clone axiomantic/.github ~/.cache/lockfree-act/axiomantic-github -- --branch devel`.
+- Pins the runner image to `catthehacker/ubuntu:full-latest` (the full
+  GitHub-runner mirror) instead of the slim `act-latest` that `.actrc`
+  uses, because the reusable momus workflow shells to `gh` for PR-head
+  SHA resolution and the slim image does not preinstall `gh`. The
+  override is local to `tools/momus-local`; it does not affect
+  `tools/act-cell` or other act invocations. First pull of
+  `full-latest` is large (~60GB extracted, ~20GB compressed) but is
+  cached locally afterwards.
 
 ### 3.4 Pre-commit hooks
 
@@ -739,14 +790,14 @@ runner driver is misbehaving.
 
 ### 13.2 CI: nim-devel and macos-latest legs need 45-min timeout
 
-The `build.yml` matrix runs nim-stable and nim-devel across
+The legacy `build.yml` matrix ran nim-stable and nim-devel across
 ubuntu-latest, ubuntu-24.04-arm, and macos-latest. The 25-minute
 `timeout-minutes` budget was insufficient for the TSAN+ASAN passes on
 macos-latest (both nim-stable and nim-devel) and on nim-devel x86_64
-linux. The active config bumps those legs to 45 minutes. Adding new
-matrix legs that exercise TSAN/ASAN should default to a 45-minute
-budget; only `nim-stable / ubuntu-latest` consistently finishes
-inside 25.
+linux; build.yml has since been retired in favour of `ci.yml`'s tiered
+matrix (see §3.6). Adding new ci.yml cells that exercise TSAN/ASAN
+should default to a 45-minute budget; only baseline cells consistently
+finish inside 25.
 
 ---
 

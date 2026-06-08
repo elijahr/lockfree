@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# momus-local — run the Momus AI review workflow under `act` against a real PR.
+#
+# WHY: GitHub Actions budget is exhausted; this driver runs the same workflow
+# the GHA scheduler would run, but on the local Docker host. The reusable
+# workflow `axiomantic/.github/.github/workflows/momus.yml@devel` is resolved
+# from a local clone (see CACHE_PATH below) so act does not re-fetch on each
+# invocation.
+#
+# SECRETS REQUIRED (both must be set before invocation):
+#   - $OPENROUTER_API_KEY — exported by your shell (e.g. zsh secrets file).
+#     Passed to act as `LLM_API_KEY`. This script never reads or prints it.
+#   - `gh auth token` — must be authenticated (`gh auth status`). Passed as
+#     GITHUB_TOKEN so the workflow can post review comments.
+#
+# SIDE EFFECT: Momus posts REAL review comments to the configured PR on
+# axiomantic/lockfree-temp. Do not invoke unless you want bot signal.
+#
+# USAGE: tools/momus-local [PR_NUMBER] [extra act args...]
+#   PR_NUMBER defaults to 1 (the only PR on axiomantic/lockfree-temp).
+
+set -euo pipefail
+
+CACHE_PATH="${HOME}/.cache/lockfree-act/axiomantic-github"
+REPO="axiomantic/lockfree-temp"
+PR_NUMBER="${1:-1}"
+shift || true
+
+command -v act >/dev/null 2>&1 || { echo "error: act is not installed or not on PATH" >&2; exit 127; }
+command -v gh  >/dev/null 2>&1 || { echo "error: gh is not installed or not on PATH" >&2; exit 127; }
+gh auth status >/dev/null 2>&1 || { echo "error: gh is not authenticated (run 'gh auth login')" >&2; exit 1; }
+
+if [ -z "${LLM_API_KEY:-}" ] && [ -r "${HOME}/.config/zsh/secrets.zsh" ]; then
+  # shellcheck disable=SC1090,SC1091
+  source "${HOME}/.config/zsh/secrets.zsh"
+fi
+# Back-compat: if the operator named it OPENROUTER_API_KEY, accept that too.
+: "${LLM_API_KEY:=${OPENROUTER_API_KEY:-}}"
+if [ -z "${LLM_API_KEY:-}" ]; then
+  echo "error: LLM_API_KEY not set (nor OPENROUTER_API_KEY); checked ~/.config/zsh/secrets.zsh." >&2
+  exit 1
+fi
+
+if [ ! -d "${CACHE_PATH}/.git" ]; then
+  echo "error: cache repo missing at ${CACHE_PATH}; clone axiomantic/.github@devel there first" >&2
+  exit 1
+fi
+
+HEAD_SHA="$(gh pr view "${PR_NUMBER}" --repo "${REPO}" --json headRefOid -q .headRefOid)"
+[ -n "${HEAD_SHA}" ] || { echo "error: could not resolve head SHA for ${REPO}#${PR_NUMBER}" >&2; exit 1; }
+
+EVENT_FILE="/tmp/momus-event-${PR_NUMBER}.json"
+cat >"${EVENT_FILE}" <<JSON
+{
+  "action": "created",
+  "issue": {
+    "number": ${PR_NUMBER},
+    "pull_request": { "url": "https://api.github.com/repos/${REPO}/pulls/${PR_NUMBER}" }
+  },
+  "comment": {
+    "body": "/ai-review",
+    "user": { "login": "elijahr", "type": "User" }
+  },
+  "sender": { "login": "elijahr", "type": "User" },
+  "repository": {
+    "name": "lockfree-temp",
+    "full_name": "${REPO}",
+    "owner": { "login": "axiomantic", "type": "Organization" }
+  }
+}
+JSON
+
+echo "momus-local: PR ${REPO}#${PR_NUMBER} @ ${HEAD_SHA}" >&2
+echo "momus-local: event=${EVENT_FILE} cache=${CACHE_PATH}" >&2
+echo "momus-local: invoking act issue_comment -W .github/workflows/momus.yml ..." >&2
+
+# Use catthehacker/ubuntu:full-latest (a copy of the GitHub Actions hosted
+# runner image) so the reusable momus workflow's `gh` invocations resolve;
+# the default `act-latest` image is the slim variant and does NOT ship `gh`.
+# Image is ~60GB extracted but cached locally after first pull. Image-pin is
+# scoped to this driver only; .actrc keeps `act-latest` as the default for
+# tools/act-cell so per-cell CI iteration stays on the slim image.
+exec act issue_comment \
+  -W .github/workflows/momus.yml \
+  -e "${EVENT_FILE}" \
+  -s GITHUB_TOKEN="$(gh auth token)" \
+  -s LLM_API_KEY="${LLM_API_KEY}" \
+  --local-repository "axiomantic/.github@devel=${CACHE_PATH}" \
+  -P ubuntu-latest=catthehacker/ubuntu:full-latest \
+  --container-architecture linux/amd64 \
+  "$@"

@@ -3,8 +3,9 @@
 # locally. See AGENTS.md §3.6 for context.
 #
 # Usage: tools/act-cell <cell> [extra act args...]
-#   <cell>  numeric cell from ci.yml (1,2,3,...,18) OR job alias
-#           (lint, valgrind, helgrind, chronos, nimony).
+#   <cell>  numeric cell from ci.yml (1, 6, 7, 8, 9, 12, 13, 14) OR job alias
+#           (lint, valgrind, helgrind, chronos, nimony). Cells 2/3/4/5/18 were
+#           retired in push 9 (see audit §3) and now exit 2 with a pointer.
 #
 # Cells that cannot run via act locally exit 2 with a clear message:
 #   10  Linux arm64 — runs-on: ubuntu-24.04-arm (no amd64 emulation path
@@ -17,7 +18,9 @@ set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
   echo "usage: $0 <cell|alias> [extra act args...]" >&2
-  echo "  cells: 1 2 3 4 5 6 7 8 9 12 13 18" >&2
+  echo "  Tier A (always-on):           1 13 (test-fast); 12 (chronos); 14 (nimony); L (lint)" >&2
+  echo "  Tier C (main/devel push gate): 6 7 (test-heavy); 8 (valgrind); 9 (helgrind)" >&2
+  echo "  Tier C (no local runner):     10 11 17" >&2
   echo "  aliases: lint valgrind helgrind chronos nimony" >&2
   exit 64
 fi
@@ -57,14 +60,24 @@ case "$CELL" in
   17)
     UNSUPPORTED_REASON="cell 17 is Windows MSVC; Docker cannot host a Windows runner. Wait for GHA."
     ;;
-  1|2|3|4|5|6|7|13|18)
-    JOB="test"
+  1|13)
+    # Tier A test-fast matrix (cell 1 baseline; cell 13 nim devel informational).
+    JOB="test-fast"
     MATRIX_ARGS=(--matrix "cell:$CELL")
+    ;;
+  6|7)
+    # Tier C test-heavy matrix (cells 6 TSAN, 7 ASAN; cells 10/11/17 require
+    # non-Linux/arm64 runners and are filtered above).
+    JOB="test-heavy"
+    MATRIX_ARGS=(--matrix "cell:$CELL")
+    ;;
+  2|3|4|5|18)
+    UNSUPPORTED_REASON="cell $CELL was retired in push 9 (audit §3 green-mirage analysis). Cells 2/3/4/5 exported LOCKFREE_MM env var that no source consumed; cell 18 (nim cpp) is covered by cell 1's nimble test inner loop."
     ;;
   *)
     echo "act-cell: unknown cell or alias: $CELL" >&2
-    echo "  cells: 1 2 3 4 5 6 7 8 9 12 13 18" >&2
-    echo "  aliases: lint valgrind helgrind chronos nimony" >&2
+    echo "  Tier A: 1 13 lint chronos nimony 12 14 L" >&2
+    echo "  Tier C: 6 7 8 9 valgrind helgrind" >&2
     exit 64
     ;;
 esac
