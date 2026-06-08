@@ -28,10 +28,11 @@ jobs:
       # hit phase2 provider errors (finish_reason: error and Upstream idle
       # timeout exceeded) on PR-sized diffs; Claude Sonnet has the context
       # headroom and reasoning consistency to clear phase2 on multi-commit
-      # reviews. Using the floating `claude-sonnet-latest` alias on
-      # OpenRouter so we always track the newest Sonnet without pin churn.
-      # Same LLM_API_KEY (OpenRouter), same base URL.
-      model: anthropic/claude-sonnet-latest
+      # reviews. OpenRouter rejects both `claude-3.5-sonnet` (sunset) and
+      # the `claude-sonnet-latest` floating alias, so we pin to the
+      # versioned `claude-3.7-sonnet` slug — broad OpenRouter availability,
+      # strong code-reasoning. Same LLM_API_KEY, same base URL.
+      model: anthropic/claude-3.7-sonnet
     secrets:
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
       MOMUS_APP_ID: ${{ secrets.MOMUS_APP_ID }}
