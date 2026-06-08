@@ -22,6 +22,7 @@ when defined(adapter_boost_lockfree_spsc_available):
       error: "boost_lockfree_spsc_adapter requires `nim cpp` (Boost.LockFree is C++)."
     .}
 
+  import std/typetraits
   import ../bench_common
   import ../adapter
   import lockfree/internal/aligned_alloc
@@ -57,6 +58,10 @@ when defined(adapter_boost_lockfree_spsc_available):
   proc makeBoostLockfreeSpscAdapter*[T](
       capacity: int = 1024
   ): BoostLockfreeSpscAdapter[T] =
+    when not supportsCopyMem(T):
+      {.error: "BoostLockfreeSpscAdapter[T] requires POD T (no =copy/=destroy hooks); the C++ queue stores raw uint64 and would bypass user hooks.".}
+    when sizeof(T) != sizeof(uint64):
+      {.error: "BoostLockfreeSpscAdapter[T] requires sizeof(T) == 8; the C++ cell is uint64 and a mismatched T would truncate or sign-extend silently.".}
     result.capacity = capacity
     # `allocAligned` (cache-line aligned, zeroed) instead of `alloc0` so the
     # placement-constructed Boost spsc_queue gets the alignment its internal
@@ -81,7 +86,11 @@ when defined(adapter_boost_lockfree_spsc_available):
   proc push*[T](a: var BoostLockfreeSpscAdapter[T], item: T): PushResult =
     if a.queue == nil:
       return prFull
-    if bsPush(a.queue[], culonglong(uint64(item))): prSuccess else: prFull
+    # `cast[uint64](item)` (not `uint64(item)`) so non-numeric 8-byte
+    # payloads (pointers, distinct-int aliases) round-trip through the
+    # C++ uint64 wire format by their bit pattern. Per gemini PR
+    # feat/v0.1.0 review, 2026-06-07.
+    if bsPush(a.queue[], culonglong(cast[uint64](item))): prSuccess else: prFull
 
   proc pop*[T](a: var BoostLockfreeSpscAdapter[T]): PopResult[T] =
     if a.queue == nil:
@@ -89,7 +98,10 @@ when defined(adapter_boost_lockfree_spsc_available):
     var raw: culonglong
     let n = bsPop(a.queue[], raw)
     if n == csize_t(1):
-      PopResult[T](success: true, value: T(uint64(raw)))
+      # `cast[T]` mirrors the push side so pointer payloads recover
+      # their original bit pattern. Per gemini PR feat/v0.1.0 review,
+      # 2026-06-07.
+      PopResult[T](success: true, value: cast[T](uint64(raw)))
     else:
       PopResult[T](success: false)
 

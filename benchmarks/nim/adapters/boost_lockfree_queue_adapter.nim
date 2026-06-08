@@ -84,8 +84,8 @@ when defined(adapter_boost_lockfree_queue_available):
   ): BoostLockfreeQueueAdapter[T] =
     when not supportsCopyMem(T):
       {.error: "BoostLockfreeQueueAdapter[T] requires POD T (no =copy/=destroy hooks); the C++ queue stores raw uint64 and would bypass user hooks.".}
-    when sizeof(T) > sizeof(uint64):
-      {.error: "BoostLockfreeQueueAdapter[T] requires sizeof(T) <= 8; the C++ cell is uint64 and larger T would truncate silently.".}
+    when sizeof(T) != sizeof(uint64):
+      {.error: "BoostLockfreeQueueAdapter[T] requires sizeof(T) == 8; the C++ cell is uint64 and a mismatched T would truncate or sign-extend silently.".}
     ## ``capacity`` is the fixed node-pool size; pushes that exceed it
     ## return ``prFull``. Default 1024 mirrors other bounded adapters.
     ## Backing storage uses ``allocAligned`` (cache-line aligned, zeroed)
