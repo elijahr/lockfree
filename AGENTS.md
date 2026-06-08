@@ -165,6 +165,33 @@ Only the multi-MM matrix verification needs to happen at:
 
 This discipline was established 2026-06-06 after several per-task dispatches consumed 30-60+ minutes on multi-MM verification that contributed marginal value over CI's own matrix run.
 
+### 3.6 Local CI iteration with act
+
+Run Linux ci.yml cells locally via [nektos/act](https://github.com/nektos/act) so matrix
+iteration does not burn GitHub Actions credits and the feedback loop is seconds-to-minutes
+instead of pull-request-round-trips. `.actrc` at repo root pins the runner image
+(`catthehacker/ubuntu:act-latest`) and forces `linux/amd64` so setup-nim-action's binaries
+load. The `tools/act-cell` wrapper translates a cell number into the right `act -j ... --matrix ...` invocation.
+
+```sh
+tools/act-cell lint        # cell L — typestates verify + lint
+tools/act-cell 1           # cell 1 — baseline orc/gcc
+tools/act-cell 6           # cell 6 — TSAN
+tools/act-cell 18 -v       # cell 18 — nim cpp backend, verbose
+```
+
+**Caveats:**
+
+- macOS cells (11), Windows MSVC (17), Linux arm64 (10), and nimony (14)
+  cannot run via act locally. `tools/act-cell` exits 2 with a reason.
+  Run macOS cells natively with `nimble test`; the rest wait for GHA.
+- On Apple Silicon, amd64 emulation runs **3-5x slower** than GHA. Use
+  act for correctness iteration, not perf-realistic timing. Prefer
+  `tools/act-cell lint` (~2 min) for quick sanity; reach for a full
+  test cell only when you need to reproduce a GHA failure.
+- Docker Desktop must be running; act surfaces `Cannot connect to the
+  Docker daemon` if it is not.
+
 ### 3.4 Pre-commit hooks
 
 `.pre-commit-config.yaml` runs:

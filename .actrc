@@ -1,0 +1,27 @@
+# act (nektos/act) default flags for local CI iteration.
+#
+# Usage: invoke `act` (or via tools/act-cell) from repo root; act reads
+# this file automatically. See AGENTS.md §3.6 "Local CI iteration with
+# act" for the operator-facing workflow.
+
+# Runner images — catthehacker's "act" variants include the toolchain
+# preinstalled in stock GitHub-hosted runners (apt, sudo, node, etc.).
+# `act-latest` mirrors ubuntu-latest; `act-22.04` mirrors ubuntu-22.04
+# (ci.yml's matrix only references ubuntu-latest today but the second
+# mapping future-proofs the pinned-runner cells).
+-P ubuntu-latest=catthehacker/ubuntu:act-latest
+-P ubuntu-22.04=catthehacker/ubuntu:act-22.04
+-P ubuntu-24.04=catthehacker/ubuntu:act-latest
+
+# Force linux/amd64 even on Apple Silicon. Most GitHub Actions
+# (setup-nim-action, actions/cache@v4) only ship amd64 binaries; arm64
+# emulation via Docker Desktop's qemu is slow (3-5x) but correct.
+--container-architecture linux/amd64
+
+# Reuse containers across runs of the same job so dep installs cache.
+# Combine with `--rm` on the CLI if you want a clean slate.
+--reuse
+
+# Pull images on first reference, then leave alone. Avoids re-pulling
+# the ~2GB catthehacker image on every invocation.
+--pull=false

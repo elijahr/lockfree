@@ -1,0 +1,83 @@
+#!/usr/bin/env bash
+# act-cell — thin wrapper around `act` for running individual ci.yml cells
+# locally. See AGENTS.md §3.6 for context.
+#
+# Usage: tools/act-cell <cell> [extra act args...]
+#   <cell>  numeric cell from ci.yml (1,2,3,...,18) OR job alias
+#           (lint, valgrind, helgrind, chronos, nimony).
+#
+# Cells that cannot run via act locally exit 2 with a clear message:
+#   10  Linux arm64 — runs-on: ubuntu-24.04-arm (no amd64 emulation path
+#       worth the bother; just push and let GHA's arm64 runner do it).
+#   11  macOS arm64 — Docker cannot host a macOS runner.
+#   17  Windows MSVC — Docker cannot host a Windows runner.
+#   14  nimony — works in principle but pulls ~30 min of build time
+#       under qemu emulation; recommended to skip locally.
+set -euo pipefail
+
+if [[ $# -lt 1 ]]; then
+  echo "usage: $0 <cell|alias> [extra act args...]" >&2
+  echo "  cells: 1 2 3 4 5 6 7 8 9 12 13 18" >&2
+  echo "  aliases: lint valgrind helgrind chronos nimony" >&2
+  exit 64
+fi
+
+CELL="$1"
+shift
+
+# Resolve cell -> (job, matrix-flags). Job names come from ci.yml `jobs:`
+# keys; matrix-flags from the `include:` entries in the `test` job. The
+# `--matrix cell:<N>` selector pins a single matrix row.
+JOB=""
+MATRIX_ARGS=()
+UNSUPPORTED_REASON=""
+
+case "$CELL" in
+  lint|L|l)
+    JOB="lint"
+    ;;
+  valgrind|8)
+    JOB="valgrind"
+    ;;
+  helgrind|9)
+    JOB="helgrind"
+    ;;
+  chronos|12)
+    JOB="chronos"
+    ;;
+  nimony|14)
+    UNSUPPORTED_REASON="nimony cell builds nimony from source (~30 min uncached) and runs under amd64 emulation on Apple Silicon (3-5x slowdown). Run on GHA instead."
+    ;;
+  10)
+    UNSUPPORTED_REASON="cell 10 runs on ubuntu-24.04-arm (native arm64 GHA runner); no useful local equivalent under act."
+    ;;
+  11)
+    UNSUPPORTED_REASON="cell 11 is macOS arm64; Docker cannot host a macOS runner. Run natively: nimble test"
+    ;;
+  17)
+    UNSUPPORTED_REASON="cell 17 is Windows MSVC; Docker cannot host a Windows runner. Wait for GHA."
+    ;;
+  1|2|3|4|5|6|7|13|18)
+    JOB="test"
+    MATRIX_ARGS=(--matrix "cell:$CELL")
+    ;;
+  *)
+    echo "act-cell: unknown cell or alias: $CELL" >&2
+    echo "  cells: 1 2 3 4 5 6 7 8 9 12 13 18" >&2
+    echo "  aliases: lint valgrind helgrind chronos nimony" >&2
+    exit 64
+    ;;
+esac
+
+if [[ -n "$UNSUPPORTED_REASON" ]]; then
+  echo "act-cell: cell '$CELL' cannot run via act locally." >&2
+  echo "  reason: $UNSUPPORTED_REASON" >&2
+  exit 2
+fi
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$REPO_ROOT"
+
+CMD=(act -W .github/workflows/ci.yml -j "$JOB" "${MATRIX_ARGS[@]}" "$@")
+printf 'act-cell: running: %s\n' "${CMD[*]}" >&2
+exec "${CMD[@]}"
