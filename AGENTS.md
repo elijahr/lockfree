@@ -170,9 +170,12 @@ This discipline was established 2026-06-06 after several per-task dispatches con
 Run Linux ci.yml cells locally via [nektos/act](https://github.com/nektos/act) so matrix
 iteration does not burn GitHub Actions credits and the feedback loop is seconds-to-minutes
 instead of pull-request-round-trips. `.actrc` at repo root pins the default runner image
-(`catthehacker/ubuntu:act-latest` — the slim variant) and forces `linux/amd64` so
+(`catthehacker/ubuntu:js-latest` — the smallest catthehacker variant that ships Node.js,
+which `actions/cache@v4` and `actions/checkout@v4` require) and forces `linux/amd64` so
 setup-nim-action's binaries load. The `tools/act-cell` wrapper translates a cell number
-into the right `act -j ... --matrix ...` invocation.
+into the right `act -j ... --matrix ...` invocation. `tools/momus-local` separately pins
+`catthehacker/ubuntu:full-latest` because the reusable momus workflow shells out to `gh`,
+which the `js-*` variants do not include.
 
 ```sh
 tools/act-cell lint        # cell L — typestates verify + lint

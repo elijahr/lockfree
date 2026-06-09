@@ -4,14 +4,20 @@
 # this file automatically. See AGENTS.md §3.6 "Local CI iteration with
 # act" for the operator-facing workflow.
 
-# Runner images — catthehacker's "act" variants include the toolchain
-# preinstalled in stock GitHub-hosted runners (apt, sudo, node, etc.).
-# `act-latest` mirrors ubuntu-latest; `act-22.04` mirrors ubuntu-22.04
-# (ci.yml's matrix only references ubuntu-latest today but the second
-# mapping future-proofs the pinned-runner cells).
--P ubuntu-latest=catthehacker/ubuntu:act-latest
--P ubuntu-22.04=catthehacker/ubuntu:act-22.04
--P ubuntu-24.04=catthehacker/ubuntu:act-latest
+# Runner images — catthehacker's "js" variants are the smallest images
+# that include Node.js (and the surrounding GHA action toolchain), which
+# is required by stock JS-based actions like actions/cache@v4 and
+# actions/checkout@v4. The slim "act-*" variants do NOT ship node and
+# cause `actions/cache@v4` to fail with `node: executable file not found`
+# (see push-18 cache validation run).
+#
+# The "full-*" variants (~60GB extracted) also include node + gh, and
+# tools/momus-local pins itself to `full-latest` because the reusable
+# momus workflow shells out to `gh`. For per-cell CI iteration we don't
+# need `gh`, so `js-*` is the right balance of size vs functionality.
+-P ubuntu-latest=catthehacker/ubuntu:js-latest
+-P ubuntu-22.04=catthehacker/ubuntu:js-22.04
+-P ubuntu-24.04=catthehacker/ubuntu:js-24.04
 
 # Force linux/amd64 even on Apple Silicon. Most GitHub Actions
 # (setup-nim-action, actions/cache@v4) only ship amd64 binaries; arm64

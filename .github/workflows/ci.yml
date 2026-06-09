@@ -172,6 +172,18 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v4
 
+      # setup-nim-action clones the Nim source repo into ./Nim when
+      # nim-version is 'devel' (or any from-source version). On real GHA
+      # the working dir is fresh per run so this never collides, but
+      # under act with `--reuse` the container's working tree persists
+      # across invocations and the second run hits:
+      #   fatal: destination path "Nim" already exists and is not an empty directory
+      # Defensive `rm -rf` is a no-op on GHA (./Nim does not exist) and
+      # idempotent on act. Gated to devel so stable cells avoid the syscall.
+      - name: Clean stale Nim source dir (devel only)
+        if: matrix.nim-version == 'devel'
+        run: rm -rf Nim
+
       - name: Setup Nim ${{ matrix.nim-version }}
         uses: jiro4989/setup-nim-action@v2
         with:
