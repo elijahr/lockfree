@@ -386,7 +386,7 @@ proc neutralizeRemoteSlot*(tid: ThreadId, slot: int) =
         # observation. The neutralization store is not applied below
         # in this path; that is acceptable because a thread we could
         # not suspend cannot be in a pinned critical section we need
-        # to neutralize (gemini cycle-43 HIGH).
+        # to neutralize.
         return
 
       # Walk the global manager descriptor exactly like the POSIX
@@ -416,8 +416,7 @@ proc neutralizeRemoteSlot*(tid: ThreadId, slot: int) =
       # arrives here as `-1`. As with the `SuspendThread` check above,
       # `cast[int32]` the return value explicitly and compare against
       # `-1'i32` rather than `< 0` so the check survives any future
-      # winlean signature change to an unsigned `DWORD`/`uint32` return
-      # (gemini cycle-29/34).
+      # winlean signature change to an unsigned `DWORD`/`uint32` return.
       if cast[int32](resumeThread(h)) == -1'i32:
         # ResumeThread failed. Common cause: the thread terminated
         # between our SuspendThread and ResumeThread calls (race
@@ -430,7 +429,7 @@ proc neutralizeRemoteSlot*(tid: ThreadId, slot: int) =
         # "still active" observation: a false-positive crash during
         # teardown is worse than missing a rare kernel-level
         # corruption case. The handle is CloseHandle()'d in the
-        # finally block below regardless (gemini cycle-43 HIGH).
+        # finally block below regardless.
         discard
     finally:
       # Always close the temporary handle. Handle lifetime is exactly

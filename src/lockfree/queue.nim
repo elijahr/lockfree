@@ -1225,10 +1225,10 @@ proc newUnboundedMpmcQueue*[
   newQueue(Queue[T, ccMulti, ccMulti, ST, S, MaxThreads])
 
 ## ----------------------------------------------------------------------
-## Push / pop on Bound endpoints — Track C v5.0.0 re-typing.
+## Push / pop on Bound endpoints.
 ##
-## Re-types the pre-v5.0.0 QueueProducer/QueueConsumer push/pop bodies
-## onto `Bound[T, Tag, Queue[T, ccProd, ccCons, ST, S, MaxThreads]]`
+## QueueProducer/QueueConsumer push/pop bodies live on
+## `Bound[T, Tag, Queue[T, ccProd, ccCons, ST, S, MaxThreads]]`
 ## receivers. The Bound endpoint carries opaque handle storage
 ## (`handleManager: pointer` + `handleIdx: int`); for the ccProd==ccMulti
 ## paths that need `pinScope(unpinned(handle))` the typed
@@ -2068,9 +2068,8 @@ iterator drain*[
     yield opt.get()
 
 # --- items iterators (T-ITERATORS, design §5.3) -------------------------
-# `items` is the Nim-convention alias for `drain` (OQ5.10 disposition).
-# Per §5.3.1, `pairs` is BQueue-only — unbounded Queue ships `items`
-# (and `drain`) only.
+# `items` is the Nim-convention alias for `drain`. Per §5.3.1, `pairs`
+# is BQueue-only — unbounded Queue ships `items` (and `drain`) only.
 
 # items: SPSC absorbed (bare Queue).
 iterator items*[
@@ -2142,7 +2141,7 @@ proc destroyAndDrain*[
     cleanup(item)
   # `localSelf` goes out of scope here → `=destroy` fires once.
 
-# --- destroyAndDrain: POD discard overload (§5 OQ5.1) --------------------
+# --- destroyAndDrain: POD discard overload (§5) -------------------------
 proc destroyAndDrain*[
     T;
     ST: static DeallocationStrategy,

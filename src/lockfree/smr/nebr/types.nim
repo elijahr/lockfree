@@ -128,9 +128,7 @@ proc initDebraManager*[
   ## inferable from a zero-argument call, so it defaults to `ccSingle`
   ## to keep the 0.7.x-style `initDebraManager[N]()` call shape working
   ## unchanged. Callers that want `ccMulti` spell it explicitly:
-  ## `initDebraManager[N, ccMulti]()`. The 0.8.0 "Step 8" surface
-  ## widening is complete; direct zero-initialization of the object
-  ## type is no longer the workaround for ccMulti construction.
+  ## `initDebraManager[N, ccMulti]()`.
   ##
   ## The global epoch starts at 1 (not 0) so that epoch 0 can represent
   ## "never observed" in thread state.

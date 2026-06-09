@@ -741,15 +741,12 @@ proc `=destroy`*[T; ccProd, ccCons: static PinScopeCardinality, N, P, C: static 
         disposeSlotEncoded[T](self.cells.cells[i].payload.data)
 
 ## ----------------------------------------------------------------------
-## Push / pop on Bound endpoints — Track C v5.0.0 re-typing.
+## Push / pop on Bound endpoints.
 ##
-## The pre-v5.0.0 BQueueProducer/BQueueConsumer-receiver overloads were
-## deleted in C7; their bodies are restored here on
-## `Bound[T, Tag, BQueue[...]]` receivers with `{.tags: [Tag].}` effect
-## pragmas for static role discrimination. Bodies are byte-for-byte
-## identical to the pre-deletion implementations (`Tag` is a phantom
-## generic that drives effect-tag checking; the bodies themselves don't
-## use it).
+## These overloads live on `Bound[T, Tag, BQueue[...]]` receivers with
+## `{.tags: [Tag].}` effect pragmas for static role discrimination.
+## `Tag` is a phantom generic that drives effect-tag checking; the bodies
+## themselves don't use it.
 ##
 ## **Role guards.** Each overload restricts `Tag` to the appropriate
 ## role tag (e.g., MPSC push requires `Tag: MpmcProducerTag |
@@ -985,13 +982,13 @@ iterator drain*[
     yield opt.get()
 
 # --- items / pairs iterators (T-ITERATORS, design §5.3) -----------------
-# `items` is the Nim-convention alias for `drain` (OQ5.10 disposition:
-# ship as alias, destructive drain-to-empty semantics). `for x in q: ...`
-# desugars to `iterator items*`.
+# `items` is the Nim-convention alias for `drain`: destructive
+# drain-to-empty semantics. `for x in q: ...` desugars to
+# `iterator items*`.
 #
 # `pairs` yields (localOrdinal, item) where localOrdinal is the drain
-# ordinal observed by THIS iterator instance (OQ5.2 disposition — no
-# global ordering for multi-consumer drains).
+# ordinal observed by THIS iterator instance — no global ordering for
+# multi-consumer drains.
 
 # items: single-consumer (alias to drain).
 iterator items*[T; ccProd: static PinScopeCardinality, N, P: static int](
@@ -1086,7 +1083,7 @@ proc destroyAndDrain*[T; ccProd: static PinScopeCardinality, N, P: static int](
     cleanup(item)
   # `localSelf` goes out of scope here → `=destroy` fires once.
 
-# --- destroyAndDrain: POD discard overload (§5 OQ5.1) --------------------
+# --- destroyAndDrain: POD discard overload (§5) --------------------------
 proc destroyAndDrain*[T; ccProd: static PinScopeCardinality, N, P: static int](
     self: sink BQueue[T, ccProd, ccSingle, N, P, 0]
 ) =

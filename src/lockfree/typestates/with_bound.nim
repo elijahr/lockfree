@@ -156,11 +156,11 @@ template withBoundEndpoint*(queue, endpoint, body: untyped): untyped =
 #   * bare Queue[T, ccSingle, ccSingle, ...] (unbounded SPSC direct)
 #   * Bound[T, Tag, Queue[...]] / Bound[T, Tag, BQueue[...]]
 #
-# Per OQ5.8 (resolved Phase 2.5): concept must resolve under generic
-# instantiation. Nim 2.x concepts use the `concept x` form with `var x`
-# for procs that take `var T` arguments. The body uses real concept
-# expressions evaluated against `x` (no compiles() needed for the
-# straightforward push/pop case).
+# The concept must resolve under generic instantiation. Nim 2.x
+# concepts use the `concept x` form with `var x` for procs that take
+# `var T` arguments. The body uses real concept expressions evaluated
+# against `x` (no compiles() needed for the straightforward push/pop
+# case).
 #
 # Path-C encoding is TRANSPARENT to the concept: `Queueable[ref Foo]`
 # matches `BQueue[ref Foo, ...]` because push/pop on the bare queue

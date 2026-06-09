@@ -62,15 +62,14 @@
 ## * ``none`` — strict bit-transport contract (§2.8): no-op. The user
 ##   owns lifetime; the queue is pointer-bit transport only.
 ## * ``nimony`` — uses ``arcInc`` / ``arcDec`` from nimony's
-##   ``std/system/arcops`` (verified at ``arcops.nim:5,10`` Phase 2.5
-##   fact-check; OQ4.2). The signature shape differs from Nim 2.x's
-##   ``nimIncRef`` family: nimony's ``arcInc(memLoc: var int)`` and
+##   ``std/system/arcops`` (verified at ``arcops.nim:5,10``). The
+##   signature shape differs from Nim 2.x's ``nimIncRef`` family:
+##   nimony's ``arcInc(memLoc: var int)`` and
 ##   ``arcDec(memLoc: var int): bool`` operate on the refcount field
 ##   directly (a ``var int`` lvalue), NOT a heap-pointer. The arm
-##   below applies the fact-check report's recommended fix
-##   (``cast[ptr int](bits)[]`` to materialise a ``var int`` lvalue
-##   at the bits location). See partial-port boundary block below
-##   for OQ4.2 heap-header offset and OQ4.4 dispose-symbol caveats.
+##   below uses ``cast[ptr int](bits)[]`` to materialise a ``var int``
+##   lvalue at the bits location. See partial-port boundary block
+##   below for heap-header offset and dispose-symbol caveats.
 ##
 ## Implementation note: design §2.2/§4.3.3 names ``nimIncRef`` /
 ## ``nimDecRefIsLast`` / ``nimDestroyAndDispose`` as the symbol path.
@@ -216,7 +215,7 @@ template decRefSlot*[X](mref: ManagedRef[X]) =
 # Nimony shim arm (§4.3.5; §6.7 first-class architecture; T-NIMONY-ARMS).
 #
 # **Experimental (nimony):** this arm is documented as `experimental` in
-# `docs/guide/nimony.md` (per Phase 1.6 disposition §6.7.1). The
+# `docs/guide/nimony.md` (per §6.7.1). The
 # `experimental` marker here is a doc-marker convention — Nim's
 # `{.experimental: "<feature>".}` pragma requires a compiler-whitelisted
 # feature name, so the marker lives in the doc-comments below and in
@@ -224,44 +223,42 @@ template decRefSlot*[X](mref: ManagedRef[X]) =
 # on the symbols. (Compiler-pragma feature names like "strictDefs" are
 # not appropriate for "this codepath depends on a pre-release runtime".)
 #
-# OQ4.2 fact-check (Phase 2.5, /tmp/nimony-research/lib/std/system/arcops.nim):
+# Nimony arcops surface (lib/std/system/arcops.nim):
 #
-#   * `func arcInc*(memLoc: var int) {.inline.}` — verified at arcops.nim:5.
-#   * `func arcDec*(memLoc: var int): bool {.inline.}` — verified at arcops.nim:10.
+#   * `func arcInc*(memLoc: var int) {.inline.}` — arcops.nim:5.
+#   * `func arcDec*(memLoc: var int): bool {.inline.}` — arcops.nim:10.
 #
 # Both take a `var int` lvalue (the rc *field*), NOT a heap pointer. The
 # design code-block at §4.3.3 (design lines 823-825, 836-837) passed
-# `cast[pointer](uint(mref))` which is a type mismatch; the fact-check
-# report (recommendation #2, MEDIUM) advised either constructing a
-# `var int` lvalue at the bits location or wrapping with a
-# pointer-accepting shim. We take the lvalue path:
+# `cast[pointer](uint(mref))` which is a type mismatch. We take the
+# lvalue path instead:
 #   `arcInc(cast[ptr int](toBits(mref))[])`
 # which produces the required `var int` lvalue without an extra
 # wrapper layer.
 #
 # Partial-port boundary (per CRITICAL #5 disposition + §6.7.4):
 #
-#   * **OQ4.2 heap-header offset (unresolved)** — the design assumes the
+#   * **Heap-header offset (unresolved)** — the design assumes the
 #     rc field lives at `cast[ptr NimHeapHeader](bits -! sizeof(NimHeapHeader)).rc`
-#     but the nimony `NimHeapHeader` layout was NOT verified during
-#     Phase 2.5 fact-check. The shim below treats the slot bits as
-#     pointing AT the rc field directly. This is a partial-port
-#     simplification: under nimony's current allocator the rc field
-#     may instead live at a fixed negative offset from the payload.
-#     See `# TODO: nimony partial port (OQ4.2)` markers in the
-#     templates. The Cell 14 CI run (continue-on-error per §6.7.1)
-#     is the validator; correctness here is tightened in v0.2 once
-#     the nimony heap-header layout is verifiable.
+#     but the nimony `NimHeapHeader` layout is not yet verified. The
+#     shim below treats the slot bits as pointing AT the rc field
+#     directly. This is a partial-port simplification: under nimony's
+#     current allocator the rc field may instead live at a fixed
+#     negative offset from the payload. See `# TODO: nimony partial
+#     port` markers in the templates. The Cell 14 CI run
+#     (continue-on-error per §6.7.1) is the validator; correctness
+#     here is tightened in v0.2 once the nimony heap-header layout is
+#     verifiable.
 #
-#   * **OQ4.4 dispose symbol (unresolved)** — design line 850 marks
+#   * **Dispose symbol (unresolved)** — design line 850 marks
 #     `nimonyDestroyAndDispose` as "symbol TBD". On `arcDec → true`
 #     (last reference) the cell needs an explicit dispose call.
-#     Pending OQ4.4 resolution we OMIT the dispose call with a TODO:
-#     under nimony's arcops model, dropping the rc to zero may
-#     auto-dispose via the allocator hook chain, or may leak. Either
-#     way, the leak is observable only under nimony (`continue-on-error`
-#     cell) and does not affect any Nim 2.x MM (arc/orc/atomicArc/refc).
-#     v0.2 binds this to the verified symbol.
+#     Pending resolution we OMIT the dispose call with a TODO: under
+#     nimony's arcops model, dropping the rc to zero may auto-dispose
+#     via the allocator hook chain, or may leak. Either way, the leak
+#     is observable only under nimony (`continue-on-error` cell) and
+#     does not affect any Nim 2.x MM (arc/orc/atomicArc/refc). v0.2
+#     binds this to the verified symbol.
 #
 #   * **No silent `discard`** — partial-port unknowns are explicit
 #     TODOs, not hidden behind no-ops. Per §6.7.4 disposition: "No
@@ -273,9 +270,8 @@ template decRefSlot*[X](mref: ManagedRef[X]) =
 # ---------------------------------------------------------------------
 
 when defined(nimony):
-  # Import the nimony arcops surface. Path verified Phase 2.5 fact-check
-  # against /tmp/nimony-research/lib/std/system/arcops.nim. Wrapped in
-  # the `when defined(nimony):` block so non-nimony builds never see
+  # Import the nimony arcops surface. Wrapped in the
+  # `when defined(nimony):` block so non-nimony builds never see
   # the import and do not require the module to exist.
   from std/system/arcops import arcInc, arcDec
 

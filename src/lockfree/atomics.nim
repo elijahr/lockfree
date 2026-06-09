@@ -222,7 +222,7 @@ when defined(vcc):
   # weakly ordered: for moRelease we still need an `stlxr`-class store,
   # which the plain `__iso_volatile_storeN` does NOT provide, so we
   # fall back to `_InterlockedExchange*` (emits `stlxr`) for any
-  # non-relaxed order on ARM64. (gemini cycle-42 MEDIUM)
+  # non-relaxed order on ARM64.
   proc msvcIsoVolatileStore8(
     p: ptr cchar, v: cchar
   ) {.importc: "__iso_volatile_store8", header: "<intrin.h>".}
@@ -249,8 +249,8 @@ when defined(vcc):
   # `<winnt.h>` (reached via `<windows.h>`), and pulling in the full
   # Windows SDK header just for a one-line fence inflates preprocessor
   # output by ~25k lines and pollutes the namespace with `min`/`max`/
-  # `ERROR` macros that clash with C++ stdlib and other Nim code
-  # (gemini cycle-29). Per Microsoft Learn `MemoryBarrier` expands to
+  # `ERROR` macros that clash with C++ stdlib and other Nim code.
+  # Per Microsoft Learn `MemoryBarrier` expands to
   # `__faststorefence` on x86_64 and `__dmb(_ARM64_BARRIER_SY)` on
   # aarch64; both are declared in `<intrin.h>` which is already
   # included for the `_Interlocked*` intrinsics. The call site uses
@@ -260,8 +260,7 @@ when defined(vcc):
   # NOTE: The 16-byte DWCAS path on vcc emits inline C calls to
   # `_InterlockedCompareExchange128` directly via `{.emit:.}` (see the
   # `dwcasCmpExch` family below). No Nim-level `importc` binding for
-  # `_InterlockedCompareExchange128` is needed; an earlier declaration
-  # was removed as dead code (gemini cycle-22).
+  # `_InterlockedCompareExchange128` is needed.
 
 # ---------------------------------------------------------------------------
 # MemoryOrder
@@ -360,7 +359,7 @@ template assertLockFree(T: typedesc) =
           # lock-free. 8-byte loads/stores are emulated via
           # `__iso_volatile_load64` / `__iso_volatile_store64`, which
           # on 32-bit x86 do *not* guarantee atomicity of the full
-          # 8-byte word — torn reads are possible (gemini cycle-34).
+          # 8-byte word — torn reads are possible.
           # Reject 8-byte T on 32-bit MSVC.
           doAssert sizeof(T) <= 4,
             "Atomic[" & $T & "] on 32-bit MSVC supports only 1/2/4 " &
@@ -543,7 +542,6 @@ template validLoadOrder(order: static MemoryOrder) =
   # `static MemoryOrder` parameter + `static:` body ensures the
   # assertion fires at compile time rather than runtime; an invalid
   # memory order is a programmer error, not a runtime condition.
-  # (gemini cycle-41 MEDIUM)
   static:
     doAssert order != moRelease and order != moAcquireRelease,
       "moRelease / moAcquireRelease is not a valid memory order " &
@@ -631,10 +629,7 @@ proc load*[T](
     # supported load orders reduces to compile barriers around the load.
     #
     # On ARM64 the memory model is weak, so per-order barrier dispatch
-    # is required (gemini cycle-43 HIGH). Previously this proc emitted
-    # `__dmb(_ARM64_BARRIER_SY)` both BEFORE and AFTER every load
-    # unconditionally, paying full-seq_cst cost even for moRelaxed and
-    # moAcquire callers:
+    # is required:
     #
     #   * moRelaxed: no hardware barrier needed. `_ReadWriteBarrier()`
     #     alone is sufficient to prevent compiler reordering.
@@ -703,13 +698,9 @@ proc store*[T](
     #         to `_InterlockedExchange*` which emits `stlr` /
     #         `stlxr`-loop release semantics.
     #
-    #   * moRelaxed: plain `__iso_volatile_storeN` on BOTH ISAs
-    #     (gemini cycle-43 HIGH). Previously moRelaxed was lumped
-    #     with moRelease and routed to `_InterlockedExchange*` on
-    #     ARM64, paying full release-RMW cost (locked stlxr loop)
-    #     for callers that explicitly opted out of release ordering.
-    #     The `str` instruction is atomic at single-copy granularity
-    #     for width-≤8 naturally-aligned targets; relaxed semantics
+    #   * moRelaxed: plain `__iso_volatile_storeN` on BOTH ISAs. The
+    #     `str` instruction is atomic at single-copy granularity for
+    #     width-≤8 naturally-aligned targets; relaxed semantics
     #     require only that the store be atomic (no inter-thread
     #     ordering guarantees), which `__iso_volatile_store*` plus
     #     `_ReadWriteBarrier()` provides on both x86_64 and ARM64.
@@ -1232,13 +1223,12 @@ proc threadFence*(order: MemoryOrder) {.inline.} =
       # declared in `<intrin.h>` (already pulled in for the
       # `_Interlocked*` intrinsics) and are exactly what the
       # `MemoryBarrier` macro expands to — emitted directly to avoid
-      # `<windows.h>` bloat and namespace pollution (gemini cycle-29).
+      # `<windows.h>` bloat and namespace pollution.
       #
       # Dispatch is performed at the Nim level via `when` rather than
       # via C `#ifdef` inside `{.emit:.}`, because `{.emit:.}` does not
       # reliably place `#ifdef`/`#else`/`#endif` at column 0 inside a
-      # function body — MSVC then rejects them with C2014 (gemini
-      # cycle-34 CI blocker).
+      # function body — MSVC then rejects them with C2014.
       when defined(arm64) or defined(aarch64):
         {.emit: ["__dmb(_ARM64_BARRIER_SY);"].}
       elif defined(i386) or defined(i686):

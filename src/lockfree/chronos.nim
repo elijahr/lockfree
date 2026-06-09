@@ -29,9 +29,7 @@
 ## Per the T-CHRONOS impl-plan acceptance criterion (c), this module
 ## surfaces a precise compile-time error pointing the user at the install
 ## command rather than rely on chronos's bare "cannot open file: chronos"
-## diagnostic. (Design §5.6.6 OQ5.5 favored keeping the bare diagnostic;
-## T-CHRONOS overrides that disposition with the explicit hint per impl
-## plan acceptance criteria.)
+## diagnostic.
 ##
 ## NOTE on chronos import form: the design code samples (§5.6.1) write
 ## `import chronos`. Inside this module that bare form self-shadows —
@@ -175,8 +173,8 @@ when defined(lockfreeChronos) or lockfreeChronosAvailable:
   ## sync queue and are exposed through user-side endpoint factories
   ## (design §5.4.5) rather than a direct push/pop on the wrapper. The
   ## `AsyncQueue` types are still parameterized for all cardinalities so
-  ## that follow-up work (T-TEST-CHRONOS expansion / OQ5.3 disposition)
-  ## can layer an `asyncPop` on `Bound` without reshaping the wrapper.
+  ## that follow-up work (T-TEST-CHRONOS expansion) can layer an
+  ## `asyncPop` on `Bound` without reshaping the wrapper.
   ## ------------------------------------------------------------------
 
   proc push*[T; N: static int](
@@ -242,9 +240,9 @@ when defined(lockfreeChronos) or lockfreeChronosAvailable:
   ## producer side of the unbounded queue is currently endpoint-only
   ## (push lives on `Bound[T, Tag, Queue[...]]`, queue.nim:1184), so
   ## the corresponding `asyncPush` lives on `Bound` rather than on the
-  ## wrapper. That endpoint-side integration is design §5.4.5 / OQ5.3
-  ## (Phase 2.2 — still open). For users who want SPSC-unbounded async
-  ## with a pre-bound producer, the pattern is:
+  ## wrapper. That endpoint-side integration is design §5.4.5. For users
+  ## who want SPSC-unbounded async with a pre-bound producer, the pattern
+  ## is:
   ##
   ##   var aq = newAsyncQueue(AsyncQueueSpsc[int, 64, 1])
   ##   var prod = aq.queue.getProducerHere()
@@ -253,7 +251,7 @@ when defined(lockfreeChronos) or lockfreeChronosAvailable:
   ##   let v = waitFor aq.pop()    # pops 42
   ##
   ## A future commit will collapse the producer-side ceremony into an
-  ## `asyncPush` template on the wrapper once OQ5.3 lands.
+  ## `asyncPush` template on the wrapper.
   ## ------------------------------------------------------------------
 
   proc pop*[
@@ -289,9 +287,9 @@ when defined(lockfreeChronos) or lockfreeChronosAvailable:
       self: AsyncBQueue[T, ccProd, ccCons, N, P, C]
   ): var AsyncEvent =
     ## Returns a mutable view of the wrapper's `AsyncEvent`. Exposed so
-    ## downstream `asyncPop`-on-`Bound` implementations (design §5.4.5;
-    ## OQ5.3 Phase 2.2) can share the same event flag without
-    ## reaching through `q.event` directly.
+    ## downstream `asyncPop`-on-`Bound` implementations (design §5.4.5)
+    ## can share the same event flag without reaching through `q.event`
+    ## directly.
     self.event
 
   template asyncEvent*[

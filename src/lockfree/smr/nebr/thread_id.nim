@@ -23,11 +23,11 @@
 ##   lifetime is the duration of a single `neutralizeRemoteSlot` call.
 ##   This avoids the async-signal-safety constraints of the POSIX path;
 ##   `signal.nim`'s handler-install machinery is a no-op on Windows.
-##   The earlier design (v0.10.0-dev, cycles 19-39) stored a duplicated
-##   handle in the slot; that design carried a bounded handle leak on
-##   slot churn and a use-after-close race between scanner and
-##   unregister. The on-demand `OpenThread`/`CloseHandle` design
-##   eliminates both by construction (gemini cycle-40).
+##   An earlier v0.10.0-dev design stored a duplicated handle in the
+##   slot; that design carried a bounded handle leak on slot churn and
+##   a use-after-close race between scanner and unregister. The
+##   on-demand `OpenThread`/`CloseHandle` design eliminates both by
+##   construction.
 ##
 ## **Deadlock constraint (both platforms)**: do NOT call DEBRA reclamation
 ## while holding a lock that other DEBRA-using threads might be blocked
@@ -70,7 +70,7 @@ when defined(windows):
       ## against a live thread). Without this right,
       ## `GetExitCodeThread` returns 0 / `ERROR_ACCESS_DENIED` and the
       ## benign-failure path collapses into `raiseAssert` on every
-      ## terminated-thread failure. (gemini cycle-41 CRITICAL ×2)
+      ## terminated-thread failure.
   proc openThread*(
     dwDesiredAccess: uint32, bInheritHandle: WINBOOL, dwThreadId: uint32
   ): Handle {.stdcall, dynlib: "kernel32", importc: "OpenThread", sideEffect.}
