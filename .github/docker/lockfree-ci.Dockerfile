@@ -76,17 +76,22 @@ RUN git clone --depth 1 --branch ${ASDF_VERSION} https://github.com/asdf-vm/asdf
     && /opt/asdf/bin/asdf global nodejs ${NODE_VERSION} \
     && /opt/asdf/bin/asdf global nim 2.2.10
 
-# Symlink the asdf shims into both /usr/bin and /usr/local/bin so the
-# bare `docker exec cmd=[node ...]` path resolves regardless of which
-# directory the action's exec lookup checks first. Belt-and-suspenders.
-RUN ln -sf /opt/asdf/shims/node /usr/bin/node \
-    && ln -sf /opt/asdf/shims/npm /usr/bin/npm \
-    && ln -sf /opt/asdf/shims/npx /usr/bin/npx \
-    && ln -sf /opt/asdf/shims/node /usr/local/bin/node \
-    && ln -sf /opt/asdf/shims/npm /usr/local/bin/npm \
-    && ln -sf /opt/asdf/shims/npx /usr/local/bin/npx \
-    && ln -sf /opt/asdf/shims/nim /usr/local/bin/nim \
-    && ln -sf /opt/asdf/shims/nimble /usr/local/bin/nimble
+# Symlink directly to the asdf-installed binaries (NOT to the
+# /opt/asdf/shims/* bash-script shims). The shims are wrappers that
+# need to find their data dir + version-set via env to dispatch to the
+# real binary. Some act docker-exec contexts (notably actions/cache@v4's
+# pre/post restore steps) strip enough env that the shim fails with
+# "exec: node: not found in $PATH" EVEN THOUGH plain `docker exec
+# cmd=[node ...]` works for other steps in the same container. Direct
+# symlinks to the real binaries have zero env dependency.
+RUN ln -sf /opt/asdf/installs/nodejs/${NODE_VERSION}/bin/node /usr/bin/node \
+    && ln -sf /opt/asdf/installs/nodejs/${NODE_VERSION}/bin/npm /usr/bin/npm \
+    && ln -sf /opt/asdf/installs/nodejs/${NODE_VERSION}/bin/npx /usr/bin/npx \
+    && ln -sf /opt/asdf/installs/nodejs/${NODE_VERSION}/bin/node /usr/local/bin/node \
+    && ln -sf /opt/asdf/installs/nodejs/${NODE_VERSION}/bin/npm /usr/local/bin/npm \
+    && ln -sf /opt/asdf/installs/nodejs/${NODE_VERSION}/bin/npx /usr/local/bin/npx \
+    && ln -sf /opt/asdf/installs/nim/2.2.10/bin/nim /usr/local/bin/nim \
+    && ln -sf /opt/asdf/installs/nim/2.2.10/bin/nimble /usr/local/bin/nimble
 
 # Verify everything is reachable from a bare PATH lookup (no shell init).
 RUN /usr/bin/node --version | grep -q '^v20\.' && echo "Node 20 verified" \
