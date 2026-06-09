@@ -169,15 +169,61 @@ This discipline was established 2026-06-06 after several per-task dispatches con
 
 Run Linux ci.yml cells locally via [nektos/act](https://github.com/nektos/act) so matrix
 iteration does not burn GitHub Actions credits and the feedback loop is seconds-to-minutes
-instead of pull-request-round-trips. `.actrc` at repo root pins the default runner image
-to `catthehacker/ubuntu:full-latest` and forces `linux/amd64` so setup-nim-action's
-binaries load. Why full-* and not the smaller js-*: js-* installs Node.js via `nvm`, so
-`node` lives at `$NVM_DIR/versions/node/v.../bin/node` rather than `/usr/bin/node`. act
-invokes JS-based actions (`actions/cache@v4`, `actions/checkout@v4`) via bare
-`docker exec cmd=[node ...]` — no shell init, nvm never sources, `node` not on PATH,
-cache step crashes. full-* has apt-installed node at `/usr/bin/node` plus `gh`, so one
-image serves both `tools/act-cell` and `tools/momus-local`. The image is ~60GB extracted
-but cached locally after first pull.
+instead of pull-request-round-trips. `.actrc` at repo root pins the runner image for all
+`ubuntu-*` labels to `ghcr.io/elijahr/lockfree-ci:latest` and forces `linux/amd64` so
+setup-nim-action's binaries load.
+
+The image is a custom build maintained in-repo:
+
+- **Dockerfile**: `.github/docker/lockfree-ci.Dockerfile`. Ubuntu 22.04 base with
+  apt-installed `nodejs` at `/usr/bin/node` (so `actions/cache@v4` and
+  `actions/checkout@v4` resolve via bare `docker exec cmd=[node ...]` without shell
+  init), plus `git`, `gh`, `clang`, `valgrind`, `build-essential`, `libpcre3-dev`.
+- **Nim**: pinned to 2.2.10 via [mise](https://mise.jdx.dev/) — same tool the
+  operator uses locally, same version. Installed to `/opt/mise/installs/nim/2.2.10/`
+  and symlinked into `/usr/local/bin/{nim,nimble}` so the bare PATH finds them.
+- **Build workflow**: `.github/workflows/build-image.yml`. Triggers on
+  pushes to `main`/`devel` that touch the Dockerfile or the workflow itself
+  (and on `workflow_dispatch`). Tags pushed: `:latest` and `:nim-2.2.10-<sha12>`.
+- **Size**: ~2-3GB extracted (vs. ~70GB for `catthehacker/ubuntu:full-latest`).
+
+Why a custom image rather than `catthehacker/ubuntu:*` variants:
+
+- `catthehacker/ubuntu:js-latest` installs Node.js via `nvm`. `node` lives at
+  `$NVM_DIR/versions/node/v.../bin/node` rather than `/usr/bin/node`. act invokes
+  JS-based actions via bare `docker exec` — no shell init, nvm never sources,
+  `node` not on PATH, `actions/cache@v4` crashes with `exec: "node": executable
+  file not found in $PATH` (push 19).
+- `catthehacker/ubuntu:full-latest` was tried as a workaround (push 20) but is
+  ~70GB extracted — prohibitive pull and disk cost — AND in some matrix cells the
+  same `node-not-on-PATH` failure recurred (full-* puts node at
+  `/opt/hostedtoolcache/node/.../bin/node` rather than `/usr/bin/node`).
+- The custom image is narrowly scoped to what ci.yml actually needs, so the size
+  collapses to ~2-3GB and the PATH issue is eliminated by construction (apt nodejs
+  → `/usr/bin/node`).
+
+**Image refresh** (operator host, after a published image update):
+
+```sh
+docker pull ghcr.io/elijahr/lockfree-ci:latest
+```
+
+`.actrc` sets `--pull=true`, so act also re-checks the registry on every run
+(~1s overhead) and picks up updates automatically.
+
+**Image rebuild** (when the Dockerfile needs changing):
+
+1. Edit `.github/docker/lockfree-ci.Dockerfile`.
+2. Push to `main` or `devel`. `build-image.yml` rebuilds and publishes both the
+   `:latest` tag and a `:nim-<version>-<sha12>` tag to `ghcr.io/elijahr/lockfree-ci`.
+3. Local hosts: `docker pull ghcr.io/elijahr/lockfree-ci:latest` (or rely on
+   `--pull=true` to pick it up on next act run).
+
+`ci.yml` itself currently keeps `runs-on: ubuntu-latest` and relies on
+setup-nim-action for the Nim install on real GHA. A future optimization is to
+add `container: ghcr.io/elijahr/lockfree-ci:latest` to each job so GHA and act
+share the same image bit-for-bit and setup-nim-action becomes unnecessary; that
+is deferred until the image has stabilized in production.
 
 ```sh
 tools/act-cell lint        # cell L — typestates verify + lint
@@ -275,14 +321,10 @@ Caveats:
 - Requires a local clone of `axiomantic/.github@devel` at
   `~/.cache/lockfree-act/axiomantic-github` for reusable-workflow resolution.
   Clone manually if missing: `gh repo clone axiomantic/.github ~/.cache/lockfree-act/axiomantic-github -- --branch devel`.
-- Pins the runner image to `catthehacker/ubuntu:full-latest` (the full
-  GitHub-runner mirror) instead of the slim `act-latest` that `.actrc`
-  uses, because the reusable momus workflow shells to `gh` for PR-head
-  SHA resolution and the slim image does not preinstall `gh`. The
-  override is local to `tools/momus-local`; it does not affect
-  `tools/act-cell` or other act invocations. First pull of
-  `full-latest` is large (~60GB extracted, ~20GB compressed) but is
-  cached locally afterwards.
+- Runs on the shared `ghcr.io/elijahr/lockfree-ci:latest` image from `.actrc`
+  (no per-driver `-P` override). The image ships `gh`, which the reusable
+  momus workflow shells to for PR-head SHA resolution and review-comment
+  posting, so one image now serves both `tools/act-cell` and `tools/momus-local`.
 
 ### 3.4 Pre-commit hooks
 

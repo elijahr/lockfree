@@ -4,25 +4,24 @@
 # this file automatically. See AGENTS.md §3.6 "Local CI iteration with
 # act" for the operator-facing workflow.
 
-# Runner images — `catthehacker/ubuntu:full-*` pinned for ALL runners.
+# Runner image — custom `ghcr.io/elijahr/lockfree-ci:latest`, built and
+# published by `.github/workflows/build-image.yml` from
+# `.github/docker/lockfree-ci.Dockerfile`. Pinned for ALL ubuntu-*
+# runners so act + GHA can share the same environment.
 #
-# Why full-* rather than the smaller js-* variant: js-* installs Node.js
-# via `nvm`, which puts `node` at `$NVM_DIR/versions/node/v.../bin/node`
-# rather than `/usr/bin/node`. act invokes JS-based actions
-# (`actions/cache@v4`, `actions/checkout@v4`) via a bare
-# `docker exec cmd=[node ...]` — no shell init, so nvm never sources its
-# profile and `node` is not on PATH. Result: every cache step crashes
-# with `exec: "node": executable file not found in $PATH` (verified
-# under push-19 act run on js-latest).
-#
-# full-* has apt-installed node at `/usr/bin/node` (system PATH, no
-# shell init needed) plus `gh` (which `tools/momus-local` also needs,
-# so one image serves both drivers). The image is ~60GB extracted but
-# cached locally after first pull and shared across all act-driven
-# tooling on this host.
--P ubuntu-latest=catthehacker/ubuntu:full-latest
--P ubuntu-22.04=catthehacker/ubuntu:full-22.04
--P ubuntu-24.04=catthehacker/ubuntu:full-24.04
+# Why custom rather than `catthehacker/ubuntu:*`:
+#   - js-latest installs node via nvm; bare `docker exec cmd=[node ...]`
+#     can't find node (no shell init). `actions/cache@v4` crashes with
+#     `exec: "node": executable file not found in $PATH`.
+#   - full-latest is ~70GB extracted (verified push 20). Pull cost and
+#     disk cost are prohibitive on the operator host, and the cache
+#     step STILL failed in some matrix cells.
+#   - Our needs are narrow: ubuntu base + Nim (pinned via mise) +
+#     apt nodejs + git + gh + clang + valgrind. ~2-3GB image, fast pull,
+#     bit-identical to what GHA jobs see when `container:` is set.
+-P ubuntu-latest=ghcr.io/elijahr/lockfree-ci:latest
+-P ubuntu-22.04=ghcr.io/elijahr/lockfree-ci:latest
+-P ubuntu-24.04=ghcr.io/elijahr/lockfree-ci:latest
 
 # Force linux/amd64 even on Apple Silicon. Most GitHub Actions
 # (setup-nim-action, actions/cache@v4) only ship amd64 binaries; arm64
@@ -33,9 +32,13 @@
 # Combine with `--rm` on the CLI if you want a clean slate.
 --reuse
 
-# Pull images on first reference, then leave alone. Avoids re-pulling
-# the ~2GB catthehacker image on every invocation.
---pull=false
+# Always check for image updates before running. ~1s overhead per
+# invocation (Docker daemon HEADs the registry); in exchange, image
+# updates published by build-image.yml flow into local act runs without
+# manual `docker pull`. If the overhead becomes intolerable, flip back
+# to `--pull=false` and refresh manually with
+# `docker pull ghcr.io/elijahr/lockfree-ci:latest`.
+--pull=true
 
 # Persistent artifact/cache servers so actions/cache@v4 hits across act
 # runs. Both directories live under ~/.cache/act and survive between

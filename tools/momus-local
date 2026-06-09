@@ -74,12 +74,12 @@ echo "momus-local: PR ${REPO}#${PR_NUMBER} @ ${HEAD_SHA}" >&2
 echo "momus-local: event=${EVENT_FILE} cache=${CACHE_PATH}" >&2
 echo "momus-local: invoking act issue_comment -W .github/workflows/momus.yml ..." >&2
 
-# Use catthehacker/ubuntu:full-latest (a copy of the GitHub Actions hosted
-# runner image) so the reusable momus workflow's `gh` invocations resolve;
-# the default `act-latest` image is the slim variant and does NOT ship `gh`.
-# Image is ~60GB extracted but cached locally after first pull. Image-pin is
-# scoped to this driver only; .actrc keeps `act-latest` as the default for
-# tools/act-cell so per-cell CI iteration stays on the slim image.
+# Runner image inherits from .actrc — `ghcr.io/elijahr/lockfree-ci:latest`,
+# which ships `gh` (required by the reusable momus workflow for PR-head SHA
+# resolution and review-comment posting). No `-P` override needed here.
+# --container-architecture is also inherited from .actrc, but we keep the
+# explicit flag below as a defensive pin in case .actrc is not loaded
+# (e.g., invocation from a different working dir).
 GH_PAT="$(gh auth token)"
 # Pass GH_TOKEN as a container env var as well as a secret: act does not always
 # expand the upstream workflow's `env: GH_TOKEN: ${{ ... || secrets.GITHUB_TOKEN }}`
@@ -96,6 +96,5 @@ exec act issue_comment \
   --env GITHUB_REPOSITORY="${REPO}" \
   --env GITHUB_REPOSITORY_OWNER="${REPO%%/*}" \
   --local-repository "axiomantic/.github@devel=${CACHE_PATH}" \
-  -P ubuntu-latest=catthehacker/ubuntu:full-latest \
   --container-architecture linux/amd64 \
   "$@"
