@@ -352,7 +352,7 @@ suite "§2.5 ACCEPT rows — Path-C 25-row composition matrix":
   # ref drop") is an ARC/ORC contract. Refc reclamation of `seq[ref U]`
   # is exercised by the queue's broader test surface (rows 1, 14, 25)
   # which do not depend on user-hook timing.
-  when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc):
+  when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc) or defined(nimony):
     test "row 18 lifecycle: seq[CountedRef] inner refcounts balance through transit":
       let baseline = seqRefLiveCounter.load(moRelaxed)
       block scoped:

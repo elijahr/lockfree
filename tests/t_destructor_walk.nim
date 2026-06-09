@@ -71,7 +71,7 @@ type
     payload: int
   RefCounter = ref RefCounterObj
 
-when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc):
+when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc) or defined(nimony):
   # Nim 2.x arc/orc/atomicArc: =destroy takes T (value).
   proc `=destroy`(r: RefCounterObj) =
     discard refLive.fetchSub(1, moRelaxed)
@@ -103,6 +103,19 @@ proc liveCount(): int = refLive.load(moRelaxed)
 # the destroy-walk dec) — observable via final != baseline or SIGSEGV.
 # A destroy-walk that double-frees would crash. A walk that no-ops on
 # ref T would leak the slot's share — observable as final > baseline.
+#
+# NOTE: this suite is gated to arc/orc/atomicArc. Refc uses Nim's
+# traditional tracing GC for ref types; it does NOT invoke the
+# user-defined `=destroy(var RefCounterObj)` hook when a `ref
+# RefCounterObj` drops — reclamation goes through refc's own
+# refcount path. Under refc the `liveCount` counter never decrements,
+# so these tests cannot pass there by design. The contract being
+# verified (queue's destroy-walk fires user `=destroy` per slot
+# share) is an ARC/ORC contract. Refc reclamation of `ref T` in
+# queue slots is covered by Path-C transit suites (rows 1/14/25 of
+# tests/composition/t_path_c_matrix.nim) and by valgrind cell 8
+# under arc — both of which exercise drop semantics without
+# depending on user-hook timing.
 # ----------------------------------------------------------------------
 
 # Multi-push helpers (hoisted outside test-body closures per arc cursor
@@ -118,90 +131,91 @@ proc pushBqMpmc(q: var BQueue[RefCounter, ccMulti, ccMulti, 16, 4, 4]) =
   discard p.push(newRefCounter(201))
   discard p.push(newRefCounter(202))
 
-suite "T-DESTRUCTOR-WALK — ref T destroy without drain (refcount)":
-  test "BQueue SPSC bounded — single ref T pushed, queue dropped":
-    let baseline = liveCount()
-    block:
-      var q = newBQueue[RefCounter, ccSingle, ccSingle, 16, 0, 0]()
-      var r = newRefCounter(1)
-      check q.push(r)
-    check liveCount() == baseline
+when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc) or defined(nimony):
+  suite "T-DESTRUCTOR-WALK — ref T destroy without drain (refcount)":
+    test "BQueue SPSC bounded — single ref T pushed, queue dropped":
+      let baseline = liveCount()
+      block:
+        var q = newBQueue[RefCounter, ccSingle, ccSingle, 16, 0, 0]()
+        var r = newRefCounter(1)
+        check q.push(r)
+      check liveCount() == baseline
 
-  test "BQueue MPSC bounded — single ref T pushed, queue dropped":
-    let baseline = liveCount()
-    block:
-      var q = newBQueue[RefCounter, ccMulti, ccSingle, 16, 4, 0]()
-      var p = q.getProducerHere(0)
-      var r = newRefCounter(2)
-      check p.push(r)
-    check liveCount() == baseline
+    test "BQueue MPSC bounded — single ref T pushed, queue dropped":
+      let baseline = liveCount()
+      block:
+        var q = newBQueue[RefCounter, ccMulti, ccSingle, 16, 4, 0]()
+        var p = q.getProducerHere(0)
+        var r = newRefCounter(2)
+        check p.push(r)
+      check liveCount() == baseline
 
-  test "BQueue SPMC bounded — single ref T pushed, queue dropped":
-    let baseline = liveCount()
-    block:
-      var q = newBQueue[RefCounter, ccSingle, ccMulti, 16, 0, 4]()
-      var r = newRefCounter(3)
-      check q.push(r)
-    check liveCount() == baseline
+    test "BQueue SPMC bounded — single ref T pushed, queue dropped":
+      let baseline = liveCount()
+      block:
+        var q = newBQueue[RefCounter, ccSingle, ccMulti, 16, 0, 4]()
+        var r = newRefCounter(3)
+        check q.push(r)
+      check liveCount() == baseline
 
-  test "BQueue MPMC bounded — single ref T pushed, queue dropped":
-    let baseline = liveCount()
-    block:
-      var q = newBQueue[RefCounter, ccMulti, ccMulti, 16, 4, 4]()
-      var p = q.getProducerHere(0)
-      var r = newRefCounter(4)
-      check p.push(r)
-    check liveCount() == baseline
+    test "BQueue MPMC bounded — single ref T pushed, queue dropped":
+      let baseline = liveCount()
+      block:
+        var q = newBQueue[RefCounter, ccMulti, ccMulti, 16, 4, 4]()
+        var p = q.getProducerHere(0)
+        var r = newRefCounter(4)
+        check p.push(r)
+      check liveCount() == baseline
 
-  test "Queue SPSC unbounded — single ref T pushed, queue dropped":
-    let baseline = liveCount()
-    block:
-      var q = newUnboundedSpscQueue[RefCounter, stEager, 16, 4]()
-      var p = q.getProducerHere()
-      var r = newRefCounter(5)
-      p.push(r)
-    check liveCount() == baseline
+    test "Queue SPSC unbounded — single ref T pushed, queue dropped":
+      let baseline = liveCount()
+      block:
+        var q = newUnboundedSpscQueue[RefCounter, stEager, 16, 4]()
+        var p = q.getProducerHere()
+        var r = newRefCounter(5)
+        p.push(r)
+      check liveCount() == baseline
 
-  test "Queue MPSC unbounded — single ref T pushed, queue dropped":
-    let baseline = liveCount()
-    block:
-      var q = newUnboundedMpscQueue[RefCounter, stEager, 16, 4]()
-      var p = q.getProducerHere()
-      var r = newRefCounter(6)
-      p.push(r)
-    check liveCount() == baseline
+    test "Queue MPSC unbounded — single ref T pushed, queue dropped":
+      let baseline = liveCount()
+      block:
+        var q = newUnboundedMpscQueue[RefCounter, stEager, 16, 4]()
+        var p = q.getProducerHere()
+        var r = newRefCounter(6)
+        p.push(r)
+      check liveCount() == baseline
 
-  test "Queue SPMC unbounded — single ref T pushed, queue dropped":
-    let baseline = liveCount()
-    block:
-      var q = newUnboundedSpmcQueue[RefCounter, stEager, 16, 4]()
-      var p = q.getProducerHere()
-      var r = newRefCounter(7)
-      p.push(r)
-    check liveCount() == baseline
+    test "Queue SPMC unbounded — single ref T pushed, queue dropped":
+      let baseline = liveCount()
+      block:
+        var q = newUnboundedSpmcQueue[RefCounter, stEager, 16, 4]()
+        var p = q.getProducerHere()
+        var r = newRefCounter(7)
+        p.push(r)
+      check liveCount() == baseline
 
-  test "Queue MPMC unbounded — single ref T pushed, queue dropped":
-    let baseline = liveCount()
-    block:
-      var q = newUnboundedMpmcQueue[RefCounter, stEager, 16, 4]()
-      var p = q.getProducerHere()
-      var r = newRefCounter(8)
-      p.push(r)
-    check liveCount() == baseline
+    test "Queue MPMC unbounded — single ref T pushed, queue dropped":
+      let baseline = liveCount()
+      block:
+        var q = newUnboundedMpmcQueue[RefCounter, stEager, 16, 4]()
+        var p = q.getProducerHere()
+        var r = newRefCounter(8)
+        p.push(r)
+      check liveCount() == baseline
 
-  test "BQueue SPSC bounded — two ref T pushed via helper, queue dropped":
-    let baseline = liveCount()
-    block:
-      var q = newBQueue[RefCounter, ccSingle, ccSingle, 16, 0, 0]()
-      pushBqSpsc(q)
-    check liveCount() == baseline
+    test "BQueue SPSC bounded — two ref T pushed via helper, queue dropped":
+      let baseline = liveCount()
+      block:
+        var q = newBQueue[RefCounter, ccSingle, ccSingle, 16, 0, 0]()
+        pushBqSpsc(q)
+      check liveCount() == baseline
 
-  test "BQueue MPMC bounded — two ref T pushed via helper, queue dropped":
-    let baseline = liveCount()
-    block:
-      var q = newBQueue[RefCounter, ccMulti, ccMulti, 16, 4, 4]()
-      pushBqMpmc(q)
-    check liveCount() == baseline
+    test "BQueue MPMC bounded — two ref T pushed via helper, queue dropped":
+      let baseline = liveCount()
+      block:
+        var q = newBQueue[RefCounter, ccMulti, ccMulti, 16, 4, 4]()
+        pushBqMpmc(q)
+      check liveCount() == baseline
 
 # ----------------------------------------------------------------------
 # B. string T destroy without drain — box-free lifecycle.
