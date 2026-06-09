@@ -26,11 +26,21 @@
 -P ubuntu-22.04=ghcr.io/elijahr/lockfree-ci:latest
 -P ubuntu-24.04=ghcr.io/elijahr/lockfree-ci:latest
 
-# No --container-architecture pin: the image is multi-arch, so act
-# (and Docker BuildKit / containerd) pull the native variant for the
-# host. On Apple Silicon this means linux/arm64 with no qemu — faster
-# local iteration. On amd64 hosts (GHA-runner-like) it means linux/amd64
-# natively.
+# Pin container architecture to linux/arm64.
+#
+# act defaults `--container-architecture linux/amd64` for `runs-on:
+# ubuntu-*` matrix entries because that's what real GHA runners use,
+# regardless of host architecture. On Apple Silicon that triggers
+# Docker's amd64-via-qemu path (3-5x slowdown) AND a manifest-mismatch
+# error against our locally-built arm64 image.
+#
+# Since this `.actrc` only applies to LOCAL act runs (the operator's
+# M-series Mac), pin to arm64 so the locally-built variant of
+# `ghcr.io/elijahr/lockfree-ci:latest` is used directly, native, no
+# qemu. Real GHA never reads this file — its workflows run on
+# amd64 runners and pull the amd64 manifest from the multi-arch image
+# via ci.yml's eventual `container:` directive (post-v0.1.0 work).
+--container-architecture linux/arm64
 
 # Reuse containers across runs of the same job so dep installs cache.
 # Combine with `--rm` on the CLI if you want a clean slate.
