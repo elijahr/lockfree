@@ -175,28 +175,20 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v4
 
-      # setup-nim-action clones the Nim source repo into ./Nim when
-      # nim-version is 'devel' (or any from-source version). On real GHA
-      # the working dir is fresh per run so this never collides, but
-      # under act with `--reuse` the container's working tree persists
-      # across invocations and the second run hits:
-      #   fatal: destination path "Nim" already exists and is not an empty directory
-      # Defensive `rm -rf` is a no-op on GHA (./Nim does not exist) and
-      # idempotent on act. Gated to devel so stable cells avoid the syscall.
-      - name: Clean stale Nim source dir (devel only)
+      # Tier A runs inside the lockfree-ci container on Linux. Stable cells
+      # (cell 1) use the Nim 2.2.10 toolchain the image already ships, so no
+      # install step runs. Devel cells (cell 13) install Nim devel via the
+      # container's preinstalled asdf + asdf-community/asdf-nim plugin —
+      # `ref:devel` fetches the nightly devel build.
+      - name: Install Nim devel via asdf (container)
         if: matrix.nim-version == 'devel'
-        run: rm -rf Nim
-
-      # Skip setup-nim-action when our container image already provides the
-      # requested Nim (stable on Linux). The image ships Nim 2.2.10 stable +
-      # all build tools; running setup-nim-action there would only re-emit
-      # the `::add-path::` workflow command that breaks actions/cache@v4
-      # under act. Devel and any non-Linux runs still hit setup-nim-action.
-      - name: Setup Nim ${{ matrix.nim-version }}
-        if: matrix.nim-version != 'stable' || runner.os != 'Linux'
-        uses: jiro4989/setup-nim-action@v2
-        with:
-          nim-version: ${{ matrix.nim-version }}
+        run: |
+          /opt/asdf/bin/asdf install nim ref:devel
+          /opt/asdf/bin/asdf global nim ref:devel
+          ln -sf /opt/asdf/installs/nim/ref-devel/bin/nim /usr/local/bin/nim
+          ln -sf /opt/asdf/installs/nim/ref-devel/bin/nimble /usr/local/bin/nimble
+          nim --version | head -1
+          nimble --version
 
       - name: Cache nimble packages
         uses: actions/cache@v4
@@ -218,10 +210,9 @@ jobs:
             nimcache-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-
             nimcache-${{ runner.os }}-${{ matrix.nim-version }}-base-
 
-      # Image already ships clang; only install on non-container Linux runs
-      # (devel cell still needs apt clang because setup-nim-action runs on
-      # the host runner, not the container). When LOCKFREE_NIM_FROM_IMAGE is
-      # set we're inside the container and skip apt entirely.
+      # Tier A is container-only (LOCKFREE_NIM_FROM_IMAGE='true' at job level),
+      # so this step is a no-op here. Kept as a safety net in case the matrix
+      # ever grows a non-container Linux cell.
       - name: Install clang (Linux, non-container)
         if: runner.os == 'Linux' && env.LOCKFREE_NIM_FROM_IMAGE != 'true'
         run: |
@@ -509,14 +500,68 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v4
 
-      # Skip setup-nim-action on Linux cells running inside the lockfree-ci
-      # container (image already provides Nim 2.2.10 stable). macOS and
-      # Windows cells still need the action to install Nim.
-      - name: Setup Nim ${{ matrix.nim-version }}
-        if: matrix.nim-from-image != 'true'
-        uses: jiro4989/setup-nim-action@v2
+      # Nim provisioning, split by runner type:
+      #   - Linux cells in the lockfree-ci container: image ships Nim
+      #     2.2.10 stable, no action needed.
+      #   - macOS (cell 11): install Go-based asdf v0.19.0 directly, add
+      #     the asdf-community/asdf-nim plugin, install Nim 2.2.10.
+      #   - Windows (cell 17): the asdf-nim plugin is POSIX-only, so use
+      #     nim-lang/setup-nimble-action to land nimble first, then
+      #     `nimble install nim@2.2.10` to land Nim itself.
+
+      - name: Install Nim via asdf (macOS)
+        if: matrix.nim-from-image != 'true' && runner.os == 'macOS'
+        env:
+          ASDF_VERSION: 'v0.19.0'
+          NIM_VERSION: '2.2.10'
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          # Pick arm64 vs amd64 asdf tarball at runtime.
+          arch="$(uname -m)"
+          case "$arch" in
+            arm64|aarch64) asdf_arch='arm64' ;;
+            x86_64|amd64)  asdf_arch='amd64' ;;
+            *) echo "unsupported arch: $arch" >&2; exit 1 ;;
+          esac
+          curl -fsSL \
+            "https://github.com/asdf-vm/asdf/releases/download/${ASDF_VERSION}/asdf-${ASDF_VERSION}-darwin-${asdf_arch}.tar.gz" \
+            -o /tmp/asdf.tar.gz
+          tar -xzf /tmp/asdf.tar.gz -C "$HOME/.local/bin"
+          chmod +x "$HOME/.local/bin/asdf"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          echo "$HOME/.asdf/shims" >> "$GITHUB_PATH"
+          export PATH="$HOME/.local/bin:$HOME/.asdf/shims:$PATH"
+          asdf plugin add nim https://github.com/asdf-community/asdf-nim.git
+          asdf install nim "$NIM_VERSION"
+          asdf set --home nim "$NIM_VERSION"
+          # asdf-nim installs to $ASDF_DATA_DIR/installs/nim/$NIM_VERSION/bin.
+          # ASDF_DATA_DIR defaults to $HOME/.asdf.
+          echo "$HOME/.asdf/installs/nim/${NIM_VERSION}/bin" >> "$GITHUB_PATH"
+          "$HOME/.asdf/installs/nim/${NIM_VERSION}/bin/nim" --version | head -1
+          "$HOME/.asdf/installs/nim/${NIM_VERSION}/bin/nimble" --version
+
+      - name: Install nimble (Windows)
+        if: matrix.nim-from-image != 'true' && runner.os == 'Windows'
+        uses: nim-lang/setup-nimble-action@v1
         with:
-          nim-version: ${{ matrix.nim-version }}
+          nimble-version: 'latest'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Nim via nimble (Windows)
+        if: matrix.nim-from-image != 'true' && runner.os == 'Windows'
+        shell: bash
+        env:
+          NIM_VERSION: '2.2.10'
+        run: |
+          set -euo pipefail
+          nimble install -y "nim@${NIM_VERSION}"
+          # `nimble install nim@X` places nim.exe + nimble.exe in
+          # ~/.nimble/bin (USERPROFILE/.nimble/bin on Windows).
+          # GITHUB_PATH expects native paths on Windows.
+          echo "${USERPROFILE}\\.nimble\\bin" >> "$GITHUB_PATH"
+          "${USERPROFILE}/.nimble/bin/nim.exe" --version | head -1
+          "${USERPROFILE}/.nimble/bin/nimble.exe" --version
 
       - name: Cache nimble packages
         uses: actions/cache@v4
