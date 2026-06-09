@@ -174,6 +174,16 @@ instead of pull-request-round-trips. `.actrc` at repo root pins the runner image
 (`linux/amd64` + `linux/arm64`), so act runs natively on both standard GHA runners
 (amd64) and the operator's M-series Mac (arm64) — no qemu emulation locally.
 
+**Container architecture is host-driven via the wrappers.** `.actrc` deliberately
+does NOT pin `--container-architecture` (the file is committed and shared across
+arm64 and amd64 hosts; a static pin would force qemu emulation on the other
+arch). `tools/act-cell` and `tools/momus-local` detect `uname -m` at invocation
+and pass `--container-architecture linux/arm64` (Apple Silicon) or `linux/amd64`
+(Intel/Linux) to act. Because `ghcr.io/elijahr/lockfree-ci:latest` is multi-arch,
+both hosts run natively — no qemu emulation regardless of which arch you are on.
+If invoking `act` directly (not via a wrapper), pass
+`--container-architecture linux/<arch>` yourself.
+
 The image is a custom build maintained in-repo:
 
 - **Dockerfile**: `.github/docker/lockfree-ci.Dockerfile`. Ubuntu 22.04 base with

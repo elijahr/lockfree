@@ -91,6 +91,20 @@ fi
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$REPO_ROOT"
 
-CMD=(act -W .github/workflows/ci.yml -j "$JOB" "${MATRIX_ARGS[@]}" "$@")
-printf 'act-cell: running: %s\n' "${CMD[*]}" >&2
+# Detect container architecture from the host. `.actrc` deliberately
+# does not pin one (committed file, shared across arm64/amd64 hosts);
+# act otherwise defaults `linux/amd64` regardless of host, which sends
+# Apple Silicon down the qemu emulation path (3-5x slowdown). The
+# multi-arch ghcr.io/elijahr/lockfree-ci:latest image supports both
+# arches natively. If the user passes their own `--container-architecture`
+# in "$@", act's last-arg-wins behavior makes their override win.
+case "$(uname -m)" in
+  arm64|aarch64) host_arch=linux/arm64 ;;
+  x86_64|amd64)  host_arch=linux/amd64 ;;
+  *) echo "act-cell: warning: unrecognized uname -m=$(uname -m); falling back to linux/amd64" >&2
+     host_arch=linux/amd64 ;;
+esac
+
+CMD=(act -W .github/workflows/ci.yml --container-architecture "$host_arch" -j "$JOB" "${MATRIX_ARGS[@]}" "$@")
+printf 'act-cell: host_arch=%s running: %s\n' "$host_arch" "${CMD[*]}" >&2
 exec "${CMD[@]}"

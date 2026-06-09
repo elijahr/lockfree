@@ -70,16 +70,29 @@ cat >"${EVENT_FILE}" <<JSON
 }
 JSON
 
+# Detect container architecture from the host. `.actrc` deliberately
+# does not pin one (committed file, shared across arm64/amd64 hosts);
+# act otherwise defaults `linux/amd64` regardless of host, which sends
+# Apple Silicon down the qemu emulation path. The multi-arch
+# ghcr.io/elijahr/lockfree-ci:latest image supports both arches natively.
+# If "$@" contains `--container-architecture`, act's last-arg-wins
+# behavior lets the user override.
+case "$(uname -m)" in
+  arm64|aarch64) host_arch=linux/arm64 ;;
+  x86_64|amd64)  host_arch=linux/amd64 ;;
+  *) echo "momus-local: warning: unrecognized uname -m=$(uname -m); falling back to linux/amd64" >&2
+     host_arch=linux/amd64 ;;
+esac
+
 echo "momus-local: PR ${REPO}#${PR_NUMBER} @ ${HEAD_SHA}" >&2
-echo "momus-local: event=${EVENT_FILE} cache=${CACHE_PATH}" >&2
+echo "momus-local: event=${EVENT_FILE} cache=${CACHE_PATH} host_arch=${host_arch}" >&2
 echo "momus-local: invoking act issue_comment -W .github/workflows/momus.yml ..." >&2
 
 # Runner image inherits from .actrc — `ghcr.io/elijahr/lockfree-ci:latest`,
 # which ships `gh` (required by the reusable momus workflow for PR-head SHA
 # resolution and review-comment posting). No `-P` override needed here.
-# --container-architecture is also inherited from .actrc, but we keep the
-# explicit flag below as a defensive pin in case .actrc is not loaded
-# (e.g., invocation from a different working dir).
+# --container-architecture is host-driven (detected above) since .actrc no
+# longer pins one — keeps amd64 hosts and arm64 hosts both running natively.
 GH_PAT="$(gh auth token)"
 # Pass GH_TOKEN as a container env var as well as a secret: act does not always
 # expand the upstream workflow's `env: GH_TOKEN: ${{ ... || secrets.GITHUB_TOKEN }}`
@@ -96,5 +109,5 @@ exec act issue_comment \
   --env GITHUB_REPOSITORY="${REPO}" \
   --env GITHUB_REPOSITORY_OWNER="${REPO%%/*}" \
   --local-repository "axiomantic/.github@devel=${CACHE_PATH}" \
-  --container-architecture linux/amd64 \
+  --container-architecture "${host_arch}" \
   "$@"

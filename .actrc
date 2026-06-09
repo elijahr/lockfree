@@ -26,21 +26,27 @@
 -P ubuntu-22.04=ghcr.io/elijahr/lockfree-ci:latest
 -P ubuntu-24.04=ghcr.io/elijahr/lockfree-ci:latest
 
-# Pin container architecture to linux/arm64.
+# Container architecture is NOT pinned here.
 #
-# act defaults `--container-architecture linux/amd64` for `runs-on:
-# ubuntu-*` matrix entries because that's what real GHA runners use,
-# regardless of host architecture. On Apple Silicon that triggers
-# Docker's amd64-via-qemu path (3-5x slowdown) AND a manifest-mismatch
-# error against our locally-built arm64 image.
+# `.actrc` is committed and shared across operator hosts (arm64 Apple
+# Silicon AND amd64 Linux/Intel). A static `--container-architecture`
+# pin would force one arch and trigger Docker's qemu emulation path on
+# the other (3-5x slowdown, and a manifest-mismatch against locally-
+# built single-arch images).
 #
-# Since this `.actrc` only applies to LOCAL act runs (the operator's
-# M-series Mac), pin to arm64 so the locally-built variant of
-# `ghcr.io/elijahr/lockfree-ci:latest` is used directly, native, no
-# qemu. Real GHA never reads this file — its workflows run on
-# amd64 runners and pull the amd64 manifest from the multi-arch image
-# via ci.yml's eventual `container:` directive (post-v0.1.0 work).
---container-architecture linux/arm64
+# Instead, the wrapper scripts `tools/act-cell` and `tools/momus-local`
+# detect `uname -m` at invocation and pass
+# `--container-architecture linux/<host_arch>` to act. The image at
+# `ghcr.io/elijahr/lockfree-ci:latest` is multi-arch, so both arches
+# pull the native manifest — no qemu emulation regardless of host.
+#
+# If invoking `act` directly (not via a wrapper), pass
+# `--container-architecture linux/arm64` (Apple Silicon) or
+# `--container-architecture linux/amd64` (Intel/Linux) yourself.
+#
+# Real GHA never reads this file — its workflows run on amd64 runners
+# and pull the amd64 manifest from the multi-arch image via ci.yml's
+# eventual `container:` directive (post-v0.1.0 work).
 
 # Reuse containers across runs of the same job so dep installs cache.
 # Combine with `--rm` on the CLI if you want a clean slate.
