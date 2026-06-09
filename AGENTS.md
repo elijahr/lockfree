@@ -213,6 +213,42 @@ inner loop inside cell 1.
 - Docker Desktop must be running; act surfaces `Cannot connect to the
   Docker daemon` if it is not.
 
+#### Caching
+
+ci.yml uses two `actions/cache@v4` steps per job to keep matrix-minutes
+cheap and act iteration fast:
+
+- **nimble packages** — `~/.nimble/pkgs2` + `~/.nimble/bin`. Keyed on
+  `runner.os` + `nim-version` + hash of `lockfree.nimble` + `nimble.lock`.
+  Shared across every job that pins the same Nim version. The chronos
+  cell uses a `-chronos` suffix so its extra installs don't pollute the
+  baseline cache (and still restores from the baseline key for warm
+  start).
+- **Nim nimcache** — `~/.cache/nim` (Nim's IR, generated C, and `.o`
+  files). Keyed on `runner.os` + `nim-version` + flag-tuple tag
+  (`base` / `tsan` / `asan` / `chronos` / `nimony` / `msvc`) + hash of
+  `src/**/*.nim`, `tests/**/*.nim`, `nim.cfg`, `config.nims`,
+  `lockfree.nimble`. Sanitizer cells fall back to the matching `base`
+  tag via `restore-keys` so the standard lanes warm-start for free.
+  Valgrind, Helgrind, and the arm64 / macOS / Windows cells all use
+  flag-tuple-appropriate tags (`base` or `msvc`).
+
+For act, `.actrc` pins persistent artifact + cache servers under
+`~/.cache/act/`:
+
+```sh
+# Inspect:
+ls ~/.cache/act/cache/
+ls ~/.cache/act/artifacts/
+# Reset (nuke both, force cold start on next act run):
+rm -rf ~/.cache/act/cache ~/.cache/act/artifacts
+mkdir -p ~/.cache/act/cache ~/.cache/act/artifacts
+```
+
+GHA cache state lives in the repo's Actions cache (UI: Repo → Actions →
+Caches; or `gh cache list`). Evict via `gh cache delete <key>` if a key
+becomes poisoned.
+
 #### Local Momus AI review
 
 `tools/momus-local` runs the Momus AI review workflow (`.github/workflows/momus.yml`)

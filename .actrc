@@ -25,3 +25,10 @@
 # Pull images on first reference, then leave alone. Avoids re-pulling
 # the ~2GB catthehacker image on every invocation.
 --pull=false
+
+# Persistent artifact/cache servers so actions/cache@v4 hits across act
+# runs. Both directories live under ~/.cache/act and survive between
+# invocations; the operator (or wrapper) handles cleanup. See AGENTS.md
+# §3.6 "Caching" subsection.
+--artifact-server-path /Users/eek/.cache/act/artifacts
+--cache-server-path /Users/eek/.cache/act/cache

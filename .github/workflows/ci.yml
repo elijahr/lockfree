@@ -87,6 +87,25 @@ jobs:
         with:
           nim-version: 'stable'
 
+      - name: Cache nimble packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nimble/pkgs2
+            ~/.nimble/bin
+          key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+          restore-keys: |
+            nimble-${{ runner.os }}-stable-
+
+      - name: Cache Nim nimcache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/nim
+          key: nimcache-${{ runner.os }}-stable-base-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          restore-keys: |
+            nimcache-${{ runner.os }}-stable-base-
+
       - name: Install dependencies from nimble registry
         run: |
           nimble install -dy
@@ -132,6 +151,7 @@ jobs:
             backend: 'c'
             sanitize-threads: 'no'
             sanitize-address: 'no'
+            cache-tag: 'base'
             continue-on-error: 'false'
             timeout: 45
 
@@ -144,16 +164,11 @@ jobs:
             backend: 'c'
             sanitize-threads: 'no'
             sanitize-address: 'no'
+            cache-tag: 'base'
             continue-on-error: 'true'
             timeout: 45
 
     steps:
-      - name: Restore cache
-        uses: actions/cache@v4
-        with:
-          path: ${HOME}/.cache
-          key: ci-${{ matrix.cell }}-${{ matrix.runs-on }}-${{ matrix.nim-version }}-${{ matrix.mm }}-${{ matrix.backend }}-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
-
       - name: Checkout project
         uses: actions/checkout@v4
 
@@ -161,6 +176,26 @@ jobs:
         uses: jiro4989/setup-nim-action@v2
         with:
           nim-version: ${{ matrix.nim-version }}
+
+      - name: Cache nimble packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nimble/pkgs2
+            ~/.nimble/bin
+          key: nimble-${{ runner.os }}-${{ matrix.nim-version }}-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+          restore-keys: |
+            nimble-${{ runner.os }}-${{ matrix.nim-version }}-
+
+      - name: Cache Nim nimcache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/nim
+          key: nimcache-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          restore-keys: |
+            nimcache-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-
+            nimcache-${{ runner.os }}-${{ matrix.nim-version }}-base-
 
       - name: Install clang (Linux)
         if: runner.os == 'Linux'
@@ -221,6 +256,27 @@ jobs:
         with:
           nim-version: 'stable'
 
+      - name: Cache nimble packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nimble/pkgs2
+            ~/.nimble/bin
+          key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}-chronos
+          restore-keys: |
+            nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}-
+            nimble-${{ runner.os }}-stable-
+
+      - name: Cache Nim nimcache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/nim
+          key: nimcache-${{ runner.os }}-stable-chronos-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          restore-keys: |
+            nimcache-${{ runner.os }}-stable-chronos-
+            nimcache-${{ runner.os }}-stable-base-
+
       - name: Install dependencies + chronos
         # CRITICAL #4 preservation: chronos is NOT in lockfree.nimble's
         # `requires` — Tier 3 adapter must compile/run without chronos
@@ -265,6 +321,26 @@ jobs:
         uses: jiro4989/setup-nim-action@v2
         with:
           nim-version: 'stable'
+
+      - name: Cache nimble packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nimble/pkgs2
+            ~/.nimble/bin
+          key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+          restore-keys: |
+            nimble-${{ runner.os }}-stable-
+
+      - name: Cache Nim nimcache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/nim
+          key: nimcache-${{ runner.os }}-stable-nimony-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          restore-keys: |
+            nimcache-${{ runner.os }}-stable-nimony-
+            nimcache-${{ runner.os }}-stable-base-
 
       - name: Cache nimony build
         uses: actions/cache@v4
@@ -335,6 +411,7 @@ jobs:
             backend: 'c'
             sanitize-threads: 'yes'
             sanitize-address: 'no'
+            cache-tag: 'tsan'
             timeout: 45
 
           # --- Cell 7: ASAN on baseline lane ---------------------------------
@@ -346,6 +423,7 @@ jobs:
             backend: 'c'
             sanitize-threads: 'no'
             sanitize-address: 'yes'
+            cache-tag: 'asan'
             timeout: 45
 
           # --- Cell 10: Linux arm64 ------------------------------------------
@@ -357,6 +435,7 @@ jobs:
             backend: 'c'
             sanitize-threads: 'no'
             sanitize-address: 'no'
+            cache-tag: 'base'
             timeout: 45
 
           # --- Cell 11: macOS arm64 (Apple Silicon + Apple Clang) ------------
@@ -368,6 +447,7 @@ jobs:
             backend: 'c'
             sanitize-threads: 'no'
             sanitize-address: 'no'
+            cache-tag: 'base'
             timeout: 45
 
           # --- Cell 17: Windows + MSVC + orc (per O4) ------------------------
@@ -379,15 +459,10 @@ jobs:
             backend: 'c'
             sanitize-threads: 'no'
             sanitize-address: 'no'
+            cache-tag: 'msvc'
             timeout: 45
 
     steps:
-      - name: Restore cache
-        uses: actions/cache@v4
-        with:
-          path: ${HOME}/.cache
-          key: ci-${{ matrix.cell }}-${{ matrix.runs-on }}-${{ matrix.nim-version }}-${{ matrix.mm }}-${{ matrix.backend }}-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
-
       - name: Checkout project
         uses: actions/checkout@v4
 
@@ -395,6 +470,26 @@ jobs:
         uses: jiro4989/setup-nim-action@v2
         with:
           nim-version: ${{ matrix.nim-version }}
+
+      - name: Cache nimble packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nimble/pkgs2
+            ~/.nimble/bin
+          key: nimble-${{ runner.os }}-${{ matrix.nim-version }}-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+          restore-keys: |
+            nimble-${{ runner.os }}-${{ matrix.nim-version }}-
+
+      - name: Cache Nim nimcache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/nim
+          key: nimcache-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          restore-keys: |
+            nimcache-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-
+            nimcache-${{ runner.os }}-${{ matrix.nim-version }}-base-
 
       - name: Install clang (Linux)
         if: runner.os == 'Linux'
@@ -488,6 +583,25 @@ jobs:
         with:
           nim-version: 'stable'
 
+      - name: Cache nimble packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nimble/pkgs2
+            ~/.nimble/bin
+          key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+          restore-keys: |
+            nimble-${{ runner.os }}-stable-
+
+      - name: Cache Nim nimcache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/nim
+          key: nimcache-${{ runner.os }}-stable-base-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          restore-keys: |
+            nimcache-${{ runner.os }}-stable-base-
+
       - name: Install Valgrind
         run: |
           sudo apt-get update -q -y
@@ -553,6 +667,25 @@ jobs:
         uses: jiro4989/setup-nim-action@v2
         with:
           nim-version: 'stable'
+
+      - name: Cache nimble packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nimble/pkgs2
+            ~/.nimble/bin
+          key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+          restore-keys: |
+            nimble-${{ runner.os }}-stable-
+
+      - name: Cache Nim nimcache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/nim
+          key: nimcache-${{ runner.os }}-stable-base-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          restore-keys: |
+            nimcache-${{ runner.os }}-stable-base-
 
       - name: Install Valgrind (provides helgrind)
         run: |
