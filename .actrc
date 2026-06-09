@@ -4,20 +4,25 @@
 # this file automatically. See AGENTS.md §3.6 "Local CI iteration with
 # act" for the operator-facing workflow.
 
-# Runner images — catthehacker's "js" variants are the smallest images
-# that include Node.js (and the surrounding GHA action toolchain), which
-# is required by stock JS-based actions like actions/cache@v4 and
-# actions/checkout@v4. The slim "act-*" variants do NOT ship node and
-# cause `actions/cache@v4` to fail with `node: executable file not found`
-# (see push-18 cache validation run).
+# Runner images — `catthehacker/ubuntu:full-*` pinned for ALL runners.
 #
-# The "full-*" variants (~60GB extracted) also include node + gh, and
-# tools/momus-local pins itself to `full-latest` because the reusable
-# momus workflow shells out to `gh`. For per-cell CI iteration we don't
-# need `gh`, so `js-*` is the right balance of size vs functionality.
--P ubuntu-latest=catthehacker/ubuntu:js-latest
--P ubuntu-22.04=catthehacker/ubuntu:js-22.04
--P ubuntu-24.04=catthehacker/ubuntu:js-24.04
+# Why full-* rather than the smaller js-* variant: js-* installs Node.js
+# via `nvm`, which puts `node` at `$NVM_DIR/versions/node/v.../bin/node`
+# rather than `/usr/bin/node`. act invokes JS-based actions
+# (`actions/cache@v4`, `actions/checkout@v4`) via a bare
+# `docker exec cmd=[node ...]` — no shell init, so nvm never sources its
+# profile and `node` is not on PATH. Result: every cache step crashes
+# with `exec: "node": executable file not found in $PATH` (verified
+# under push-19 act run on js-latest).
+#
+# full-* has apt-installed node at `/usr/bin/node` (system PATH, no
+# shell init needed) plus `gh` (which `tools/momus-local` also needs,
+# so one image serves both drivers). The image is ~60GB extracted but
+# cached locally after first pull and shared across all act-driven
+# tooling on this host.
+-P ubuntu-latest=catthehacker/ubuntu:full-latest
+-P ubuntu-22.04=catthehacker/ubuntu:full-22.04
+-P ubuntu-24.04=catthehacker/ubuntu:full-24.04
 
 # Force linux/amd64 even on Apple Silicon. Most GitHub Actions
 # (setup-nim-action, actions/cache@v4) only ship amd64 binaries; arm64
