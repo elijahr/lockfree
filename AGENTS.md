@@ -170,22 +170,37 @@ This discipline was established 2026-06-06 after several per-task dispatches con
 Run Linux ci.yml cells locally via [nektos/act](https://github.com/nektos/act) so matrix
 iteration does not burn GitHub Actions credits and the feedback loop is seconds-to-minutes
 instead of pull-request-round-trips. `.actrc` at repo root pins the runner image for all
-`ubuntu-*` labels to `ghcr.io/elijahr/lockfree-ci:latest` and forces `linux/amd64` so
-setup-nim-action's binaries load.
+`ubuntu-*` labels to `ghcr.io/elijahr/lockfree-ci:latest`. The image is multi-arch
+(`linux/amd64` + `linux/arm64`), so act runs natively on both standard GHA runners
+(amd64) and the operator's M-series Mac (arm64) — no qemu emulation locally.
 
 The image is a custom build maintained in-repo:
 
 - **Dockerfile**: `.github/docker/lockfree-ci.Dockerfile`. Ubuntu 22.04 base with
   apt-installed `nodejs` at `/usr/bin/node` (so `actions/cache@v4` and
   `actions/checkout@v4` resolve via bare `docker exec cmd=[node ...]` without shell
-  init), plus `git`, `gh`, `clang`, `valgrind`, `build-essential`, `libpcre3-dev`.
-- **Nim**: pinned to 2.2.10 via [mise](https://mise.jdx.dev/) — same tool the
-  operator uses locally, same version. Installed to `/opt/mise/installs/nim/2.2.10/`
-  and symlinked into `/usr/local/bin/{nim,nimble}` so the bare PATH finds them.
+  init), plus `git`, `gh`, `clang`, `valgrind`, `build-essential`, `libpcre3-dev`,
+  `bash`, `xz-utils`.
+- **Nim**: pinned to 2.2.10 via [asdf](https://asdf-vm.com/) with the
+  [asdf-nim](https://github.com/asdf-community/asdf-nim) plugin, which ships
+  pre-compiled binaries for `linux/amd64`, `linux/arm64`, `macos/amd64`, and
+  `macos/arm64`. asdf lives at `/opt/asdf` system-wide; shims at
+  `/opt/asdf/shims/{nim,nimble}` are on `PATH` (set via `ENV`) and additionally
+  symlinked into `/usr/local/bin/{nim,nimble}` for belt-and-suspenders coverage
+  when an action resets `PATH`.
+- **Arch matrix**: image is built and pushed for both `linux/amd64` and
+  `linux/arm64`. GHA pulls the amd64 variant on standard runners; the operator's
+  M-series Mac pulls the arm64 variant under act and runs it natively (no qemu).
 - **Build workflow**: `.github/workflows/build-image.yml`. Triggers on
   pushes to `main`/`devel` that touch the Dockerfile or the workflow itself
   (and on `workflow_dispatch`). Tags pushed: `:latest` and `:nim-2.2.10-<sha12>`.
-- **Size**: ~2-3GB extracted (vs. ~70GB for `catthehacker/ubuntu:full-latest`).
+  Uses `docker/setup-qemu-action@v3` to cross-build arm64 from the amd64 GHA
+  runner, with `platforms: linux/amd64,linux/arm64` on `docker/build-push-action@v6`.
+- **Size**: ~2-3GB extracted per arch (vs. ~70GB for `catthehacker/ubuntu:full-latest`).
+- **Why asdf rather than mise**: mise's nim plugin (and its aqua fallback
+  `arrow2nd/nimotsu`) ships amd64-only binaries, so `mise install nim@2.2.10`
+  fails when the build context is `linux/arm64`. asdf-nim covers both
+  architectures, so the image can be multi-arch without qemu in the runtime path.
 
 Why a custom image rather than `catthehacker/ubuntu:*` variants:
 
@@ -257,10 +272,12 @@ inner loop inside cell 1.
 - macOS cells (11), Windows MSVC (17), Linux arm64 (10), and nimony (14)
   cannot run via act locally. `tools/act-cell` exits 2 with a reason.
   Run macOS cells natively with `nimble test`; the rest wait for GHA.
-- On Apple Silicon, amd64 emulation runs **3-5x slower** than GHA. Use
-  act for correctness iteration, not perf-realistic timing. Prefer
-  `tools/act-cell lint` (~2 min) for quick sanity; reach for a full
-  test cell only when you need to reproduce a GHA failure.
+- On Apple Silicon, act now runs the `linux/arm64` variant of the image
+  natively (no qemu emulation), so local iteration is no longer 3-5x
+  slower than GHA. Wall-clock timing still differs from GHA (different
+  CPU, memory, IO characteristics), so prefer act for correctness
+  iteration, not perf-realistic measurement. `tools/act-cell lint`
+  (~2 min) remains the fastest sanity check.
 - Docker Desktop must be running; act surfaces `Cannot connect to the
   Docker daemon` if it is not.
 

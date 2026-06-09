@@ -9,6 +9,9 @@
 # `.github/docker/lockfree-ci.Dockerfile`. Pinned for ALL ubuntu-*
 # runners so act + GHA can share the same environment.
 #
+# The image is multi-arch (linux/amd64 + linux/arm64), so act picks the
+# host architecture natively — no qemu emulation on Apple Silicon.
+#
 # Why custom rather than `catthehacker/ubuntu:*`:
 #   - js-latest installs node via nvm; bare `docker exec cmd=[node ...]`
 #     can't find node (no shell init). `actions/cache@v4` crashes with
@@ -16,17 +19,18 @@
 #   - full-latest is ~70GB extracted (verified push 20). Pull cost and
 #     disk cost are prohibitive on the operator host, and the cache
 #     step STILL failed in some matrix cells.
-#   - Our needs are narrow: ubuntu base + Nim (pinned via mise) +
+#   - Our needs are narrow: ubuntu base + Nim (pinned via asdf) +
 #     apt nodejs + git + gh + clang + valgrind. ~2-3GB image, fast pull,
 #     bit-identical to what GHA jobs see when `container:` is set.
 -P ubuntu-latest=ghcr.io/elijahr/lockfree-ci:latest
 -P ubuntu-22.04=ghcr.io/elijahr/lockfree-ci:latest
 -P ubuntu-24.04=ghcr.io/elijahr/lockfree-ci:latest
 
-# Force linux/amd64 even on Apple Silicon. Most GitHub Actions
-# (setup-nim-action, actions/cache@v4) only ship amd64 binaries; arm64
-# emulation via Docker Desktop's qemu is slow (3-5x) but correct.
---container-architecture linux/amd64
+# No --container-architecture pin: the image is multi-arch, so act
+# (and Docker BuildKit / containerd) pull the native variant for the
+# host. On Apple Silicon this means linux/arm64 with no qemu — faster
+# local iteration. On amd64 hosts (GHA-runner-like) it means linux/amd64
+# natively.
 
 # Reuse containers across runs of the same job so dep installs cache.
 # Combine with `--rm` on the CLI if you want a clean slate.
