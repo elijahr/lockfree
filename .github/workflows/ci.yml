@@ -77,15 +77,14 @@ jobs:
   lint:
     name: 'L: Lint (typestates verify)'
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/elijahr/lockfree-ci:latest
+    env:
+      LOCKFREE_NIM_FROM_IMAGE: 'true'
     timeout-minutes: 10
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
-
-      - name: Setup Nim
-        uses: jiro4989/setup-nim-action@v2
-        with:
-          nim-version: 'stable'
 
       - name: Cache nimble packages
         uses: actions/cache@v4
@@ -132,6 +131,10 @@ jobs:
   test-fast:
     name: '${{ matrix.cell }}: ${{ matrix.label }}'
     runs-on: ${{ matrix.runs-on }}
+    container:
+      image: ghcr.io/elijahr/lockfree-ci:latest
+    env:
+      LOCKFREE_NIM_FROM_IMAGE: 'true'
     timeout-minutes: ${{ matrix.timeout }}
     continue-on-error: ${{ matrix.continue-on-error == 'true' }}
 
@@ -184,7 +187,13 @@ jobs:
         if: matrix.nim-version == 'devel'
         run: rm -rf Nim
 
+      # Skip setup-nim-action when our container image already provides the
+      # requested Nim (stable on Linux). The image ships Nim 2.2.10 stable +
+      # all build tools; running setup-nim-action there would only re-emit
+      # the `::add-path::` workflow command that breaks actions/cache@v4
+      # under act. Devel and any non-Linux runs still hit setup-nim-action.
       - name: Setup Nim ${{ matrix.nim-version }}
+        if: matrix.nim-version != 'stable' || runner.os != 'Linux'
         uses: jiro4989/setup-nim-action@v2
         with:
           nim-version: ${{ matrix.nim-version }}
@@ -209,8 +218,12 @@ jobs:
             nimcache-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-
             nimcache-${{ runner.os }}-${{ matrix.nim-version }}-base-
 
-      - name: Install clang (Linux)
-        if: runner.os == 'Linux'
+      # Image already ships clang; only install on non-container Linux runs
+      # (devel cell still needs apt clang because setup-nim-action runs on
+      # the host runner, not the container). When LOCKFREE_NIM_FROM_IMAGE is
+      # set we're inside the container and skip apt entirely.
+      - name: Install clang (Linux, non-container)
+        if: runner.os == 'Linux' && env.LOCKFREE_NIM_FROM_IMAGE != 'true'
         run: |
           sudo apt-get update -q -y
           sudo apt-get -qq install -y clang
@@ -258,15 +271,14 @@ jobs:
   chronos:
     name: '12: chronos Tier 3 adapter'
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/elijahr/lockfree-ci:latest
+    env:
+      LOCKFREE_NIM_FROM_IMAGE: 'true'
     timeout-minutes: 15
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
-
-      - name: Setup Nim stable
-        uses: jiro4989/setup-nim-action@v2
-        with:
-          nim-version: 'stable'
 
       - name: Cache nimble packages
         uses: actions/cache@v4
@@ -320,19 +332,17 @@ jobs:
   nimony:
     name: '14: nimony aufbruch (informational)'
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/elijahr/lockfree-ci:latest
     timeout-minutes: 30
     continue-on-error: true
     env:
       # Pinned nimony commit SHA per §6 O3.
       NIMONY_SHA: '751121f9ee0fc7584015fc03f5326fe521029d84'
+      LOCKFREE_NIM_FROM_IMAGE: 'true'
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
-
-      - name: Setup Nim stable (for bootstrap)
-        uses: jiro4989/setup-nim-action@v2
-        with:
-          nim-version: 'stable'
 
       - name: Cache nimble packages
         uses: actions/cache@v4
@@ -408,7 +418,15 @@ jobs:
     name: '${{ matrix.cell }}: ${{ matrix.label }}'
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')
     runs-on: ${{ matrix.runs-on }}
+    # Per-cell container: Linux cells (6, 7, 10) inherit the multi-arch
+    # lockfree-ci image (Nim 2.2.10 stable + all build tools); macOS (11)
+    # and Windows (17) cannot use a Linux container so their entries omit
+    # the `container` key. GHA treats a null/missing `container` value as
+    # "run directly on the runner".
+    container: ${{ matrix.container }}
     timeout-minutes: ${{ matrix.timeout }}
+    env:
+      LOCKFREE_NIM_FROM_IMAGE: ${{ matrix.nim-from-image }}
 
     strategy:
       fail-fast: false
@@ -418,6 +436,9 @@ jobs:
           - cell: '6'
             label: 'TSAN orc/gcc'
             runs-on: ubuntu-latest
+            container:
+              image: ghcr.io/elijahr/lockfree-ci:latest
+            nim-from-image: 'true'
             nim-version: 'stable'
             mm: 'orc'
             backend: 'c'
@@ -430,6 +451,9 @@ jobs:
           - cell: '7'
             label: 'ASAN orc/gcc'
             runs-on: ubuntu-latest
+            container:
+              image: ghcr.io/elijahr/lockfree-ci:latest
+            nim-from-image: 'true'
             nim-version: 'stable'
             mm: 'orc'
             backend: 'c'
@@ -442,6 +466,9 @@ jobs:
           - cell: '10'
             label: 'arm64 linux'
             runs-on: ubuntu-24.04-arm
+            container:
+              image: ghcr.io/elijahr/lockfree-ci:latest
+            nim-from-image: 'true'
             nim-version: 'stable'
             mm: 'orc'
             backend: 'c'
@@ -451,9 +478,11 @@ jobs:
             timeout: 45
 
           # --- Cell 11: macOS arm64 (Apple Silicon + Apple Clang) ------------
+          # No container: macOS runner cannot host a Linux container.
           - cell: '11'
             label: 'macOS arm64'
             runs-on: macos-latest
+            nim-from-image: 'false'
             nim-version: 'stable'
             mm: 'orc'
             backend: 'c'
@@ -463,9 +492,11 @@ jobs:
             timeout: 45
 
           # --- Cell 17: Windows + MSVC + orc (per O4) ------------------------
+          # No container: Windows runner cannot host a Linux container.
           - cell: '17'
             label: 'windows MSVC orc'
             runs-on: windows-latest
+            nim-from-image: 'false'
             nim-version: 'stable'
             mm: 'orc'
             backend: 'c'
@@ -478,7 +509,11 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v4
 
+      # Skip setup-nim-action on Linux cells running inside the lockfree-ci
+      # container (image already provides Nim 2.2.10 stable). macOS and
+      # Windows cells still need the action to install Nim.
       - name: Setup Nim ${{ matrix.nim-version }}
+        if: matrix.nim-from-image != 'true'
         uses: jiro4989/setup-nim-action@v2
         with:
           nim-version: ${{ matrix.nim-version }}
@@ -503,8 +538,9 @@ jobs:
             nimcache-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-
             nimcache-${{ runner.os }}-${{ matrix.nim-version }}-base-
 
-      - name: Install clang (Linux)
-        if: runner.os == 'Linux'
+      # Image already ships clang; only install on non-container Linux runs.
+      - name: Install clang (Linux, non-container)
+        if: runner.os == 'Linux' && matrix.nim-from-image != 'true'
         run: |
           sudo apt-get update -q -y
           sudo apt-get -qq install -y clang
@@ -585,15 +621,14 @@ jobs:
     name: '8: Valgrind memcheck (subset)'
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/elijahr/lockfree-ci:latest
+    env:
+      LOCKFREE_NIM_FROM_IMAGE: 'true'
     timeout-minutes: 45
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
-
-      - name: Setup Nim stable
-        uses: jiro4989/setup-nim-action@v2
-        with:
-          nim-version: 'stable'
 
       - name: Cache nimble packages
         uses: actions/cache@v4
@@ -614,7 +649,10 @@ jobs:
           restore-keys: |
             nimcache-${{ runner.os }}-stable-base-
 
-      - name: Install Valgrind
+      # Image already ships valgrind; only install when running outside the
+      # container (kept as a safety hatch if the container is ever removed).
+      - name: Install Valgrind (non-container only)
+        if: env.LOCKFREE_NIM_FROM_IMAGE != 'true'
         run: |
           sudo apt-get update -q -y
           sudo apt-get install -y valgrind
@@ -670,15 +708,14 @@ jobs:
     name: '9: Helgrind (subset)'
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/elijahr/lockfree-ci:latest
+    env:
+      LOCKFREE_NIM_FROM_IMAGE: 'true'
     timeout-minutes: 45
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
-
-      - name: Setup Nim stable
-        uses: jiro4989/setup-nim-action@v2
-        with:
-          nim-version: 'stable'
 
       - name: Cache nimble packages
         uses: actions/cache@v4
@@ -699,7 +736,10 @@ jobs:
           restore-keys: |
             nimcache-${{ runner.os }}-stable-base-
 
-      - name: Install Valgrind (provides helgrind)
+      # Image already ships valgrind (provides helgrind); only install when
+      # running outside the container.
+      - name: Install Valgrind (non-container only)
+        if: env.LOCKFREE_NIM_FROM_IMAGE != 'true'
         run: |
           sudo apt-get update -q -y
           sudo apt-get install -y valgrind
