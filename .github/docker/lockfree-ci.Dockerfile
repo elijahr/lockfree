@@ -27,8 +27,6 @@ ENV TZ=UTC
 
 # Base toolchain + GHA-action prerequisites.
 # - build-essential: gcc/clang + linker for Nim's C output
-# - nodejs: at /usr/bin/node so actions/cache@v4 + actions/checkout@v4
-#   work under act (bare docker exec PATH = /usr/bin)
 # - git + gh: for actions/checkout@v4 + any gh-based workflow steps
 # - valgrind: cell 8/9 (Tier C; harmless extra in Tier A image)
 # - ca-certificates + curl: for asdf installer + general HTTPS
@@ -46,7 +44,6 @@ RUN apt-get update && \
         git \
         gh \
         libpcre3-dev \
-        nodejs \
         valgrind \
         xz-utils \
     && apt-get clean \
@@ -61,20 +58,39 @@ ENV PATH=/opt/asdf/bin:/opt/asdf/shims:$PATH
 # Pin asdf to a recent stable release rather than tracking master.
 ARG ASDF_VERSION=v0.14.1
 
+# Pin Node.js to 20.x LTS. Modern GHA JS actions (actions/cache@v4,
+# actions/checkout@v4) declare `using: node20` in their action.yml so
+# they need a real Node 20 in the exec path; Ubuntu 22.04's apt nodejs
+# is too old (Node 12) and act's exec resolution fails for node20-typed
+# actions with `exec: "node": executable file not found in $PATH`. We
+# install via asdf-nodejs which downloads the official pre-compiled
+# binary from nodejs.org (multi-arch: linux-x64 + linux-arm64) — no
+# apt, no NodeSource, no compile.
+ARG NODE_VERSION=20.18.0
+
 RUN git clone --depth 1 --branch ${ASDF_VERSION} https://github.com/asdf-vm/asdf.git /opt/asdf \
+    && /opt/asdf/bin/asdf plugin add nodejs https://github.com/asdf-vm/asdf-nodejs.git \
     && /opt/asdf/bin/asdf plugin add nim https://github.com/asdf-community/asdf-nim.git \
+    && /opt/asdf/bin/asdf install nodejs ${NODE_VERSION} \
     && /opt/asdf/bin/asdf install nim 2.2.10 \
+    && /opt/asdf/bin/asdf global nodejs ${NODE_VERSION} \
     && /opt/asdf/bin/asdf global nim 2.2.10
 
-# asdf installs Nim into /opt/asdf/installs/nim/2.2.10/. The shim
-# /opt/asdf/shims/nim is on PATH (set above) and works under bare
-# docker exec. Also symlink nim/nimble into /usr/local/bin for
-# belt-and-suspenders coverage when PATH is reset by an action.
-RUN ln -sf /opt/asdf/shims/nim /usr/local/bin/nim \
+# Symlink the asdf shims into both /usr/bin and /usr/local/bin so the
+# bare `docker exec cmd=[node ...]` path resolves regardless of which
+# directory the action's exec lookup checks first. Belt-and-suspenders.
+RUN ln -sf /opt/asdf/shims/node /usr/bin/node \
+    && ln -sf /opt/asdf/shims/npm /usr/bin/npm \
+    && ln -sf /opt/asdf/shims/npx /usr/bin/npx \
+    && ln -sf /opt/asdf/shims/node /usr/local/bin/node \
+    && ln -sf /opt/asdf/shims/npm /usr/local/bin/npm \
+    && ln -sf /opt/asdf/shims/npx /usr/local/bin/npx \
+    && ln -sf /opt/asdf/shims/nim /usr/local/bin/nim \
     && ln -sf /opt/asdf/shims/nimble /usr/local/bin/nimble
 
 # Verify everything is reachable from a bare PATH lookup (no shell init).
-RUN /usr/bin/node --version \
+RUN /usr/bin/node --version | grep -q '^v20\.' && echo "Node 20 verified" \
+    && /usr/local/bin/node --version \
     && /usr/local/bin/nim --version | head -1 \
     && /usr/local/bin/nimble --version | head -1 \
     && /usr/bin/git --version \
