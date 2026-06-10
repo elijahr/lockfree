@@ -125,7 +125,7 @@ jobs:
           nimble install -dy
           nimble setup
           # typestates v0.12.0 srcDir flattening workaround.
-          for d in $(find ~/.nimble/pkgs2 /opt/asdf/installs/nim/*/nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
 
@@ -295,7 +295,7 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          for d in $(find ~/.nimble/pkgs2 /opt/asdf/installs/nim/*/nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
 
@@ -398,7 +398,7 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          for d in $(find ~/.nimble/pkgs2 /opt/asdf/installs/nim/*/nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
           nimble install -y 'chronos@>= 4.0.0'
@@ -466,7 +466,7 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          for d in $(find ~/.nimble/pkgs2 /opt/asdf/installs/nim/*/nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
 
@@ -693,7 +693,7 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          for d in $(find ~/.nimble/pkgs2 /opt/asdf/installs/nim/*/nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
 
@@ -703,7 +703,7 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          for d in $(find ~/.nimble/pkgs2 /opt/asdf/installs/nim/*/nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
 
@@ -820,7 +820,7 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          for d in $(find ~/.nimble/pkgs2 /opt/asdf/installs/nim/*/nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
 
@@ -907,7 +907,7 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          for d in $(find ~/.nimble/pkgs2 /opt/asdf/installs/nim/*/nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
 
