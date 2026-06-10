@@ -11,9 +11,12 @@
 #
 # Tier A — runs on every push AND on every pull_request (always-on):
 #   L   Lint                                ubuntu-latest stable                   (typestates verify)
-#   1   Baseline                            ubuntu-latest stable      orc   gcc    (the nimble test task runs orc/cpp/arc/refc internally — one cell covers the full MM matrix)
+#  1a   Baseline orc                        ubuntu-latest stable      orc   gcc    LFQ_TEST_VARIANT=orc  (+ nimble examples)
+#  1b   Baseline cpp                        ubuntu-latest stable      orc   gcc    LFQ_TEST_VARIANT=cpp  (nim cpp backend)
+#  1c   Baseline arc + nebr aggregator      ubuntu-latest stable      arc   gcc    LFQ_TEST_VARIANT=arc
+#  1d   Baseline refc                       ubuntu-latest stable      refc  gcc    LFQ_TEST_VARIANT=refc
 #  12   chronos Tier 3 adapter              ubuntu-latest stable      arc   gcc   -d:lockfreeChronos
-#  13   nim devel (informational)           ubuntu-latest devel       orc   gcc   continue-on-error: true
+#  13   nim devel (informational)           ubuntu-latest devel       orc   gcc   continue-on-error: true (orc-only after 1→1a/b/c/d split)
 #  14   nimony aufbruch (informational)     ubuntu-latest nimony      arc   gcc   continue-on-error: true (pinned SHA + actions/cache@v4)
 #
 # Tier C — runs ONLY on push to main/devel (post-merge gate, skipped on PR triggers):
@@ -132,8 +135,11 @@ jobs:
   # ===========================================================================
   # Tier A — test-fast matrix.
   #
-  # Per audit §4: cell 1's `nimble test` already exercises orc/cpp/arc/refc
-  # internally, so a single Linux baseline cell covers the MM matrix.
+  # Cell 1 was originally a single cell whose `nimble test` ran orc/cpp/arc/refc
+  # sequentially — wall clock = sum of all four lanes (~28 min). Split into
+  # 1a/1b/1c/1d so each MM lane runs in its own parallel matrix cell; wall
+  # clock now collapses to max-of-lanes (~7 min cold). LFQ_TEST_VARIANT
+  # selects which lane each cell runs.
   # Chronos (12) is cheap; nim devel (13) and nimony (14) are informational
   # but kept on every push so upstream-breakage badges stay current.
   #
@@ -154,34 +160,88 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # --- Cell 1: Baseline (orc + gcc + Linux x86_64) -------------------
-          # Keystone cell: `nimble test` runs all four MM lanes
-          # (orc / cpp / arc / refc) plus the debra-legacy aggregator and
-          # `nimble examples` inside this single cell.
-          - cell: '1'
+          # --- Cell 1a/1b/1c/1d: Baseline matrix --------------------------------
+          # Previously cell 1 ran orc/cpp/arc/refc sequentially inside one
+          # `nimble test` invocation; wall clock = sum of all four lanes
+          # (~28 min). Splitting each MM lane into its own matrix cell lets
+          # GHA run them in parallel — wall clock now collapses to
+          # max-of-lanes (~7 min cold, faster warm). Each cell sets
+          # LFQ_TEST_VARIANT so `nimble test` only executes its assigned
+          # lane, and each cell uses a per-variant `cache-tag` so cells
+          # don't clobber each other's nimcache state. Cell 1a (orc) also
+          # runs `nimble examples` — examples have no MM variants, so
+          # only one cell needs to cover them.
+          - cell: '1a'
             label: 'baseline orc/gcc/linux'
             runs-on: ubuntu-latest
             nim-version: 'stable'
+            variant: 'orc'
             mm: 'orc'
             backend: 'c'
             sanitize-threads: 'no'
             sanitize-address: 'no'
-            cache-tag: 'base'
+            cache-tag: 'orc'
             continue-on-error: 'false'
-            timeout: 45
+            timeout: 30
+
+          - cell: '1b'
+            label: 'baseline cpp/gcc/linux'
+            runs-on: ubuntu-latest
+            nim-version: 'stable'
+            variant: 'cpp'
+            mm: 'orc'
+            backend: 'cpp'
+            sanitize-threads: 'no'
+            sanitize-address: 'no'
+            cache-tag: 'cpp'
+            continue-on-error: 'false'
+            timeout: 30
+
+          - cell: '1c'
+            label: 'baseline arc/gcc/linux + nebr aggregator'
+            runs-on: ubuntu-latest
+            nim-version: 'stable'
+            variant: 'arc'
+            mm: 'arc'
+            backend: 'c'
+            sanitize-threads: 'no'
+            sanitize-address: 'no'
+            cache-tag: 'arc'
+            continue-on-error: 'false'
+            timeout: 30
+
+          - cell: '1d'
+            label: 'baseline refc/gcc/linux'
+            runs-on: ubuntu-latest
+            nim-version: 'stable'
+            variant: 'refc'
+            mm: 'refc'
+            backend: 'c'
+            sanitize-threads: 'no'
+            sanitize-address: 'no'
+            cache-tag: 'refc'
+            continue-on-error: 'false'
+            timeout: 30
 
           # --- Cell 13: Nim devel (informational) ----------------------------
+          # Reduced from the prior 4-lane internal sweep to orc-only when
+          # cell 1 split into the 1a/1b/1c/1d matrix above. Devel is
+          # informational (continue-on-error: true) and the goal is "does
+          # nim devel still compile lockfree?" rather than full MM
+          # coverage; orc is the canonical lane. If devel-side cpp/arc/refc
+          # signal ever matters, add 13a/13b/13c/13d analogues here.
           - cell: '13'
             label: 'nim devel (informational)'
             runs-on: ubuntu-latest
             nim-version: 'devel'
+            variant: 'orc'
             mm: 'orc'
             backend: 'c'
             sanitize-threads: 'no'
             sanitize-address: 'no'
-            cache-tag: 'base'
+            cache-tag: 'orc'
             continue-on-error: 'true'
-            timeout: 45
+            timeout: 30
 
     steps:
       - name: Checkout project
@@ -220,7 +280,7 @@ jobs:
           key: nimcache-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
           restore-keys: |
             nimcache-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-
-            nimcache-${{ runner.os }}-${{ matrix.nim-version }}-base-
+            nimcache-${{ runner.os }}-${{ matrix.nim-version }}-
 
       # Tier A is container-only (LOCKFREE_NIM_FROM_IMAGE='true' at job level),
       # so this step is a no-op here. Kept as a safety net in case the matrix
@@ -240,6 +300,8 @@ jobs:
           done
 
       - name: Run tests
+        env:
+          LFQ_TEST_VARIANT: ${{ matrix.variant }}
         run: |
           set -o pipefail
           export SANITIZE_THREADS=${{ matrix.sanitize-threads }}
@@ -261,9 +323,33 @@ jobs:
               return 1
             fi
           }
-          echo "::group::Run test suite (nimble test covers orc/cpp/arc/refc internally)"
+          echo "::group::Run test suite (variant=${LFQ_TEST_VARIANT})"
           nimble_run nimble test
           echo "::endgroup::"
+
+      - name: Run examples
+        # Examples have no MM variants, so we only need to run them once
+        # across the test-fast matrix. Gate to the orc lane on stable Nim
+        # (cell 1a) — running examples on every variant cell would burn
+        # ~3 min/cell × 4 cells with no added signal. Cell 13 (devel) is
+        # also skipped: devel-Nim signal is "does it compile?" rather than
+        # full examples coverage.
+        if: matrix.variant == 'orc' && matrix.nim-version == 'stable'
+        run: |
+          set -o pipefail
+          nimble_run() {
+            local logfile
+            logfile="$(mktemp)"
+            "$@" 2>&1 | tee "$logfile"
+            local rc=${PIPESTATUS[0]}
+            if [[ $rc -ne 0 ]]; then
+              return $rc
+            fi
+            if grep -Eq '^[[:space:]]*Error:' "$logfile"; then
+              echo "::error::nimble reported an error but exited 0; failing the step."
+              return 1
+            fi
+          }
           echo "::group::Run examples"
           nimble_run nimble examples
           echo "::endgroup::"

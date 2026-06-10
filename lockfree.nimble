@@ -33,26 +33,52 @@ task test, "Runs the test suite":
   # cache surviving and forcing the other 3 lanes to recompile cold on
   # warm reruns). Paths live under `~/.cache/nim/` so the existing
   # actions/cache@v4 step on that dir catches all four.
+  #
+  # LFQ_TEST_VARIANT env var (default "all") selects which MM lane to
+  # run. CI splits the lanes across 4 parallel matrix cells (1a/1b/1c/1d)
+  # to collapse wall-clock from sum-of-lanes to max-of-lanes; local
+  # `nimble test` still defaults to the full 4-lane sequential sweep so
+  # developer-machine signal matches the per-push GHA gate.
   let nimcacheBase = getHomeDir() / ".cache" / "nim"
+  let variant = getEnv("LFQ_TEST_VARIANT", "all")
 
-  # C with default MM (orc)
-  exec "nim c --threads:on --nimcache:" & (nimcacheBase / "test_orc") & " -r tests/test.nim"
+  proc runOrc =
+    # C with default MM (orc)
+    exec "nim c --threads:on --nimcache:" & (nimcacheBase / "test_orc") & " -r tests/test.nim"
 
-  # C++
-  exec "nim cpp --threads:on --nimcache:" & (nimcacheBase / "test_cpp") & " -r tests/test.nim"
+  proc runCpp =
+    # C++
+    exec "nim cpp --threads:on --nimcache:" & (nimcacheBase / "test_cpp") & " -r tests/test.nim"
 
-  # Test with different memory managers
-  exec "nim c --mm:arc --threads:on --nimcache:" & (nimcacheBase / "test_arc") & " -r tests/test.nim"
-  exec "nim c --mm:refc --threads:on --nimcache:" & (nimcacheBase / "test_refc") & " -r tests/test.nim"
+  proc runArc =
+    # Test with arc MM
+    exec "nim c --mm:arc --threads:on --nimcache:" & (nimcacheBase / "test_arc") & " -r tests/test.nim"
+    # NEBR (nebr) lifted test suite — T-INTEGRATE.e (umbrella v0.1.0).
+    # Runs under arc only here; PG-10 CI cells will refine the matrix
+    # (orc/refc/atomicArc + TSan/ASan) and may also lift the upstream
+    # `should_fail/runner.nim` + `compile_only/` + `bench/` + `probes/`
+    # harnesses currently sitting at tests/smr/debra-legacy/ alongside
+    # the aggregator. Two tests (item_processing, lockfree_stack_typestates)
+    # are excluded from the aggregator pending example-source lift.
+    exec "nim c --mm:arc --threads:on --nimcache:" & (nimcacheBase / "nebr_aggregator_arc") & " -r tests/smr/debra-legacy/t_nebr_all.nim"
 
-  # NEBR (nebr) lifted test suite — T-INTEGRATE.e (umbrella v0.1.0).
-  # Runs under arc only here; PG-10 CI cells will refine the matrix
-  # (orc/refc/atomicArc + TSan/ASan) and may also lift the upstream
-  # `should_fail/runner.nim` + `compile_only/` + `bench/` + `probes/`
-  # harnesses currently sitting at tests/smr/debra-legacy/ alongside
-  # the aggregator. Two tests (item_processing, lockfree_stack_typestates)
-  # are excluded from the aggregator pending example-source lift.
-  exec "nim c --mm:arc --threads:on --nimcache:" & (nimcacheBase / "nebr_aggregator_arc") & " -r tests/smr/debra-legacy/t_nebr_all.nim"
+  proc runRefc =
+    # Test with refc MM
+    exec "nim c --mm:refc --threads:on --nimcache:" & (nimcacheBase / "test_refc") & " -r tests/test.nim"
+
+  case variant
+  of "all":
+    runOrc()
+    runCpp()
+    runArc()
+    runRefc()
+  of "orc": runOrc()
+  of "cpp": runCpp()
+  of "arc": runArc()
+  of "refc": runRefc()
+  else:
+    quit "Unknown LFQ_TEST_VARIANT: " & variant &
+      " (expected: all, orc, cpp, arc, refc)"
 
 
 task examples, "Runs the examples":
