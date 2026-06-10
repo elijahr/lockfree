@@ -27,15 +27,23 @@ task test, "Runs the test suite":
   # masks it with downstream noise.
   exec "nim r --hints:off --warnings:off --path:src tests/should_fail/runner.nim"
 
+  # Per-lane nimcache subdirs prevent the 4 MM lanes from clobbering
+  # each other's .c.o files (default subdir `test_d` is shared across
+  # all `nim c tests/test.nim` invocations, leaving only the last lane's
+  # cache surviving and forcing the other 3 lanes to recompile cold on
+  # warm reruns). Paths live under `~/.cache/nim/` so the existing
+  # actions/cache@v4 step on that dir catches all four.
+  let nimcacheBase = getHomeDir() / ".cache" / "nim"
+
   # C with default MM (orc)
-  exec "nim c --threads:on -r tests/test.nim"
+  exec "nim c --threads:on --nimcache:" & (nimcacheBase / "test_orc") & " -r tests/test.nim"
 
   # C++
-  exec "nim cpp --threads:on -r tests/test.nim"
+  exec "nim cpp --threads:on --nimcache:" & (nimcacheBase / "test_cpp") & " -r tests/test.nim"
 
   # Test with different memory managers
-  exec "nim c --mm:arc --threads:on -r tests/test.nim"
-  exec "nim c --mm:refc --threads:on -r tests/test.nim"
+  exec "nim c --mm:arc --threads:on --nimcache:" & (nimcacheBase / "test_arc") & " -r tests/test.nim"
+  exec "nim c --mm:refc --threads:on --nimcache:" & (nimcacheBase / "test_refc") & " -r tests/test.nim"
 
   # NEBR (nebr) lifted test suite — T-INTEGRATE.e (umbrella v0.1.0).
   # Runs under arc only here; PG-10 CI cells will refine the matrix
@@ -44,7 +52,7 @@ task test, "Runs the test suite":
   # harnesses currently sitting at tests/smr/debra-legacy/ alongside
   # the aggregator. Two tests (item_processing, lockfree_stack_typestates)
   # are excluded from the aggregator pending example-source lift.
-  exec "nim c --mm:arc --threads:on -r tests/smr/debra-legacy/t_nebr_all.nim"
+  exec "nim c --mm:arc --threads:on --nimcache:" & (nimcacheBase / "nebr_aggregator_arc") & " -r tests/smr/debra-legacy/t_nebr_all.nim"
 
 
 task examples, "Runs the examples":
