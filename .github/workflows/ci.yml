@@ -711,8 +711,6 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           set -o pipefail
-          export SANITIZE_THREADS=${{ matrix.sanitize-threads }}
-          export SANITIZE_ADDRESS=${{ matrix.sanitize-address }}
           nimble_run() {
             local logfile
             logfile="$(mktemp)"
@@ -726,9 +724,27 @@ jobs:
               return 1
             fi
           }
-          echo "::group::Run test suite (mm=${{ matrix.mm }}, backend=${{ matrix.backend }})"
-          nimble_run nimble test
-          echo "::endgroup::"
+          # Cell 6 (TSAN) and cell 7 (ASAN) invoke dedicated sanitizer
+          # tasks added in lockfree.nimble; the env-var-gated path was
+          # retired in v0.1.0 Batch 1. Other test-heavy cells (10/11)
+          # run the standard nimble test matrix unchanged.
+          case "${{ matrix.cell }}" in
+            6)
+              echo "::group::Run test suite under TSAN (mm=${{ matrix.mm }}, backend=${{ matrix.backend }})"
+              nimble_run nimble testTSan
+              echo "::endgroup::"
+              ;;
+            7)
+              echo "::group::Run test suite under ASAN (mm=${{ matrix.mm }}, backend=${{ matrix.backend }})"
+              nimble_run nimble testASan
+              echo "::endgroup::"
+              ;;
+            *)
+              echo "::group::Run test suite (mm=${{ matrix.mm }}, backend=${{ matrix.backend }})"
+              nimble_run nimble test
+              echo "::endgroup::"
+              ;;
+          esac
           echo "::group::Run examples"
           nimble_run nimble examples
           echo "::endgroup::"

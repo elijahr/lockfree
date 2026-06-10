@@ -81,6 +81,30 @@ task test, "Runs the test suite":
       " (expected: all, orc, cpp, arc, refc)"
 
 
+task testTSan, "Runs the test suite under ThreadSanitizer (TSAN)":
+  # ThreadSanitizer requires atomicArc MM for thread-safe refcounting.
+  # Uses clang because gcc's TSAN runtime has historically been buggier
+  # for our queue idioms (DWCAS shims, mach_absolute_time on darwin).
+  # Cell 6 (test-heavy/ubuntu-latest) invokes this directly.
+  let nimcacheBase = getHomeDir() / ".cache" / "nim"
+  exec "nim r --hints:off --warnings:off --path:src tests/should_fail/runner.nim"
+  exec "nim c --cc:clang --mm:atomicArc --threads:on " &
+    "--passC:\"-fsanitize=thread\" --passL:\"-fsanitize=thread\" " &
+    "--nimcache:" & (nimcacheBase / "test_tsan") & " -r tests/test.nim"
+
+
+task testASan, "Runs the test suite under AddressSanitizer (ASAN)":
+  # AddressSanitizer works under arc/orc/atomicArc. We use the same MM
+  # the rest of the matrix uses for the orc baseline (so ASAN-instrumented
+  # behavior is the closest possible match to what cell 1a tests
+  # un-instrumented). Cell 7 (test-heavy/ubuntu-latest) invokes this.
+  let nimcacheBase = getHomeDir() / ".cache" / "nim"
+  exec "nim r --hints:off --warnings:off --path:src tests/should_fail/runner.nim"
+  exec "nim c --cc:clang --threads:on " &
+    "--passC:\"-fsanitize=address\" --passL:\"-fsanitize=address\" " &
+    "--nimcache:" & (nimcacheBase / "test_asan") & " -r tests/test.nim"
+
+
 task examples, "Runs the examples":
   # Bounded queue examples
   exec "nim c --threads:on -r examples/spsc.nim"
