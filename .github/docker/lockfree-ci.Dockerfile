@@ -90,12 +90,20 @@ RUN ln -sf /opt/asdf/installs/nodejs/${NODE_VERSION}/bin/node /usr/bin/node \
     && ln -sf /opt/asdf/installs/nodejs/${NODE_VERSION}/bin/node /usr/local/bin/node \
     && ln -sf /opt/asdf/installs/nodejs/${NODE_VERSION}/bin/npm /usr/local/bin/npm \
     && ln -sf /opt/asdf/installs/nodejs/${NODE_VERSION}/bin/npx /usr/local/bin/npx \
+    && ln -sf /opt/asdf/installs/nim/2.2.10/bin/nim /usr/bin/nim \
+    && ln -sf /opt/asdf/installs/nim/2.2.10/bin/nimble /usr/bin/nimble \
     && ln -sf /opt/asdf/installs/nim/2.2.10/bin/nim /usr/local/bin/nim \
     && ln -sf /opt/asdf/installs/nim/2.2.10/bin/nimble /usr/local/bin/nimble
 
-# Verify everything is reachable from a bare PATH lookup (no shell init).
+# Verify everything is reachable from BOTH /usr/bin and /usr/local/bin so a
+# stripped-PATH `sh -e` exec context (which is what act passes for `run:`
+# workflow steps) finds the tooling. /usr/local/bin alone is insufficient
+# under act — the cache@v4 + workflow shell exec's effective PATH includes
+# /usr/bin but not /usr/local/bin in some contexts.
 RUN /usr/bin/node --version | grep -q '^v20\.' && echo "Node 20 verified" \
     && /usr/local/bin/node --version \
+    && /usr/bin/nim --version | head -1 \
+    && /usr/bin/nimble --version | head -1 \
     && /usr/local/bin/nim --version | head -1 \
     && /usr/local/bin/nimble --version | head -1 \
     && /usr/bin/git --version \
