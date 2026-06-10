@@ -68,6 +68,18 @@ concurrency:
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+# Pin every `run:` step's shell to bash. Real GHA's hosted runners default
+# to bash for `run:` steps, so workflows that use bash-isms (`set -o
+# pipefail`, process substitution, etc.) work without a per-step `shell:`
+# declaration. Act defaults to `sh -e` (which on Ubuntu is dash) — dash
+# rejects `set -o pipefail` with `Illegal option -o pipefail`. Without
+# this default, every script using bash-isms would need an explicit
+# `shell: bash` and the workflow would behave differently under act vs
+# GHA. One-line at workflow root pins them everywhere.
+defaults:
+  run:
+    shell: bash
+
 jobs:
 
   # ===========================================================================
