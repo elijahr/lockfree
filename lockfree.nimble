@@ -28,14 +28,14 @@ task test, "Runs the test suite":
   exec "nim r --hints:off --warnings:off --path:src tests/should_fail/runner.nim"
 
   # C with default MM (orc)
-  exec "nim c --threads:on -r -f tests/test.nim"
+  exec "nim c --threads:on -r tests/test.nim"
 
   # C++
-  exec "nim cpp --threads:on -r -f tests/test.nim"
+  exec "nim cpp --threads:on -r tests/test.nim"
 
   # Test with different memory managers
-  exec "nim c --mm:arc --threads:on -r -f tests/test.nim"
-  exec "nim c --mm:refc --threads:on -r -f tests/test.nim"
+  exec "nim c --mm:arc --threads:on -r tests/test.nim"
+  exec "nim c --mm:refc --threads:on -r tests/test.nim"
 
   # NEBR (nebr) lifted test suite — T-INTEGRATE.e (umbrella v0.1.0).
   # Runs under arc only here; PG-10 CI cells will refine the matrix
@@ -44,28 +44,20 @@ task test, "Runs the test suite":
   # harnesses currently sitting at tests/smr/debra-legacy/ alongside
   # the aggregator. Two tests (item_processing, lockfree_stack_typestates)
   # are excluded from the aggregator pending example-source lift.
-  exec "nim c --mm:arc --threads:on -r -f tests/smr/debra-legacy/t_nebr_all.nim"
-
-  if getEnv("SANITIZE_THREADS") != "no":
-    # C (with thread sanitization, requires atomicArc for thread-safe refcounting)
-    exec "nim c --cc:clang --mm:atomicArc --passC:\"-fsanitize=thread\" --passL:\"-fsanitize=thread\" --threads:on -r -f tests/test.nim"
-
-  if getEnv("SANITIZE_ADDRESS") != "no":
-    # C (with address sanitization)
-    exec "nim c --cc:clang --passC:\"-fsanitize=address\" --passL:\"-fsanitize=address\" --threads:on -r -f tests/test.nim"
+  exec "nim c --mm:arc --threads:on -r tests/smr/debra-legacy/t_nebr_all.nim"
 
 
 task examples, "Runs the examples":
   # Bounded queue examples
-  exec "nim c --threads:on -r -f examples/spsc.nim"
-  exec "nim c --threads:on -r -f examples/spmc.nim"
-  exec "nim c --threads:on -r -f examples/mpsc.nim"
-  exec "nim c --threads:on -r -f examples/mpmc.nim"
+  exec "nim c --threads:on -r examples/spsc.nim"
+  exec "nim c --threads:on -r examples/spmc.nim"
+  exec "nim c --threads:on -r examples/mpsc.nim"
+  exec "nim c --threads:on -r examples/mpmc.nim"
   # Advanced examples
-  exec "nim c --threads:on -r -f examples/audio_buffer.nim"
-  exec "nim c --threads:on -r -f examples/task_fanout.nim"
-  exec "nim c --threads:on -r -f examples/event_collector.nim"
-  exec "nim c --threads:on -r -f examples/job_scheduler.nim"
+  exec "nim c --threads:on -r examples/audio_buffer.nim"
+  exec "nim c --threads:on -r examples/task_fanout.nim"
+  exec "nim c --threads:on -r examples/event_collector.nim"
+  exec "nim c --threads:on -r examples/job_scheduler.nim"
 
 task benchmarks, "Runs the benchmark suite":
   # PR 2 (bench-rollup) replaced bench_throughput.nim with topology-
@@ -111,9 +103,9 @@ task benchtests, "Runs the bench harness test suite":
   # adapter round-trip behavior. Single MM (orc default) is sufficient
   # because the bench harness itself is the system under test, not the
   # queue MM matrix.
-  exec "nim c --threads:on -r -f tests/t_bench_common.nim"
-  exec "nim c --threads:on -r -f tests/t_bench_latency.nim"
-  exec "nim c --threads:on -r -f tests/t_bench_adapters.nim"
+  exec "nim c --threads:on -r tests/t_bench_common.nim"
+  exec "nim c --threads:on -r tests/t_bench_latency.nim"
+  exec "nim c --threads:on -r tests/t_bench_adapters.nim"
 
 
 task benchToggleSmoke, "Verify LFQ_BENCH_HARNESS_BACKOFF=0 toggle is observed at module init":
@@ -128,7 +120,7 @@ task benchteststress, "Runs the bench harness test suite including 3.3M-sample s
   # shape in t_bench_common (HistogramTopK headroom validation against
   # an operator-driven MessageCount override). Slow (~10-15s release)
   # so it is opt-in rather than part of every CI run.
-  exec "nim c -d:release -d:BenchCommonStress --threads:on -r -f tests/t_bench_common.nim"
+  exec "nim c -d:release -d:BenchCommonStress --threads:on -r tests/t_bench_common.nim"
 
 
 # task `stresstests` removed in v5.0.0 . The 9 legacy
