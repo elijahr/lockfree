@@ -2,7 +2,7 @@
 # act-cell — thin wrapper around `act` for running individual ci.yml cells
 # locally. See AGENTS.md §3.6 for context.
 #
-# Usage: tools/act-cell <cell> [extra act args...]
+# Usage: tools/act-cell <cell> [--push-devel] [extra act args...]
 #   <cell>  cell id from ci.yml (1a, 1b, 1c, 1d, 6, 7, 8, 9, 12, 13, 14) OR
 #           job alias (lint, valgrind, helgrind, chronos, nimony). Cells
 #           2/3/4/5/18 were retired in push 9 (see audit §3) and now exit 2
@@ -16,6 +16,16 @@
 #   17  Windows MSVC — Docker cannot host a Windows runner.
 #   14  nimony — works in principle but pulls ~30 min of build time
 #       under qemu emulation; recommended to skip locally.
+#
+# --push-devel: synthesize an event payload that satisfies push-gated job
+# `if:` clauses. Tier C jobs (test-heavy cells 6/7, valgrind 8, helgrind 9,
+# plus runner-OS-specific cells 10/11/17) are gated by:
+#   if: github.event_name == 'push'
+#       && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')
+# act defaults to event_name=pull_request, so without this flag those jobs
+# silently exit 0 without running. Use --push-devel when locally validating
+# Tier C cells. Default behavior remains pull_request, matching local dev
+# intent for Tier A.
 set -euo pipefail
 
 if [[ $# -lt 1 ]]; then
@@ -29,6 +39,18 @@ fi
 
 CELL="$1"
 shift
+
+# Sift --push-devel out of the trailing args before they pass through to act.
+# Preserves order of remaining args (act's last-arg-wins behavior is intact).
+PUSH_DEVEL=false
+PASSTHROUGH_ARGS=()
+for arg in "$@"; do
+  case "$arg" in
+    --push-devel) PUSH_DEVEL=true ;;
+    *) PASSTHROUGH_ARGS+=("$arg") ;;
+  esac
+done
+set -- "${PASSTHROUGH_ARGS[@]+"${PASSTHROUGH_ARGS[@]}"}"
 
 # Resolve cell -> (job, matrix-flags). Job names come from ci.yml `jobs:`
 # keys; matrix-flags from the `include:` entries in the `test` job. The
@@ -111,6 +133,29 @@ case "$(uname -m)" in
      host_arch=linux/amd64 ;;
 esac
 
-CMD=(act -W .github/workflows/ci.yml --container-architecture "$host_arch" -j "$JOB" "${MATRIX_ARGS[@]}" "$@")
-printf 'act-cell: host_arch=%s running: %s\n' "$host_arch" "${CMD[*]}" >&2
+# Build act invocation. When --push-devel was passed, synthesize a push
+# event payload (ref=refs/heads/devel) so act schedules Tier C jobs whose
+# `if:` clauses gate on push to main|devel. The payload is written to a
+# temp file because `act --eventpath` requires a file path; the file is
+# cleaned up on shell exit.
+EVENT_ARGS=()
+if [[ "$PUSH_DEVEL" == "true" ]]; then
+  EVENT_PAYLOAD="$(mktemp -t act-cell-push-devel.XXXXXX)"
+  trap 'rm -f "$EVENT_PAYLOAD"' EXIT
+  cat > "$EVENT_PAYLOAD" <<'JSON'
+{
+  "ref": "refs/heads/devel",
+  "before": "0000000000000000000000000000000000000000",
+  "after": "0000000000000000000000000000000000000001",
+  "repository": {
+    "default_branch": "devel",
+    "master_branch": "devel"
+  }
+}
+JSON
+  EVENT_ARGS=(push --eventpath "$EVENT_PAYLOAD")
+fi
+
+CMD=(act "${EVENT_ARGS[@]+"${EVENT_ARGS[@]}"}" -W .github/workflows/ci.yml --container-architecture "$host_arch" -j "$JOB" "${MATRIX_ARGS[@]+"${MATRIX_ARGS[@]}"}" "$@")
+printf 'act-cell: host_arch=%s push_devel=%s running: %s\n' "$host_arch" "$PUSH_DEVEL" "${CMD[*]}" >&2
 exec "${CMD[@]}"
