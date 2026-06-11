@@ -27,7 +27,11 @@
 #   - vfox-nodejs (official version-fox plugin) handles node 20
 #     installs the same way asdf-nodejs did.
 
-FROM ubuntu:22.04
+# ubuntu:24.04 (noble) ships valgrind 3.22+ which handles DWARF v5
+# debug info emitted by gcc 11+. Ubuntu 22.04's valgrind 3.18.1 aborts
+# on `unhandled dwarf2 abbrev form code 0x25` when running our
+# nim-compiled test binaries.
+FROM ubuntu:24.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV TZ=UTC
