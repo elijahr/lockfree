@@ -40,7 +40,7 @@ suite "getConsumer(Spmc[N, C, T])":
   test "throws NoConsumersAvailableError":
     # Fill all consumer slots with fake thread IDs
     for c in 0 ..< 4:
-      queue.consumerThreadIds[c].store(c + 1000, moSequentiallyConsistent)
+      queue.consumerThreadIds[c].store(int.high - c, moSequentiallyConsistent)
 
     expect NoConsumersAvailableError:
       discard queue.getConsumer()

@@ -54,7 +54,7 @@ suite "getConsumer(Queue SPMC)":
 
   test "throws NoConsumersAvailableError":
     for c in 0 ..< 4:
-      q.consumerThreadIds[c].store(c + 1000, moSequentiallyConsistent)
+      q.consumerThreadIds[c].store(int.high - c, moSequentiallyConsistent)
 
     expect NoConsumersAvailableError:
       discard q.getConsumer()
