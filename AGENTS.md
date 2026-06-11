@@ -187,17 +187,46 @@ If invoking `act` directly (not via a wrapper), pass
 The image is a custom build maintained in-repo:
 
 - **Dockerfile**: `.github/docker/lockfree-ci.Dockerfile`. Ubuntu 22.04 base with
-  apt-installed `nodejs` at `/usr/bin/node` (so `actions/cache@v4` and
-  `actions/checkout@v4` resolve via bare `docker exec cmd=[node ...]` without shell
-  init), plus `git`, `gh`, `clang`, `valgrind`, `build-essential`, `libpcre3-dev`,
-  `bash`, `xz-utils`.
-- **Nim**: pinned to 2.2.10 via [asdf](https://asdf-vm.com/) with the
-  [asdf-nim](https://github.com/asdf-community/asdf-nim) plugin, which ships
-  pre-compiled binaries for `linux/amd64`, `linux/arm64`, `macos/amd64`, and
-  `macos/arm64`. asdf lives at `/opt/asdf` system-wide; shims at
-  `/opt/asdf/shims/{nim,nimble}` are on `PATH` (set via `ENV`) and additionally
-  symlinked into `/usr/local/bin/{nim,nimble}` for belt-and-suspenders coverage
-  when an action resets `PATH`.
+  `git`, `gh`, `clang`, `valgrind`, `build-essential`, `libpcre3-dev`, `bash`,
+  `xz-utils`, `unzip`, `ca-certificates`, `curl`. Node and Nim come from vfox
+  (see below), not apt — earlier image revisions used apt nodejs at `/usr/bin/node`
+  for `actions/cache@v4` resolution; the vfox-installed binaries are symlinked
+  into both `/usr/bin/` and `/usr/local/bin/` for the same reason.
+- **Nim**: pinned to 2.2.10 via [vfox](https://vfox.dev/) with the
+  [elijahr/vfox-nim](https://github.com/elijahr/vfox-nim) plugin. vfox-nim ships
+  pre-compiled binaries for `linux/amd64`, `linux/arm64`, `darwin/amd64`,
+  `darwin/arm64`, and `windows/amd64`, falling back to Nim's nightly-build
+  infrastructure on platforms without official binaries (macOS, Linux ARM). The
+  plugin is pinned to commit `ad7f3d3` (will flip to `v0.1.1` once the operator
+  dispatches vfox-nim's release workflow; see lockfree v0.1.0 impl plan §5.2)
+  via the `VFOX_NIM_REF` ARG in the Dockerfile and matching env vars in the
+  macOS + Windows cells of `ci.yml`.
+- **Node**: pinned to 20.18.0 via vfox + the official
+  [version-fox/vfox-nodejs](https://github.com/version-fox/vfox-nodejs) plugin
+  (installed from vfox's plugin registry — no source URL pin). Node 20 LTS is
+  required by `actions/cache@v4` and `actions/checkout@v4`, which declare
+  `using: node20`.
+- **vfox layout**: vfox itself is a single Go binary (~5MB), installed via the
+  upstream `.deb` package in the Linux image. `VFOX_HOME` is set to `/opt/vfox`
+  system-wide; plugins land under `$VFOX_HOME/plugin/`, SDK installs under
+  `$VFOX_HOME/cache/<plugin>/v-<version>/<plugin>-<version>/bin/`. The Dockerfile
+  symlinks the resolved `nim`, `nimble`, `node`, `npm`, `npx` binaries from the
+  cache path into BOTH `/usr/bin/` and `/usr/local/bin/` so bare `docker exec`
+  steps with a stripped PATH resolve them regardless of context. Vfox shims are
+  intentionally NOT used: `vfox use` requires a shell-hook activation
+  (`vfox activate`) that bare `docker exec` does not run, so direct symlinks to
+  the real binaries are more reliable (same rationale as the historical asdf-shim
+  issue from push 26).
+- **macOS / Windows (non-container)**: GHA cells 11 (macOS) and 17 (Windows) run
+  on hosted runners, not in the image, so vfox + vfox-nim are installed inline
+  by `ci.yml`. vfox is downloaded as a tarball/zip from the upstream release
+  (`vfox_<ver>_macos_<arch>.tar.gz` / `vfox_<ver>_windows_x86_64.zip`), the
+  vfox-nim plugin is fetched as a pinned zipball from the GitHub codeload API,
+  and `vfox install nim@2.2.10` resolves the binary. `VFOX_HOME` defaults to
+  `$HOME/.version-fox` on these runners. Windows runs the same step under
+  `shell: bash` (Git Bash) and uses official prebuilt Nim binaries
+  (vfox-nim's `auto` install method picks the binary path on Windows; source
+  compile is not supported there).
 - **Arch matrix**: image is built and pushed for both `linux/amd64` and
   `linux/arm64`. GHA pulls the amd64 variant on standard runners; the operator's
   M-series Mac pulls the arm64 variant under act and runs it natively (no qemu).
@@ -207,10 +236,13 @@ The image is a custom build maintained in-repo:
   Uses `docker/setup-qemu-action@v3` to cross-build arm64 from the amd64 GHA
   runner, with `platforms: linux/amd64,linux/arm64` on `docker/build-push-action@v6`.
 - **Size**: ~2-3GB extracted per arch (vs. ~70GB for `catthehacker/ubuntu:full-latest`).
-- **Why asdf rather than mise**: mise's nim plugin (and its aqua fallback
-  `arrow2nd/nimotsu`) ships amd64-only binaries, so `mise install nim@2.2.10`
-  fails when the build context is `linux/arm64`. asdf-nim covers both
-  architectures, so the image can be multi-arch without qemu in the runtime path.
+- **Why vfox rather than mise or asdf**: vfox-nim ships pre-compiled Nim binaries
+  for every platform we target (Linux amd64+arm64, macOS amd64+arm64, Windows
+  amd64) — mise's nim plugin (and its aqua fallback `arrow2nd/nimotsu`) is
+  amd64-only, so mise-based builds require qemu emulation on arm64 hosts. vfox
+  itself is a single Go binary with no bash dependency; asdf is a bash script +
+  plugin tree that bloats the image and adds shell-init footguns. Same toolchain
+  story applies uniformly to the Linux image, macOS, and Windows.
 
 Why a custom image rather than `catthehacker/ubuntu:*` variants:
 

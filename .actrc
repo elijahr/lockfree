@@ -19,9 +19,10 @@
 #   - full-latest is ~70GB extracted (verified push 20). Pull cost and
 #     disk cost are prohibitive on the operator host, and the cache
 #     step STILL failed in some matrix cells.
-#   - Our needs are narrow: ubuntu base + Nim (pinned via asdf) +
-#     apt nodejs + git + gh + clang + valgrind. ~2-3GB image, fast pull,
-#     bit-identical to what GHA jobs see when `container:` is set.
+#   - Our needs are narrow: ubuntu base + Nim (pinned via vfox) +
+#     node (pinned via vfox) + git + gh + clang + valgrind. ~2-3GB
+#     image, fast pull, bit-identical to what GHA jobs see when
+#     `container:` is set.
 -P ubuntu-latest=ghcr.io/elijahr/lockfree-ci:latest
 -P ubuntu-22.04=ghcr.io/elijahr/lockfree-ci:latest
 -P ubuntu-24.04=ghcr.io/elijahr/lockfree-ci:latest
