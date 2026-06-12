@@ -47,6 +47,14 @@ import ./t_iterators
 import ./t_destructor_walk
 import ./t_typestate_dual_api
 import ./composition/t_path_c_matrix
+import ./composition/t_verify_pop_clears_spsc_bounded
+import ./composition/t_verify_pop_clears_mpsc_bounded
+import ./composition/t_verify_pop_clears_spmc_bounded
+import ./composition/t_verify_pop_clears_mpmc_bounded
+import ./composition/t_verify_pop_clears_spsc_unbounded
+import ./composition/t_verify_pop_clears_mpsc_unbounded
+import ./composition/t_verify_pop_clears_spmc_unbounded
+import ./composition/t_verify_pop_clears_mpmc_unbounded
 
 import ./t_wraparound
 
@@ -57,12 +65,14 @@ import ./t_wraparound
 # to compile. The prime+bracket import dance mirrors the workaround in
 # src/lockfree/chronos.nim (see the doc block there for the Nim quirk
 # this sidesteps).
-when (compiles do:
-  import chronos/asyncsync
+when (
+  compiles do:
+    import chronos/asyncsync
 ):
   discard
-when (compiles do:
-  import chronos/[asyncsync]
+when (
+  compiles do:
+    import chronos/[asyncsync]
 ):
   import ./t_chronos
 
@@ -79,13 +89,19 @@ export
   t_lcrq_pop_single, t_lcrq_pop_race, t_lcrq_pop_slowpath, t_lcrq_push_close_race,
   t_lcrq_pop_critical_repros, t_bqueue_mpmc_wide_T_accepted, t_wraparound,
   t_wave_c_smoke, t_managed_slice_smoke, t_drain, t_iterators, t_destructor_walk,
-  t_typestate_dual_api, t_path_c_matrix
+  t_typestate_dual_api, t_path_c_matrix, t_verify_pop_clears_spsc_bounded,
+  t_verify_pop_clears_mpsc_bounded, t_verify_pop_clears_spmc_bounded,
+  t_verify_pop_clears_mpmc_bounded, t_verify_pop_clears_spsc_unbounded,
+  t_verify_pop_clears_mpsc_unbounded, t_verify_pop_clears_spmc_unbounded,
+  t_verify_pop_clears_mpmc_unbounded
 
-when (compiles do:
-  import chronos/asyncsync
+when (
+  compiles do:
+    import chronos/asyncsync
 ):
   discard
-when (compiles do:
-  import chronos/[asyncsync]
+when (
+  compiles do:
+    import chronos/[asyncsync]
 ):
   export t_chronos
