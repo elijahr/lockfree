@@ -1,7 +1,7 @@
 ## Migrated from `t_mpsc_threaded.nim` — high-contention concurrent
 ## test for the unified Queue under MPSC cardinality.
 ##
-## Mechanical conversion per Doc C 5:
+## Mechanical conversion from the migration table:
 ##   ptr Mpsc[N, ProducerCount, int] -> ptr Queue[int, ccMulti, ccSingle,
 ##                                                    stEager, rkNone, N,
 ##                                                    ProducerCount, 0, 0, 0]

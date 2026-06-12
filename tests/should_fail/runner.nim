@@ -139,7 +139,7 @@ const cases = @[
   ),
   Case(
     name:
-      "t_bqueue_lifecycle §6.3 (14) — F.3.5 cross-module state-preserving op requires {.notATransition.}",
+      "t_bqueue_lifecycle §6.3 — cross-module state-preserving op requires {.notATransition.}",
     file: "tests/should_fail/bqueue_cross_module_no_notATransition.nim",
     outcome: eoCompileFails,
     substring: "notATransition",
@@ -211,14 +211,14 @@ const cases = @[
   # invoke push to materialise the static-dispatch chain.
   Case(
     name:
-      "t_path_c_matrix §2.5 row 7 (case #23) — distinct ref alias rejected by path_c_admit",
+      "t_path_c_matrix §2.5 — distinct ref alias rejected by path_c_admit",
     file: "tests/composition/should_fail/t_path_c_reject_distinct_ref.nim",
     outcome: eoCompileFails,
     substring: "distinct ref alias",
   ),
   Case(
     name:
-      "t_path_c_matrix §2.5 row 8 (case #24) — nested `ref ref X` rejected by path_c_admit",
+      "t_path_c_matrix §2.5 — nested `ref ref X` rejected by path_c_admit",
     file: "tests/composition/should_fail/t_path_c_reject_nested_ref.nim",
     outcome: eoCompileFails,
     substring: "nested ref",

@@ -2,7 +2,7 @@
 ## under the `ccMulti x ccMulti` (MPMC) bounded cardinality, which
 ## corresponds to the legacy `Mpmc[N, P, C, T]` shape.
 ##
-## Mechanical conversion per Doc C 5 (migration table):
+## Mechanical conversion from the migration table:
 ##   Mpmc[N, P, C, T] -> BQueue[T, ccMulti, ccMulti, ##                                N, P, C]
 ##   initMpmc[N, P, C, T]() -> newBQueue[T, ccMulti, ccMulti, ##                                          N, P, C]()
 ##

@@ -2,7 +2,7 @@
 ## under the `ccMulti x ccSingle` (MPSC) bounded cardinality, which
 ## corresponds to the legacy `Mpsc[N, P, T]` shape.
 ##
-## Mechanical conversion per Doc C 5 (migration table):
+## Mechanical conversion from the migration table:
 ##   Mpsc[N, P, T] -> BQueue[T, ccMulti, ccSingle, ##                            N, P, 0]
 ##   initMpsc[N, P, T]() -> newBQueue[T, ccMulti, ccSingle, ##                                       N, P, 0]()
 ##

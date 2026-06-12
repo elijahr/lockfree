@@ -2,7 +2,7 @@
 ## under the `ccSingle x ccSingle` (SPSC) bounded cardinality, which
 ## corresponds to the legacy `Spsc[N, T]` shape.
 ##
-## Mechanical conversion per Doc C 5 (migration table):
+## Mechanical conversion from the migration table:
 ##   Spsc[N, T] -> BQueue[T, ccSingle, ccSingle, ##                          N, 0, 0]
 ##   initSpsc[N, T]() -> newBQueue[T, ccSingle, ccSingle, ##                                    N, 0, 0]()
 ##

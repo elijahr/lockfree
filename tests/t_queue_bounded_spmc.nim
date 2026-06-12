@@ -2,7 +2,7 @@
 ## under the `ccSingle x ccMulti` (SPMC) bounded cardinality, which
 ## corresponds to the legacy `Spmc[N, C, T]` shape.
 ##
-## Mechanical conversion per Doc C 5 (migration table):
+## Mechanical conversion from the migration table:
 ##   Spmc[N, C, T] -> BQueue[T, ccSingle, ccMulti, ##                             N, 0, C]
 ##   initSpmc[N, C, T]() -> newBQueue[T, ccSingle, ccMulti, ##                                       N, 0, C]()
 ##

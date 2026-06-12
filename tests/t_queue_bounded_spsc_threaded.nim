@@ -2,7 +2,7 @@
 ## consumer concurrent test for the unified Queue under SPSC
 ## cardinality.
 ##
-## Mechanical conversion per Doc C 5:
+## Mechanical conversion from the migration table:
 ##   ptr Spsc[N, int] -> ptr Queue[int, ccSingle, ccSingle, stEager,
 ##                                    rkNone, N, 0, 0, 0, 0]
 ##   initSpsc[N, int]() -> newBQueue[int, ccSingle, ccSingle, ##                                      N, 0, 0]()
