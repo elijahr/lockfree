@@ -4,79 +4,95 @@
 ## §5.4 (the only async tier shipping in v0.1.0) and §5.6 (hybrid
 ## optional-dep pattern).
 ##
-## CRITICAL #4: chronos is intentionally NOT listed in `lockfree.nimble`
-## `requires`. Users who want the async adapter either declare
-## `chronos >= 4.0.0` in their own nimble file OR pass
-## `-d:lockfreeChronos` to opt in explicitly. The library never
-## transitively pulls chronos in for users who do not need it.
+## CRITICAL #4: chronos is intentionally NOT listed unconditionally in
+## `lockfree.nimble` `requires`. The library is flag-only opt-in: users
+## who want the async adapter pass `-d:lockfreeChronos` AND install
+## chronos themselves (or rely on `lockfree.nimble`'s
+## `when defined(lockfreeChronos): requires "chronos >= 4.0.0, < 5.0.0"`
+## conditional dep). The library never transitively pulls chronos in
+## for users who do not need it, and chronos is never auto-detected at
+## compile time.
 ##
-## Activation matrix (design §5.6.2):
+## Activation matrix (design §5.6.2, post-CRITICAL-4 flag-only rework):
 ##
-##   chronos installed | `-d:lockfreeChronos` | outcome
-##   ----------------- | -------------------- | -----------------------------
-##   No                | No                   | (d) import succeeds; module
+##   `-d:lockfreeChronos` | chronos installed | outcome
+##   -------------------- | ----------------- | -----------------------------
+##   No                   | (irrelevant)      | (d) import succeeds; module
 ##                                              body skipped; AsyncQueue/
 ##                                              AsyncBQueue invisible.
-##   Yes               | No                   | (a) auto-detect path; module
-##                                              body activates; types
-##                                              exported.
-##   Yes               | Yes                  | (b) opt-in path; same as (a).
-##   No                | Yes                  | (c) `{.error.}` fires with a
-##                                              precise install hint (per
-##                                              T-CHRONOS acceptance
-##                                              criterion (c)).
+##   Yes                  | Yes               | (b) opt-in path; module body
+##                                              activates; types exported.
+##   Yes                  | No                | (c) `{.error.}` fires with a
+##                                              precise install hint
+##                                              referencing
+##                                              `docs/api/chronos.md`.
 ##
-## Per the T-CHRONOS impl-plan acceptance criterion (c), this module
-## surfaces a precise compile-time error pointing the user at the install
-## command rather than rely on chronos's bare "cannot open file: chronos"
-## diagnostic.
+## The previous auto-detect arm — a public `lockfreeChronosAvailable*`
+## constant that callers could `when`-branch on to silently enable the
+## adapter without the flag — was removed: silent activation based on
+## whether chronos happens to be installed in a user's package set
+## violates the flag-only opt-in contract (CRITICAL-4). An internal
+## (non-exported) `chronosReachable` probe is retained ONLY to drive
+## the precise install-hint `{.error.}` arm; the module body never
+## activates without `-d:lockfreeChronos`, regardless of whether
+## chronos is reachable.
 ##
 ## NOTE on chronos import form: the design code samples (§5.6.1) write
 ## `import chronos`. Inside this module that bare form self-shadows —
 ## our own file IS `src/lockfree/chronos.nim`, which Nim resolves first
-## on the import search path, breaking the auto-detect probe. We import
-## the chronos *submodule* `chronos/asyncsync` (which transitively
-## re-exports asyncloop -> asyncfutures + asyncmacro, covering
-## AsyncEvent, Future, async/await, waitFor, CancelledError) and we use
-## the bracket-array form `chronos/[asyncsync]`. The bracket form is
-## what makes the resolver locate the chronos package despite the local
-## module's name. A leading throw-away `compiles do: import
-## chronos/asyncsync` primes Nim's package resolver so the bracket form
-## binds correctly on the next call — without that prime the bracket
-## form returns false on the very first invocation in a module whose
-## own name is "chronos". This is a Nim quirk specific to
-## self-shadowing modules and is the minimum-diff workaround.
+## on the import search path, breaking the `compiles do:` probe used to
+## emit the precise install-hint error. We import the chronos
+## *submodule* `chronos/asyncsync` (which transitively re-exports
+## asyncloop -> asyncfutures + asyncmacro, covering AsyncEvent, Future,
+## async/await, waitFor, CancelledError) and we use the bracket-array
+## form `chronos/[asyncsync]`. The bracket form is what makes the
+## resolver locate the chronos package despite the local module's name.
+## A leading throw-away `compiles do: import chronos/asyncsync` primes
+## Nim's package resolver so the bracket form binds correctly on the
+## next call — without that prime the bracket form returns false on the
+## very first invocation in a module whose own name is "chronos". This
+## priming probe is deliberate and is required to defeat the
+## self-shadowing; it is NOT an auto-detect arm, and its result is
+## discarded.
 
 # Prime the package resolver. The result is intentionally discarded;
 # the side effect is that Nim now knows the chronos package exists, so
-# the bracket-form `compiles do:` probe below succeeds.
+# the bracket-form `compiles do:` probe below succeeds when chronos IS
+# installed. Kept unconditional (not gated on `lockfreeChronos`) because
+# the cost is zero when chronos is missing and it avoids two distinct
+# probe shapes for the resolver to disagree about. The result of the
+# `when (compiles do: ...)` is discarded.
 when (compiles do:
   import chronos/asyncsync
 ):
   discard
 
-const lockfreeChronosAvailable* = compiles do:
+# `chronosReachable` is the internal flag-only equivalent of the old
+# public `lockfreeChronosAvailable` constant — but it is NOT exported
+# and is consulted ONLY inside the `when defined(lockfreeChronos)` arm
+# below. That keeps the activation contract flag-only: a user who has
+# chronos in their package set but does NOT pass `-d:lockfreeChronos`
+# still gets the no-op (d) outcome from the activation matrix.
+const chronosReachable = compiles do:
   import chronos/[asyncsync]
-  ## True iff the chronos package is reachable on the Nim search path.
-  ## Exposed publicly so downstream code can `when
-  ## lockfreeChronosAvailable: ...` without duplicating the probe.
 
-when defined(lockfreeChronos) and not lockfreeChronosAvailable:
+when defined(lockfreeChronos) and not chronosReachable:
   {.
     error:
       "lockfree/chronos: -d:lockfreeChronos was set but the chronos " &
-      "package is not installed. Run `nimble install chronos` " &
-      "(>= 4.0.0) and re-build, or remove -d:lockfreeChronos to disable " &
-      "the async adapter."
+      "package is not installed. Run " &
+      "`nimble install \"chronos >= 4.0.0, < 5.0.0\"` and re-build, " &
+      "or remove -d:lockfreeChronos to disable the async adapter. " &
+      "See docs/api/chronos.md for the full integration guide."
   .}
 
 ## --------------------------------------------------------------------
-## (a) + (b) Module body — activates when chronos imports cleanly OR
-## the opt-in flag is set (in which case the (c) guard above already
-## ensured chronos is present).
+## (b) Module body — activates ONLY when `-d:lockfreeChronos` is set
+## (the (c) guard above already ensured chronos is present in that
+## case).
 ## --------------------------------------------------------------------
 
-when defined(lockfreeChronos) or lockfreeChronosAvailable:
+when defined(lockfreeChronos):
   import std/options
   import chronos/[asyncsync]
   import ./bqueue

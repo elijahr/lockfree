@@ -13,6 +13,13 @@ requires "nim >= 2.2.10"
 requires "unittest2"
 requires "typestates >= 0.12.0"
 
+# Optional dependencies (flag-only opt-in). chronos is the async-adapter
+# backend pulled in only when callers build with `-d:lockfreeChronos`.
+# See `src/lockfree/chronos.nim` (CRITICAL-4 flag-only rework) and
+# `docs/api/chronos.md` for the integration guide.
+when defined(lockfreeChronos):
+  requires "chronos >= 4.0.0 & < 5.0.0"
+
 # Tasks
 task should_fail, "Verifies compile-fail negative controls":
   # Driver iterates the 5-case table and runs `nim c --compileOnly` per

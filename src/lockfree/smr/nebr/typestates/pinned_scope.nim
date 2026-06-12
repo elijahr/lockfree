@@ -107,6 +107,27 @@ proc pinScope*[MT: static int, CC: static PinScopeCardinality](
   ## ## Foot-gun: do NOT call `pinScope` while already pinned at the slot
   ## level. A `doAssert` guards in release builds. Use `PinnedScope`
   ## per-thread; the guard catches double-pin from re-entrant code.
+  ##
+  ## ## Cleanup contract
+  ##
+  ## Cleanup is destructor-driven (`=destroy`). Use a `PinnedScope[MT, CC]`
+  ## inside a normal Nim `block:` (or as a local in a proc); the destructor
+  ## runs at the closing brace and drives the inner `Pinned` through
+  ## `unpin` / `acknowledge` / `close`, clearing the slot's `pinned` flag.
+  ##
+  ## **No explicit `try/finally` is required at the caller site.** Raises
+  ## inside the scope — including chronos `CancelledError` and any other
+  ## `CatchableError` — unwind through the destructor automatically. The
+  ## cleanup runs on EVERY control-flow exit (normal return, `defer`,
+  ## raise, scope end), not just the happy path. See
+  ## `tests/t_pinscope_unwind.nim` for the regression test that exercises
+  ## the raise path across `arc / orc / atomicArc`.
+  ##
+  ## Cancellation discipline (R10 / design §5.4.3) is still required for
+  ## async callers: do not hold a `PinnedScope` across an `await`. The
+  ## adapter in `src/lockfree/chronos.nim` already enforces this by
+  ## releasing the pin inside the inner sync pop before the
+  ## `await event.wait()` line.
   runnableExamples:
     import lockfree/smr/nebr
     var manager = initDebraManager[4]()
