@@ -323,6 +323,30 @@ inner loop inside cell 1.
 - Docker Desktop must be running; act surfaces `Cannot connect to the
   Docker daemon` if it is not.
 
+#### `act --reuse` and stale container content
+
+The `--reuse` flag tells act to reattach to a previously-created container
+instead of starting a fresh one. This is fast — but it silently keeps the
+**old image content**, including binaries baked into the image. When the
+image content has changed (e.g., you just rebuilt `lockfree-ci.Dockerfile`
+after bumping a tool pin), `--reuse` will run the **old** binaries because
+the container was created from the old image.
+
+**Symptom:** "I bumped the vfox-nim pin in Dockerfile, rebuilt, but cell 1a
+still uses the old vfox version."
+
+**Mitigation:** before any `act ... --reuse` invocation that follows a
+Dockerfile or image-content change, prune stopped containers so the next
+run rebuilds the container from the current image:
+
+```bash
+docker container prune -f
+```
+
+This is safe: `prune -f` only removes **stopped** containers and does not
+touch images or volumes. If you use `--reuse` routinely, wrap it in a shell
+alias or wrapper that runs the prune first.
+
 #### Caching
 
 ci.yml uses two `actions/cache@v4` steps per job to keep matrix-minutes
