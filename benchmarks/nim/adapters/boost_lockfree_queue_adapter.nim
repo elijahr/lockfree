@@ -112,7 +112,18 @@ when defined(adapter_boost_lockfree_queue_available):
 
   proc cleanup*[T](a: var BoostLockfreeQueueAdapter[T]) =
     if a.queue != nil:
-      {.emit: [a.queue, "->~queue();"].}
+      # Invoke the C++ destructor explicitly. The destructor must be
+      # named by a *type-name*, not the template-name `queue`; a bare
+      # `~queue()` is ill-formed C++. Introduce a local type-alias so the
+      # pseudo-destructor call names a type. Element type matches the
+      # `boost::lockfree::queue<unsigned long long>` used above.
+      {.
+        emit: [
+          "using TQueue = boost::lockfree::queue<unsigned long long>; ",
+          a.queue,
+          "->~TQueue();",
+        ]
+      .}
       freeAligned(a.queue)
       a.queue = nil
 

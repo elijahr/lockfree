@@ -486,7 +486,15 @@ proc pingerThreadBody[Q](ctx: ptr PingerCtx[Q]) {.thread.} =
   mixin push, pop
   for _ in 0 ..< ctx.count:
     let t0 = getMonoTime()
-    let payload = uint64(inNanoseconds(t0 - MonoTime()))
+    # Encode t0 as the wire payload. `ticks(t0)` is the raw nanosecond
+    # tick count and is value-identical to `inNanoseconds(t0 - MonoTime())`
+    # (MonoTime() is the zero epoch; `a - b` yields a Duration of
+    # `a.ticks - b.ticks` ns, and inNanoseconds round-trips it exactly),
+    # but avoids constructing a Duration per message. The payload is an
+    # opaque round-trip token here: RTT is computed below from the local
+    # `t0`/`t1` MonoTimes, not by decoding `payload`, and the ponger echoes
+    # it byte-for-byte, so the encoding does not affect the latency math.
+    let payload = uint64(ticks(t0))
     while push(ctx.fwd[], payload) == prFull:
       discard
     while true:

@@ -61,11 +61,15 @@ when defined(adapter_crossbeam_seg_queue_available):
     ## the underlying ``cb_seg_push`` only returns false on a null handle).
     if a.queue == nil:
       return prFull
-    # `cast[uint64](item)` (not `uint64(item)`) so non-numeric 8-byte
-    # payloads (pointers, distinct-int aliases) round-trip through the
-    # Rust u64 wire format by their bit pattern. Per gemini PR
-    # feat/v0.1.0 review, 2026-06-07.
-    discard cb_seg_push(a.queue, cast[uint64](item))
+    # Marshal the payload's bit pattern into a u64 wire value. We zero-init
+    # `val` and `copyMem` exactly `sizeof(T)` bytes (T is constrained to
+    # `sizeof(T) <= 8` by the static check in the make* proc), so for T
+    # smaller than 8 bytes the high bytes stay clean and there is no
+    # out-of-bounds read. `cast[uint64](item)` would over-read the source
+    # operand for `sizeof(T) < 8`. Per gemini PR feat/v0.1.0 review.
+    var val: uint64 = 0
+    copyMem(addr val, unsafeAddr item, sizeof(T))
+    discard cb_seg_push(a.queue, val)
     prSuccess
 
   proc pop*[T](a: var CrossbeamSegQueueAdapter[T]): PopResult[T] =
@@ -73,10 +77,13 @@ when defined(adapter_crossbeam_seg_queue_available):
       return PopResult[T](success: false)
     var raw: uint64
     if cb_seg_pop(a.queue, addr raw):
-      # `cast[T]` mirrors the push side so pointer payloads recover
-      # their original bit pattern. Per gemini PR feat/v0.1.0 review,
-      # 2026-06-07.
-      PopResult[T](success: true, value: cast[T](raw))
+      # Reconstruct T from the low `sizeof(T)` bytes of the u64 wire value,
+      # mirroring the push side. `copyMem` into a properly-typed `val`
+      # avoids `cast[T](raw)`, which reinterprets a full 8-byte source for
+      # T narrower than 8 bytes. Per gemini PR feat/v0.1.0 review.
+      var val: T
+      copyMem(addr val, addr raw, sizeof(T))
+      PopResult[T](success: true, value: val)
     else:
       PopResult[T](success: false)
 

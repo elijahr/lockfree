@@ -81,7 +81,17 @@ when defined(adapter_boost_lockfree_spsc_available):
 
   proc cleanup*[T](a: var BoostLockfreeSpscAdapter[T]) =
     if a.queue != nil:
-      {.emit: [a.queue, "->~spsc_queue();"].}
+      # Invoke the C++ destructor explicitly via a type-alias. A bare
+      # `~spsc_queue()` names the template, not a type, and is ill-formed
+      # C++. Element type matches the
+      # `boost::lockfree::spsc_queue<unsigned long long>` used above.
+      {.
+        emit: [
+          "using TSpscQueue = boost::lockfree::spsc_queue<unsigned long long>; ",
+          a.queue,
+          "->~TSpscQueue();",
+        ]
+      .}
       freeAligned(a.queue)
       a.queue = nil
 
