@@ -43,7 +43,18 @@ fn main() {
         env::var("CARGO_MANIFEST_DIR")
             .expect("CARGO_MANIFEST_DIR must be set by Cargo"),
     );
-    let lockfile = manifest_dir.join("Cargo.lock");
+    let mut lockfile = manifest_dir.join("Cargo.lock");
+    if !lockfile.exists() {
+        let mut parent = manifest_dir.parent();
+        while let Some(p) = parent {
+            let candidate = p.join("Cargo.lock");
+            if candidate.exists() {
+                lockfile = candidate;
+                break;
+            }
+            parent = p.parent();
+        }
+    }
 
     let contents = fs::read_to_string(&lockfile).unwrap_or_else(|e| {
         // Lockfile MUST exist at build time for a cdylib. A missing

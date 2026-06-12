@@ -39,6 +39,11 @@ when defined(adapter_boost_lockfree_spsc_available):
       {.passC: "-I/usr/include".}
       {.passC: "-I/usr/local/include".}
 
+  # Placement ``new`` (used in ``makeBoostLockfreeSpscAdapter`` below) is
+  # declared in ``<new>``; include it explicitly so the emitted C++ does not
+  # rely on Boost headers transitively pulling it in.
+  {.emit: "/*INCLUDESECTION*/\n#include <new>".}
+
   type BoostSpscRaw {.
     importcpp: "boost::lockfree::spsc_queue<unsigned long long>",
     header: "boost/lockfree/spsc_queue.hpp",

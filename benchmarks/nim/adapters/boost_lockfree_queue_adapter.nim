@@ -48,6 +48,11 @@ when defined(adapter_boost_lockfree_queue_available):
       {.passC: "-I/usr/include".}
       {.passC: "-I/usr/local/include".}
 
+  # Placement ``new`` (used in ``makeBoostLockfreeQueueAdapter`` below) is
+  # declared in ``<new>``; include it explicitly so the emitted C++ does not
+  # rely on Boost headers transitively pulling it in.
+  {.emit: "/*INCLUDESECTION*/\n#include <new>".}
+
   # ``boost::lockfree::queue<T>`` requires ``T`` to be trivially destructible
   # and trivially copy-assignable; ``uint64_t`` satisfies both. We always
   # store ``uint64`` regardless of the harness's ``T`` (the harness uses
