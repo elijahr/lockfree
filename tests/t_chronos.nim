@@ -2,8 +2,8 @@
 ##
 ## Tier 3 chronos async adapter tests for `src/lockfree/chronos.nim`.
 ##
-## Verifies acceptance cells (a) + (b) from T-CHRONOS (impl plan
-## §T-CHRONOS, design §5.4 + §5.6):
+## Verifies acceptance cells (a) + (b) for the chronos adapter
+## (design §5.4 + §5.6):
 ##
 ##   (a) chronos installed, no `-d:lockfreeChronos`: auto-detect via
 ##       `compiles do: import chronos`; AsyncQueue/AsyncBQueue exported.
@@ -13,8 +13,8 @@
 ## Cells (c) + (d) are verified by inspection (cell c: the `{.error.}`
 ## block guarding `-d:lockfreeChronos` without chronos installed; cell d:
 ## the `when` gate around the module body that makes AsyncQueue/AsyncBQueue
-## invisible without chronos + flag) and by PG-10's T-CI-CHRONOS / no-
-## chronos CI cells at integration time.
+## invisible without chronos + flag) and by the chronos / no-chronos CI
+## cells.
 ##
 ## When chronos is NOT available locally, the whole test body is gated
 ## off; this file becomes a no-op so non-chronos builds still compile.
@@ -25,7 +25,7 @@
 when not (compiles do:
   import chronos
 ):
-  echo "[T-CHRONOS] chronos not reachable in this build env; tests gated off"
+  echo "[chronos] chronos not reachable in this build env; tests gated off"
 
 when (compiles do:
   import chronos

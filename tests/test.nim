@@ -69,8 +69,8 @@ import ./composition/t_verify_pop_clears_mpmc_unbounded
 
 import ./t_wraparound
 
-# T-CHRONOS: chronos adapter tests gated on chronos availability per
-# CRITICAL #4 (chronos is NOT in lockfree.nimble requires). When chronos
+# chronos adapter tests gated on chronos availability
+# (chronos is NOT in lockfree.nimble requires). When chronos
 # is on the Nim search path, the suite participates in the aggregator;
 # otherwise it is silently skipped so the rest of the matrix continues
 # to compile. The prime+bracket import dance mirrors the workaround in

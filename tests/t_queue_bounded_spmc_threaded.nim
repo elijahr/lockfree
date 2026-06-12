@@ -3,9 +3,9 @@
 ## import site in `tests/test.nim` due to a pre-existing deadlock
 ## unrelated to the typestate / cardinality-collapse migration. The
 ## file body is still mechanically converted to keep it compiling
-## against the new Queue API per impl plan B2.
+## against the new Queue API.
 ##
-## Mechanical conversion per Doc C 5:
+## Mechanical conversion:
 ##   ptr Spmc[N, C, int] -> ptr Queue[int, ccSingle, ccMulti, stEager,
 ##                                       rkNone, N, 0, C, 0, 0]
 ##   initSpmc[N, C, int]() -> newBQueue[int, ccSingle, ccMulti, ##                                          N, 0, C]()

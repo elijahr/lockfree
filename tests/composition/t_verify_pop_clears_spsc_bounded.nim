@@ -10,9 +10,9 @@
 ##      payloads, pop N — verify the second batch's pops return EXACTLY
 ##      the second batch's values (no stale slot residue), and verify
 ##      `len == 0` between batches. A slot that wasn't cleared on pop
-##      would either double-emit (the impl plan's degradation predicate)
+##      would either double-emit (the degradation predicate)
 ##      OR return stale data on second-cycle pop after wraparound.
-##   2. TSAN subset (cell 6): wired into `tests/test.nim` so the
+##   2. TSAN subset: wired into `tests/test.nim` so the
 ##      `testTSan` nimble task picks it up.
 ##   3. Light code audit: `docs/internal/q-cardinality-payload-clear.md`
 ##      (untracked scratch).

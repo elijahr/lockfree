@@ -145,38 +145,38 @@ const cases = @[
     substring: "notATransition",
   ),
   Case(
-    name: "endpoint L1 (Task C5) — push on Unbound endpoint is a lifecycle violation",
+    name: "endpoint L1 — push on Unbound endpoint is a lifecycle violation",
     file: "tests/should_fail/endpoint_push_on_unbound.nim",
     outcome: eoCompileFails,
     substring: "push",
   ),
   Case(
-    name: "endpoint L2 (Task C9, tripwire a) — SPSC push on consumer-tag endpoint",
+    name: "endpoint L2 (tripwire a) — SPSC push on consumer-tag endpoint",
     file: "tests/should_fail/endpoint_push_on_consumer_tag.nim",
     outcome: eoCompileFails,
     substring: "SpscConsumerTag",
   ),
   Case(
-    name: "endpoint L2 (Task C9, tripwire b) — SPSC pop on producer-tag endpoint",
+    name: "endpoint L2 (tripwire b) — SPSC pop on producer-tag endpoint",
     file: "tests/should_fail/endpoint_pop_on_producer_tag.nim",
     outcome: eoCompileFails,
     substring: "SpscProducerTag",
   ),
   Case(
-    name: "endpoint L2 (Task C9, tripwire c) — forbids-region calling tagged push",
+    name: "endpoint L2 (tripwire c) — forbids-region calling tagged push",
     file: "tests/should_fail/endpoint_forbids_region.nim",
     outcome: eoCompileFails,
     substring: "forbids",
   ),
   Case(
-    name: "endpoint L2 (Task C9, tripwire d) — MPMC push on consumer-tag endpoint",
+    name: "endpoint L2 (tripwire d) — MPMC push on consumer-tag endpoint",
     file: "tests/should_fail/endpoint_mpmc_push_on_consumer_tag.nim",
     outcome: eoCompileFails,
     substring: "MpmcConsumerTag",
   ),
   Case(
     name:
-      "spawn C14.5 — defineProducerWorker inside proc body must compile-fail (module-scope guard)",
+      "spawn — defineProducerWorker inside proc body must compile-fail (module-scope guard)",
     file: "tests/should_fail/spawn_nested_scope.nim",
     outcome: eoCompileFails,
     substring: "top level",
@@ -191,7 +191,7 @@ const cases = @[
     #      construction-time via `Atomic[Pair[uint64, T]].store` in
     #      `newSegment`): "sizeof(B) <= 8 Pair half-type ... must be
     #      <= 8 bytes (DWCAS pairs two 64-bit registers)".
-    #   2. The v5.0.0 `{.error.}` in `proc push` (queue.nim L1136-L1145):
+    #   2. The v5.0.0 `{.error.}` in `proc push` (queue.nim):
     #      "requires sizeof(T) <= 8".
     # Construction trips (1) before `push` is expanded, so we pin
     # against debra's substring — the OUTER enforcement layer. If the
@@ -200,12 +200,11 @@ const cases = @[
     # either way.
     substring: "Pair half-type",
   ),
-  # T-MANAGED-SLICE R7 case (#22) REMOVED 2026-06-06: alongside the
-  # §2.5 rows 18-19 ACCEPT directive, the wrap[U] supportsCopyMem guard
-  # in managed_slice.nim was dropped — the box-pattern transport handles
-  # inner-element lifecycle via the compiler-emitted seq =destroy. The
-  # negative compile-fail no longer applies.
-  # T-TEST-COMPOSITION §2.5 REJECT rows. The Path-C admission gate
+  # The managed-slice wrap[U] supportsCopyMem guard has no negative
+  # compile-fail case: the box-pattern transport handles inner-element
+  # lifecycle via the compiler-emitted seq =destroy, so the guard was
+  # dropped and the compile-fail no longer applies.
+  # design §2.5 REJECT rows. The Path-C admission gate
   # (src/lockfree/internal/path_c_admit.nim) emits verbatim `{.error.}`
   # messages for rows 7 (distinct ref alias) and 8 (nested ref). The
   # admit template expands inside `push`, so each test must actually
@@ -224,10 +223,9 @@ const cases = @[
     outcome: eoCompileFails,
     substring: "nested ref",
   ),
-  # T-TEST-COMPOSITION rows 18-19 cases (#25, #26) REMOVED 2026-06-06:
-  # design §2.5 marks these ACCEPT, and the operator confirmed the
-  # box-pattern transport handles inner-element lifecycle correctly
-  # via Nim's compiler-emitted seq =destroy. Positive coverage now
+  # design §2.5 rows 18-19 have no compile-fail cases: they are ACCEPT,
+  # and the box-pattern transport handles inner-element lifecycle correctly
+  # via Nim's compiler-emitted seq =destroy. Positive coverage
   # lives in tests/composition/t_path_c_matrix.nim (rows 18, 19, and
   # the refcount-balanced lifecycle test).
 ]

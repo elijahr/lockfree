@@ -15,8 +15,8 @@
 ##   1. debra's `enforceDwcasConstraints` static assertion fires from
 ##      `Atomic[Pair[uint64, T]].store` inside `newSegment`:
 ##      "sizeof(B) <= 8 Pair half-type ... must be <= 8 bytes".
-##   2. The v5.0.0 `{.error.}` block in `proc push` (queue.nim L1136-
-##      L1145): "requires sizeof(T) <= 8".
+##   2. The v5.0.0 `{.error.}` block in `proc push` (queue.nim):
+##      "requires sizeof(T) <= 8".
 ##
 ## The runner pins debra's substring ("Pair half-type") — the OUTER
 ## enforcement layer that fires at construction. If the narrowing is

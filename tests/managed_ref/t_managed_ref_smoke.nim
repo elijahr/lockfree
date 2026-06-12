@@ -1,4 +1,4 @@
-## Smoke coverage for ``lockfree/managed_ref`` (T-MANAGED-REF, PG-5a).
+## Smoke coverage for ``lockfree/managed_ref``.
 ##
 ## Exercises wrap/unwrap roundtrip, acquire/release refcount behaviour,
 ## reset, the strict mm:none contract, and the §2.10 ABI identity claim.
@@ -10,8 +10,7 @@
 ## ``nimDecRefIsLast`` against bits that the caller never incremented,
 ## crashing. The tests below either keep the bits live via the
 ## original ``ref`` binding, or balance ``incRefSlot`` + ``toRef``
-## pairs explicitly. The comprehensive suite lives in T-TEST-MANAGED-REF
-## (PG-9).
+## pairs explicitly. The comprehensive managed-ref suite lives separately.
 
 import unittest2
 

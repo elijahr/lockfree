@@ -23,7 +23,7 @@ import lockfree/bqueue
 import lockfree/role_tags
 
 when defined(nimony):
-  echo "nimony build detected; actual nimony tests would run here (CI Cell 14)"
+  echo "nimony build detected; actual nimony tests would run here"
 else:
   # Arc baseline: verify the standard surface works while nimony
   # arms are inert. We exercise `ref T` (which routes through

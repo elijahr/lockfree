@@ -1,18 +1,16 @@
-## Smoke coverage for ``lockfree/managed_slice`` (Wave A of PG-6
-## unified-encoding micro-dispatch).
+## Smoke coverage for ``lockfree/managed_slice``.
 ##
 ## Exercises wrap/unwrap roundtrip for string + seq[U], ABI identity
-## with ``uint``, R7 positive (POD seq), and ``disposeSlot`` on both
+## with ``uint``, POD-seq positive, and ``disposeSlot`` on both
 ## the nil slot and a populated slot.
 ##
-## Does NOT exercise queue/bqueue — that is Wave C. This is module
-## isolation only.
+## Does NOT exercise queue/bqueue. This is module isolation only.
 ##
 ## Lifecycle discipline: ``wrap`` consumes its argument (``sink``)
 ## and returns ownership of the heap-boxed payload. ``unwrap`` moves
 ## the payload back out and frees the box. ``disposeSlot`` is the
 ## destroy-walk counterpart for un-popped slots; the comprehensive
-## leak suite lives downstream of PG-10 (valgrind cell).
+## leak suite lives in the valgrind CI cell.
 
 import lockfree/managed_slice
 
@@ -58,7 +56,7 @@ block:
   disposeSlot(ms)
 
 # disposeSlot — non-empty slot frees the box without crash. Leak /
-# double-free detection is deferred to PG-10 (valgrind cell).
+# double-free detection lives in the valgrind CI cell.
 block:
   let ms = wrap("payload to dispose")
   disposeSlot(ms)

@@ -1,11 +1,11 @@
-## T-DESTRUCTOR-WALK — `=destroy` walk for ref/string/seq T across all
+## Destructor-walk coverage: `=destroy` walk for ref/string/seq T across all
 ## 4 cardinality combinations × bounded/unbounded, exercising the path
 ## where the queue is DROPPED WITH ITEMS IN FLIGHT (no drain). The
 ## queue's `=destroy` hook must invoke `disposeSlotEncoded` on every
 ## live slot so per-payload library lifecycle (ref decref, ManagedSlice
 ## box free) runs cleanly.
 ##
-## Wave C (PG-6) wired:
+## Exercises:
 ## * `src/lockfree/internal/path_c_wrap.nim:disposeSlotEncoded` — the
 ##   per-slot dispose primitive (POD no-op; ref → `=destroy`-via-toRef;
 ##   string/seq → ManagedSlice box free).
@@ -132,7 +132,7 @@ proc pushBqMpmc(q: var BQueue[RefCounter, ccMulti, ccMulti, 16, 4, 4]) =
   discard p.push(newRefCounter(202))
 
 when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc) or defined(nimony):
-  suite "T-DESTRUCTOR-WALK — ref T destroy without drain (refcount)":
+  suite "destructor walk: ref T destroy without drain (refcount)":
     test "BQueue SPSC bounded — single ref T pushed, queue dropped":
       let baseline = liveCount()
       block:
@@ -223,10 +223,10 @@ when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc) or defined(nimony)
 # For string T, push goes through `wrap(s: sink string)` →
 # ManagedSlice[char]; the queue stores a box pointer. On destroy walk,
 # `disposeSlot(ms)` runs the box's =destroy and `deallocShared`s the
-# box. PG-10 valgrind detects leaks if any slot is missed.
+# box. The valgrind CI cell detects leaks if any slot is missed.
 #
 # ESCAPE: a walk that iterates only [0..N/2) slots would leave half the
-# boxes leaked (caught by valgrind in PG-10, not by this in-process
+# boxes leaked (caught by valgrind, not by this in-process
 # check). A walk that double-frees boxes would crash here. A walk that
 # skips occupied slots (treating them as zero sentinel) would leak
 # silently here but be caught by valgrind.
@@ -234,7 +234,7 @@ when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc) or defined(nimony)
 
 const N = 4
 
-suite "T-DESTRUCTOR-WALK — string T destroy without drain":
+suite "destructor walk: string T destroy without drain":
   test "BQueue SPSC bounded — N strings pushed, queue dropped":
     block:
       var q = newBQueue[string, ccSingle, ccSingle, 16, 0, 0]()
@@ -305,7 +305,7 @@ suite "T-DESTRUCTOR-WALK — string T destroy without drain":
 # per cardinality combo.
 # ----------------------------------------------------------------------
 
-suite "T-DESTRUCTOR-WALK — seq[int] T destroy without drain":
+suite "destructor walk: seq[int] T destroy without drain":
   test "BQueue SPSC bounded — N seq[int] pushed, queue dropped":
     block:
       var q = newBQueue[seq[int], ccSingle, ccSingle, 16, 0, 0]()
@@ -376,7 +376,7 @@ suite "T-DESTRUCTOR-WALK — seq[int] T destroy without drain":
 # completion is sufficient.
 # ----------------------------------------------------------------------
 
-suite "T-DESTRUCTOR-WALK — POD T destroy without drain":
+suite "destructor walk: POD T destroy without drain":
   test "BQueue SPSC bounded — N ints pushed, queue dropped":
     block:
       var q = newBQueue[int, ccSingle, ccSingle, 16, 0, 0]()
@@ -451,7 +451,7 @@ suite "T-DESTRUCTOR-WALK — POD T destroy without drain":
 # would surface as valgrind diagnostics.
 # ----------------------------------------------------------------------
 
-suite "T-DESTRUCTOR-WALK — partial drain then destroy":
+suite "destructor walk: partial drain then destroy":
   test "BQueue SPSC POD — K of N popped, queue dropped":
     const K = 2
     block:
@@ -504,7 +504,7 @@ suite "T-DESTRUCTOR-WALK — partial drain then destroy":
 # extraction path. Under mm:none users rely on it exclusively.
 # ----------------------------------------------------------------------
 
-suite "T-DESTRUCTOR-WALK — mm:none drain-then-destroy contract":
+suite "destructor walk: mm:none drain-then-destroy contract":
   test "string T: drain extracts all then scope-exit destroy is safe":
     var drained: seq[string] = @[]
     block:

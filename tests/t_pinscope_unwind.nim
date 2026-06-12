@@ -9,8 +9,7 @@
 ## This file is the regression test the docstring on
 ## `src/lockfree/smr/nebr/typestates/pinned_scope.nim:pinScope` cites
 ## under its "Cleanup contract" subsection. It runs across
-## `arc / orc / atomicArc` via the per-MM lane sweep documented in
-## the bundled commit's impl plan.
+## `arc / orc / atomicArc` via the per-MM lane sweep.
 
 import std/unittest
 import lockfree/atomics

@@ -1,7 +1,7 @@
 ## drain + destroyAndDrain tests for all Queue/BQueue cardinalities and
 ## Path-C encoded payloads (ref/string/seq/POD).
 ##
-## Per T-DRAIN-HELPERS (design §4.8, §5.7, §5.7.3 mm:none strict
+## Per design §4.8, §5.7, §5.7.3 (mm:none strict
 ## contract). Drain iterator yields each unpopped item; destroyAndDrain
 ## runs callback per item then triggers the queue's `=destroy`.
 ##

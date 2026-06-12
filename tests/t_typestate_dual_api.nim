@@ -1,6 +1,6 @@
 ## Dual-API: withBoundEndpoint RAII template + Queueable[T] concept.
 ##
-## Per T-TYPESTATE-DUAL-API (design §5.5, impl plan PG-7). Both surfaces
+## Per design §5.5. Both surfaces
 ## must work uniformly across the full Path-C-encoded payload set
 ## (ref / string / seq / POD) per operator directive 2026-06-06.
 

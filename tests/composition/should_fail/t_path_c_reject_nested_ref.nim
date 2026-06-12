@@ -3,7 +3,7 @@
 ##
 ## Pinned substring: "nested ref" (verbatim from path_c_admit.nim).
 ##
-## The admit gate fires inside `push` (see bqueue.nim L416, etc.). A bare
+## The admit gate fires inside `push` (see bqueue.nim). A bare
 ## type instantiation is not enough — we must call `push` to materialise
 ## the static-dispatch chain.
 
