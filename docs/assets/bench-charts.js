@@ -45,16 +45,16 @@
 
   // CONTRACT-TEST-PARSED-START LIBRARY_COLORS
   const LIBRARY_COLORS = Object.freeze({
-    // lockfreequeues family (bounded) — Material indigo 500
-    lockfreequeues_spsc:           '#3f51b5',
-    lockfreequeues_spmc:           '#3f51b5',
-    lockfreequeues_mpsc:           '#3f51b5',
-    lockfreequeues_mpmc:           '#3f51b5',
-    // lockfreequeues family (unbounded) — Material indigo 400
-    lockfreequeues_unbounded_spsc: '#5c6bc0',
-    lockfreequeues_unbounded_spmc: '#5c6bc0',
-    lockfreequeues_unbounded_mpsc: '#5c6bc0',
-    lockfreequeues_unbounded_mpmc: '#5c6bc0',
+    // lockfree family (bounded) — Material indigo 500
+    lockfree_spsc:           '#3f51b5',
+    lockfree_spmc:           '#3f51b5',
+    lockfree_mpsc:           '#3f51b5',
+    lockfree_mpmc:           '#3f51b5',
+    // lockfree family (unbounded) — Material indigo 400
+    lockfree_unbounded_spsc: '#5c6bc0',
+    lockfree_unbounded_spmc: '#5c6bc0',
+    lockfree_unbounded_mpsc: '#5c6bc0',
+    lockfree_unbounded_mpmc: '#5c6bc0',
     // comparison libraries — distinct stable colors
     crossbeam_array_queue:           '#f4511e',
     crossbeam_seg_queue:             '#fb8c00',
@@ -77,13 +77,13 @@
   // CONTRACT-TEST-PARSED-END BLOCKING_LIBRARIES
   const BLOCKING_SET = new Set(BLOCKING_LIBRARIES);
 
-  const LOCKFREEQUEUES_FAMILY = [
-    'lockfreequeues_spsc', 'lockfreequeues_spmc',
-    'lockfreequeues_mpsc', 'lockfreequeues_mpmc',
-    'lockfreequeues_unbounded_spsc', 'lockfreequeues_unbounded_spmc',
-    'lockfreequeues_unbounded_mpsc', 'lockfreequeues_unbounded_mpmc',
+  const LOCKFREE_FAMILY = [
+    'lockfree_spsc', 'lockfree_spmc',
+    'lockfree_mpsc', 'lockfree_mpmc',
+    'lockfree_unbounded_spsc', 'lockfree_unbounded_spmc',
+    'lockfree_unbounded_mpsc', 'lockfree_unbounded_mpmc',
   ];
-  const LFQ_FAMILY_SET = new Set(LOCKFREEQUEUES_FAMILY);
+  const LFQ_FAMILY_SET = new Set(LOCKFREE_FAMILY);
 
   const HERO_SHAPE_PREFERENCE = [
     { topology: 'mpmc', shape: '4p4c' },
@@ -212,7 +212,7 @@
 
   function isBlocking(library) { return BLOCKING_SET.has(library); }
   function isLockfreequeues(library) {
-    return LFQ_FAMILY_SET.has(library) || library.startsWith('lockfreequeues_');
+    return LFQ_FAMILY_SET.has(library) || library.startsWith('lockfree_');
   }
   function displayLabel(library) {
     return library + (isBlocking(library) ? ' *' : '');
@@ -443,7 +443,7 @@
       for (const [shape, libs] of byShape) {
         let lfq = 0, alt = 0;
         for (const libName of libs.keys()) {
-          if (libName.startsWith('lockfreequeues_')) lfq++;
+          if (libName.startsWith('lockfree_')) lfq++;
           else alt++;
         }
         if (lfq >= 1 && alt >= 1) {
@@ -962,8 +962,8 @@
     });
 
     const lfqBoundedExpected = [
-      'lockfreequeues_spsc', 'lockfreequeues_spmc',
-      'lockfreequeues_mpsc', 'lockfreequeues_mpmc',
+      'lockfree_spsc', 'lockfree_spmc',
+      'lockfree_mpsc', 'lockfree_mpmc',
     ];
     const present = new Set(libraries.map((l) => l.library));
     const lfqHits = lfqBoundedExpected.filter((l) => present.has(l)).length;

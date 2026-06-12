@@ -81,7 +81,7 @@ def parse_slug(slug: str) -> dict | None:
 # not need to come from a real bench run.
 SAMPLE_BMF: dict = {
     # spsc
-    "lockfreequeues_spsc/spsc/1p1c": {
+    "lockfree_spsc/spsc/1p1c": {
         "throughput_ops_ms": {
             "value": 8123.4, "lower_value": 8000.0, "upper_value": 8246.8,
         },
@@ -95,7 +95,7 @@ SAMPLE_BMF: dict = {
         "throughput_ops_ms": {"value": 5400.0},
     },
     # mpsc
-    "lockfreequeues_mpsc/mpsc/2p1c": {
+    "lockfree_mpsc/mpsc/2p1c": {
         "throughput_ops_ms": {
             "value": 6800.0, "lower_value": 6700.0, "upper_value": 6900.0,
         },
@@ -104,18 +104,18 @@ SAMPLE_BMF: dict = {
         "throughput_ops_ms": {"value": 1200.0},
     },
     # mpmc bounded
-    "lockfreequeues_mpmc/mpmc/1p1c": {
+    "lockfree_mpmc/mpmc/1p1c": {
         "throughput_ops_ms": {
             "value": 6280.5, "lower_value": 6200.0, "upper_value": 6361.0,
         },
         "latency_p99_ns": {"value": 871.0},
     },
-    "lockfreequeues_mpmc/mpmc/2p2c": {
+    "lockfree_mpmc/mpmc/2p2c": {
         "throughput_ops_ms": {
             "value": 7411.0, "lower_value": 7400.0, "upper_value": 7422.0,
         },
     },
-    "lockfreequeues_mpmc/mpmc/4p4c": {
+    "lockfree_mpmc/mpmc/4p4c": {
         "throughput_ops_ms": {"value": 4912.0},
     },
     "boost_lockfree_queue/mpmc/1p1c": {
@@ -128,15 +128,15 @@ SAMPLE_BMF: dict = {
         "throughput_ops_ms": {"value": 950.0},
     },
     # spsc_unbounded
-    "lockfreequeues_unbounded_spsc/spsc_unbounded/1p1c": {
+    "lockfree_unbounded_spsc/spsc_unbounded/1p1c": {
         "throughput_ops_ms": {"value": 7100.0},
     },
     # mpsc_unbounded
-    "lockfreequeues_unbounded_mpsc/mpsc_unbounded/2p1c": {
+    "lockfree_unbounded_mpsc/mpsc_unbounded/2p1c": {
         "throughput_ops_ms": {"value": 5900.0},
     },
     # mpmc_unbounded
-    "lockfreequeues_unbounded_mpmc/mpmc_unbounded/4p4c": {
+    "lockfree_unbounded_mpmc/mpmc_unbounded/4p4c": {
         "throughput_ops_ms": {"value": 1024.0},
     },
     "loony/mpmc_unbounded/4p4c": {
@@ -213,8 +213,8 @@ class ChartContractTests(unittest.TestCase):
         self.assertTrue(seen, "fixture must contain at least one throughput slug")
 
     def test_parse_slug_extracts_library_topology_shape(self) -> None:
-        parsed = parse_slug("lockfreequeues_mpmc/mpmc/4p4c")
-        self.assertEqual(parsed["library"], "lockfreequeues_mpmc")
+        parsed = parse_slug("lockfree_mpmc/mpmc/4p4c")
+        self.assertEqual(parsed["library"], "lockfree_mpmc")
         self.assertEqual(parsed["topology"], "mpmc")
         self.assertEqual(parsed["shape"], "4p4c")
         self.assertEqual(parsed["p"], 4)
@@ -324,23 +324,23 @@ class ChartContractTests(unittest.TestCase):
             missing,
             f"libraries missing from LIBRARY_COLORS: {sorted(missing)}",
         )
-        # The lockfreequeues family must have all 8 entries (4 bounded
+        # The lockfree family must have all 8 entries (4 bounded
         # + 4 unbounded) so co-located bounded/unbounded series stay
         # visually distinguishable per design §2.8.
-        lfq_family = sorted(k for k in colors if k.startswith("lockfreequeues_"))
+        lfq_family = sorted(k for k in colors if k.startswith("lockfree_"))
         self.assertEqual(
             lfq_family,
             [
-                "lockfreequeues_mpmc",
-                "lockfreequeues_mpsc",
-                "lockfreequeues_spmc",
-                "lockfreequeues_spsc",
-                "lockfreequeues_unbounded_mpmc",
-                "lockfreequeues_unbounded_mpsc",
-                "lockfreequeues_unbounded_spmc",
-                "lockfreequeues_unbounded_spsc",
+                "lockfree_mpmc",
+                "lockfree_mpsc",
+                "lockfree_spmc",
+                "lockfree_spsc",
+                "lockfree_unbounded_mpmc",
+                "lockfree_unbounded_mpsc",
+                "lockfree_unbounded_spmc",
+                "lockfree_unbounded_spsc",
             ],
-            "LIBRARY_COLORS must cover all 8 lockfreequeues_* family members",
+            "LIBRARY_COLORS must cover all 8 lockfree_* family members",
         )
 
     def test_blocking_libraries_const_matches_contract(self) -> None:
