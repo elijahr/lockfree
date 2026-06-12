@@ -65,7 +65,7 @@ when defined(BenchLatencyTestCompileTimeOverrides):
 #
 # `runLatencyHarness` takes a `proc(): Q` factory. The 4 bounded
 # adapters have non-uniform factory shapes (`initSpscAdapter`
-# vs `makeLockfreequeuesSpmcAdapter(capacity = N)` etc.) so we
+# vs `makeLockfreeSpmcAdapter(capacity = N)` etc.) so we
 # wrap each in a uniform `proc(): Adapter` closure. Capacity is
 # pinned to 1024 — same value used by bench_throughput's spsc
 # slug — to keep latency runs comparable to throughput on the
@@ -76,11 +76,11 @@ const LatencyCapacity = 1024
 proc initSpsc(): SpscAdapter[LatencyCapacity, uint64] =
   initSpscAdapter[LatencyCapacity, uint64]()
 
-proc initSpmc(): LockfreequeuesSpmcAdapter[LatencyCapacity, 1, uint64] =
-  makeLockfreequeuesSpmcAdapter[LatencyCapacity, 1, uint64](LatencyCapacity)
+proc initSpmc(): LockfreeSpmcAdapter[LatencyCapacity, 1, uint64] =
+  makeLockfreeSpmcAdapter[LatencyCapacity, 1, uint64](LatencyCapacity)
 
-proc initMpsc(): LockfreequeuesMpscAdapter[LatencyCapacity, 1, uint64] =
-  makeLockfreequeuesMpscAdapter[LatencyCapacity, 1, uint64](LatencyCapacity)
+proc initMpsc(): LockfreeMpscAdapter[LatencyCapacity, 1, uint64] =
+  makeLockfreeMpscAdapter[LatencyCapacity, 1, uint64](LatencyCapacity)
 
 proc initMpmc(): MpmcAdapter[LatencyCapacity, uint64] =
   initMpmcAdapter[LatencyCapacity, uint64]()
@@ -163,14 +163,14 @@ proc runVariant(variant: string, em: var BMFEmitter) =
         warmupCount = BenchLatencyWarmupRuns,
       )
     of "spmc":
-      runLatencyHarness[LockfreequeuesSpmcAdapter[LatencyCapacity, 1, uint64]](
+      runLatencyHarness[LockfreeSpmcAdapter[LatencyCapacity, 1, uint64]](
         queueInit = initSpmc,
         messageCount = BenchLatencyMessageCount,
         runCount = BenchLatencyRuns,
         warmupCount = BenchLatencyWarmupRuns,
       )
     of "mpsc":
-      runLatencyHarness[LockfreequeuesMpscAdapter[LatencyCapacity, 1, uint64]](
+      runLatencyHarness[LockfreeMpscAdapter[LatencyCapacity, 1, uint64]](
         queueInit = initMpsc,
         messageCount = BenchLatencyMessageCount,
         runCount = BenchLatencyRuns,

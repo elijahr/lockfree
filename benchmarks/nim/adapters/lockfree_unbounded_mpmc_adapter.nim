@@ -44,7 +44,7 @@ type
   UnboundedMpmcAdapterConsumer[S: static int, T; MaxThreads: static int] =
     Bound[T, AnyThreadTag, Queue[T, ccMulti, ccMulti, stEager, S, MaxThreads]]
 
-  LockfreequeuesUnboundedMpmcAdapter*[S: static int, T; MaxThreads: static int] = object
+  LockfreeUnboundedMpmcAdapter*[S: static int, T; MaxThreads: static int] = object
     ## Heap manager AND heap queue. The manager is heap-pointer because
     ## the unified `newUnboundedMpmcQueue` borrow form takes a
     ## `ptr DebraManager`. The queue is heap-pointer because the cached
@@ -60,9 +60,9 @@ type
     producer0*: UnboundedMpmcAdapterProducer[S, T, MaxThreads]
     consumer0*: UnboundedMpmcAdapterConsumer[S, T, MaxThreads]
 
-proc makeLockfreequeuesUnboundedMpmcAdapter*[S: static int, T; MaxThreads: static int](
+proc makeLockfreeUnboundedMpmcAdapter*[S: static int, T; MaxThreads: static int](
     capacity: int = 0, # ignored for unbounded
-): LockfreequeuesUnboundedMpmcAdapter[S, T, MaxThreads] =
+): LockfreeUnboundedMpmcAdapter[S, T, MaxThreads] =
   result.manager = create(DebraManager[MaxThreads, nebr.ccMulti])
 
   # Guard manager value init, queue allocation, queue init, AND
@@ -154,7 +154,7 @@ proc makeLockfreequeuesUnboundedMpmcAdapter*[S: static int, T; MaxThreads: stati
       result.manager = nil
 
 proc cleanup*[S: static int, T; MaxThreads: static int](
-    a: var LockfreequeuesUnboundedMpmcAdapter[S, T, MaxThreads]
+    a: var LockfreeUnboundedMpmcAdapter[S, T, MaxThreads]
 ) =
   ## Order matters on two axes:
   ##  1. The cached `producer0` / `consumer0` views borrow a pointer into
@@ -178,13 +178,13 @@ proc cleanup*[S: static int, T; MaxThreads: static int](
     a.manager = nil
 
 proc push*[S: static int, T; MaxThreads: static int](
-    a: var LockfreequeuesUnboundedMpmcAdapter[S, T, MaxThreads], item: T
+    a: var LockfreeUnboundedMpmcAdapter[S, T, MaxThreads], item: T
 ): PushResult =
   a.producer0.push(item)
   prSuccess
 
 proc pop*[S: static int, T; MaxThreads: static int](
-    a: var LockfreequeuesUnboundedMpmcAdapter[S, T, MaxThreads]
+    a: var LockfreeUnboundedMpmcAdapter[S, T, MaxThreads]
 ): PopResult[T] =
   let r = a.consumer0.pop()
   if r.isSome:

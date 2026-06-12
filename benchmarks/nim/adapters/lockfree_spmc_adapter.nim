@@ -35,7 +35,7 @@ type
   SpmcConsumerView*[N, C: static int, T] =
     Bound[T, AnyThreadTag, BQueue[T, ccSingle, ccMulti, N, 0, C]]
 
-  LockfreequeuesSpmcAdapter*[N, C: static int, T] = object
+  LockfreeSpmcAdapter*[N, C: static int, T] = object
     queue*: ptr SpmcQueue[N, C, T]
       ## Exported so multi-consumer shapes can register their own
       ## per-thread consumer via `adapter.getConsumer(idx)` (or, for
@@ -46,7 +46,7 @@ type
       ## bypass this slot and call `getConsumer(idx)` per-thread.
 
 proc getConsumer*[N, C: static int, T](
-    a: var LockfreequeuesSpmcAdapter[N, C, T], idx: int
+    a: var LockfreeSpmcAdapter[N, C, T], idx: int
 ): SpmcConsumerView[N, C, T] =
   ## Acquire a per-thread consumer from the underlying Spmc-equiv queue.
   ## Multi-consumer benchmark shapes (`1p<C>c` for C > 1) MUST call
@@ -54,9 +54,9 @@ proc getConsumer*[N, C: static int, T](
   ## sharing a single `Consumer` across threads is unsafe.
   a.queue[].getConsumerHere(idx = idx)
 
-proc makeLockfreequeuesSpmcAdapter*[N, C: static int, T](
+proc makeLockfreeSpmcAdapter*[N, C: static int, T](
     capacity: int = N
-): LockfreequeuesSpmcAdapter[N, C, T] =
+): LockfreeSpmcAdapter[N, C, T] =
   ## Allocate and initialize a Spmc-equiv Queue[N, C, T]. `capacity`
   ## must equal N (the static parameter); the runtime arg exists only
   ## to satisfy the adapter convention's uniform factory shape across
@@ -80,7 +80,7 @@ proc makeLockfreequeuesSpmcAdapter*[N, C: static int, T](
   # registers its own per-thread Consumer via getConsumer(idx = i).
   result.consumer = result.queue[].getConsumerHere(idx = 0)
 
-proc cleanup*[N, C: static int, T](a: var LockfreequeuesSpmcAdapter[N, C, T]) =
+proc cleanup*[N, C: static int, T](a: var LockfreeSpmcAdapter[N, C, T]) =
   # Reset the cached consumer view BEFORE deallocating the queue it borrows
   # from. The view holds a pointer into `a.queue[]` and carries a typestate
   # `=destroy` that would otherwise run at adapter scope exit (after this
@@ -93,12 +93,12 @@ proc cleanup*[N, C: static int, T](a: var LockfreequeuesSpmcAdapter[N, C, T]) =
     a.queue = nil
 
 proc push*[N, C: static int, T](
-    a: var LockfreequeuesSpmcAdapter[N, C, T], item: T
+    a: var LockfreeSpmcAdapter[N, C, T], item: T
 ): PushResult =
   if a.queue[].push(item): prSuccess else: prFull
 
 proc pop*[N, C: static int, T](
-    a: var LockfreequeuesSpmcAdapter[N, C, T]
+    a: var LockfreeSpmcAdapter[N, C, T]
 ): PopResult[T] =
   let r = a.consumer.pop()
   if r.isSome:

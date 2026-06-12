@@ -14,14 +14,18 @@ import std/[algorithm, stats]
 proc mean*(data: openArray[float]): float =
   if data.len == 0:
     return 0.0
-  stats.mean(data)
+  var s: RunningStat
+  s.push(data)
+  s.mean
 
 proc stddev*(data: openArray[float]): float =
   ## Sample standard deviation (N-1 divisor). Matches the prior local
   ## impl's denominator; backed by `std/stats.standardDeviationS`.
   if data.len < 2:
     return 0.0
-  stats.standardDeviationS(data)
+  var s: RunningStat
+  s.push(data)
+  s.standardDeviationS
 
 proc percentile*(data: openArray[float], p: float): float =
   ## Calculate percentile (p in 0.0..1.0).

@@ -24,7 +24,7 @@ type
   MpscProducerView*[N, P: static int, T] =
     Bound[T, AnyThreadTag, BQueue[T, ccMulti, ccSingle, N, P, 0]]
 
-  LockfreequeuesMpscAdapter*[N, P: static int, T] = object
+  LockfreeMpscAdapter*[N, P: static int, T] = object
     queue*: ptr MpscQueue[N, P, T]
       ## Exported so multi-producer shapes can register their own
       ## per-thread producer via `adapter.getProducer(idx)` (or, for
@@ -35,7 +35,7 @@ type
       ## bypass this slot and call `getProducer(idx)` per-thread.
 
 proc getProducer*[N, P: static int, T](
-    a: var LockfreequeuesMpscAdapter[N, P, T], idx: int
+    a: var LockfreeMpscAdapter[N, P, T], idx: int
 ): MpscProducerView[N, P, T] =
   ## Acquire a per-thread producer from the underlying Mpsc-equiv queue.
   ## Multi-producer benchmark shapes (`<P>p1c` for P > 1) MUST call
@@ -43,9 +43,9 @@ proc getProducer*[N, P: static int, T](
   ## sharing a single `Producer` across threads is unsafe.
   a.queue[].getProducerHere(idx = idx)
 
-proc makeLockfreequeuesMpscAdapter*[N, P: static int, T](
+proc makeLockfreeMpscAdapter*[N, P: static int, T](
     capacity: int = N
-): LockfreequeuesMpscAdapter[N, P, T] =
+): LockfreeMpscAdapter[N, P, T] =
   ## Allocate and initialize a Mpsc-equiv Queue[N, P, T]. The pre-built
   ## `producer` slot lets the smoke / 1p1c shape drive push from the
   ## calling thread; multi-producer shapes register additional producers
@@ -67,7 +67,7 @@ proc makeLockfreequeuesMpscAdapter*[N, P: static int, T](
   wasMoved(tmp)
   result.producer = result.queue[].getProducerHere(idx = 0)
 
-proc cleanup*[N, P: static int, T](a: var LockfreequeuesMpscAdapter[N, P, T]) =
+proc cleanup*[N, P: static int, T](a: var LockfreeMpscAdapter[N, P, T]) =
   # Reset the cached producer view BEFORE deallocating the queue it borrows
   # from. The view holds a pointer into `a.queue[]` and carries a typestate
   # `=destroy` that would otherwise run at adapter scope exit (after this
@@ -80,12 +80,12 @@ proc cleanup*[N, P: static int, T](a: var LockfreequeuesMpscAdapter[N, P, T]) =
     a.queue = nil
 
 proc push*[N, P: static int, T](
-    a: var LockfreequeuesMpscAdapter[N, P, T], item: T
+    a: var LockfreeMpscAdapter[N, P, T], item: T
 ): PushResult =
   if a.producer.push(item): prSuccess else: prFull
 
 proc pop*[N, P: static int, T](
-    a: var LockfreequeuesMpscAdapter[N, P, T]
+    a: var LockfreeMpscAdapter[N, P, T]
 ): PopResult[T] =
   let r = a.queue[].pop()
   if r.isSome:

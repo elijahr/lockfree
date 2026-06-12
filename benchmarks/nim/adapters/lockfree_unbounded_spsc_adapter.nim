@@ -43,7 +43,7 @@ type
   UnboundedSpscAdapterProducer[S: static int, T] =
     Bound[T, AnyThreadTag, Queue[T, ccSingle, ccSingle, stEager, S, SpscMaxThreads]]
 
-  LockfreequeuesUnboundedSpscAdapter*[S: static int, T] = object
+  LockfreeUnboundedSpscAdapter*[S: static int, T] = object
     ## Heap queue (see module doc); the cached `producer0` view borrows
     ## a `ptr Queue` into the heap slot and therefore stays valid for
     ## the lifetime of the adapter regardless of how the adapter value
@@ -57,9 +57,9 @@ type
       ## `ptr Queue` into the heap-allocated queue, so it stays valid
       ## for every `push` and avoids recreating the view per call.
 
-proc makeLockfreequeuesUnboundedSpscAdapter*[S: static int, T](
+proc makeLockfreeUnboundedSpscAdapter*[S: static int, T](
     capacity: int = 0, # ignored for unbounded
-): LockfreequeuesUnboundedSpscAdapter[S, T] =
+): LockfreeUnboundedSpscAdapter[S, T] =
   # OOM safety: `create(...)`, `newUnboundedSpscQueue()`, and
   # `getProducer()` can each raise. The queue value owns segment memory
   # once `newUnboundedSpscQueue` returns, so if a later step raises the
@@ -107,7 +107,7 @@ proc makeLockfreequeuesUnboundedSpscAdapter*[S: static int, T](
       # safe no-op.
       reset(result.producer0)
 
-proc cleanup*[S: static int, T](a: var LockfreequeuesUnboundedSpscAdapter[S, T]) =
+proc cleanup*[S: static int, T](a: var LockfreeUnboundedSpscAdapter[S, T]) =
   ## Order matters: the cached `producer0` view borrows a `ptr Queue`
   ## into the heap-allocated queue and carries a typestate `=destroy`.
   ## It must be reset BEFORE the queue is reset, else its scope-exit
@@ -121,13 +121,13 @@ proc cleanup*[S: static int, T](a: var LockfreequeuesUnboundedSpscAdapter[S, T])
     a.queue = nil
 
 proc push*[S: static int, T](
-    a: var LockfreequeuesUnboundedSpscAdapter[S, T], item: T
+    a: var LockfreeUnboundedSpscAdapter[S, T], item: T
 ): PushResult =
   a.producer0.push(item)
   prSuccess
 
 proc pop*[S: static int, T](
-    a: var LockfreequeuesUnboundedSpscAdapter[S, T]
+    a: var LockfreeUnboundedSpscAdapter[S, T]
 ): PopResult[T] =
   let r = a.queue[].pop()
   if r.isSome:

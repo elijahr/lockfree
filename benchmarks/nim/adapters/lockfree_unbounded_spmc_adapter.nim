@@ -49,7 +49,7 @@ type
   UnboundedSpmcAdapterConsumer[S: static int, T; MaxThreads: static int] =
     Bound[T, AnyThreadTag, Queue[T, ccSingle, ccMulti, stEager, S, MaxThreads]]
 
-  LockfreequeuesUnboundedSpmcAdapter*[S: static int, T; MaxThreads: static int] = object
+  LockfreeUnboundedSpmcAdapter*[S: static int, T; MaxThreads: static int] = object
     ## Manager and queue are BOTH heap-allocated. The manager is
     ## heap-pointer because the unified Queue rkEbr borrow
     ## smart-constructor takes a `ptr DebraManager`. The queue is
@@ -73,9 +73,9 @@ type
     producer0*: UnboundedSpmcAdapterProducer[S, T, MaxThreads]
     consumer0*: UnboundedSpmcAdapterConsumer[S, T, MaxThreads]
 
-proc makeLockfreequeuesUnboundedSpmcAdapter*[S: static int, T; MaxThreads: static int](
+proc makeLockfreeUnboundedSpmcAdapter*[S: static int, T; MaxThreads: static int](
     capacity: int = 0, # ignored for unbounded
-): LockfreequeuesUnboundedSpmcAdapter[S, T, MaxThreads] =
+): LockfreeUnboundedSpmcAdapter[S, T, MaxThreads] =
   result.manager = create(DebraManager[MaxThreads, nebr.ccMulti])
 
   # Three-flag guard mirroring the mpmc adapter:
@@ -159,7 +159,7 @@ proc makeLockfreequeuesUnboundedSpmcAdapter*[S: static int, T; MaxThreads: stati
       result.manager = nil
 
 proc cleanup*[S: static int, T; MaxThreads: static int](
-    a: var LockfreequeuesUnboundedSpmcAdapter[S, T, MaxThreads]
+    a: var LockfreeUnboundedSpmcAdapter[S, T, MaxThreads]
 ) =
   ## Order matters on two axes:
   ##  1. The cached `producer0` / `consumer0` views borrow a pointer into
@@ -184,13 +184,13 @@ proc cleanup*[S: static int, T; MaxThreads: static int](
     a.manager = nil
 
 proc push*[S: static int, T; MaxThreads: static int](
-    a: var LockfreequeuesUnboundedSpmcAdapter[S, T, MaxThreads], item: T
+    a: var LockfreeUnboundedSpmcAdapter[S, T, MaxThreads], item: T
 ): PushResult =
   a.producer0.push(item)
   prSuccess
 
 proc pop*[S: static int, T; MaxThreads: static int](
-    a: var LockfreequeuesUnboundedSpmcAdapter[S, T, MaxThreads]
+    a: var LockfreeUnboundedSpmcAdapter[S, T, MaxThreads]
 ): PopResult[T] =
   let r = a.consumer0.pop()
   if r.isSome:
