@@ -68,11 +68,11 @@ RUN apt-get update && \
 # completions).
 ARG VFOX_VERSION=1.0.11
 
-# vfox-nim v0.1.1 fix landed on main as commit ad7f3d3 (linux/arm64
-# normalize_arch). Pinning to the SHA until the operator dispatches
-# elijahr/vfox-nim's Release workflow to tag v0.1.1; this line flips
-# back to v0.1.1 then (see lockfree v0.1.0 impl plan §5.2).
-ARG VFOX_NIM_REF=ad7f3d3
+# vfox-nim v0.1.1 (commit 8c7dad2, formerly the SHA-pinned ad7f3d3 on
+# main) ships the linux/arm64 normalize_arch fix. The GitHub zipball
+# API endpoint accepts tags and SHAs interchangeably, so the URL
+# template is unchanged.
+ARG VFOX_NIM_REF=v0.1.2
 
 # vfox-nodejs plugin: we install via vfox's official plugin registry
 # (`vfox add nodejs`), so no ref pin here — vfox pulls the latest
