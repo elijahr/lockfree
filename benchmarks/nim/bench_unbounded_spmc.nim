@@ -131,9 +131,18 @@ proc runUSpmcShape[C: static int](em: var BMFEmitter, runs, warmup, messageCount
     benchShape = "1p" & $C & "c"
     flushFile(stdout)
   for _ in 0 ..< warmup:
+    # Construct the manager on the stack, copyMem the raw bytes into the heap
+    # slot, then wasMoved the stack temp. The prior
+    # `wasMoved(manager[]); manager[] = init...()` form was UB under ARC/ORC:
+    # `wasMoved` requires a properly initialized destination, but `create`
+    # yields zeroed-but-uninitialized memory and the subsequent `=sink` fired
+    # on a typestate-untracked slot. Mirrors the documented adapter pattern in
+    # `adapters/lockfree_unbounded_mpmc_adapter.nim`.
     var manager = create(DebraManager[MaxThreads, nebr.ccMulti])
-    wasMoved(manager[])
-    manager[] = initDebraManager[MaxThreads, nebr.ccMulti]()
+    var tmpManager = initDebraManager[MaxThreads, nebr.ccMulti]()
+    copyMem(manager, addr tmpManager,
+      sizeof(DebraManager[MaxThreads, nebr.ccMulti]))
+    wasMoved(tmpManager)
     var q = newUnboundedSpmcQueue[uint64, stEager, SegmentSize, MaxThreads](manager)
     discard
       runOneUSpmcRun[SegmentSize, uint64, MaxThreads, C](addr q, manager, messageCount)
@@ -142,9 +151,12 @@ proc runUSpmcShape[C: static int](em: var BMFEmitter, runs, warmup, messageCount
     dealloc(manager)
   var samples: seq[float] = @[]
   for _ in 0 ..< runs:
+    # See the warmup loop above for the copyMem heap-init rationale.
     var manager = create(DebraManager[MaxThreads, nebr.ccMulti])
-    wasMoved(manager[])
-    manager[] = initDebraManager[MaxThreads, nebr.ccMulti]()
+    var tmpManager = initDebraManager[MaxThreads, nebr.ccMulti]()
+    copyMem(manager, addr tmpManager,
+      sizeof(DebraManager[MaxThreads, nebr.ccMulti]))
+    wasMoved(tmpManager)
     var q = newUnboundedSpmcQueue[uint64, stEager, SegmentSize, MaxThreads](manager)
     samples.add(
       runOneUSpmcRun[SegmentSize, uint64, MaxThreads, C](addr q, manager, messageCount)

@@ -35,7 +35,7 @@ import math
 import re
 import sys
 from pathlib import Path
-from typing import Mapping, Tuple
+from typing import Any, Mapping, Tuple
 
 SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*/[a-z][a-z0-9_]*/\d+p\d+c$")
 MEASURE_RE = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -131,7 +131,7 @@ def _validate_keys(
     return None
 
 
-def _read_bmf(path: Path) -> Tuple[dict[str, dict[str, dict[str, float]]], str | None]:
+def _read_bmf(path: Path) -> Tuple[dict[str, Any], str | None]:
     """Read + parse a BMF JSON file. Returns (parsed_dict, error_string)."""
     try:
         text = path.read_text(encoding="utf-8")
@@ -155,7 +155,7 @@ def _read_bmf(path: Path) -> Tuple[dict[str, dict[str, dict[str, float]]], str |
 
 def merge(
     inputs: list[Path],
-) -> Tuple[dict[str, dict[str, dict[str, float]]], str | None]:
+) -> Tuple[dict[str, Any], str | None]:
     """Stateless union of per-slug measure dicts. Returns
     (merged_dict, error_string). Error_string is non-None iff a
     collision was detected or any input failed validation."""
