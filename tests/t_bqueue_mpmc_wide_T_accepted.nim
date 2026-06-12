@@ -1,5 +1,5 @@
-## Phase B T14: positive control — bounded MPMC `BQueue[T]` preserves
-## wide-T support after the v5.0.0 unbounded MPMC `sizeof(T) <= 8`
+## Positive control — bounded MPMC `BQueue[T]` preserves wide-T
+## support after the v5.0.0 unbounded MPMC `sizeof(T) <= 8`
 ## narrowing.
 ##
 ## The v5.0.0 BREAKING change constrains the UNBOUNDED MPMC arm
@@ -16,8 +16,8 @@
 ##
 ## Twin of `tests/should_fail/unbounded_mpmc_wide_T_rejected.nim`
 ## (the negative control): together they form the SCOPE-7 structural
-## tripwire against accidental cross-queue constraint extension during
-## Phase B. If a regression accidentally widens the `sizeof(T) <= 8`
+## tripwire against accidental cross-queue constraint extension.
+## If a regression accidentally widens the `sizeof(T) <= 8`
 ## guard into `bqueue.nim`, this file fails at compile-time — the
 ## tripwire fires before any user-visible breakage.
 ##
@@ -31,7 +31,7 @@ import lockfree/bqueue
 import lockfree/endpoint
 import lockfree/role_tags
 
-suite "Phase B T14: BQueue MPMC accepts wide T (positive control)":
+suite "BQueue MPMC accepts wide T (positive control)":
   test "BQueue[array[3, int], ccMulti, ccMulti, 64, 8, 8] compiles + round-trips 4 distinct values":
     # array[3, int] = 24 bytes on a 64-bit target — well over the
     # unbounded MPMC arm's 8-byte ceiling. BQueue MUST accept it

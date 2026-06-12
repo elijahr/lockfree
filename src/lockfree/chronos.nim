@@ -1,10 +1,10 @@
 ## src/lockfree/chronos.nim
 ##
-## Tier 3 chronos async adapter for `lockfree` queues. Per design
-## §5.4 (the only async tier shipping in v0.1.0) and §5.6 (hybrid
-## optional-dep pattern).
+## Tier 3 chronos async adapter for `lockfree` queues. This is the only
+## async tier shipping in v0.1.0, built on the hybrid optional-dep
+## pattern.
 ##
-## CRITICAL #4: chronos is intentionally NOT listed unconditionally in
+## chronos is intentionally NOT listed unconditionally in
 ## `lockfree.nimble` `requires`. The library is flag-only opt-in: users
 ## who want the async adapter pass `-d:lockfreeChronos` AND install
 ## chronos themselves (or rely on `lockfree.nimble`'s
@@ -13,7 +13,7 @@
 ## for users who do not need it, and chronos is never auto-detected at
 ## compile time.
 ##
-## Activation matrix (design §5.6.2, post-CRITICAL-4 flag-only rework):
+## Activation matrix (flag-only opt-in):
 ##
 ##   `-d:lockfreeChronos` | chronos installed | outcome
 ##   -------------------- | ----------------- | -----------------------------
@@ -31,14 +31,14 @@
 ## constant that callers could `when`-branch on to silently enable the
 ## adapter without the flag — was removed: silent activation based on
 ## whether chronos happens to be installed in a user's package set
-## violates the flag-only opt-in contract (CRITICAL-4). An internal
+## violates the flag-only opt-in contract. An internal
 ## (non-exported) `chronosReachable` probe is retained ONLY to drive
 ## the precise install-hint `{.error.}` arm; the module body never
 ## activates without `-d:lockfreeChronos`, regardless of whether
 ## chronos is reachable.
 ##
-## NOTE on chronos import form: the design code samples (§5.6.1) write
-## `import chronos`. Inside this module that bare form self-shadows —
+## NOTE on chronos import form: the obvious `import chronos` self-shadows
+## inside this module —
 ## our own file IS `src/lockfree/chronos.nim`, which Nim resolves first
 ## on the import search path, breaking the `compiles do:` probe used to
 ## emit the precise install-hint error. We import the chronos
@@ -105,15 +105,15 @@ when defined(lockfreeChronos):
       ccProd, ccCons: static PinScopeCardinality,
       N, P, C: static int,
     ] = ref object
-      ## Bounded async-adapter queue (design §5.4.1). Wraps a sync
+      ## Bounded async-adapter queue. Wraps a sync
       ## `BQueue` and adds a single chronos `AsyncEvent` for the
       ## consumer-wakeup signal. Lock-freedom on the producer side is
       ## preserved (fire is a non-blocking flag set on the chronos
       ## event-loop thread); the consumer opts into blocking via
-      ## `await event.wait()` (design §5.4.4).
+      ## `await event.wait()`.
       ##
-      ## Storage is `ref object` rather than the design's `object`
-      ## (§5.4.1) because chronos's `{.async.}` macro lifts pop into a
+      ## Storage is `ref object` rather than a plain `object`
+      ## because chronos's `{.async.}` macro lifts pop into a
       ## closure-bearing iterator, and Nim refuses to capture a `var`
       ## receiver across the await suspension point. Boxing the wrapper
       ## resolves the capture without introducing extra atomic state.
@@ -128,7 +128,7 @@ when defined(lockfreeChronos):
       ST: static DeallocationStrategy,
       S, MaxThreads: static int,
     ] = ref object
-      ## Unbounded async-adapter queue (design §5.4.1). Same shape as
+      ## Unbounded async-adapter queue. Same shape as
       ## `AsyncBQueue` but over the unbounded `Queue`. Note that
       ## chronos's own `chronos/asyncsync.AsyncQueue[T]` (a ref object
       ## with a single generic parameter) lives in a different scope;
@@ -142,7 +142,7 @@ when defined(lockfreeChronos):
       AsyncQueue[T, ccSingle, ccSingle, stEager, S, MaxThreads]
       ## Convenience alias for the SPSC-absorbed unbounded async queue
       ## (debra-free; no pinscope; trivially safe across async-await
-      ## boundaries per design §5.4.3 — pin scope is closed inside the
+      ## boundaries — pin scope is closed inside the
       ## inner pop before any `await`).
 
   ## ------------------------------------------------------------------
@@ -187,10 +187,10 @@ when defined(lockfreeChronos):
   ## direct push/pop body. Multi-side cardinalities (MPSC / SPMC / MPMC)
   ## require the typestate-guarded `Bound[...]` endpoint dance on the
   ## sync queue and are exposed through user-side endpoint factories
-  ## (design §5.4.5) rather than a direct push/pop on the wrapper. The
-  ## `AsyncQueue` types are still parameterized for all cardinalities so
-  ## that follow-up work (T-TEST-CHRONOS expansion) can layer an
-  ## `asyncPop` on `Bound` without reshaping the wrapper.
+  ## through user-side endpoint factories rather than a direct push/pop
+  ## on the wrapper. The `AsyncQueue` types are still parameterized for
+  ## all cardinalities so that follow-up work can layer an `asyncPop` on
+  ## `Bound` without reshaping the wrapper.
   ## ------------------------------------------------------------------
 
   proc push*[T; N: static int](
@@ -198,7 +198,7 @@ when defined(lockfreeChronos):
   ): bool =
     ## SPSC async-adapter push. Forwards to the sync `BQueue.push` and
     ## fires the `AsyncEvent` on success so an awaiting `pop` wakes
-    ## (design §5.4.2). Returns the underlying push outcome so the user
+    ## fires the event. Returns the underlying push outcome so the user
     ## can implement back-pressure (a `false` return means the bounded
     ## queue is full; the event is NOT fired in that case).
     result = self.queue.push(item)
@@ -218,11 +218,11 @@ when defined(lockfreeChronos):
     ## between the `clear` and the `await` still leaves the flag set,
     ## and the subsequent `await event.wait()` returns immediately
     ## (chronos `AsyncEvent.wait` short-circuits when the flag is
-    ## already true — chronos 4.x `asyncsync.nim:174`). This eliminates
+    ## already true — chronos 4.x `AsyncEvent.wait`). This eliminates
     ## the lost-wakeup race without introducing extra atomic state on
     ## the queue side.
     ##
-    ## Cancellation discipline (R10 / design §5.4.3): the sync `pop`
+    ## Cancellation discipline: the sync `pop`
     ## body for the SPSC arm is debra-free and holds no pin across the
     ## `await`. The `try/finally` here is the structural guard that
     ## also covers future expansion to cardinalities where an inner pop
@@ -252,11 +252,11 @@ when defined(lockfreeChronos):
   ## SPSC unbounded pop.
   ##
   ## The spsc-absorbed unbounded `Queue` exposes a direct `pop` on the
-  ## bare `var Queue` receiver (queue.nim:883). We wrap that. The
-  ## producer side of the unbounded queue is currently endpoint-only
-  ## (push lives on `Bound[T, Tag, Queue[...]]`, queue.nim:1184), so
-  ## the corresponding `asyncPush` lives on `Bound` rather than on the
-  ## wrapper. That endpoint-side integration is design §5.4.5. For users
+  ## bare `var Queue` receiver. We wrap that. The producer side of the
+  ## unbounded queue is currently endpoint-only (push lives on
+  ## `Bound[T, Tag, Queue[...]]`), so the corresponding `asyncPush` lives
+  ## on `Bound` rather than on the wrapper. That endpoint-side
+  ## integration is user-side. For users
   ## who want SPSC-unbounded async with a pre-bound producer, the pattern
   ## is:
   ##
@@ -295,15 +295,14 @@ when defined(lockfreeChronos):
   ## Helper accessors. The underlying sync queue is publicly accessible
   ## via the `queue*` field; these templates exist as ergonomic sugar
   ## for users who want to forward to the sync endpoint factories
-  ## without typing `q.queue.getProducer()` in the call site (design
-  ## §5.4.5).
+  ## without typing `q.queue.getProducer()` in the call site.
   ## ------------------------------------------------------------------
 
   template asyncEvent*[T; ccProd, ccCons: static PinScopeCardinality; N, P, C: static int](
       self: AsyncBQueue[T, ccProd, ccCons, N, P, C]
   ): var AsyncEvent =
     ## Returns a mutable view of the wrapper's `AsyncEvent`. Exposed so
-    ## downstream `asyncPop`-on-`Bound` implementations (design §5.4.5)
+    ## downstream `asyncPop`-on-`Bound` implementations
     ## can share the same event flag without reaching through `q.event`
     ## directly.
     self.event

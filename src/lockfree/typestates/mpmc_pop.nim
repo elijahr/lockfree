@@ -16,9 +16,7 @@
 ##
 ## Backoff: this verb returns the `Start` arm to signal "retry". The facade
 ## holds `var spins = InitialSpin` and calls `backoffOnRetry(spins)` between
-## iterations on the Start arm. See design doc §6.
-##
-## See design doc §2 (algorithm), §3 (bug walkthrough), §10.5 (recipe).
+## iterations on the Start arm.
 
 import lockfree/atomics
 import typestates
@@ -50,7 +48,7 @@ typestate MPMCPopOp[N: static int]:
 # Forward declaration for Mpmc (avoid circular import).
 # Field order MUST stay in lockstep with MpmcPushBase in mpmc_push.nim
 # - the facade uses a single Mpmc object castable to either base via the
-# offsetof asserts in design doc §10.10.
+# offsetof asserts.
 type MpmcBase*[N, P, C: static int, T] = object
   head* {.align: CacheLineBytes.}: Atomic[uint64]
   tail* {.align: CacheLineBytes.}: Atomic[uint64]

@@ -1,6 +1,6 @@
 ## tests/composition/t_verify_pop_clears_spmc_unbounded.nim
 ##
-## C-MAJOR-11 technique 1: per-arm property test asserting the pop-side
+## Per-arm property test asserting the pop-side
 ## slot-clear invariant for the **SPMC unbounded** arm
 ## (`Queue[T, ccSingle, ccMulti, ST, S, MaxThreads]`).
 ##

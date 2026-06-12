@@ -18,7 +18,7 @@
 ## `{.error.}` overloads. The error messages reference the user-visible
 ## alias type names — no `*Multi`/`*Single` leakage.
 ##
-## **Queueable[T] concept hookup (T-TYPESTATE-DUAL-API).** Bare
+## **Queueable[T] concept hookup.** Bare
 ## `Queue[T, ...]` does NOT satisfy the `Queueable[T]` concept defined
 ## in `./typestates/with_bound` — unbounded push/pop always routes
 ## through a `Bound[T, Tag, Queue[T, ...]]` endpoint (no direct push/pop
@@ -107,14 +107,14 @@ static:
     "LockFreeQueuesMaxWaitForPublishSpins must be a positive integer"
 
 # ----------------------------------------------------------------------
-# Strict-LCRQ cell alias + close sentinel (Phase B / §2.1, §4).
+# Strict-LCRQ cell alias + close sentinel.
 #
 # `LCRQCell[T]` is a *transparent* alias for `Atomic[Pair[uint, T]]`:
 # a single 128-bit DWCAS-able cell whose first half is the seq counter
 # (`Pair.first`, encoding empty=0 / filled=1 / closed=high-bit) and
 # whose second half is the payload of type `T`. This replaces the
 # v4.x `committed: Atomic[bool]` + `data[i]: T` overlay on the
-# unbounded MPMC arm, unlocking the §4 close-on-empty progress
+# unbounded MPMC arm, unlocking the strict-LCRQ close-on-empty progress
 # guarantee via DWCAS arbitration.
 #
 # `CLOSED_BIT` is the close sentinel: a cell with `seq == CLOSED_BIT`
@@ -122,10 +122,8 @@ static:
 # consumer can claim it. The high bit is reserved for this purpose;
 # the remaining 63 bits encode the empty/filled epoch counter.
 #
-# These are type-level / constant introductions only — no production
-# call site references them yet. T2 lands the three cell primitives
-# (`tryPublish` / `tryClaim` / `tryCloseOnEmpty`) that consume them;
-# later tasks migrate `Segment` and `newSegment` to use a
+# The three cell primitives (`tryPublish` / `tryClaim` /
+# `tryCloseOnEmpty`) consume them; `Segment` / `newSegment` carry a
 # `cells: array[S, LCRQCell[T]]` field on the MPMC arm.
 #
 # The width invariant (`sizeof(LCRQCell[T]) == 16` for any `T` with
@@ -133,9 +131,9 @@ static:
 # `tests/t_lcrq_cell_alias.nim`.
 # ----------------------------------------------------------------------
 const CLOSED_BIT* = 1'u shl (sizeof(uint) * 8 - 1)
-  ## Strict-LCRQ §4 close sentinel. A cell with `seq == CLOSED_BIT`
+  ## Strict-LCRQ close sentinel. A cell with `seq == CLOSED_BIT`
   ## is permanently closed: no producer can publish into it, no
-  ## consumer can claim it. See design §2.2.
+  ## consumer can claim it.
   ##
   ## The sentinel occupies the high bit of the platform-native `uint`
   ## so that `LCRQCell[T]` stays at native double-word width on every
@@ -149,20 +147,18 @@ type LCRQCell*[T] = Atomic[Pair[uint, T]]
   ## from the spelled-out type requires no conversion. Using
   ## platform-native `uint` (rather than hardcoded `uint64`) keeps
   ## the cell at the platform's native DWCAS width, preserving the
-  ## lock-free guarantee on every debra-supported target. See design
-  ## §2.1 (cell shape) and §4 (close-on-empty progress argument).
+  ## lock-free guarantee on every debra-supported target.
 
 # ----------------------------------------------------------------------
-# Strict-LCRQ cell primitives (Phase B / §2.3, §2.3.1, §8).
+# Strict-LCRQ cell primitives.
 #
 # Three pure DWCAS primitives on `LCRQCell[T]`. Each is a single
 # `compareExchangeStrong` wrapped in `dwcasOrderRelaxedCAS` to silence
 # the nebr `validCasFailureOrder` warning that fires for the
 # `success=moRelease, failure=moRelaxed` pair on DWCAS sites where the
-# seq_cst-upgrade would be a perf footgun (design §8 closing
-# paragraphs).
+# seq_cst-upgrade would be a perf footgun.
 #
-# Memory ordering per design §8 / §8.1 (C11-strict, no upgrades):
+# Memory ordering (C11-strict, no upgrades):
 #   tryPublish:        success = moRelease,        failure = moRelaxed
 #   tryClaim:          success = moAcquireRelease, failure = moRelaxed
 #   tryCloseOnEmpty:   success = moRelease,        failure = moRelaxed
@@ -171,23 +167,21 @@ type LCRQCell*[T] = Atomic[Pair[uint, T]]
 # producer's `moRelease` publish — the CAS-failure ordering only
 # governs the failure-path re-read, which we discard.
 #
-# CRITICAL contract correction over the Phase A.5 spike (design §2.3.1
-# / CRITICAL-1): `tryClaim` NEVER inspects `observed.second`. The CAS
-# on the seq encoding is the SOLE authority on cell state. The spike's
-# `if observed.second == default(T): return none(T)` short-circuit
-# silently dropped legitimate `q.push(0)` / `q.push(nil)` publishes;
+# CRITICAL-1 contract: `tryClaim` NEVER inspects `observed.second`. The
+# CAS on the seq encoding is the SOLE authority on cell state. A
+# short-circuit like `if observed.second == default(T): return none(T)`
+# would silently drop legitimate `q.push(0)` / `q.push(nil)` publishes;
 # the production primitive does not.
 #
-# `expectedSeq` is invariantly `0` at v5.0.0 call sites (linked-segment
-# specialization, R degenerate per design §2.5 / §2.5.3); the parameter
-# is retained on the primitive signatures with a documented roadmap
-# trigger for a future ring-segment variant.
+# `expectedSeq` is invariantly `0` at current call sites (linked-segment
+# specialization, R degenerate); the parameter is retained on the
+# primitive signatures for a future ring-segment variant.
 # ----------------------------------------------------------------------
 
 proc tryPublish*[T](
     cell: var LCRQCell[T], expectedSeq: uint, value: T
 ): bool {.inline.} =
-  ## §2.3 / §4. Producer publish via DWCAS into an empty cell.
+  ## Producer publish via DWCAS into an empty cell.
   ## Returns true on success (cell now `(expectedSeq+1, value)`).
   ## Returns false if the cell is already filled, closed, or at a
   ## different epoch.
@@ -198,7 +192,7 @@ proc tryPublish*[T](
   ## at runtime for nullable types; forbidding nil here surfaces the
   ## contract violation at the producer rather than as a delayed
   ## AssertionDefect inside an unrelated consumer's `tryClaim` call.
-  ## See design §2.5.2 / §11. `doAssert` (not `assert`) so the guard
+  ## `doAssert` (not `assert`) so the guard
   ## survives `-d:danger` builds. `when compiles(value.isNil)` covers
   ## every nullable type Nim exposes (broader than `T is ptr or ref`).
   when compiles(value.isNil):
@@ -209,12 +203,12 @@ proc tryPublish*[T](
   var prev = expected
   # On CAS failure, debra writes the observed pair into `prev`; we don't
   # re-read it — escalation re-loads via fresh cell.load at the call site
-  # (queue.nim push/pop). Required for the degenerate-R encoding (design §2.5.2).
+  # (queue.nim push/pop). Required for the degenerate-R encoding.
   dwcasOrderRelaxedCAS:
     result = compareExchangeStrong(cell, prev, desired, moRelease, moRelaxed)
 
 proc tryClaim*[T](cell: var LCRQCell[T], expectedSeq: uint): Option[T] {.inline.} =
-  ## §2.3 / §2.3.1 (CRITICAL-1). Consumer claim via DWCAS.
+  ## CRITICAL-1. Consumer claim via DWCAS.
   ##
   ## CONTRACT: NEVER inspect `observed.second`. The CAS on the seq
   ## encoding is the sole authority on cell state. A filled cell with
@@ -231,7 +225,7 @@ proc tryClaim*[T](cell: var LCRQCell[T], expectedSeq: uint): Option[T] {.inline.
   return none(T)
 
 proc tryCloseOnEmpty*[T](cell: var LCRQCell[T], expectedSeq: uint): bool {.inline.} =
-  ## §2.3 / §4. Consumer close-on-empty via DWCAS. Atomically sets
+  ## Consumer close-on-empty via DWCAS. Atomically sets
   ## `CLOSED_BIT` on an empty cell so no producer can later publish
   ## into it. Returns false if the cell is already filled or closed.
   let expected = Pair[uint, T](first: expectedSeq, second: default(T))
@@ -239,7 +233,7 @@ proc tryCloseOnEmpty*[T](cell: var LCRQCell[T], expectedSeq: uint): bool {.inlin
   var prev = expected
   # On CAS failure, debra writes the observed pair into `prev`; we don't
   # re-read it — escalation re-loads via fresh cell.load at the call site
-  # (queue.nim push/pop). Required for the degenerate-R encoding (design §2.5.2).
+  # (queue.nim push/pop). Required for the degenerate-R encoding.
   dwcasOrderRelaxedCAS:
     result = compareExchangeStrong(cell, prev, desired, moRelease, moRelaxed)
 
@@ -317,9 +311,8 @@ type
     ##
     ## Field set:
     ##   - `data: array[S, T]` — slot storage (non-MPMC variants).
-    ##   - `cells: array[S, LCRQCell[T]]` — strict-LCRQ cells (MPMC only,
-    ##     Phase B migration target). Replaces `committed + data` on the
-    ##     `ccMulti × ccMulti` arm.
+    ##   - `cells: array[S, LCRQCell[T]]` — strict-LCRQ cells (MPMC only).
+    ##     Replaces `committed + data` on the `ccMulti × ccMulti` arm.
     ##   - `next: Atomic[ptr Segment[...]]` — linked-list pointer.
     ##   - `tail: Atomic[int]` — producer write index. Atomic for
     ##     multi-producer coordination and for spsc-equiv (publish
@@ -334,17 +327,16 @@ type
     ##   - `prevConsumerIdx: Atomic[int]` — multi-consumer CAS slot.
     ##     Present on `ccCons == ccMulti`.
     when ccProd == ccMulti and ccCons == ccMulti:
-      # MPMC: strict-LCRQ cells (Phase B). Replaces committed+data.
+      # MPMC: strict-LCRQ cells. Replaces committed+data.
       cells* {.align: CacheLineBytes.}: array[S, LCRQCell[SlotEncoding(T)]]
     elif ccProd == ccMulti:
-      # MPSC (ccMulti × ccSingle): legacy committed+data overlay
-      # preserved verbatim (NOT migrating in Phase B; symmetric with
-      # BQueue staying unchanged). Wave C: cells hold the Path-C
-      # SlotEncoding(T) wire form; the user-facing T is encoded at
-      # push and decoded at pop via internal/path_c_wrap.
+      # MPSC (ccMulti × ccSingle): committed+data overlay (symmetric
+      # with BQueue). Cells hold the Path-C SlotEncoding(T) wire form;
+      # the user-facing T is encoded at push and decoded at pop via
+      # internal/path_c_wrap.
       data*: array[S, SlotEncoding(T)]
     else:
-      # SPSC + SPMC: data only. Wave C: SlotEncoding(T) wire form.
+      # SPSC + SPMC: data only, SlotEncoding(T) wire form.
       data*: array[S, SlotEncoding(T)]
     next* {.align: CacheLineBytes.}: Atomic[ptr Segment[T, ccProd, ccCons, S]]
     tail* {.align: CacheLineBytes.}: Atomic[int]
@@ -453,7 +445,7 @@ proc newSegment[T; ccProd, ccCons: static PinScopeCardinality, S: static int]():
     # mpsc-equiv + absorbed spsc-equiv carry a `head: int` field.
     result.head = 0
   when ccProd == ccMulti and ccCons == ccMulti:
-    # MPMC strict-LCRQ: each cell starts in the §2.5.1 empty state
+    # MPMC strict-LCRQ: each cell starts in the empty state
     # `(seq=0, default(T))`. While `allocAligned` already returns
     # zero-initialized memory (so this loop is observationally a
     # no-op for the cell-shape we ship), the explicit relaxed store
@@ -463,11 +455,11 @@ proc newSegment[T; ccProd, ccCons: static PinScopeCardinality, S: static int]():
     # Synchronization: relaxed is sufficient — the segment is not
     # visible to other threads until the producer/consumer link it
     # into the queue chain via a release-store.
-    # T-DRAIN-HELPERS / Wave C: cells hold LCRQCell[SlotEncoding(T)],
-    # so the empty-state Pair second must be `SlotEncoding(T)`, not
-    # the raw user-facing T. Legacy body used `T` directly which
-    # compiles only when T is POD identity. For ref / string / seq T
-    # the encoded form is ManagedRef / ManagedSlice (distinct uint).
+    # Cells hold LCRQCell[SlotEncoding(T)], so the empty-state Pair
+    # second must be `SlotEncoding(T)`, not the raw user-facing T:
+    # using `T` directly compiles only when T is POD identity. For
+    # ref / string / seq T the encoded form is ManagedRef /
+    # ManagedSlice (distinct uint).
     let zero = Pair[uint, SlotEncoding(T)](
       first: 0'u, second: default(SlotEncoding(T))
     )
@@ -505,7 +497,7 @@ proc newSegment[T; ccProd, ccCons: static PinScopeCardinality, S: static int]():
 ## Race interactions:
 ##  - Producer P reserved tail at index k, has NOT yet `tryPublish`'d:
 ##    foreclose's `tryCloseOnEmpty(k, 0)` succeeds. P's eventual
-##    `tryPublish` fails → P escalates to `seg.next` per T9. No orphan.
+##    `tryPublish` fails → P escalates to `seg.next`. No orphan.
 ##  - Producer P has `tryPublish`'d (cell at k is `seq=1`):
 ##    foreclose returns `false`. Caller aborts retire. Outer loop's
 ##    fast-path will reach k via prevConsumerIdx-CAS and claim. No orphan.
@@ -639,8 +631,8 @@ proc segmentDestructor[T; ccProd, ccCons: static PinScopeCardinality, S: static 
       # Strict-LCRQ cells: `LCRQCell[SlotEncoding(T)]`. For ref / string /
       # seq T the encoded payload is a ManagedRef / ManagedSlice that
       # owns either a refcount or a heap box and MUST be disposed at
-      # destroy-walk time (Wave C — lifecycle model: destroy-walk is
-      # the ONLY library-managed cleanup path; pop is a pure transfer).
+      # destroy-walk time (the destroy-walk is the ONLY library-managed
+      # cleanup path; pop is a pure transfer).
       # For POD T the outer `when not supportsCopyMem(T)` arm does not
       # fire, so this branch is reachable only for ref / string / seq.
       when T is ref or T is string or T is seq:
@@ -946,8 +938,8 @@ proc pop*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
   ## `freeAligned(oldSeg)`. No pin (no retire-race; only one consumer
   ## ever runs, only one producer ever writes). Lifted verbatim from
   ## `unbounded_spsc.nim:122-166`.
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
-  # See internal/path_c_admit.nim for the verbatim §2.5 REJECT messages
+  # Path-C admission gate (25-row composition matrix + reject chain).
+  # See internal/path_c_admit.nim for the verbatim REJECT messages
   # and the accept-arm dispatch (ref T / string / seq[U] / POD).
   pathCAdmit(T)
 
@@ -959,7 +951,7 @@ proc pop*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
       let value = move(seg.data[head])
       seg.head = head + 1
       discard self.itemCount.fetchSub(1, moRelaxed)
-      # T-DRAIN-HELPERS / Wave C: seg.data holds SlotEncoding(T).
+      # seg.data holds SlotEncoding(T).
       # Decode at the boundary so the returned Option[T] matches the
       # user-facing type. Legacy body returned `some(value)` directly,
       # which compiled only for POD T (where SlotEncoding(T) == T).
@@ -1103,8 +1095,8 @@ proc `=destroy`*[
       when ccProd == ccMulti and ccCons == ccMulti:
         # Strict-LCRQ cells: `LCRQCell[SlotEncoding(T)]`. For ref /
         # string / seq T the encoded payload owns either a refcount or
-        # a heap box and MUST be disposed at queue teardown — Wave C
-        # lifecycle: destroy-walk is the ONLY library-managed cleanup
+        # a heap box and MUST be disposed at queue teardown: the
+        # destroy-walk is the ONLY library-managed cleanup
         # path (pop is a pure transfer; abandoned items are caught
         # here).
         when T is ref or T is string or T is seq:
@@ -1250,18 +1242,17 @@ proc push*[
     self: Bound[T, Tag, Queue[T, ccProd, ccCons, ST, S, MaxThreads]], item: sink T
 ) {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
   ## Push a single item onto the unbounded queue (cardinality-dispatched).
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
+  # Path-C admission gate (25-row composition matrix + reject chain).
   # Rejects: distinct ref alias (row 7), nested ref (row 8), value types
   # with managed fields, unsupported T. Accepts: ref T, string, seq[U]
   # (with R7 element guard), POD. See internal/path_c_admit.nim.
   pathCAdmit(T)
   when ccProd == ccMulti and ccCons == ccMulti:
-    # Strict-LCRQ T-constraint enforcement (design §11.2 + Wave C
-    # Path-C relaxation). v5.0.0 unbounded MPMC publishes via 128-bit
-    # DWCAS into `Atomic[Pair[uint, SlotEncoding(T)]]`; the wire-form
-    # payload must fit alongside the 64-bit seq counter.
+    # Strict-LCRQ T-constraint enforcement. Unbounded MPMC publishes
+    # via 128-bit DWCAS into `Atomic[Pair[uint, SlotEncoding(T)]]`; the
+    # wire-form payload must fit alongside the 64-bit seq counter.
     #
-    # Wave C: ref T / string / seq[U] are lowered to ManagedRef /
+    # ref T / string / seq[U] are lowered to ManagedRef /
     # ManagedSlice (sizeof(uint), POD via `distinct uint`) by
     # SlotEncoding, so the size+copyability constraint is satisfied
     # transparently. The static guard below applies only to the POD
@@ -1298,7 +1289,7 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
       seg = newSeg
       discard self.queue.segments.fetchAdd(1, moRelaxed)
     let pos = seg.tail.load(moRelaxed)
-    # Wave C: data[] holds SlotEncoding(T); encode at the boundary.
+    # data[] holds SlotEncoding(T); encode at the boundary.
     seg.data[pos] = wrapOrIdentity[T](item)
     seg.tail.store(pos + 1, moRelease)
     discard self.queue.itemCount.fetchAdd(1, moRelaxed)
@@ -1313,7 +1304,7 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
       seg = newSeg
       tail = 0
       discard self.queue.segments.fetchAdd(1, moRelaxed)
-    # Wave C: data[] holds SlotEncoding(T); encode at the boundary.
+    # data[] holds SlotEncoding(T); encode at the boundary.
     seg.data[tail] = wrapOrIdentity[T](item)
     seg.tail.store(tail + 1, moRelease)
     discard self.queue.itemCount.fetchAdd(1, moRelaxed)
@@ -1323,7 +1314,7 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
     let mgr = cast[ptr MgrT](self.handleManager)
     type Handle = ThreadHandle[MgrT.MaxThreads, MgrT.CC]
     let h = Handle(idx: self.handleIdx, manager: mgr)
-    # Wave C: encode `item` ONCE here so the retry loop below reuses
+    # Encode `item` ONCE here so the retry loop below reuses
     # the same SlotEncoding(T) value across iterations. Moving `item`
     # inside the loop would leave it wasMoved on subsequent retries.
     # On success, `encoded`'s bits are transferred into the cell; on
@@ -1363,17 +1354,16 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
         if seg.tail.compareExchange(expected, tail + 1, moAcquire, moRelaxed):
           when ccCons == ccMulti:
             # Strict-LCRQ MPMC publish via DWCAS into `cells[tail]`.
-            # `expectedSeq = 0` is the invariant at v5.0.0 call sites
-            # (linked-segment specialization, R degenerate per design
-            # §2.5 / §2.5.3).
-            # Wave C: cells hold `LCRQCell[SlotEncoding(T)]`; encode
+            # `expectedSeq = 0` is the invariant at current call sites
+            # (linked-segment specialization, R degenerate).
+            # cells hold `LCRQCell[SlotEncoding(T)]`; encode
             # done above the loop. ``encoded`` is reused across retries
             # because tryPublish takes ``value: T`` by-copy (NOT sink),
             # so failure paths preserve the local for the next attempt.
             if not tryPublish[SlotEncoding(T)](
               seg.cells[tail], 0'u, encoded
             ):
-              # T9 / design §4.2 + §6.4: close-CAS-on-empty arbitration.
+              # Close-CAS-on-empty arbitration.
               # tryPublish failed: the cell either holds `CLOSED_BIT`
               # (a peer consumer's slow-path `tryCloseOnEmpty` won the
               # DWCAS in the gap between our tail-CAS reservation and
@@ -1382,15 +1372,14 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
               # discriminate.
               let observed = load(seg.cells[tail], moAcquire)
               if seqIsClosed(observed.first):
-                # Cell closed by consumer. Per design §4.2 + §6.4,
-                # the close is a §4 contract (permanent), not a
-                # transient failure: the producer MUST escalate to
-                # `seg.next`, allocating + linking if not yet
-                # present. Re-uses the existing alloc-and-link
+                # Cell closed by consumer. The close is a permanent
+                # contract, not a transient failure: the producer MUST
+                # escalate to `seg.next`, allocating + linking if not
+                # yet present. Re-uses the existing alloc-and-link
                 # pattern from the `tail >= S` branch above. Tail
                 # reservation stands as a skip-marker for any
                 # consumer that visits this slot — they observe
-                # CLOSED_BIT and inline-skip past it (T8).
+                # CLOSED_BIT and inline-skip past it.
                 let nextSeg = seg.next.load(moAcquire)
                 if nextSeg == nil:
                   let newSeg = newSegment[T, ccProd, ccCons, S]()
@@ -1430,7 +1419,7 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
               # loop.
               continue
           else:
-            # MPSC: legacy committed+data publish. Wave C: data holds
+            # MPSC: committed+data publish. data holds
             # SlotEncoding(T); store the encoded form. The MPSC retry
             # loop only re-enters this branch on a tail-CAS miss
             # ABOVE the publish — if we reach here, this is the
@@ -1470,7 +1459,7 @@ proc pop*[
   ## no pin required. Body lifted from the pre-v5.0.0 direct-on-Queue
   ## pop overloads (`queue.nim:1021` and `:1061`) with cardinality
   ## dispatch consolidated via the existing `when` arms.
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
+  # Path-C admission gate (25-row composition matrix + reject chain).
   # Rejects: distinct ref alias (row 7), nested ref (row 8), value types
   # with managed fields, unsupported T. Accepts: ref T, string, seq[U]
   # (with R7 element guard), POD. See internal/path_c_admit.nim.
@@ -1490,7 +1479,7 @@ proc pop*[
       self.queue.headSegment.store(nextSeg, moRelease)
       discard self.queue.segments.fetchSub(1, moRelaxed)
       return self.pop()
-    # Wave C: data[] holds SlotEncoding(T); move out and decode.
+    # data[] holds SlotEncoding(T); move out and decode.
     let encoded = move(seg.data[head])
     seg.head = head + 1
     discard self.queue.itemCount.fetchSub(1, moRelaxed)
@@ -1511,7 +1500,7 @@ proc pop*[
         let tail = seg.tail.load(moAcquire)
         if seg.head < tail:
           if seg.committed[seg.head].load(moAcquire):
-            # Wave C: data[] holds SlotEncoding(T); decode on the way out.
+            # data[] holds SlotEncoding(T); decode on the way out.
             result = some(unwrapOrIdentity[T](move(seg.data[seg.head])))
             inc seg.head
             discard self.queue.itemCount.fetchSub(1, moRelaxed)
@@ -1567,7 +1556,7 @@ proc pop*[
 ): Option[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
   ## SPMC pop — retire-bearing site. Pin claim via reconstructed
   ## ThreadHandle from opaque Bound storage.
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
+  # Path-C admission gate (25-row composition matrix + reject chain).
   # Rejects: distinct ref alias (row 7), nested ref (row 8), value types
   # with managed fields, unsupported T. Accepts: ref T, string, seq[U]
   # (with R7 element guard), POD. See internal/path_c_admit.nim.
@@ -1608,7 +1597,7 @@ proc pop*[
         continue
 
       if seg.prevConsumerIdx.compareExchange(prevIdx, mySlot, moAcquire, moRelaxed):
-        # Wave C: data[] holds SlotEncoding(T); decode on the way out.
+        # data[] holds SlotEncoding(T); decode on the way out.
         result = some(unwrapOrIdentity[T](move(seg.data[mySlot])))
         discard self.queue.itemCount.fetchSub(1, moRelaxed)
         break
@@ -1627,7 +1616,7 @@ proc pop*[
     self: Bound[T, Tag, Queue[T, ccMulti, ccMulti, ST, S, MaxThreads]]
 ): Option[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
   ## MPMC pop — retire-bearing site.
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
+  # Path-C admission gate (25-row composition matrix + reject chain).
   # Rejects: distinct ref alias (row 7), nested ref (row 8), value types
   # with managed fields, unsupported T. Accepts: ref T, string, seq[U]
   # (with R7 element guard), POD. See internal/path_c_admit.nim.
@@ -1644,11 +1633,10 @@ proc pop*[
     var scope = pinScope(unpinned(h))
     var seg = self.queue.headSegment.load(moAcquire)
     var spins = InitialSpin
-    # T8 / design §5.2.1 / §7.2 (HIGH-2 remediation): per-pop-call close
-    # counter that accumulates closes across outer-loop iterations
-    # within a SINGLE pop() call. Reset to 0 on every segment-advance
-    # (every `seg = nextSeg` site below). When it reaches S
-    # (StarvingThreshold, design §7.1), the consumer falls through to
+    # Per-pop-call close counter that accumulates closes across
+    # outer-loop iterations within a SINGLE pop() call. Reset to 0 on
+    # every segment-advance (every `seg = nextSeg` site below). When it
+    # reaches S (the StarvingThreshold), the consumer falls through to
     # the nextSeg advance path even if cells remain unclosed — this
     # prevents low-throughput consumers from livelocking on a
     # partially-closed segment.
@@ -1658,11 +1646,10 @@ proc pop*[
       var prevIdx = seg.prevConsumerIdx.load(moAcquire)
       var mySlot = prevIdx + 1
       if mySlot >= tail:
-        # Strict-LCRQ §5.2 slow-path: tail may have raced past mySlot
+        # Strict-LCRQ slow-path: tail may have raced past mySlot
         # between the two loads. Drive tryCloseOnEmpty on the empty
         # cell so a stalled producer cannot strand this consumer, and
-        # inline-skip closed cells within the same pop() call (HIGH-2
-        # remediation, design §5.2.1).
+        # inline-skip closed cells within the same pop() call.
         if mySlot < S and seg.tail.load(moAcquire) > mySlot:
           # Nested inline-skip scan. `mySlot` advances monotonically
           # past closed cells until we either (a) hit a publishable
@@ -1688,8 +1675,8 @@ proc pop*[
           var publishableSeen = false
           var localScanCloses = 0
           while mySlot < S and seg.tail.load(moAcquire) > mySlot:
-            # Wave C: cells hold LCRQCell[SlotEncoding(T)]; the close-on-
-            # empty CAS operates on the cell's wire form.
+            # cells hold LCRQCell[SlotEncoding(T)]; the close-on-empty
+            # CAS operates on the cell's wire form.
             if tryCloseOnEmpty[SlotEncoding(T)](seg.cells[mySlot], 0'u):
               # We won the close-on-empty CAS. Inline-skip past it.
               inc localScanCloses
@@ -1766,7 +1753,7 @@ proc pop*[
           closesSeenThisSegment = 0
         backoffOnRetry(spins)
         continue
-      # Strict-LCRQ MPMC fast-path consumer claim (design §5.3).
+      # Strict-LCRQ MPMC fast-path consumer claim.
       # Two-tier coordination:
       #   1. `prevConsumerIdx.compareExchange` reserves ownership of
       #      `mySlot` against peer consumers.
@@ -1778,7 +1765,7 @@ proc pop*[
       # but does not coordinate ownership; the prevConsumerIdx CAS
       # coordinates ownership but does not extract the value.
       if seg.prevConsumerIdx.compareExchange(prevIdx, mySlot, moAcquire, moRelaxed):
-        # Wave C: cells hold LCRQCell[SlotEncoding(T)]; DWCAS extracts
+        # cells hold LCRQCell[SlotEncoding(T)]; DWCAS extracts
         # the encoded form, which is decoded back to user-facing T.
         let claimed = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
         if claimed.isSome:
@@ -1789,17 +1776,16 @@ proc pop*[
         #   (a) CLOSED_BIT set — a peer consumer drove close-on-empty
         #       on our reserved slot between the prevConsumerIdx-CAS
         #       and the tryClaim. The cell is PERMANENTLY closed.
-        #       Cycle-4 / CRIT-2: a prior implementation retired the
-        #       whole segment here, which orphaned filled cells at
-        #       indices > mySlot inside the retired segment. The fix
-        #       is to fall through to the §5.2 slow-path semantics:
-        #       count this as a skipped-closed cell, advance past it,
-        #       and retire only when `closesSeenThisSegment >= S`
-        #       (T8 starvation threshold, design §7.1) or when we run
-        #       past the segment tail with nothing publishable.
+        #       CRIT-2: retiring the whole segment here would orphan
+        #       filled cells at indices > mySlot inside the retired
+        #       segment. Instead fall through to the slow-path
+        #       semantics: count this as a skipped-closed cell, advance
+        #       past it, and retire only when `closesSeenThisSegment >= S`
+        #       (the starvation threshold) or when we run past the
+        #       segment tail with nothing publishable.
         #
-        #       Invariant change (cycle-4): `prevConsumerIdx` now
-        #       advances monotonically on BOTH successful claims AND
+        #       Invariant: `prevConsumerIdx` advances monotonically on
+        #       BOTH successful claims AND
         #       skipped-closed cells. Reading code that reasons about
         #       `prevConsumerIdx == claim_count` must instead read
         #       `prevConsumerIdx == claim_count + close_count` within
@@ -1809,7 +1795,7 @@ proc pop*[
         #       loop iteration.
         let recheck = load(seg.cells[mySlot], moAcquire)
         if seqIsClosed(recheck.first):
-          # Cycle-4 CRIT-2 fix: fall through to slow-path-style skip.
+          # CRIT-2: fall through to slow-path-style skip.
           # `prevConsumerIdx` is already advanced to `mySlot` by the
           # successful CAS above; the next outer iteration will see
           # mySlot' = mySlot+1 and route to whichever path applies
@@ -1854,7 +1840,7 @@ proc pop*[
         # == our reserved mySlot), advancing the consumer PAST the
         # reservation and orphaning the value the producer eventually
         # publishes — a latent data-loss bug fixed by this inner spin.
-        # Cycle-4 CRIT-1 fix: bounded spin + close-on-empty
+        # CRIT-1: bounded spin + close-on-empty
         # escalation. A producer that won the tail-CAS but stalls
         # before tryPublish would otherwise leave us spinning
         # forever on `inner.first == 0`. After
@@ -1863,7 +1849,7 @@ proc pop*[
         # `tryCloseOnEmpty` on its reserved cell:
         #   * close-success → treat the cell as closed (see below);
         #     the stalled producer's eventual `tryPublish` will
-        #     fail and it will escalate to nextSeg per T9.
+        #     fail and it will escalate to nextSeg.
         #   * close-fail (producer raced and published during our
         #     budget) → retry tryClaim and exit.
         var fellThroughOnClose = false
@@ -1874,14 +1860,14 @@ proc pop*[
             let inner = load(seg.cells[mySlot], moAcquire)
             if seqIsClosed(inner.first):
               # Cell was closed while we waited (close-on-empty raced
-              # the producer). Cycle-4 CRIT-2: do NOT retire the
+              # the producer). CRIT-2: do NOT retire the
               # segment here — fall through to slow-path-style skip
               # so filled cells at indices > mySlot are not orphaned.
               fellThroughOnClose = true
               break waitForPublish
             if inner.first != 0'u:
               # Producer published. Claim the value.
-              # Wave C: cells hold LCRQCell[SlotEncoding(T)]; decode.
+              # cells hold LCRQCell[SlotEncoding(T)]; decode.
               let claimed = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
               if claimed.isSome:
                 result = some(unwrapOrIdentity[T](claimed.get))
@@ -1899,10 +1885,10 @@ proc pop*[
             if waitSpins >= LockFreeQueuesMaxWaitForPublishSpins:
               # CRIT-1: producer reserved tail but never published.
               # Drive close-on-empty on our reserved cell.
-              # Wave C: cells hold LCRQCell[SlotEncoding(T)].
+              # cells hold LCRQCell[SlotEncoding(T)].
               if tryCloseOnEmpty[SlotEncoding(T)](seg.cells[mySlot], 0'u):
                 # Successfully closed. Treat identically to "cell was
-                # already closed when we observed it" (the L1686 branch
+                # already closed when we observed it" (the CLOSED branch
                 # above): fall through to the slow-path-style skip so
                 # the outer loop scans the rest of the segment. Items
                 # published at indices > mySlot must not be orphaned
@@ -1911,7 +1897,7 @@ proc pop*[
                 # segment truly empty, the slow path returns `none(T)`
                 # cleanly. The producer (if it resumes) will
                 # tryPublish-fail on the closed cell and escalate to
-                # nextSeg per T9.
+                # nextSeg.
                 fellThroughOnClose = true
                 break waitForPublish
               # tryCloseOnEmpty failed — producer published during
@@ -1920,7 +1906,7 @@ proc pop*[
               # value on the next acquire-load.
               continue
         if fellThroughOnClose:
-          # Cycle-4 CRIT-2: cell at mySlot is closed; advance via
+          # CRIT-2: cell at mySlot is closed; advance via
           # slow-path-style skip rather than retiring the segment.
           # `prevConsumerIdx` is already at `mySlot`; next outer
           # iteration reads mySlot' = mySlot+1.
@@ -1995,7 +1981,6 @@ proc pop*[
 ## ----------------------------------------------------------------------
 ## Drain helpers — `iterator drain*` and `proc destroyAndDrain*`
 ##
-## Per T-DRAIN-HELPERS (design §4.8, §5.7, §5.7.3 CRITICAL #2).
 ## Mirrors the BQueue side: single-consumer arms (ccCons == ccSingle)
 ## drain directly on Queue; multi-consumer arms (ccCons == ccMulti)
 ## drain via Bound consumer endpoint.
@@ -2067,8 +2052,8 @@ iterator drain*[
       break
     yield opt.get()
 
-# --- items iterators (T-ITERATORS, design §5.3) -------------------------
-# `items` is the Nim-convention alias for `drain`. Per §5.3.1, `pairs`
+# --- items iterators ----------------------------------------------------
+# `items` is the Nim-convention alias for `drain`. `pairs`
 # is BQueue-only — unbounded Queue ships `items` (and `drain`) only.
 
 # items: SPSC absorbed (bare Queue).
@@ -2135,13 +2120,13 @@ proc destroyAndDrain*[
   ## Takes `sink` of the queue so the caller's binding is moved-from
   ## (preventing scope-end double-destroy). Under mm:none this is the
   ## ONLY safe teardown path for a non-empty queue with ref / string /
-  ## seq payloads (§5.7.3).
+  ## seq payloads.
   var localSelf = self
   for item in drain(localSelf):
     cleanup(item)
   # `localSelf` goes out of scope here → `=destroy` fires once.
 
-# --- destroyAndDrain: POD discard overload (§5) -------------------------
+# --- destroyAndDrain: POD discard overload --------------------------------
 proc destroyAndDrain*[
     T;
     ST: static DeallocationStrategy,
@@ -2199,7 +2184,7 @@ when defined(testing):
   ](_: typedesc[Segment[T, ccProd, ccCons, S]]): int =
     ## Test-only accessor: returns offset of `committed` for cardinality
     ## combos that carry it (`ccProd == ccMulti and ccCons == ccSingle`,
-    ## i.e. MPSC only). MPMC migrated to `cells` in Phase B; use
+    ## i.e. MPSC only). MPMC carries `cells`; use
     ## `segmentCellsOffsetForTest` on the MPMC arm. Calling this with an
     ## MPMC cardinality fails at the `offsetOf` site (field absent).
     offsetOf(Segment[T, ccProd, ccCons, S], committed)

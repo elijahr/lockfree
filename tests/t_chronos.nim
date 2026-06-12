@@ -18,9 +18,9 @@
 ##
 ## When chronos is NOT available locally, the whole test body is gated
 ## off; this file becomes a no-op so non-chronos builds still compile.
-## A loud echo below makes the skip observable in local dev runs (per
-## Phase 4.6.3 green-mirage finding #4: silent skip on missing optional
-## dep). In CI the chronos cell installs chronos so the gate opens.
+## A loud echo below makes the skip observable in local dev runs
+## (silent skip on missing optional dep). In CI the chronos cell
+## installs chronos so the gate opens.
 
 when not (compiles do:
   import chronos

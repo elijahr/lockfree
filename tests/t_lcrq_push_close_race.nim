@@ -2,14 +2,14 @@
 ##
 ## Background
 ## ----------
-## Phase B T8 wired the consumer pop slow-path to call
+## The consumer pop slow-path calls
 ## `tryCloseOnEmpty(seg.cells[mySlot], 0)` on empty cells past
 ## `prevConsumerIdx+1` when `tail` has raced ahead. This closes the
 ## cell permanently (`seq=CLOSED_BIT`), preventing a stalled
 ## producer from later publishing into it and stranding the
 ## consumer.
 ##
-## T8 introduces a new race: between the producer's successful
+## That slow-path introduces a race: between the producer's successful
 ## `seg.tail.compareExchange(tail, tail+1, ...)` tail reservation
 ## and its subsequent `tryPublish(seg.cells[tail], 0, item)` DWCAS,
 ## a peer consumer may observe `mySlot < tail` with the cell still

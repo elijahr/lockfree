@@ -1,10 +1,8 @@
 ## Unit test: MPMC producer publish writes to LCRQ cell.
 ##
-## Phase B Task T5 of the strict-LCRQ migration. After T5 wires
-## the `tryPublish(seg.cells[mySlot], expectedSeq=0, value=item)`
-## call into the MPMC arm of `push` (replacing the T3 `wasMoved(item)`
-## stub), a single-producer push must transition cell[slot] from
-## (seq=0, default(T)) → (seq=1, value).
+## With the `tryPublish(seg.cells[mySlot], expectedSeq=0, value=item)`
+## call wired into the MPMC arm of `push`, a single-producer push must
+## transition cell[slot] from (seq=0, default(T)) → (seq=1, value).
 ##
 ## Design references:
 ##   §2.5.1 — state machine (publish: seq 0 → 1, payload stored)

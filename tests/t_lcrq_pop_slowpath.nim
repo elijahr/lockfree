@@ -2,8 +2,8 @@
 ##
 ## Background
 ## ----------
-## Phase B Task T8 wires the strict-LCRQ §5.2 slow-path on the MPMC
-## consumer arm: when `mySlot >= tail` but a re-load shows the producer
+## The strict-LCRQ slow-path on the MPMC consumer arm: when
+## `mySlot >= tail` but a re-load shows the producer
 ## has reserved a tail slot past `mySlot` (i.e. the producer is
 ## mid-publish OR a peer consumer drove close-on-empty on an earlier
 ## slot), the consumer must NOT simply `break` out of the pop loop.

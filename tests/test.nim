@@ -46,13 +46,13 @@ import ./t_drain
 import ./t_iterators
 import ./t_destructor_walk
 import ./t_typestate_dual_api
-# Fix 3 (Phase 4.6.1 test infra): un-orphan the pinscope-unwind
+# Un-orphan the pinscope-unwind
 # regression test. It is a plain destructor-driven unittest (no special
 # flags / MM / panics:on), so it runs in the umbrella across the orc /
 # cpp / arc / refc lanes the `test` task sweeps.
 import ./t_pinscope_unwind
 import ./composition/t_path_c_matrix
-# Fix 2 (Phase 4.6.1 test infra): un-orphan the refcount matrix so it
+# Un-orphan the refcount matrix so it
 # gets compile coverage in the umbrella. The real inc/dec balance
 # assertion fires only under `-d:lockfreeRefcountTrace` (via the
 # `testRefcountTrace` task); in the plain umbrella it emits a visible

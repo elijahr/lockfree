@@ -6,8 +6,6 @@
 ## and `Eager`; those are preserved as constant aliases so the
 ## migration to the prefixed `stManual` / `stEager` is non-breaking at the
 ## call site.
-##
-## , §5 (verbatim source).
 
 type DeallocationStrategy* = enum
   stManual ## Reserved for future batch-retire; no specialization in v5.0.

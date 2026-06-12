@@ -10,8 +10,8 @@
 ## That release is the producer->consumer happens-before edge.
 ##
 ## Single-producer by *contract*, but Nim's `Spmc` facade does NOT enforce
-## single-thread access. Per the C4 design-review decision (design doc §10.6),
-## we keep `compareExchangeWeak` on `tail` even on the single-producer side as
+## single-thread access. We keep `compareExchangeWeak` on `tail` even on
+## the single-producer side as
 ## defense in depth: an accidental two-thread mis-use surfaces as a benign
 ## retry rather than silent data corruption.
 ##

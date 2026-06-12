@@ -284,13 +284,11 @@ template toAtomMemModel(o: MemoryOrder): AtomMemModel =
 # Cache line constants
 # ---------------------------------------------------------------------------
 
-# Phase A note (delete in Phase B): nebr's existing `types.nim`
-# imports both `atomics` (this file) and `./constants` (which already
-# defines `CacheLineBytes` with the same `{.intdefine.}` shape). To
-# avoid an ambiguous-identifier error during Phase A, we re-export
-# the existing `constants.CacheLineBytes` rather than redefining it
-# here. Phase B drops `constants.nim` and lets this module own the
-# definition outright.
+# nebr's `types.nim` imports both `atomics` (this file) and
+# `./constants` (which already defines `CacheLineBytes` with the same
+# `{.intdefine.}` shape). To avoid an ambiguous-identifier error we
+# re-export the existing `constants.CacheLineBytes` rather than
+# redefining it here.
 ## `CacheLineBytes`: bytes per L1 cache line. 128 on PowerPC, 64
 ## elsewhere. Override with `-d:CacheLineBytes=N`.
 import ./constants
@@ -1308,7 +1306,7 @@ proc clear*(
 # compilation on 32-bit targets (where it would reference an unavailable
 # `__int128`).
 #
-# Per design §4.5: 5 ops × 2 backend arms = 10 paste-ready emit bodies.
+# 5 ops × 2 backend arms = 10 paste-ready emit bodies.
 # Dispatch is by COMPILER (gcc → __sync_*, clang/llvm_gcc → __atomic_*),
 # not architecture: GCC's __atomic_* family at 16 bytes falls back to
 # `__atomic_load_16` etc. library calls on BOTH x86_64 (no -mcx16 inline)
@@ -1320,7 +1318,7 @@ proc clear*(
 # Gate-3 inline static-assert: each helper opens with
 # `_Static_assert(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16 ...)` (cpp backend:
 # `static_assert(...)`). This catches `-mno-cx16` (x86) or missing
-# `__ARM_FEATURE_ATOMICS` (aarch64) at C-compile time per design §5.1.
+# `__ARM_FEATURE_ATOMICS` (aarch64) at C-compile time.
 
 when sizeof(pointer) == 8:
   template dwcasGate3Assert() =
@@ -1476,7 +1474,7 @@ when sizeof(pointer) == 8:
     ## 16-byte atomic load via DWCAS substrate. Returns the current value
     ## of `loc` as a `Pair[A, B]`. Always seq_cst at the instruction level;
     ## sub-seq_cst `order` values are accepted but upgraded with a compile-
-    ## time warning (see §3 of the DWCAS design doc).
+    ## time warning.
     validLoadOrder(order)
     when order != moSequentiallyConsistent:
       {.
@@ -1616,7 +1614,7 @@ when sizeof(pointer) == 8:
   ) {.inline.} =
     ## 16-byte atomic store via DWCAS substrate. Always seq_cst at the
     ## instruction level; sub-seq_cst `order` values emit a compile-time
-    ## warning (see §3 of the DWCAS design doc).
+    ## warning.
     validStoreOrder(order)
     when order != moSequentiallyConsistent:
       {.
@@ -1920,7 +1918,7 @@ when sizeof(pointer) == 8:
     # gcc arm, `__sync_val_compare_and_swap` is always-strong on both
     # x86_64 (`cmpxchg16b`) and aarch64+LSE (`casp`), so the weak/strong
     # distinction collapses there — body matches `dwcasCasStrong`'s gcc
-    # arm (design §4.5.1 documents this fallthrough). On the clang/llvm_gcc
+    # arm (this fallthrough is intentional). On the clang/llvm_gcc
     # arm, `__atomic_compare_exchange_n` with weak=1 genuinely permits
     # spurious failure on ARMv8.0 LL/SC (`stlxp`); LSE `caspal` makes weak
     # equivalent to strong.
@@ -2056,8 +2054,7 @@ when sizeof(pointer) == 8:
 
   # -------------------------------------------------------------------------
   # compareExchange aliases — route to Strong, std/atomics-compatible spelling.
-  # Per design §2.2 and MED-5: every alias overload carries the verbatim
-  # ABA/aliasing note block.
+  # Every alias overload carries the verbatim ABA/aliasing note block.
   # -------------------------------------------------------------------------
 
   proc compareExchange*[A, B](
@@ -2235,7 +2232,7 @@ when sizeof(pointer) == 8:
   {.pop.}
 
   # -------------------------------------------------------------------------
-  # Per-callsite memory-order silencer (design §3, Friction-1 closure).
+  # Per-callsite memory-order silencer.
   # Wraps a DWCAS call site in `{.push warning[User]: off.}` / `{.pop.}`
   # so that an intentional, audited memory-order relaxation (notably the
   # LCRQ producer publish CAS, which passes `moRelease`/`moRelaxed`) does

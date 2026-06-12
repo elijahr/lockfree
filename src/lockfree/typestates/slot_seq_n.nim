@@ -4,9 +4,7 @@
 ## and consumers compare a globally-monotonic claim cursor against this counter
 ## to decide whether the slot is owned by the current generation (claimable),
 ## the previous generation's pending consumer (full from the producer's POV),
-## or a future generation (empty from the consumer's POV). See design doc
-## §4 for the rationale behind the per-slot generation counter and §10.1 for
-## the recipe this module implements.
+## or a future generation (empty from the consumer's POV).
 ##
 ## Memory ordering is supplied by the caller at every load/store; the module
 ## itself is order-agnostic so call sites can document intent inline. The

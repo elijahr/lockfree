@@ -101,7 +101,7 @@ task testTSan, "Runs the test suite under ThreadSanitizer (TSAN)":
 
 
 task testRefcountTrace, "Runs the refcount-balance matrix under -d:lockfreeRefcountTrace":
-  # Fix 2 (Phase 4.6.1 test infra): the refcount-balance assertion in
+  # The refcount-balance assertion in
   # tests/composition/t_refcount_use_patterns.nim is REAL only under
   # -d:lockfreeRefcountTrace, where the shim counters in
   # tests/composition/refcount_trace_shim.nim are wired to the
@@ -118,7 +118,7 @@ task testRefcountTrace, "Runs the refcount-balance matrix under -d:lockfreeRefco
 
 
 task testShell, "Runs the standalone shell-test regression scripts":
-  # Fix 3 (Phase 4.6.1 test infra): three shell tests had no runner and
+  # Three shell tests had no runner and
   # so never ran in CI. `exec` aborts the task (nonzero task exit) on the
   # first script that returns nonzero, so any failure fails the task.
   exec "bash tools/tests/test_act_cell_watchdog.sh"

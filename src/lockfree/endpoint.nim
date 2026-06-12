@@ -1,5 +1,5 @@
 ##
-## Endpoint types for static thread-affinity. See design §3.3.1.
+## Endpoint types for static thread-affinity.
 ##
 ## **Lifecycle vs role — orthogonal layers.** `Endpoint` is the typestate
 ## for endpoint LIFECYCLE only: `Unbound -> Bound -> Closed`. ROLE is
@@ -9,35 +9,31 @@
 ## explicitly chosen by `getProducerHere` / `getConsumerHere` call sites.
 ## `Tag` distinctness is enforced at compile time via the
 ## `{.tags: [TagType, TypestateOp].}` effect pragma on `push`/`pop` procs
-## (Task C9) plus `{.forbids: [...].}` regions; the typestate FSM here
+## plus `{.forbids: [...].}` regions; the typestate FSM here
 ## carries no role information.
 ##
-## **Backend specialisation via type-class overloads (M1', C6 spike).**
-## The plan template originally gated `handle: ThreadHandle[...]` field
-## and `registerThread`/`unregisterThread` calls via
-## `when queueT is Queue:`. Nim 2.2's eager generic resolution rejects
+## **Backend specialisation via type-class overloads.**
+## Gating `handle: ThreadHandle[...]` and the
+## `registerThread`/`unregisterThread` calls via `when queueT is Queue:`
+## does not work: Nim 2.2's eager generic resolution rejects
 ## `is Queue` on the 6-static-param `Queue[T, ccProd, ccCons, ST, S, MaxThreads]`
-## without bound arguments. Per pepper's MCLD call (2026-05-30) + the C6
-## 30-min spike: use `concept BQueueType` / `QueueType` type-class match
-## on overloaded helper procs. The handle storage lives unconditionally
-## on `Bound` and `Closed` (opaque `manager: pointer` + `handleIdx: int`),
-## with the Queue overloads casting back to `ThreadHandle[MaxThreads, CC]`
-## at the call site where queueT is concrete. The 16-byte cost on
-## BQueue endpoints is the M1' tradeoff for keeping the typestate axis
-## at 3 generic params and the API uniform.
+## without bound arguments. Instead, `concept BQueueType` / `QueueType`
+## type-class match on overloaded helper procs. The handle storage lives
+## unconditionally on `Bound` and `Closed` (opaque `manager: pointer` +
+## `handleIdx: int`), with the Queue overloads casting back to
+## `ThreadHandle[MaxThreads, CC]` at the call site where queueT is
+## concrete. The 16-byte cost on BQueue endpoints is the tradeoff for
+## keeping the typestate axis at 3 generic params and the API uniform.
 ##
-## **Single Endpoint typestate (C4).** The plan template at §C4 sketched
-## two parallel typestates `ProducerEndpoint` + `ConsumerEndpoint` with
-## identical state sets; typestates 0.12.0 TA-004 forbids sharing state
-## types across typestates (see `queue.nim:80-83`). Per pepper's MCLD:
-## merge into a single `Endpoint` typestate — role lives in `Tag`,
-## lifecycle in `Endpoint`.
+## **Single Endpoint typestate.** Two parallel typestates
+## `ProducerEndpoint` + `ConsumerEndpoint` with identical state sets are
+## not viable: typestates 0.12.0 TA-004 forbids sharing state types
+## across typestates. The typestates are merged into a single `Endpoint`
+## — role lives in `Tag`, lifecycle in `Endpoint`.
 ##
-## **Spike C2.5 result**: single-family import graph clean (outcome G).
-##
-## **R10 fallback** (per design §3.3.1): if the three-axis generic
-## typestate trips a further nim-typestates corner case, drop `queueT`
-## from the typestate axis and store it as a non-typestate field.
+## **Fallback:** if the three-axis generic typestate trips a further
+## nim-typestates corner case, drop `queueT` from the typestate axis and
+## store it as a non-typestate field.
 
 {.experimental: "strictEffects".}
 
@@ -92,8 +88,8 @@ proc onBind[T; Tag; queueT: QueueType](
   ## Queue endpoints register the calling thread with the queue's debra
   ## manager. `queueT` is a concrete `Queue[T, ccProd, ccCons, ST, S, MaxThreads]`
   ## at this overload's call site. The SPSC-absorbed Queue branch
-  ## (`ccProd == ccSingle and ccCons == ccSingle`) is debra-free per
-  ## `queue.nim:280-285`; the `when compiles(b.queue.manager)` feature
+  ## (`ccProd == ccSingle and ccCons == ccSingle`) is debra-free; the
+  ## `when compiles(b.queue.manager)` feature
   ## test gates the `registerThread` call to the debra-integrated
   ## cardinalities only.
   ##
@@ -124,7 +120,7 @@ proc onClose[T; Tag; queueT: QueueType](
   ## Queue endpoints unregister the thread from the queue's debra
   ## manager. The opaque handle storage is cast back to the typed
   ## `ThreadHandle` at this overload's call site. SPSC-absorbed Queue
-  ## variants (`queue.nim:280-285`) are debra-free; the
+  ## variants are debra-free; the
   ## `when compiles(c.queue.manager)` feature test probes the queue's
   ## body split at the concrete instantiation site and short-circuits
   ## for those.
@@ -148,12 +144,12 @@ proc bindToThread*[T; Tag; queueT](
 ): Bound[T, Tag, queueT] {.
     transition, tags: [Tag, TypestateOp, RootEffect], gcsafe, raises: []
 .} =
-  ## Bind the endpoint to the calling thread. See design §3.3.2.
+  ## Bind the endpoint to the calling thread.
   ##
-  ## The sugar pragma `{.transition(tag: ...).}` was withdrawn 2026-05-28
-  ## (Nim parser rejects `nkObjConstr` pragma form + semantic conflation of
-  ## value-typestate with proc-effect). The explicit composed form above is
-  ## the only available shape.
+  ## The sugar pragma `{.transition(tag: ...).}` is not usable here: the
+  ## Nim parser rejects the `nkObjConstr` pragma form and it conflates
+  ## value-typestate with proc-effect. The explicit composed form above
+  ## is the only available shape.
   let consumed = move(u)
   result = Bound[T, Tag, queueT](
     queue: consumed.queue, idx: consumed.idx, handleManager: nil, handleIdx: 0
@@ -168,7 +164,7 @@ proc close*[T; Tag; queueT](
     transition, tags: [Tag, TypestateOp, RootEffect], gcsafe, raises: []
 .} =
   ## Release the endpoint. Queue endpoints call `unregisterThread`;
-  ## BQueue endpoints are a no-op. See design §3.3.2.
+  ## BQueue endpoints are a no-op.
   when defined(debug):
     assert getThreadId() == b.attachedTid,
       "close from wrong thread (must match bindToThread thread)"
@@ -366,7 +362,7 @@ proc bindConsumer*[
   u.bindToThread()
 
 ## ----------------------------------------------------------------------
-## R3 mitigation (design §3.3.1, Nim Issue #19013 alias-analysis):
+## Alias-analysis constraint (Nim Issue #19013):
 ## `Unbound` MUST be a thin `ptr` wrapper over the queue with no
 ## ref/string/seq/closure subgraph. `system.supportsCopyMem` returns
 ## `true` iff the type has no GC'd subgraph; static-assert that the

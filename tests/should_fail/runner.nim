@@ -183,7 +183,7 @@ const cases = @[
   ),
   Case(
     name:
-      "Phase B T13 (design §9.3 / SCOPE-7) — unbounded MPMC Queue rejects sizeof(T) > 8",
+      "unbounded MPMC Queue rejects sizeof(T) > 8",
     file: "tests/should_fail/unbounded_mpmc_wide_T_rejected.nim",
     outcome: eoCompileFails,
     # Two layered guards reject wide T on the ccMulti × ccMulti arm:

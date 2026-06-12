@@ -124,7 +124,7 @@ per-thread unregister, so each `attach()` consumes a registry slot for the
 manager's lifetime. Size it accordingly. The unbounded SPSC arm
 (`newUnboundedSpscQueue`) is debra-free and needs no `attach()`.
 
-> **v5.0.0 Phase B — unbounded MPMC `T` constraint.** The unbounded MPMC
+> **Unbounded MPMC `T` constraint (v5.0.0).** The unbounded MPMC
 > arm (`Queue[T, ccMulti, ccMulti, …]`) requires
 > `supportsCopyMem(T) AND sizeof(T) <= 8` (8 bytes on 64-bit; 4 bytes on
 > 32-bit). Each cell packs a `(seq, payload)` pair into a single DWCAS
@@ -132,7 +132,7 @@ manager's lifetime. Size it accordingly. The unbounded SPSC arm
 > fire a compile-time `{.error.}`. For wider or move-only `T`, switch to
 > the bounded `BQueue[T, ccMulti, ccMulti, …]` (Vyukov per-slot seq;
 > unchanged in v5.0.0, retains general `T`) or wrap as `ptr T` — see
-> [`docs/migrations/v5.0.0.md`](docs/migrations/v5.0.0.md) Phase B
+> [`docs/migrations/v5.0.0.md`](docs/migrations/v5.0.0.md) migration
 > recipes and [`examples/job_scheduler.nim`](examples/job_scheduler.nim)
 > for the canonical `ptr T` pattern. The unbounded SPSC / SPMC / MPSC
 > arms are unaffected.

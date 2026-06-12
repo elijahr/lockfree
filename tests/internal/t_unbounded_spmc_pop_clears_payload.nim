@@ -1,7 +1,7 @@
 ## T-VERIFY-POP-CLEARS.unbounded-spmc — Regression test locking in the
 ## destructive-read behavior of the unbounded-SPMC pop path.
 ##
-## Locks in the 2026-06-06 Phase 3.4 finding: the unbounded-SPMC pop
+## Locks in the regression: the unbounded-SPMC pop
 ## site inlined in `queue.nim` reads the segment slot via
 ## `some(move(seg.data[seg.head]))`, which is observationally equivalent
 ## to `.reset()` for slot-clearing under all relevant `T` (per design

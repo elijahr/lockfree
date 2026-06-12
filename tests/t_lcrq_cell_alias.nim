@@ -1,9 +1,8 @@
 ## Smoke test: `LCRQCell[T]` type alias + `CLOSED_BIT` from
 ## `lockfree/queue`.
 ##
-## Phase B Task T1 of the strict-LCRQ migration. Pure type-level
-## introduction — no primitives, no behavior. This file proves four
-## properties of the new alias before the next task (T2) consumes it:
+## Pure type-level introduction — no primitives, no behavior. This
+## file proves four properties of the strict-LCRQ alias:
 ##
 ## 1. `LCRQCell[T]` is a *transparent* alias for
 ##    `Atomic[Pair[uint, T]]` (not a wrapper struct). A value of

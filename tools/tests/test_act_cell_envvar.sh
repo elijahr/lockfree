@@ -2,7 +2,7 @@
 # Test: LFQ_ACT_BIN env var is honored by tools/act-cell.
 #
 # Two tests, both locked against observable process behavior (no dependency
-# on a dry-run flag, per F12 fix):
+# on a dry-run flag):
 #
 #   Test 4 (smoke):  Setting LFQ_ACT_BIN to a harmless binary (/bin/echo)
 #                    does not break the --print-watchdog-config path. This

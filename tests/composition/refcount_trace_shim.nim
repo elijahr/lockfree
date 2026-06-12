@@ -1,8 +1,8 @@
 ## tests/composition/refcount_trace_shim.nim
 ##
-## Phase A scaffold for C-MAJOR-6: per-thread nimIncRef / nimDecRef
-## counters used to assert refcount balance across the 5 use-pattern
-## arms in `t_refcount_use_patterns.nim`.
+## Per-thread nimIncRef / nimDecRef counters, gated by
+## `-d:lockfreeRefcountTrace`, used to assert refcount balance across
+## the 5 use-pattern arms in `t_refcount_use_patterns.nim`.
 ##
 ## Gated on `-d:lockfreeRefcountTrace`. In the non-trace build the
 ## counters are zeroed and the assertions become trivially true, so
@@ -17,7 +17,6 @@
 ## Design references
 ## -----------------
 ## * Addendum design §2.6 — refcount-balance matrix scope (5 arms).
-## * Impl plan task C-MAJOR-6, Phase A — shim scaffold.
 
 import std/atomics
 

@@ -20,9 +20,6 @@
 ## The test would FAIL on the old `committed: bool` protocol; in fact, it
 ## cannot even compile against that API (the field doesn't exist). It ships
 ## with the new code and serves as the bug-canary for any future regression.
-##
-## See design doc §3 (walkthrough), §10.15 (test plan), and Phase F of the
-## impl plan.
 
 import unittest2
 

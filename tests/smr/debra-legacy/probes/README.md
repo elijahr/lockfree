@@ -35,4 +35,4 @@ commit that names the cause.
   3. Commit the update with a message that names the cause
      (e.g. `update probe golden for ubuntu-24.04 GCC 14 → 15 upgrade`).
 
-This matches the Phase A.5 golden-file checkin protocol in design §5.2.5.
+This matches the golden-file checkin protocol.

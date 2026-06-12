@@ -70,9 +70,8 @@ type
 # refcount must balance through transit. Hooks must live at module scope
 # (Nim forbids type hooks inside proc/suite/test blocks).
 #
-# (Phase 4.6.3 cleanup: removed unused `destroyCount` global + matching
-# `=destroy(DestroyTarget)` hook. Row 14 below pins round-trip semantics;
-# Row 18 below pins the destroy/refcount-balance contract via `liveCount`.)
+# Row 14 below pins round-trip semantics; Row 18 below pins the
+# destroy/refcount-balance contract via `liveCount`.
 type
   CountedRefObj = object
     v: int

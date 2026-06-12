@@ -1,6 +1,6 @@
 ## Cache-line-aligned heap allocation for unbounded queue Segments.
 ##
-## Project-wide invariant (design doc §4.2): every ``Segment[S, T]`` allocation
+## Project-wide invariant: every ``Segment[S, T]`` allocation
 ## must be aligned to ``CacheLineBytes`` (64 on x86_64) so that the
 ## ``{.align: CacheLineBytes.}`` pragma on internal Atomic fields lifts those
 ## fields onto distinct physical cache lines, not merely distinct intra-struct

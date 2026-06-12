@@ -1,7 +1,7 @@
 ## T-VERIFY-POP-CLEARS.mpsc — Regression test locking in the
 ## destructive-read behavior of the bounded-MPSC pop path.
 ##
-## Locks in the 2026-06-06 Phase 3.4 finding: the bounded-MPSC pop
+## Locks in the regression: the bounded-MPSC pop
 ## reads the cell via `move(queue.cells.dataPtr(op.slot)[])`, which is
 ## observationally equivalent to `.reset()` for slot-clearing under
 ## all relevant `T` (per design §4.5.3 family (1)). This regression

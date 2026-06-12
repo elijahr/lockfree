@@ -9,8 +9,7 @@
 ## additionally asserting `decRefSlot == residual`. See
 ## `refcountConservation` below.
 ##
-## Source: addendum design §2.6 (+ 2026-06-12 amendment) / understanding
-## §3.C MAJOR-6 / impl plan task C-MAJOR-6.
+## Source: addendum design §2.6 (+ 2026-06-12 amendment).
 ##
 ## Queue payload type is `ref Payload` (USER-facing per design §2.2);
 ## the queue internally encodes as `ManagedRef[Payload]` but that is
@@ -61,9 +60,11 @@ template refcountConservation(
   ## pure destructive bit-cast — it runs NO library `decRefSlot`; the
   ## +1 it hands to the caller binding is released later by the
   ## COMPILER-emitted `=destroy` on that binding, which the shim cannot
-  ## see. Library `decRefSlot` fires ONLY on the destroy-walk
-  ## (`disposeSlotEncoded`, `internal/path_c_wrap.nim`) for slots still
-  ## resident when the queue is destroyed. So for a fully-drained queue
+  ## see. For the patterns exercised here, library `decRefSlot` fires on
+  ## the destroy-walk (`disposeSlotEncoded`, `internal/path_c_wrap.nim`)
+  ## for slots still resident when the queue is destroyed (it is also
+  ## reachable elsewhere, e.g. `reset()` push-failure rollback, but those
+  ## paths are not exercised by these arms). So for a fully-drained queue
   ## library `dec` is always 0.
   ##
   ## The reframed invariant is the CONSERVATION law the shim CAN observe
@@ -192,7 +193,7 @@ suite "refcount-balance matrix (ref Payload, SPSC-absorbed shape)":
   # the destroy-walk releases every un-popped pin exactly once (no leak).
   test "arm f: residual slots released by destroy-walk":
     const
-      K = 40 # pushed (fits the 64-slot SPSC bound)
+      K = 40 # pushed (fits within one 64-element segment)
       P = 15 # popped
       R = K - P # residual left resident at queue destroy
     var popped = 0

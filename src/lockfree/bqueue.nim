@@ -11,7 +11,7 @@
 ## helper added to `internal/shared` is available to both modules
 ## without creating a backward dependency that would defeat the split.
 ##
-## **Queueable[T] concept hookup (T-TYPESTATE-DUAL-API).** Bare
+## **Queueable[T] concept hookup.** Bare
 ## `BQueue[T, ccSingle, ccSingle, ...]` satisfies the `Queueable[T]`
 ## concept defined in `./typestates/with_bound`. Conformance is pinned
 ## by static doAsserts in that module across the full Path-C-encoded
@@ -410,8 +410,8 @@ proc push*[T; N: static int](
     self: var BQueue[T, ccSingle, ccSingle, N, 0, 0], item: sink T
 ): bool =
   ## SPSC single-item push (lock-free; uses the SPSC typestate verbs).
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
-  # See internal/path_c_admit.nim for the verbatim §2.5 REJECT messages
+  # Path-C admission gate (25-row composition matrix + reject chain).
+  # See internal/path_c_admit.nim for the verbatim REJECT messages
   # and the accept-arm dispatch (ref T / string / seq[U] / POD).
   pathCAdmit(T)
 
@@ -432,8 +432,8 @@ proc push*[T; N, C: static int](
     self: var BQueue[T, ccSingle, ccMulti, N, 0, C], item: sink T
 ): bool =
   ## SPMC single-item push (defensive CAS, single-producer-side).
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
-  # See internal/path_c_admit.nim for the verbatim §2.5 REJECT messages
+  # Path-C admission gate (25-row composition matrix + reject chain).
+  # See internal/path_c_admit.nim for the verbatim REJECT messages
   # and the accept-arm dispatch (ref T / string / seq[U] / POD).
   pathCAdmit(T)
 
@@ -462,8 +462,8 @@ proc push*[T; ccCons: static PinScopeCardinality, N, P, C: static int](
       "Use q.getProducerHere(idx).push(item) (same-thread sugar) or q.getProducer(idx).bindToThread().push(item) (cross-thread) to obtain a per-thread " &
       "Bound[T, Tag, BQueue[...]] and push through it."
 .} =
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
-  # See internal/path_c_admit.nim for the verbatim §2.5 REJECT messages
+  # Path-C admission gate (25-row composition matrix + reject chain).
+  # See internal/path_c_admit.nim for the verbatim REJECT messages
   # and the accept-arm dispatch (ref T / string / seq[U] / POD).
   pathCAdmit(T)
   discard
@@ -473,8 +473,8 @@ proc pop*[T; N: static int](
     self: var BQueue[T, ccSingle, ccSingle, N, 0, 0]
 ): Option[T] =
   ## SPSC single-item pop.
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
-  # See internal/path_c_admit.nim for the verbatim §2.5 REJECT messages
+  # Path-C admission gate (25-row composition matrix + reject chain).
+  # See internal/path_c_admit.nim for the verbatim REJECT messages
   # and the accept-arm dispatch (ref T / string / seq[U] / POD).
   pathCAdmit(T)
 
@@ -495,8 +495,8 @@ proc pop*[T; N, P: static int](
     self: var BQueue[T, ccMulti, ccSingle, N, P, 0]
 ): Option[T] =
   ## MPSC single-item pop (defensive CAS, single-consumer-side).
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
-  # See internal/path_c_admit.nim for the verbatim §2.5 REJECT messages
+  # Path-C admission gate (25-row composition matrix + reject chain).
+  # See internal/path_c_admit.nim for the verbatim REJECT messages
   # and the accept-arm dispatch (ref T / string / seq[U] / POD).
   pathCAdmit(T)
 
@@ -525,8 +525,8 @@ proc pop*[T; ccProd: static PinScopeCardinality, N, P, C: static int](
       "Use q.getConsumerHere(idx).pop() (same-thread sugar) or q.getConsumer(idx).bindToThread().pop() (cross-thread) to obtain a per-thread " &
       "Bound[T, Tag, BQueue[...]] and pop through it."
 .} =
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
-  # See internal/path_c_admit.nim for the verbatim §2.5 REJECT messages
+  # Path-C admission gate (25-row composition matrix + reject chain).
+  # See internal/path_c_admit.nim for the verbatim REJECT messages
   # and the accept-arm dispatch (ref T / string / seq[U] / POD).
   pathCAdmit(T)
   discard
@@ -544,7 +544,7 @@ proc push*[T; N: static int](
     self: var BQueue[T, ccSingle, ccSingle, N, 0, 0], items: openArray[T]
 ): Option[HSlice[int, int]] =
   ## SPSC batch push.
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
+  # Path-C admission gate (25-row composition matrix + reject chain).
   pathCAdmit(T)
   if unlikely(items.len == 0):
     return NoSlice
@@ -567,7 +567,7 @@ proc push*[T; N: static int](
 
   for i in 0 ..< count:
     let currentTail = tail.incOrResetN1(i)
-    # Wave C: storage now holds SlotEncoding(T); encode at the boundary.
+    # storage now holds SlotEncoding(T); encode at the boundary.
     # Non-sink `items[i]` triggers implicit =copy for ref/string/seq T
     # (Nim's standard sink-from-borrow semantics), so the caller's
     # openArray entry remains valid after this push and the queue holds
@@ -605,7 +605,7 @@ proc pop*[T; N: static int](
     self: var BQueue[T, ccSingle, ccSingle, N, 0, 0], count: int
 ): Option[seq[T]] =
   ## SPSC batch pop.
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
+  # Path-C admission gate (25-row composition matrix + reject chain).
   pathCAdmit(T)
   let head = loadAcquireN1[N](self.head).validate()
   let tail = loadSequentialN1[N](self.tail).validate()
@@ -625,7 +625,7 @@ proc pop*[T; N: static int](
   for i in 0 ..< actualCount:
     let currentHead = head.incOrResetN1(i)
     let idx = currentHead.index()
-    # Wave C: storage holds SlotEncoding(T); decode at the boundary.
+    # storage holds SlotEncoding(T); decode at the boundary.
     # Mirror single-item ``complete``'s use of ``move`` (typestates/
     # spsc_pop.nim:72) so the slot is left as ``default(SlotEncoding(T))``
     # after consumption — destroy-walk on the (now-zero) slot is a no-op
@@ -706,15 +706,14 @@ proc `=destroy`*[T; ccProd, ccCons: static PinScopeCardinality, N, P, C: static 
     raises: []
 .} =
   ## BQueue destructor — drives the Lifecycle terminal transition AND
-  ## performs the Wave C destroy-walk for unpopped slots.
+  ## performs the destroy-walk for unpopped slots.
   ##
   ## BQueue owns no debra/manager heap state. For POD T the default
   ## destructor would suffice. For ref / string / seq T the cells /
   ## storage hold ``SlotEncoding(T)`` values (ManagedRef or
   ## ManagedSlice — ``distinct uint``, no auto-=destroy), so abandoned
   ## items must be explicitly disposed here. This is the ONLY
-  ## library-managed cleanup path (per Wave C lifecycle: push and pop
-  ## are pure transfers).
+  ## library-managed cleanup path (push and pop are pure transfers).
   when T is ref or T is string or T is seq:
     when ccProd == ccSingle and ccCons == ccSingle:
       # SPSC: storage is StorageN1[N, SlotEncoding(T)] (N+1 slots).
@@ -761,7 +760,7 @@ proc push*[T; Tag: SpscProducerTag | MpmcProducerTag | AnyThreadTag, N, P: stati
     self: Bound[T, Tag, BQueue[T, ccMulti, ccSingle, N, P, 0]], item: sink T
 ): bool {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
   ## MPSC single-item push on a Bound producer endpoint.
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
+  # Path-C admission gate (25-row composition matrix + reject chain).
   pathCAdmit(T)
   when defined(debug):
     assert getThreadId() == self.attachedTid, "push from wrong thread"
@@ -787,7 +786,7 @@ proc push*[
     self: Bound[T, Tag, BQueue[T, ccMulti, ccMulti, N, P, C]], item: sink T
 ): bool {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
   ## MPMC single-item push on a Bound producer endpoint.
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
+  # Path-C admission gate (25-row composition matrix + reject chain).
   pathCAdmit(T)
   when defined(debug):
     assert getThreadId() == self.attachedTid, "push from wrong thread"
@@ -811,7 +810,7 @@ proc pop*[T; Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag, N, C: static
     self: Bound[T, Tag, BQueue[T, ccSingle, ccMulti, N, 0, C]]
 ): Option[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
   ## SPMC single-item pop on a Bound consumer endpoint.
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
+  # Path-C admission gate (25-row composition matrix + reject chain).
   pathCAdmit(T)
   when defined(debug):
     assert getThreadId() == self.attachedTid, "pop from wrong thread"
@@ -835,7 +834,7 @@ proc pop*[T; Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag, N, P, C: sta
     self: Bound[T, Tag, BQueue[T, ccMulti, ccMulti, N, P, C]]
 ): Option[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
   ## MPMC single-item pop on a Bound consumer endpoint.
-  # Path-C admission gate (design §2.5 25-row matrix + §2.7 chain).
+  # Path-C admission gate (25-row composition matrix + reject chain).
   pathCAdmit(T)
   when defined(debug):
     assert getThreadId() == self.attachedTid, "pop from wrong thread"
@@ -920,13 +919,12 @@ proc pop*[T; Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag, N, P, C: sta
 ## ----------------------------------------------------------------------
 ## Drain helpers — `iterator drain*` and `proc destroyAndDrain*`
 ##
-## Per T-DRAIN-HELPERS (design §4.8, §5.7, §5.7.3 CRITICAL #2):
-## drain is the user-facing extraction mechanism for unpopped items
+## Drain is the user-facing extraction mechanism for unpopped items
 ## at queue end-of-life. Under mm:none, drain is the ONLY way to
 ## release per-item resources (the queue's `=destroy` does not touch
 ## payload bits — pure bit-transport contract). Under arc / orc /
 ## atomicArc / refc, `=destroy` already runs `disposeSlotEncoded`
-## on abandoned slots (see the `=destroy` hook above + Wave C);
+## on abandoned slots (see the `=destroy` hook above);
 ## drain is still useful when the consumer wants ownership of each
 ## remaining item rather than letting the destructor walk dispose
 ## them.
@@ -981,7 +979,7 @@ iterator drain*[
       break
     yield opt.get()
 
-# --- items / pairs iterators (T-ITERATORS, design §5.3) -----------------
+# --- items / pairs iterators --------------------------------------------
 # `items` is the Nim-convention alias for `drain`: destructive
 # drain-to-empty semantics. `for x in q: ...` desugars to
 # `iterator items*`.
@@ -1076,14 +1074,14 @@ proc destroyAndDrain*[T; ccProd: static PinScopeCardinality, N, P: static int](
   ## destruction here).
   ##
   ## Under mm:none this is the ONLY safe teardown path for a non-empty
-  ## queue carrying ref / string / seq payloads (per §5.7.3 strict
+  ## queue carrying ref / string / seq payloads (strict bit-transport
   ## contract). For POD payloads the `cleanup` is logically a no-op.
   var localSelf = self
   for item in drain(localSelf):
     cleanup(item)
   # `localSelf` goes out of scope here → `=destroy` fires once.
 
-# --- destroyAndDrain: POD discard overload (§5) --------------------------
+# --- destroyAndDrain: POD discard overload ------------------------------
 proc destroyAndDrain*[T; ccProd: static PinScopeCardinality, N, P: static int](
     self: sink BQueue[T, ccProd, ccSingle, N, P, 0]
 ) =

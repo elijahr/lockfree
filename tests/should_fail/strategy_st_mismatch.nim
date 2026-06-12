@@ -1,7 +1,7 @@
 ## §6.3 condition (1): Consumer with ST=stManual cannot be constructed
 ## from Queue with ST=stEager.
 ##
-## Track C v5.0.0 update: the receiver is now `Unbound[T, AnyThreadTag,
+## The receiver is now `Unbound[T, AnyThreadTag,
 ## Queue[T, ccProd, ccCons, stManual, S, MaxThreads]]` rather than the
 ## deleted `QueueConsumer`. The phantom-param mismatch still trips at
 ## type-check because the Queue's `ST` doesn't match.

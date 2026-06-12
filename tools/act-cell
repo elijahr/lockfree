@@ -83,8 +83,8 @@ for arg in "$@"; do
 done
 set -- "${PASSTHROUGH_ARGS[@]+"${PASSTHROUGH_ARGS[@]}"}"
 
-# Defensive LFQ_ACT_BIN resolution (B1+B2-b will land the canonical version;
-# resolving here defensively keeps the watchdog test self-contained).
+# Defensive LFQ_ACT_BIN resolution: resolving here keeps the watchdog test
+# self-contained.
 ACT_BIN="${LFQ_ACT_BIN:-act}"
 
 # Resolve cell -> (job, matrix-flags). Job names come from ci.yml `jobs:`
@@ -209,9 +209,11 @@ printf 'act-cell: host_arch=%s push_devel=%s running: %s\n' "$host_arch" "$PUSH_
 # detector.
 #
 # Implementation notes:
-# - The inner command runs under `setsid` so it lives in its own process
-#   group. `act` shells out to `docker exec`, which spawns real
-#   grandchildren; only `kill -- -PGID` reaches the full subtree.
+# - The inner command runs under job control (`set -m`), so each background
+#   pipeline becomes its own process group (PGID == leader PID) — the
+#   portable substitute for `setsid` on systems without util-linux setsid.
+#   `act` shells out to `docker exec`, which spawns real grandchildren;
+#   only `kill -- -PGID` reaches the full subtree.
 # - cleanup() is idempotent and runs from BOTH the EXIT trap and explicit
 #   INT/TERM traps. This is the belt-and-suspenders that prevents orphan
 #   watcher processes from leaking into later cell runs.
@@ -280,8 +282,8 @@ STALL_CHECK_INTERVAL=1
 WATCH_PID=$!
 
 # Hard timeout: independent process-group kill. We do NOT use timeout(1) in
-# the watchdog form because the child is already wrapped in `setsid bash -c`
-# and timeout(1) would only see the wrapper.
+# the watchdog form because the child is already wrapped in its own process
+# group (`set -m` + `bash -c &`) and timeout(1) would only see the wrapper.
 ( sleep "${HARD_TIMEOUT_SECS}"
   if kill -0 "${CHILD_PID}" 2>/dev/null; then
     echo "act-cell: hard timeout fired after ${HARD_TIMEOUT_SECS}s" >&2

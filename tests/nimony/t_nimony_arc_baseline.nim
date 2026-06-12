@@ -17,8 +17,8 @@
 ##   * OQ4.2 (managed_ref.nim:288, 299) — heap-header offset for
 ##     NimHeapHeader layout; current code assumes the rc field lives at
 ##     the slot bits address. Verified against
-##     /tmp/nimony-research/lib/std/system/arcops.nim per Phase 2.5
-##     fact-check; replacement deferred to v0.2.
+##     /tmp/nimony-research/lib/std/system/arcops.nim;
+##     replacement deferred to v0.2.
 ##   * OQ4.4 (managed_ref.nim:306) — dispose-on-last-ref symbol omitted
 ##     in v0.1.0. `arcDec` returning true currently `discard`s the
 ##     last-ref signal; the leak is observable only under `-d:nimony`

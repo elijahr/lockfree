@@ -1,11 +1,10 @@
 ## T-VERIFY-POP-CLEARS.unbounded-mpmc — Regression test locking in the
 ## destructive-read behavior of the unbounded-MPMC pop path.
 ##
-## Locks in the 2026-06-06 Phase 3.4 finding (and OQ4.9 cross-reference):
-## the unbounded-MPMC pop site DOES NOT use a `move(seg.data[mySlot])`
-## read — that mechanism is the pre-strict-LCRQ code path, replaced
-## during the Phase B migration by the DWCAS-based `tryClaim`
-## extractor (`queue.nim` line 204 / §5.2.1 / §5.3).
+## Locks in the regression: the unbounded-MPMC pop site DOES NOT use a
+## `move(seg.data[mySlot])` read — that mechanism is the pre-strict-LCRQ
+## code path, replaced by the DWCAS-based `tryClaim` extractor
+## (§5.2.1 / §5.3).
 ##
 ## **IMPL PLAN ANCHOR CORRECTION**
 ## ------------------------------
@@ -15,8 +14,8 @@
 ## **SPMC** second-variant pop (`Bound[..., Queue[T, ccSingle, ccMulti,
 ## ...]]`), and the legacy `move(seg.data[mySlot])` line referenced
 ## around line 1623 is an INFORMATIONAL comment describing the
-## pre-strict-LCRQ MPMC pop — superseded by `tryClaim` since
-## Phase B. The strict-LCRQ MPMC consumer never reads `seg.data[...]`
+## pre-strict-LCRQ MPMC pop — superseded by `tryClaim`. The
+## strict-LCRQ MPMC consumer never reads `seg.data[...]`
 ## (the field does not exist on MPMC segments; see `Segment[T,
 ## ccMulti, ccMulti, S]` which has `cells: array[S, LCRQCell[T]]`
 ## instead).

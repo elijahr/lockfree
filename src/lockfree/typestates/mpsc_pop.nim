@@ -10,8 +10,8 @@
 ## release is the consumer->next-generation-producer happens-before edge.
 ##
 ## Single-consumer by *contract*, but Nim's `Mpsc` facade does NOT enforce
-## single-thread access. Per the C4 design-review decision (design doc §10.9),
-## we keep `compareExchangeWeak` on `head` even on the single-consumer side as
+## single-thread access. We keep `compareExchangeWeak` on `head` even on
+## the single-consumer side as
 ## defense in depth: an accidental two-thread mis-use surfaces as a benign
 ## retry rather than silent data corruption.
 ##
@@ -22,9 +22,7 @@
 ##
 ## Backoff: this verb returns the `Start` arm to signal "retry". The facade
 ## holds `var spins = InitialSpin` and calls `backoffOnRetry(spins)` between
-## iterations on the Start arm. See design doc §6.
-##
-## See design doc §2 (algorithm), §3 (bug walkthrough), §10.9 (recipe).
+## iterations on the Start arm.
 
 import lockfree/atomics
 import typestates
@@ -56,7 +54,7 @@ typestate MPSCPopOp[N: static int]:
 # Forward declaration for Mpsc (avoid circular import).
 # Field order MUST stay in lockstep with MpscPushBase in mpsc_push.nim
 # - the facade uses a single Mpsc object castable to either base via the
-# offsetof asserts in design doc §10.11.
+# offsetof asserts.
 type MpscBase*[N, P: static int, T] = object
   head* {.align: CacheLineBytes.}: Atomic[uint64]
   tail* {.align: CacheLineBytes.}: Atomic[uint64]

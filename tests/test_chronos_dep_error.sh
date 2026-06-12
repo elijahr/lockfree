@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tests/test_chronos_dep_error.sh
 #
-# C-CRITICAL-4 regression test (flag-only opt-in): building with
+# Regression test (flag-only opt-in): building with
 # `-d:lockfreeChronos` while chronos is NOT installed must fail with an
 # actionable compile-time error referencing BOTH `docs/api/chronos.md`
 # (the integration guide) AND the `nimble install chronos` command.

@@ -1,5 +1,5 @@
-## Phase B T13: negative control — unbounded MPMC `Queue[T]` rejects
-## wide T at compile time.
+## Negative control — unbounded MPMC `Queue[T]` rejects wide T at
+## compile time.
 ##
 ## Per v5.0.0 BREAKING (design §11.2): the strict-LCRQ migration
 ## publishes via 128-bit DWCAS into `Atomic[Pair[uint64, T]]`, which
@@ -26,7 +26,7 @@
 ## This is the structural twin of
 ## `tests/t_bqueue_mpmc_wide_T_accepted.nim` (the positive control):
 ## together they form the SCOPE-7 tripwire against accidental
-## cross-queue constraint extension during Phase B.
+## cross-queue constraint extension.
 
 import lockfree/queue
 import lockfree/endpoint

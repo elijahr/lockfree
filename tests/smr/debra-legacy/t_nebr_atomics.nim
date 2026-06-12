@@ -502,7 +502,7 @@ suite "static rejection":
   # `-d:debraAllowNonLockFreeAtomics` opt-out cannot be expressed
   # without a 32-bit target or a hostile build flag. The flag itself
   # is parsed unconditionally; failing builds on non-lock-free
-  # primitives is exercised by the 32-bit CI lane in Phase D.
+  # primitives is exercised by the 32-bit CI lane.
 
 suite "float load/store":
   test "float32 load/store roundtrip with sentinel values":

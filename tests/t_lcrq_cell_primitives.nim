@@ -1,16 +1,16 @@
 ## Unit tests for the three strict-LCRQ cell primitives:
 ## `tryPublish`, `tryClaim`, `tryCloseOnEmpty`.
 ##
-## Phase B Task T2 of the strict-LCRQ migration. Single-threaded
-## isolation tests — concurrency proofs live in later tasks once the
-## primitives are wired into the production MPMC arm.
+## Single-threaded isolation tests for the strict-LCRQ cell
+## primitives — concurrency proofs live in the dedicated race tests
+## once the primitives are wired into the production MPMC arm.
 ##
 ## CRITICAL contract (design §2.3.1 / CRITICAL-1): `tryClaim` MUST
 ## NEVER inspect `observed.second`. The CAS on the seq encoding is
 ## the sole authority on cell state. A successfully published cell
 ## with `seq=1` may legitimately carry `default(T)` as its payload
 ## (e.g. `q.push(0)` for `T=int`, `q.push(nil)` for `T=ptr X`). Tests
-## T2.C2 and T2.C3 are the regression guard for the Phase A.5 spike's
+## C2 and C3 are the regression guard against the
 ## `observed.second == default(T)` short-circuit.
 
 import std/unittest

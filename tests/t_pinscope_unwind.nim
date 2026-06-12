@@ -1,6 +1,6 @@
 ## tests/t_pinscope_unwind.nim
 ##
-## C-MAJOR-1: pinscope unwind on raise. `PinnedScope[MT, CC]` is
+## Pinscope unwind on raise. `PinnedScope[MT, CC]` is
 ## destructor-driven: raising inside the scope block invokes the
 ## destructor on unwind, which in turn drives `unpin` /
 ## (`acknowledge` if signaled) / `close` and clears the slot's

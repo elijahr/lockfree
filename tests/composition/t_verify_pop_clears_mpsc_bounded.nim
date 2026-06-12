@@ -1,6 +1,6 @@
 ## tests/composition/t_verify_pop_clears_mpsc_bounded.nim
 ##
-## C-MAJOR-11 technique 1: per-arm property test asserting the pop-side
+## Per-arm property test asserting the pop-side
 ## slot-clear invariant for the **MPSC bounded** arm
 ## (`BQueue[T, ccMulti, ccSingle, N, P, 0]`).
 ##

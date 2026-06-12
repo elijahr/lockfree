@@ -1,11 +1,9 @@
 ## Unit test: MPMC consumer claim returns published values via DWCAS.
 ##
-## Phase B Task T6 of the strict-LCRQ migration. After T6 wires
-## `tryClaim(seg.cells[mySlot], expectedSeq=0)` into the MPMC arm of
-## `pop` (replacing the T3 break-empty stub), a single-consumer pop
-## following N pushes must return the published values in FIFO order
-## and leave each cell in the claimed state (payload reset to
-## default(T), seq still seq+1).
+## With `tryClaim(seg.cells[mySlot], expectedSeq=0)` wired into the
+## MPMC arm of `pop`, a single-consumer pop following N pushes must
+## return the published values in FIFO order and leave each cell in
+## the claimed state (payload reset to default(T), seq still seq+1).
 ##
 ## Design references:
 ##   §5.2 — consumer claim path (tryClaim on cells[mySlot])

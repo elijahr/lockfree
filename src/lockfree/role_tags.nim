@@ -1,8 +1,6 @@
 ##
 ## Role-discriminating effect tags shared across queue flavours.
 ##
-## Per design §3.3.4, §3.3.5, §4.1.
-##
 ## - `AnyThreadTag`: same-thread shortcut path
 ##   (`getProducerHere` / `getConsumerHere`). Bypasses per-spawn freshness;
 ##   runtime `getThreadId()` backstop catches misuse under `-d:debug`.

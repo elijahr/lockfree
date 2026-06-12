@@ -85,7 +85,7 @@ suite "withBoundProducer / withBoundConsumer RAII":
       check popped.get.v == 17
 
   # -------------------------------------------------------------------------
-  # RAII re-bind contract (Phase 4.6.3 green-mirage finding #5).
+  # RAII re-bind contract.
   #
   # The earlier tests above all push inside `withBound...` then read OUTSIDE
   # the block via bare `q.pop()` / `q.push()`. They never re-bind through a
@@ -95,7 +95,7 @@ suite "withBoundProducer / withBoundConsumer RAII":
   # after the first scope exits, pinning the contract that the RAII surface
   # admits sequential re-bind from the same thread.
   #
-  # NOTE on the mutation check (Phase 4.6 fix-pass): removing `defer: close()`
+  # NOTE on the mutation check: removing `defer: close()`
   # from the BQueue overloads in `src/lockfree/typestates/with_bound.nim`
   # leaves these tests GREEN. That is not a mirage in these tests — it is an
   # architectural property of BQueue:

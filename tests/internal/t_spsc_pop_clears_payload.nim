@@ -1,7 +1,7 @@
 ## T-VERIFY-POP-CLEARS.spsc — Regression test locking in the
 ## destructive-read behavior of the bounded-SPSC pop path.
 ##
-## Locks in the 2026-06-06 Phase 3.4 finding: the bounded-SPSC pop
+## Locks in the regression: the bounded-SPSC pop
 ## reads the slot via `move(queue.storage[op.slot])`, which is
 ## observationally equivalent to `.reset()` for slot-clearing under
 ## all relevant `T` (per design §4.5.3 family (1)). This regression

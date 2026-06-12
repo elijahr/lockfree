@@ -1,9 +1,9 @@
-## Path-C wrap/unwrap helpers — Wave C (v5.0.0).
+## Path-C wrap/unwrap helpers.
 ##
 ## Encode user-facing ``T`` into its ``SlotEncoding(T)`` slot form at push
 ## time; decode back at pop time. Identity for POD ``T``. Internal-only.
 ##
-## Lifecycle model (LOCKED by Wave C operator directive 2026-06-06):
+## Lifecycle model:
 ## library inc paired with library dec WITHIN library scopes. For
 ## ``ref X`` the push wrapper does an explicit ``incRefSlot`` so the
 ## queue claims +1 of the cell's refcount lifetime; on the caller side

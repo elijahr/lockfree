@@ -1,9 +1,8 @@
 ## Unit test: MPMC newSegment cell-init contract.
 ##
-## Phase B Task T4 of the strict-LCRQ migration. After T4 wires the
-## `result.cells[i] = (seq=0, default(T))` store loop into the MPMC
-## arm of `newSegment`, every slot of a freshly-allocated MPMC
-## segment MUST observe the design §2.5.1 empty-cell state:
+## With the `result.cells[i] = (seq=0, default(T))` store loop wired
+## into the MPMC arm of `newSegment`, every slot of a freshly-allocated
+## MPMC segment MUST observe the design §2.5.1 empty-cell state:
 ##   - `seq == 0` (low 63 bits of the epoch counter == 0)
 ##   - `payload == default(T)`
 ##

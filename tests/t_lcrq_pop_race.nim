@@ -2,9 +2,9 @@
 ##
 ## Background
 ## ----------
-## After Phase B T6 wired `tryClaim(seg.cells[mySlot], expectedSeq=0)`
-## into the MPMC pop fast path, the consumer claim path has two
-## post-CAS branches when `tryClaim` returns `none`:
+## With `tryClaim(seg.cells[mySlot], expectedSeq=0)` wired into the
+## MPMC pop fast path, the consumer claim path has two post-CAS
+## branches when `tryClaim` returns `none`:
 ##   (a) cell observed with `CLOSED_BIT` set — close-on-empty raced
 ##       the producer; escalate to `nextSeg`.
 ##   (b) cell observed empty (seq == 0) — producer is mid-publish:
