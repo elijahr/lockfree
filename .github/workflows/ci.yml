@@ -511,7 +511,7 @@ jobs:
   # ===========================================================================
   test-heavy:
     name: '${{ matrix.cell }}: ${{ matrix.label }}'
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel' || github.ref == 'refs/heads/feat/v0.1.0')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')
     runs-on: ${{ matrix.runs-on }}
     # Per-cell container: Linux cells (6, 7, 10) inherit the multi-arch
     # lockfree-ci image (Nim 2.2.10 stable + all build tools); macOS (11)
@@ -821,7 +821,7 @@ jobs:
   # ===========================================================================
   valgrind:
     name: '8: Valgrind memcheck (subset)'
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel' || github.ref == 'refs/heads/feat/v0.1.0')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/elijahr/lockfree-ci:latest
@@ -908,7 +908,7 @@ jobs:
   # ===========================================================================
   helgrind:
     name: '9: Helgrind (subset)'
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel' || github.ref == 'refs/heads/feat/v0.1.0')
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/elijahr/lockfree-ci:latest
