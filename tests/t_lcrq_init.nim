@@ -31,8 +31,8 @@ import lockfree/smr/nebr as debra_mod
 from lockfree/smr/nebr import DebraManager, initDebraManager
 from lockfree/atomics import load, moRelaxed, Pair
 
-suite "T4: MPMC newSegment cell-init contract (design §2.5.1)":
-  test "T4.I1: every cell of a fresh MPMC segment is (seq=0, default(T)=0) for T=int":
+suite "MPMC newSegment cell-init contract (design §2.5.1)":
+  test "every cell of a fresh MPMC segment is (seq=0, default(T)=0) for T=int":
     var manager = initDebraManager[4, debra_mod.ccMulti]()
     var queue = newUnboundedMpmcQueue[int, stEager, 16, 4](addr manager)
     let segPtr = cast[ptr Segment[int, pinscope_stub.ccMulti, pinscope_stub.ccMulti, 16]](queue.headSegmentForTest())
@@ -42,7 +42,7 @@ suite "T4: MPMC newSegment cell-init contract (design §2.5.1)":
       check observed.first == 0'u
       check observed.second == 0
 
-  test "T4.I2: every cell of a fresh MPMC segment is (seq=0, default(T)=nil) for T=ptr int":
+  test "every cell of a fresh MPMC segment is (seq=0, default(T)=nil) for T=ptr int":
     var manager = initDebraManager[4, debra_mod.ccMulti]()
     var queue = newUnboundedMpmcQueue[ptr int, stEager, 16, 4](addr manager)
     let segPtr = cast[ptr Segment[

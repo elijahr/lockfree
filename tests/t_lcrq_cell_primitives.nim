@@ -5,7 +5,7 @@
 ## primitives — concurrency proofs live in the dedicated race tests
 ## once the primitives are wired into the production MPMC arm.
 ##
-## CRITICAL contract (design §2.3.1 / CRITICAL-1): `tryClaim` MUST
+## Default-value contract (design §2.3.1): `tryClaim` MUST
 ## NEVER inspect `observed.second`. The CAS on the seq encoding is
 ## the sole authority on cell state. A successfully published cell
 ## with `seq=1` may legitimately carry `default(T)` as its payload
@@ -31,12 +31,12 @@ proc storeCell[T](cell: var LCRQCell[T], seqVal: uint, payload: T) =
 proc readCell[T](cell: var LCRQCell[T]): Pair[uint, T] =
   load(cell, moRelaxed)
 
-suite "T2: tryPublish / tryClaim / tryCloseOnEmpty cell primitives":
+suite "tryPublish / tryClaim / tryCloseOnEmpty cell primitives":
   # ------------------------------------------------------------------
   # tryPublish
   # ------------------------------------------------------------------
 
-  test "T2.P1: tryPublish on empty cell succeeds, advances seq to 1":
+  test "tryPublish on empty cell succeeds, advances seq to 1":
     var cell: LCRQCell[int]
     storeCell(cell, 0'u, 0)
     check tryPublish(cell, 0'u, 42) == true
@@ -44,7 +44,7 @@ suite "T2: tryPublish / tryClaim / tryCloseOnEmpty cell primitives":
     check after.first == 1'u
     check after.second == 42
 
-  test "T2.P2: tryPublish on already-filled cell fails; cell unchanged":
+  test "tryPublish on already-filled cell fails; cell unchanged":
     var cell: LCRQCell[int]
     storeCell(cell, 1'u, 17)
     check tryPublish(cell, 0'u, 99) == false
@@ -52,7 +52,7 @@ suite "T2: tryPublish / tryClaim / tryCloseOnEmpty cell primitives":
     check after.first == 1'u
     check after.second == 17
 
-  test "T2.P3: tryPublish on closed cell fails; cell unchanged":
+  test "tryPublish on closed cell fails; cell unchanged":
     var cell: LCRQCell[int]
     storeCell(cell, CLOSED_BIT, 0)
     check tryPublish(cell, 0'u, 7) == false
@@ -60,7 +60,7 @@ suite "T2: tryPublish / tryClaim / tryCloseOnEmpty cell primitives":
     check after.first == CLOSED_BIT
     check after.second == 0
 
-  test "T2.P4: tryPublish with already-published expectedSeq=1 fails":
+  test "tryPublish with already-published expectedSeq=1 fails":
     # A racing producer that observed seq=1 (already filled) must not
     # be able to overwrite the cell by guessing expectedSeq=1.
     var cell: LCRQCell[int]
@@ -70,7 +70,7 @@ suite "T2: tryPublish / tryClaim / tryCloseOnEmpty cell primitives":
     check after.first == 1'u
     check after.second == 17
 
-  test "T2.P5: tryPublish[ptr X] with nil value asserts (Option transport restriction)":
+  test "tryPublish[ptr X] with nil value asserts (Option transport restriction)":
     # `std/options.some(val: ptr X)` asserts `not val.isNil` at runtime.
     # tryPublish surfaces the violation at the producer (design §2.5.2 / §11)
     # rather than letting it manifest as a delayed AssertionDefect inside
@@ -82,11 +82,11 @@ suite "T2: tryPublish / tryClaim / tryCloseOnEmpty cell primitives":
       discard tryPublish(cell, 0'u, nil)
 
   # ------------------------------------------------------------------
-  # tryClaim — CRITICAL-1 contract: CAS is the sole authority on state.
+  # tryClaim — default-value contract: CAS is the sole authority on state.
   # NEVER inspect observed.second.
   # ------------------------------------------------------------------
 
-  test "T2.C1: tryClaim on filled cell returns the payload; seq stays at 1, payload zeroed":
+  test "tryClaim on filled cell returns the payload; seq stays at 1, payload zeroed":
     var cell: LCRQCell[int]
     storeCell(cell, 1'u, 42)
     let claimed = tryClaim(cell, 0'u)
@@ -95,7 +95,7 @@ suite "T2: tryPublish / tryClaim / tryCloseOnEmpty cell primitives":
     check after.first == 1'u
     check after.second == 0 # default(int) — CAS zeroed the payload slot
 
-  test "T2.C2: tryClaim on filled cell with default(T) payload returns some(default(T)) — CRITICAL-1 regression":
+  test "tryClaim on filled cell with default(T) payload returns some(default(T)) — default-value regression":
     # The spike's `if observed.second == default(T): return none(T)`
     # short-circuit would silently drop this. The production primitive
     # MUST NOT have that short-circuit: CAS is sole authority.
@@ -108,7 +108,7 @@ suite "T2: tryPublish / tryClaim / tryCloseOnEmpty cell primitives":
     check after.first == 1'u
     check after.second == 0
 
-  test "T2.C3: tryClaim on filled cell with non-nil pointer payload round-trips through Option[ptr int]":
+  test "tryClaim on filled cell with non-nil pointer payload round-trips through Option[ptr int]":
     # Cross-T sanity for the pointer instantiation. The default-value
     # tryClaim test already exercises the zero-payload regression class
     # (payload bit-pattern == 0); this test proves the primitive
@@ -131,7 +131,7 @@ suite "T2: tryPublish / tryClaim / tryCloseOnEmpty cell primitives":
     check after.first == 1'u
     check after.second == nil # CAS zeroed the payload slot
 
-  test "T2.C4: tryClaim on empty cell returns none(T)":
+  test "tryClaim on empty cell returns none(T)":
     var cell: LCRQCell[int]
     storeCell(cell, 0'u, 0)
     let claimed = tryClaim(cell, 0'u)
@@ -140,7 +140,7 @@ suite "T2: tryPublish / tryClaim / tryCloseOnEmpty cell primitives":
     check after.first == 0'u
     check after.second == 0
 
-  test "T2.C5: tryClaim on closed cell returns none(T)":
+  test "tryClaim on closed cell returns none(T)":
     var cell: LCRQCell[int]
     storeCell(cell, CLOSED_BIT, 0)
     let claimed = tryClaim(cell, 0'u)
@@ -153,7 +153,7 @@ suite "T2: tryPublish / tryClaim / tryCloseOnEmpty cell primitives":
   # tryCloseOnEmpty
   # ------------------------------------------------------------------
 
-  test "T2.X1: tryCloseOnEmpty on empty cell succeeds, sets CLOSED_BIT":
+  test "tryCloseOnEmpty on empty cell succeeds, sets CLOSED_BIT":
     var cell: LCRQCell[int]
     storeCell(cell, 0'u, 0)
     check tryCloseOnEmpty(cell, 0'u) == true
@@ -161,7 +161,7 @@ suite "T2: tryPublish / tryClaim / tryCloseOnEmpty cell primitives":
     check after.first == CLOSED_BIT
     check after.second == 0
 
-  test "T2.X2: tryCloseOnEmpty on filled cell fails; cell unchanged":
+  test "tryCloseOnEmpty on filled cell fails; cell unchanged":
     var cell: LCRQCell[int]
     storeCell(cell, 1'u, 42)
     check tryCloseOnEmpty(cell, 0'u) == false
@@ -169,7 +169,7 @@ suite "T2: tryPublish / tryClaim / tryCloseOnEmpty cell primitives":
     check after.first == 1'u
     check after.second == 42
 
-  test "T2.X3: tryCloseOnEmpty on already-closed cell fails; cell unchanged":
+  test "tryCloseOnEmpty on already-closed cell fails; cell unchanged":
     var cell: LCRQCell[int]
     storeCell(cell, CLOSED_BIT, 0)
     check tryCloseOnEmpty(cell, 0'u) == false

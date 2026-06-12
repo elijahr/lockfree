@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # tests/audit_dwcas_pair_arc.sh
 #
-# F2 closure audit (impl plan Task 15, design §2.6, HIGH-2):
+# Pair[uint64, ptr T] ARC zero-hook audit (design §2.6):
 # Pair[uint64, ptr T] DWCAS must NOT generate `=destroy` / `=copy` hooks
 # on Pair. Any such hook either touches the pointee (lifetime claim we
 # explicitly disclaim) or inserts ARC traffic into the DWCAS hot path.

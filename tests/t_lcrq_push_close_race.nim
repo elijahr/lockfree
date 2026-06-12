@@ -128,7 +128,7 @@ proc consumerProc(ctx: ptr CCtx) {.thread.} =
         # consumer loop. consumedCount is asserted outside.
         break
 
-suite "T9: MPMC push close-CAS-on-empty escalation — no drops, no duplicates":
+suite "MPMC push close-CAS-on-empty escalation — no drops, no duplicates":
   var
     producersDone: Atomic[int]
     consumedCount: Atomic[int]

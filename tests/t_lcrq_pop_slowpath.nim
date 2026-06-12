@@ -56,8 +56,8 @@ import lockfree/endpoint
 import lockfree/smr/nebr as debra_mod
 from lockfree/smr/nebr import DebraManager, initDebraManager
 
-suite "T8: MPMC pop §5.2 slow-path inline-skip (HIGH-2)":
-  test "T8.S1: pop on empty queue returns none(T) cleanly":
+suite "MPMC pop §5.2 slow-path inline-skip":
+  test "pop on empty queue returns none(T) cleanly":
     # Slow-path entry: mySlot == 0, tail == 0 → mySlot >= tail. Inside
     # the slow-path block the inner condition `mySlot < S and
     # seg.tail.load > mySlot` is false (tail is 0), so the slow-path
@@ -71,7 +71,7 @@ suite "T8: MPMC pop §5.2 slow-path inline-skip (HIGH-2)":
 
     check r == none(int)
 
-  test "T8.S2: drain, refill, drain again — no items lost across slow-path entries":
+  test "drain, refill, drain again — no items lost across slow-path entries":
     # After draining a partially-filled segment, the next pop sees
     # mySlot >= tail and enters the slow-path. A subsequent push must
     # be observable to the consumer on a later pop. This guards
@@ -99,7 +99,7 @@ suite "T8: MPMC pop §5.2 slow-path inline-skip (HIGH-2)":
     check consumer.pop() == some(50)
     check consumer.pop() == none(int) # slow-path entry again
 
-  test "T8.S3: alternating push/pop sequences — slow-path FIFO preserved":
+  test "alternating push/pop sequences — slow-path FIFO preserved":
     # Each pop empties the queue briefly, so every subsequent pop on
     # the empty state enters the slow-path. Verify FIFO across
     # repeated slow-path entries.
@@ -114,7 +114,7 @@ suite "T8: MPMC pop §5.2 slow-path inline-skip (HIGH-2)":
       check consumer.pop() == some(i)
       check consumer.pop() == none(int)
 
-  test "T8.S4: segment cross-over with slow-path on tail segment":
+  test "segment cross-over with slow-path on tail segment":
     # Push enough to span 2 segments (S=4 here), drain fully so the
     # consumer hits the slow-path on the second (tail) segment with
     # no successor. Verifies the slow-path's nextSeg==nil exit path.

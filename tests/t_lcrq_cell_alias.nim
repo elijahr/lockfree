@@ -49,7 +49,7 @@ import std/unittest
 import lockfree/queue
 import lockfree/atomics
 
-suite "LCRQCell[T] alias + CLOSED_BIT + Pair re-export (T1 smoke)":
+suite "LCRQCell[T] alias + CLOSED_BIT + Pair re-export (smoke)":
   test "1. LCRQCell[int] is a transparent alias for Atomic[Pair[uint, int]]":
     # Assignment between the alias and the spelled-out type proves
     # transparency. If `LCRQCell` were declared as a `distinct`

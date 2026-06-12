@@ -24,8 +24,8 @@ import lockfree/smr/nebr as debra_mod
 from lockfree/smr/nebr import DebraManager, initDebraManager
 from lockfree/atomics import load, moRelaxed, Pair
 
-suite "T5: MPMC producer publish writes to LCRQ cell (design §2.5.1, §4)":
-  test "T5.P1: single push transitions cell[0] from (0, 0) to (1, 42) for T=int":
+suite "MPMC producer publish writes to LCRQ cell (design §2.5.1, §4)":
+  test "single push transitions cell[0] from (0, 0) to (1, 42) for T=int":
     var manager = initDebraManager[4, debra_mod.ccMulti]()
     var queue = newUnboundedMpmcQueue[int, stEager, 16, 4](addr manager)
     let segPtr = cast[ptr Segment[int, pinscope_stub.ccMulti, pinscope_stub.ccMulti, 16]](queue.headSegmentForTest())
@@ -52,7 +52,7 @@ suite "T5: MPMC producer publish writes to LCRQ cell (design §2.5.1, §4)":
       check other.first == 0'u
       check other.second == 0
 
-  test "T5.P2: four sequential pushes fill cells[0..3] with (seq=1, value=i+1)":
+  test "four sequential pushes fill cells[0..3] with (seq=1, value=i+1)":
     var manager = initDebraManager[4, debra_mod.ccMulti]()
     var queue = newUnboundedMpmcQueue[int, stEager, 16, 4](addr manager)
     let segPtr = cast[ptr Segment[int, pinscope_stub.ccMulti, pinscope_stub.ccMulti, 16]](queue.headSegmentForTest())

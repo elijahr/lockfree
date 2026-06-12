@@ -127,7 +127,7 @@ proc consumerProc(ctx: ptr CCtx) {.thread.} =
         # consumer loop. consumedCount is asserted outside.
         break
 
-suite "T6.C3: MPMC pop case-(b) race — no orphaned values under stress":
+suite "MPMC pop case-(b) race — no orphaned values under stress":
   var
     producersDone: Atomic[int]
     consumedCount: Atomic[int]

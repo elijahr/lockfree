@@ -167,7 +167,7 @@ type LCRQCell*[T] = Atomic[Pair[uint, T]]
 # producer's `moRelease` publish — the CAS-failure ordering only
 # governs the failure-path re-read, which we discard.
 #
-# CRITICAL-1 contract: `tryClaim` NEVER inspects `observed.second`. The
+# Default-value contract: `tryClaim` NEVER inspects `observed.second`. The
 # CAS on the seq encoding is the SOLE authority on cell state. A
 # short-circuit like `if observed.second == default(T): return none(T)`
 # would silently drop legitimate `q.push(0)` / `q.push(nil)` publishes;
@@ -208,7 +208,7 @@ proc tryPublish*[T](
     result = compareExchangeStrong(cell, prev, desired, moRelease, moRelaxed)
 
 proc tryClaim*[T](cell: var LCRQCell[T], expectedSeq: uint): Option[T] {.inline.} =
-  ## CRITICAL-1. Consumer claim via DWCAS.
+  ## Consumer claim via DWCAS.
   ##
   ## CONTRACT: NEVER inspect `observed.second`. The CAS on the seq
   ## encoding is the sole authority on cell state. A filled cell with

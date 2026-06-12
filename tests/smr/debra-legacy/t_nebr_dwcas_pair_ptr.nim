@@ -1,7 +1,6 @@
 # tests/test_dwcas_pair_ptr.nim
 ##
-## Pair[uint64, ptr T] ARC zero-hook audit (impl plan Task 15, design §2.6
-## F2 closure, HIGH-2).
+## Pair[uint64, ptr T] ARC zero-hook audit (design §2.6).
 ##
 ## The LCRQ pattern stores `Pair[uint64, ptr T]` where `second` is a raw
 ## non-owning pointer. ARC/ORC must NOT generate `=destroy` / `=copy`

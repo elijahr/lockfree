@@ -21,8 +21,8 @@ import lockfree/endpoint
 import lockfree/smr/nebr as debra_mod
 from lockfree/smr/nebr import DebraManager, initDebraManager
 
-suite "T6: MPMC consumer claim returns published values (design §5.2, §6, §8)":
-  test "T6.C1: push 1..4 then pop 4 times returns 1,2,3,4 FIFO":
+suite "MPMC consumer claim returns published values (design §5.2, §6, §8)":
+  test "push 1..4 then pop 4 times returns 1,2,3,4 FIFO":
     var manager = initDebraManager[4, debra_mod.ccMulti]()
     var queue = newUnboundedMpmcQueue[int, stEager, 16, 4](addr manager)
 
@@ -43,8 +43,8 @@ suite "T6: MPMC consumer claim returns published values (design §5.2, §6, §8)
     check r4 == some(4)
     check r5 == none(int)
 
-  test "T6.C2: push 0 (default(T)) then pop returns some(0) — CRITICAL-1 regression guard":
-    # Per design §2.3.1 / CRITICAL-1, tryClaim MUST NOT inspect
+  test "push 0 (default(T)) then pop returns some(0) — default-value regression guard":
+    # Per design §2.3.1, tryClaim MUST NOT inspect
     # observed.second. A legitimate publish of default(T) (e.g. 0 for
     # int, nil for ptr/ref) must be returned as some(default(T)),
     # NOT silently dropped as none(T). The spike's
