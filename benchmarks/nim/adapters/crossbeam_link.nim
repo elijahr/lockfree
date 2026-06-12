@@ -25,7 +25,9 @@
 ##
 ## Override the default search path with ``-d:crossbeamLibDir=<path>``.
 
-when defined(crossbeamLibDir):
+const crossbeamLibDir {.strdefine.}: string = ""
+
+when crossbeamLibDir.len > 0:
   {.passL: "-L" & crossbeamLibDir.}
 else:
   {.passL: "-Lbenchmarks/rust/bench-ffi-crossbeam/target/release".}

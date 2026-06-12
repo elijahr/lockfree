@@ -23,6 +23,8 @@
 ## x86_64). On systems where Boost lives elsewhere, set
 ## ``-d:boostIncludeDir=<path>`` at compile time.
 
+const boostIncludeDir {.strdefine.}: string = ""
+
 when defined(adapter_boost_lockfree_queue_available):
   when not defined(cpp):
     {.
@@ -36,7 +38,7 @@ when defined(adapter_boost_lockfree_queue_available):
 
   # Header search paths. Order: explicit override -> brew arm64 -> brew/macports
   # x86_64 / FreeBSD ports -> Linux apt default.
-  when defined(boostIncludeDir):
+  when boostIncludeDir.len > 0:
     {.passC: "-I" & boostIncludeDir.}
   else:
     when defined(macosx) or defined(macos):

@@ -16,6 +16,8 @@
 ## search paths and the heap-allocated indirection (Boost queues are
 ## non-copyable, non-movable C++ types).
 
+const boostIncludeDir {.strdefine.}: string = ""
+
 when defined(adapter_boost_lockfree_spsc_available):
   when not defined(cpp):
     {.
@@ -27,7 +29,7 @@ when defined(adapter_boost_lockfree_spsc_available):
   import ../adapter
   import lockfree/internal/aligned_alloc
 
-  when defined(boostIncludeDir):
+  when boostIncludeDir.len > 0:
     {.passC: "-I" & boostIncludeDir.}
   else:
     when defined(macosx) or defined(macos):
