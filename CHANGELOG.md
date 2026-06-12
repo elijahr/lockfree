@@ -57,13 +57,16 @@ umbrella, not separate releases of the umbrella package itself.
   queue families (~30 lines per queue arm). Drain helpers integrate
   with the strict `mm:none` bit-transport contract.
 - **Tier 3 chronos async adapter** (`src/lockfree/chronos.nim`).
-  Optional dependency — chronos is **NOT** listed in
-  `lockfree.nimble` `requires`; the adapter is gated by a
-  compile-time `when (compiles do: import chronos/[asyncsync]):`
-  probe. Activated via `-d:lockfreeChronos` in projects that opt in.
-  A dedicated CI cell exercises the adapter under a pinned chronos
-  version; `t_chronos.nim` is silently skipped when chronos is
-  absent. `try/finally` PinScope unwind hardened per R10.
+  Optional dependency with **flag-only opt-in**: the adapter and its
+  `chronos` requirement are both gated behind `-d:lockfreeChronos`.
+  In `lockfree.nimble` the dependency lives under
+  `when defined(lockfreeChronos): requires "chronos >= 4.0.0 & < 5.0.0"`,
+  so default builds never resolve chronos. Projects opt in by passing
+  `-d:lockfreeChronos` and installing chronos themselves. A dedicated
+  CI cell exercises the adapter under a pinned chronos version;
+  `t_chronos.nim` is silently skipped when the flag is absent. The
+  `try/finally` PinScope unwind contract is documented inline and
+  covered by test.
 - **`mm:none` strict bit-transport contract.** Queue payloads are
   required to be transportable as raw bits with no destructor side
   effects across the cell boundary. Drain helpers + the typestate

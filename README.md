@@ -1,4 +1,4 @@
-[![build](https://github.com/elijahr/lockfree/actions/workflows/build.yml/badge.svg)](https://github.com/elijahr/lockfree/actions/workflows/build.yml)
+[![ci](https://github.com/elijahr/lockfree/actions/workflows/ci.yml/badge.svg)](https://github.com/elijahr/lockfree/actions/workflows/ci.yml)
 
 # lockfree
 
@@ -132,7 +132,7 @@ manager's lifetime. Size it accordingly. The unbounded SPSC arm
 > fire a compile-time `{.error.}`. For wider or move-only `T`, switch to
 > the bounded `BQueue[T, ccMulti, ccMulti, …]` (Vyukov per-slot seq;
 > unchanged in v5.0.0, retains general `T`) or wrap as `ptr T` — see
-> [`docs/migrations/v5.0.0.md`](docs/migrations/v5.0.0.md) migration
+> [`docs/migrations/from-lockfreequeues-v5.md`](docs/migrations/from-lockfreequeues-v5.md) migration
 > recipes and [`examples/job_scheduler.nim`](examples/job_scheduler.nim)
 > for the canonical `ptr T` pattern. The unbounded SPSC / SPMC / MPSC
 > arms are unaffected.
@@ -266,7 +266,7 @@ nimble examples
 nimble test
 ```
 
-CI (see [`.github/workflows/build.yml`](.github/workflows/build.yml)) runs the
+CI (see [`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs the
 suite on:
 
 - Runners: `ubuntu-24.04` (x86_64), `ubuntu-24.04-arm` (native arm64),
