@@ -89,6 +89,17 @@
 # ``lockfree/bqueue``) and the managed-payload tests under
 # ``tests/managed_ref/``. User code uses ``ref T`` directly.
 
+# Fix 1 (Phase 4.6.1 test infra): under ``-d:lockfreeRefcountTrace`` the
+# refcount shims below call ``bumpInc`` / ``bumpDec`` from the test-only
+# trace shim so ``tests/composition/t_refcount_use_patterns.nim`` can
+# assert real inc/dec balance. The import is guarded by the define so it
+# is NEVER pulled into release builds (zero-cost when the define is
+# unset). The shim path is supplied by the ``testRefcountTrace`` nimble
+# task (``--path:tests/composition``); it imports only ``std/atomics`` so
+# there is no import cycle back into ``managed_ref``.
+when defined(lockfreeRefcountTrace):
+  import refcount_trace_shim
+
 type
   ManagedRef*[X] = distinct uint
     ## Slot encoding for a ``ref X`` payload. Internal — see module
@@ -179,6 +190,13 @@ template incRefSlot*[X](mref: ManagedRef[X]) =
        defined(gcRefc):
     let mrefBits = toBits(mref)
     if mrefBits != 0'u:
+      # Fix 1 (Phase 4.6.1 test infra): trace hook fires exactly once
+      # per real refcount inc, guarded by the define so release builds
+      # are zero-cost (no symbol pulled, no shim imported). Placed inside
+      # the non-nil guard so it counts only inc calls that actually
+      # GC_ref a live cell.
+      when defined(lockfreeRefcountTrace):
+        bumpInc()
       # ``GC_ref`` on arc/orc/atomicArc delegates to ``nimIncRef``
       # (arc.nim:270-272); on refc it bumps the tracing-GC count. The
       # cyclic flag (orc) is handled inside ``nimIncRef`` /
@@ -199,6 +217,12 @@ template decRefSlot*[X](mref: ManagedRef[X]) =
        defined(gcRefc):
     let mrefBits = toBits(mref)
     if mrefBits != 0'u:
+      # Fix 1 (Phase 4.6.1 test infra): trace hook fires exactly once
+      # per real refcount dec, guarded by the define (zero-cost in
+      # release). Counts only dec calls that actually GC_unref a live
+      # cell.
+      when defined(lockfreeRefcountTrace):
+        bumpDec()
       # ``GC_unref`` on arc/orc/atomicArc calls ``=destroy`` on a
       # cursor view of the ref (arc.nim:265-268), which runs
       # ``nimDecRefIsLast`` + ``nimDestroyAndDispose`` if the count
@@ -284,6 +308,10 @@ when defined(nimony):
     ## is tracked at v0.2 — see module-level partial-port block.
     let mrefBits = toBits(mref)
     if mrefBits != 0'u:
+      # Fix 1 (Phase 4.6.1 test infra): trace hook, guarded by the
+      # define (zero-cost in release). Counts the nimony-arm inc.
+      when defined(lockfreeRefcountTrace):
+        bumpInc()
       # TODO: nimony partial port (OQ4.2) — once the nimony
       # NimHeapHeader layout is verified, replace the direct cast
       # with the heap-header offset computation from design §4.3.3.
@@ -297,6 +325,11 @@ when defined(nimony):
     ## omitted pending resolution. See module-level partial-port block.
     let mrefBits = toBits(mref)
     if mrefBits != 0'u:
+      # Fix 1 (Phase 4.6.1 test infra): trace hook, guarded by the
+      # define (zero-cost in release). Counts the nimony-arm dec
+      # regardless of last-ref outcome (it is a real dec call).
+      when defined(lockfreeRefcountTrace):
+        bumpDec()
       # TODO: nimony partial port (OQ4.2) — heap-header offset, as above.
       if arcDec(cast[ptr int](mrefBits)[]):
         # TODO: nimony partial port (OQ4.4) — invoke the nimony

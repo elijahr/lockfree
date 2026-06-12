@@ -46,7 +46,18 @@ import ./t_drain
 import ./t_iterators
 import ./t_destructor_walk
 import ./t_typestate_dual_api
+# Fix 3 (Phase 4.6.1 test infra): un-orphan the pinscope-unwind
+# regression test. It is a plain destructor-driven unittest (no special
+# flags / MM / panics:on), so it runs in the umbrella across the orc /
+# cpp / arc / refc lanes the `test` task sweeps.
+import ./t_pinscope_unwind
 import ./composition/t_path_c_matrix
+# Fix 2 (Phase 4.6.1 test infra): un-orphan the refcount matrix so it
+# gets compile coverage in the umbrella. The real inc/dec balance
+# assertion fires only under `-d:lockfreeRefcountTrace` (via the
+# `testRefcountTrace` task); in the plain umbrella it emits a visible
+# skip notice instead of a 0==0 tautology.
+import ./composition/t_refcount_use_patterns
 import ./composition/t_verify_pop_clears_spsc_bounded
 import ./composition/t_verify_pop_clears_mpsc_bounded
 import ./composition/t_verify_pop_clears_spmc_bounded
@@ -89,11 +100,12 @@ export
   t_lcrq_pop_single, t_lcrq_pop_race, t_lcrq_pop_slowpath, t_lcrq_push_close_race,
   t_lcrq_pop_critical_repros, t_bqueue_mpmc_wide_T_accepted, t_wraparound,
   t_wave_c_smoke, t_managed_slice_smoke, t_drain, t_iterators, t_destructor_walk,
-  t_typestate_dual_api, t_path_c_matrix, t_verify_pop_clears_spsc_bounded,
+  t_typestate_dual_api, t_pinscope_unwind, t_path_c_matrix,
+  t_verify_pop_clears_spsc_bounded,
   t_verify_pop_clears_mpsc_bounded, t_verify_pop_clears_spmc_bounded,
   t_verify_pop_clears_mpmc_bounded, t_verify_pop_clears_spsc_unbounded,
   t_verify_pop_clears_mpsc_unbounded, t_verify_pop_clears_spmc_unbounded,
-  t_verify_pop_clears_mpmc_unbounded
+  t_verify_pop_clears_mpmc_unbounded, t_refcount_use_patterns
 
 when (
   compiles do:

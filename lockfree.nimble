@@ -100,6 +100,32 @@ task testTSan, "Runs the test suite under ThreadSanitizer (TSAN)":
     "--nimcache:" & (nimcacheBase / "test_tsan") & " -r tests/test.nim"
 
 
+task testRefcountTrace, "Runs the refcount-balance matrix under -d:lockfreeRefcountTrace":
+  # Fix 2 (Phase 4.6.1 test infra): the refcount-balance assertion in
+  # tests/composition/t_refcount_use_patterns.nim is REAL only under
+  # -d:lockfreeRefcountTrace, where the shim counters in
+  # tests/composition/refcount_trace_shim.nim are wired to the
+  # incRefSlot / decRefSlot shims in src/lockfree/managed_ref.nim. The
+  # --path adds tests/composition so managed_ref's guarded
+  # `import refcount_trace_shim` resolves (the import is itself behind
+  # the define, so this path is irrelevant to release builds). Runs
+  # under arc — the destructor-driven refcount path the matrix exercises.
+  let nimcacheBase = getHomeDir() / ".cache" / "nim"
+  exec "nim c --mm:arc --threads:on -d:lockfreeRefcountTrace " &
+    "--path:tests/composition " &
+    "--nimcache:" & (nimcacheBase / "test_refcount_trace") &
+    " -r tests/composition/t_refcount_use_patterns.nim"
+
+
+task testShell, "Runs the standalone shell-test regression scripts":
+  # Fix 3 (Phase 4.6.1 test infra): three shell tests had no runner and
+  # so never ran in CI. `exec` aborts the task (nonzero task exit) on the
+  # first script that returns nonzero, so any failure fails the task.
+  exec "bash tools/tests/test_act_cell_watchdog.sh"
+  exec "bash tools/tests/test_act_cell_envvar.sh"
+  exec "bash tests/test_chronos_dep_error.sh"
+
+
 task testASan, "Runs the test suite under AddressSanitizer (ASAN)":
   # AddressSanitizer works under arc/orc/atomicArc. We use the same MM
   # the rest of the matrix uses for the orc baseline (so ASAN-instrumented
