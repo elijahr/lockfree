@@ -1,4 +1,4 @@
-## Surface-ergonomics fixture for the 0.8.0 "Step 8" widening: verifies
+## Surface-ergonomics fixture for the 0.8.0 CC-cardinality widening: verifies
 ## that `bindClient`, `unbindClient`, `clientCount`, `advance`,
 ## `currentEpoch`, and `initDebraManager` accept both `ccSingle` and
 ## `ccMulti` cardinality on `DebraManager` without triggering Nim's
@@ -13,7 +13,7 @@ import lockfree/smr/nebr
 import lockfree/smr/nebr/types
 import lockfree/smr/nebr/typestates/cardinality
 
-suite "DebraManager CC surface (0.8.0 Step 8 widening)":
+suite "DebraManager CC surface (0.8.0 widening)":
   test "initDebraManager[N]() defaults to ccSingle":
     var mgr = initDebraManager[4]()
     static:
@@ -61,11 +61,11 @@ suite "DebraManager CC surface (0.8.0 Step 8 widening)":
     mgrSingle.unbindClient()
     mgrMulti.unbindClient()
 
-suite "Typestate-context CC threading (0.8.0 Step 8 completion)":
-  # Step 3.3.4.5a-2 completes the surface widening on the 5 typestate
+suite "Typestate-context CC threading (0.8.0 completion)":
+  # The surface widening covers all 5 typestate
   # context types (ReclaimContext, AdvanceContext, ManagerContext,
-  # NeutralizeContext, SlotContext) that were missed in the original
-  # 3.3.4.5a pass. This suite locks in that the ccMulti cardinality
+  # NeutralizeContext, SlotContext). This suite locks in that the ccMulti
+  # cardinality
   # propagates end-to-end through the typestate context builders and
   # transitions, mirroring the t_pinned_scope ccMulti fixture for the
   # already-widened guard/retire/pinned_scope contexts.

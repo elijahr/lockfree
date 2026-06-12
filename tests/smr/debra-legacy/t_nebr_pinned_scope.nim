@@ -1,7 +1,6 @@
 ## Tests for the PinnedScope RAII guard (debra/typestates/pinned_scope).
 ##
-## Cases cover the 10 scenarios spelled in the v0.8.0 phase-1 plan §4
-## Step 6: happy-path, =destroy on early return, =destroy on exception,
+## Cases cover 10 scenarios: happy-path, =destroy on early return, =destroy on exception,
 ## =destroy after a Neutralized cycle, nested-pin AssertionDefect,
 ## no-copy compile rejection, move-safety, epoch snapshot, loop of
 ## retire, and ccMulti cardinality.

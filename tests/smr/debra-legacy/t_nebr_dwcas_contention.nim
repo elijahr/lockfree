@@ -1,6 +1,6 @@
 # tests/test_dwcas_contention.nim
 ##
-## DWCAS concurrent CAS contention smoke (impl plan Task 14).
+## DWCAS concurrent CAS contention smoke.
 ##
 ## N producer threads × M cells × K iterations per cell. Each iteration
 ## reads the current value via load, bumps `first` by 1 and stamps `second`
@@ -19,14 +19,13 @@
 ##
 ## NOTE: This test is NOT wired into tests/test.nim because it spawns
 ## threads and runs longer than the unit-test budget. It is invoked
-## directly by CI (impl plan Task 23) and by hand via:
+## directly by CI and by hand via:
 ##
 ##   nim c -r --threads:on --mm:arc --path:src -d:testing \
 ##     tests/test_dwcas_contention.nim
 ##
-## Per impl plan §13, the test is also wired into the v0.10.0
-## "nimble test" task as a separate exec line in a follow-up task; this
-## file alone is the artifact for Task 14.
+## It is also wired into the v0.10.0 "nimble test" task as a separate
+## exec line.
 
 import std/[cpuinfo]
 

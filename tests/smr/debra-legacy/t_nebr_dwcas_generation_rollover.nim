@@ -1,6 +1,6 @@
 # tests/test_dwcas_generation_rollover.nim
 ##
-## DWCAS generation rollover smoke (impl plan Task 14a, design §8.3).
+## DWCAS generation rollover smoke (design §8.3).
 ##
 ## Verifies that the `first` (sequence-counter) field of a
 ## Pair[uint64, T] wraps cleanly through uint64.high → 0 and that CAS

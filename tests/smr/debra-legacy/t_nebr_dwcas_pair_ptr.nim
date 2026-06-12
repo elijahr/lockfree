@@ -12,7 +12,7 @@
 ## DWCAS op and verify the pointee is intact after each. Wired into
 ## tests/test.nim — runs under arc/orc/atomicArc/refc.
 ##
-## Compile-time audit (the actual F2 closure invariant) is performed by
+## Compile-time audit (the actual hook-closure invariant) is performed by
 ## the companion script `tests/audit_dwcas_pair_arc.sh`, which runs
 ## `nim c --expandArc:auditProc` and asserts zero `=destroy` / `=copy`
 ## hooks fire on Pair. The script is wired into CI in a follow-up task.

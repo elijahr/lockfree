@@ -1,9 +1,9 @@
-## DWCAS memory-order warning emission fixture (impl plan Task 18).
+## DWCAS memory-order warning emission fixture.
 ##
 ## Compile-only test: passes a sub-seq_cst memory order to a 16-byte op,
 ## which MUST emit a `{.warning.}` per design §3. Verification is the
 ## stderr-grep harness in `tests/compile_only/run_dwcas_warning_check.nims`
-## (and the CI step in Task 23). The fixture itself MUST compile cleanly
+## (and the CI step). The fixture itself MUST compile cleanly
 ## (warnings are not errors); the harness greps stderr for the warning
 ## substring.
 import lockfree/atomics

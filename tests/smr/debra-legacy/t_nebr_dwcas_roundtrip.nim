@@ -1,6 +1,6 @@
 # tests/test_dwcas_roundtrip.nim
 ##
-## DWCAS unit round-trip suite (impl plan Task 13).
+## DWCAS unit round-trip suite.
 ##
 ## Exhaustively exercises every public DWCAS entry point on
 ## `Atomic[Pair[uint64, uint64]]`: load (default + explicit-order),
@@ -13,7 +13,7 @@
 ## post-state side effects on both success and failure paths.
 ##
 ## Existing t_atomics.nim DWCAS suites cover the basic surface; this file
-## is the systematic per-overload audit Task 13 calls for.
+## is the systematic per-overload audit.
 
 import unittest2
 

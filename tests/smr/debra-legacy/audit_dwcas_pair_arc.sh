@@ -24,12 +24,12 @@ out="$(nim c --mm:arc --threads:on --path:src -d:testing --hints:off \
 rc=$?
 
 if [ "$rc" -ne 0 ]; then
-  echo "FAIL [Task 15]: --expandArc compile failed (rc=$rc):"
+  echo "FAIL: --expandArc compile failed (rc=$rc):"
   printf '%s\n' "$out"
   exit 1
 fi
 
-# Pinned acceptance per impl plan Task 15: grep count for ARC hooks on
+# Pinned acceptance: grep count for ARC hooks on
 # Pair must equal zero. Match a few common spellings the compiler may emit:
 #   `=destroy(...Pair_...)`  /  `=copy(...Pair_...)`
 #   `=destroy_Pair_...`       /  `=copy_Pair_...`
@@ -37,12 +37,12 @@ fi
 hook_count=$(printf '%s\n' "$out" | grep -cE '=destroy.*Pair|=copy.*Pair' || true)
 
 if [ "$hook_count" -ne 0 ]; then
-  echo "FAIL [Task 15]: $hook_count ARC hook reference(s) on Pair in expanded output:"
+  echo "FAIL: $hook_count ARC hook reference(s) on Pair in expanded output:"
   printf '%s\n' "$out" | grep -E '=destroy.*Pair|=copy.*Pair'
   echo ""
-  echo "F2 closure broken: Pair[uint64, ptr int] must have zero =destroy/=copy hooks."
+  echo "Hook-closure invariant broken: Pair[uint64, ptr int] must have zero =destroy/=copy hooks."
   exit 1
 fi
 
-echo "PASS [Task 15]: zero =destroy/=copy hooks on Pair in --expandArc output"
+echo "PASS: zero =destroy/=copy hooks on Pair in --expandArc output"
 exit 0

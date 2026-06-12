@@ -1,7 +1,6 @@
 ## tests/bench/dwcas_weak_spurious.nim
 ##
-## DWCAS weak-CAS spurious-failure micro-bench (impl plan Task 27,
-## design §8.7).
+## DWCAS weak-CAS spurious-failure micro-bench (design §8.7).
 ##
 ## Measures the rate at which `compareExchangeWeak` on `Atomic[Pair[A, B]]`
 ## fails when the in-memory value actually equals `expected` at the time
@@ -20,7 +19,7 @@
 ## bound* on true spurious-failure rate. That is acceptable for the
 ## threshold check.
 ##
-## Per impl plan: if spurious_rate > 5% on aarch64 LL/SC, recommend
+## If spurious_rate > 5% on aarch64 LL/SC, recommend
 ## switching hot paths to `compareExchangeStrong`. On x86_64 the rate
 ## should be ~0%; treat any non-zero value as a measurement artifact.
 ##

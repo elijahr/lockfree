@@ -1,6 +1,6 @@
 # tests/test_dwcas_memory_orders.nim
 ##
-## DWCAS memory-order matrix (impl plan Task 12a, design §8.1).
+## DWCAS memory-order matrix (design §8.1).
 ##
 ## Verifies that every valid MemoryOrder for each op (load / store /
 ## exchange / CAS-strong / CAS-weak) is accepted and round-trips

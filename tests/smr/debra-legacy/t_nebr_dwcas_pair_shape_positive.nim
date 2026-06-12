@@ -1,6 +1,6 @@
 # tests/test_dwcas_pair_shape_positive.nim
 ##
-## Pair shape gate POSITIVE smoke (impl plan Task 17).
+## Pair shape gate POSITIVE smoke.
 ##
 ## Companion to tests/should_fail/t_dwcas_gate2_misalign.nim (which
 ## asserts undersized half-sums are rejected at compile time). This file

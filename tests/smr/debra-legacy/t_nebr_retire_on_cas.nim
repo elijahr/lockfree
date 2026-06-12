@@ -1,7 +1,6 @@
 ## Tests for `PinnedScope.retireOnCAS` and `retireOnPublish`.
 ##
-## Cases cover the 9 scenarios spelled in the v0.8.0 phase-1 plan §4
-## Step 6: CAS success/failure, rotation invariant, while-loop shape,
+## Cases cover 9 scenarios: CAS success/failure, rotation invariant, while-loop shape,
 ## ccMulti, retireOnPublish stores + retires, loop of retireOnPublish,
 ## retireOnCAS + retireOnPublish interleaved, and the empty-scope
 ## no-retire path.

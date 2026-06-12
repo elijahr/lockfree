@@ -1,9 +1,8 @@
 # tests/t_unregister_thread.nim
 ##
-## RED test suite for `unregisterThread` (Task B3 of the v0.9.0 static
-## thread-affinity work).
+## Test suite for `unregisterThread` (v0.9.0 static thread-affinity work).
 ##
-## Locked operator-decided signature (2026-05-30):
+## Signature:
 ##
 ##   proc unregisterThread*[
 ##       MaxThreads: static int,
@@ -13,22 +12,22 @@
 ##     handle: ThreadHandle[MaxThreads, CC],
 ##   ) {.raises: [].}
 ##
-## Baseline (recorded in Task B0):
+## Baseline facts:
 ## - Slot ownership: bit in `manager.activeThreadMask` (typestates/registration.nim,
 ##   `register` body, CAS with moRelease success / moAcquire failure).
 ## - Companion store: `threads[i].threadId` (signal-delivery hint; free
 ##   sentinel is `InvalidThreadId`, set by `initDebraManager` in types.nim).
 ## - `ThreadHandle` carries no epoch/generation; stale-handle reuse aliasing
-##   is documented misuse and is NOT a B3 contract (B4 may revisit).
-## - Thread-locals set by `register` (typestates/registration.nim ~line 98):
+##   is documented misuse and is not a contract this suite pins.
+## - Thread-locals set by `register` (typestates/registration.nim):
 ##   `threadLocalIdx`, `threadLocalRegistered`, `threadLocalManager`.
 ##
-## Out-of-scope for B3 RED (will be covered later in the track):
-## - Concurrent stress test (Task B4.5).
+## Not covered here:
+## - Concurrent stress test (lives in t_nebr_unregister_thread_stress.nim).
 ## - Stale-handle aliasing: handle survives, slot is reclaimed by another
-##   thread, then the stale handle is passed to `unregisterThread`. B4 will
-##   decide whether the runtime detects this (probably not, given no
-##   generation counter); this RED suite does not pin a contract here.
+##   thread, then the stale handle is passed to `unregisterThread`. Whether
+##   the runtime detects this is undecided (probably not, given no
+##   generation counter); this suite does not pin a contract here.
 
 import unittest2
 

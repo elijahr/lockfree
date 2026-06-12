@@ -868,9 +868,8 @@ suite "DWCAS gate 1 (pointer size)":
   test "host is 64-bit and module exports a size-16 specialization block":
     # Smoke: on a 64-bit target this compiles. Gate 1 itself (the
     # `{.error:.}` else-arm) is a design-time wrapper verified by code
-    # review + Task 33 audit script. A runtime 32-bit cross-compile
-    # should_fail is deferred to v0.10.1 (see §13 "Known limitations:
-    # gate-1 32-bit verification").
+    # review + the audit script. A runtime 32-bit cross-compile
+    # should_fail is a known limitation (gate-1 32-bit verification).
     static:
       doAssert sizeof(pointer) == 8
     # Positive smoke for enforceDwcasConstraints: must compile cleanly
@@ -1037,7 +1036,7 @@ suite "DWCAS per-callsite warning silencer":
     # Compile-only check: this fixture intentionally passes moRelease/moRelaxed
     # to a CAS. Without the wrapper, a {.warning.} fires; with the wrapper,
     # it is silenced. Real verification of suppression is the CI compile-output
-    # grep test (Task 19); this suite confirms the wrapper exists and compiles.
+    # grep test; this suite confirms the wrapper exists and compiles.
     var a: Atomic[Pair[uint64, uint64]]
     a.store(Pair[uint64, uint64](first: 1'u64, second: 2'u64))
     var expected = Pair[uint64, uint64](first: 1'u64, second: 2'u64)
@@ -1049,6 +1048,6 @@ suite "DWCAS per-callsite warning silencer":
         moRelaxed,
       )
     # No runtime check: the real verification is the CI compile-output grep
-    # (Task 19) that confirms the moSeqCst-upgrade warning is silenced. This
+    # that confirms the moSeqCst-upgrade warning is silenced. This
     # test block exists so the dwcasOrderRelaxedCAS wrapper is exercised at
     # compile time; reaching this point IS the smoke test.

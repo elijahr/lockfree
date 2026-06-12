@@ -1,8 +1,8 @@
 ## tests/t_unregister_thread_stress.nim
 ##
-## Task B4.5 — Concurrent stress test for `unregisterThread`.
+## Concurrent stress test for `unregisterThread`.
 ##
-## Companion to the per-task B4 unit tests in `t_unregister_thread.nim`. Those
+## Companion to the unit tests in `t_nebr_unregister_thread.nim`. Those
 ## tests are single-threaded and sequential; they prove the CAS sequence is
 ## *correct* in isolation but cannot exercise the register/unregister
 ## interaction under genuine load. This file does.
@@ -162,7 +162,7 @@ proc s3Worker() {.thread.} =
 # Suite
 # ---------------------------------------------------------------------------
 
-suite "unregisterThread concurrent stress (Task B4.5)":
+suite "unregisterThread concurrent stress":
   test "scenario 1: N=MaxThreads workers, repeated register/unregister, mask returns to zero":
     var mgr = initDebraManager[StressMaxThreads, ccSingle]()
     setGlobalManager(addr mgr)

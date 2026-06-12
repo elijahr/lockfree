@@ -1,7 +1,7 @@
 # tests/test_dwcas_pair_alignment.nim
 ##
 ## Pair alignment positive tests + 1-byte-offset misalignment negative
-## (impl plan Task 16, design §8.5).
+## (design §8.5).
 ##
 ## Positive: Pair[uint64, uint64] elements stay 16-byte aligned when:
 ##   * Sequence-allocated via newSeq.
