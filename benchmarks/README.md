@@ -1,13 +1,13 @@
 # Benchmark Suite
 
-Throughput and latency benchmarks for lockfreequeues. CI publishes the
+Throughput and latency benchmarks for lockfree. CI publishes the
 merged BMF (Bencher Metric Format) snapshot under
 `docs/assets/bench-results/latest.json`, which the docs charts read
 directly.
 
 ## Structure
 
-- `nim/` - Nim benchmarks (lockfreequeues + Nim channels).
+- `nim/` - Nim benchmarks (lockfree + Nim channels).
 - `nim/bench_common.nim` - Shared bench harness (BMF emission, stats,
   Histogram with top-K + reservoir percentiles, throughput / latency
   runners). One module, consumed by every per-topology bench binary.
@@ -41,7 +41,7 @@ directly.
   comparison adapters whose slug shape matches the mpmc unbounded
   grid: Loony, Crossbeam SegQueue, MoodyCamel).
 - `nim/bench_latency.nim` - Latency (ping-pong RTT) driver across the
-  four bounded lockfreequeues variants.
+  four bounded lockfree variants.
 - `nim/adapters/` - One file per upstream queue library
   (`<library_slug>_adapter.nim`). Adapters expose a `push(value)
   -> PushResult` / `pop() -> PopResult[T]` shape consumed by the
@@ -162,29 +162,29 @@ variant.
 
 Current slug set emitted across the topology-split binaries:
 
-- `bench_spsc`: `lockfreequeues_spsc/spsc/1p1c`,
-  `lockfreequeues_queue_bounded_spsc/spsc/1p1c`.
-- `bench_mpsc`: `lockfreequeues_mpsc/mpsc/{1,2,4}p1c`,
-  `lockfreequeues_queue_bounded_mpsc/mpsc/{1,2,4}p1c`.
+- `bench_spsc`: `lockfree_spsc/spsc/1p1c`,
+  `lockfree_queue_bounded_spsc/spsc/1p1c`.
+- `bench_mpsc`: `lockfree_mpsc/mpsc/{1,2,4}p1c`,
+  `lockfree_queue_bounded_mpsc/mpsc/{1,2,4}p1c`.
 - `bench_mpmc_bounded`:
-  `lockfreequeues_mpmc/mpmc/{1,2,4}p{1,2,4}c` plus
-  `lockfreequeues_mpmc/mpmc/8p8c`,
-  `lockfreequeues_queue_bounded_mpmc/mpmc/{1,2,4}p{1,2,4}c` plus
-  `lockfreequeues_queue_bounded_mpmc/mpmc/8p8c`,
+  `lockfree_mpmc/mpmc/{1,2,4}p{1,2,4}c` plus
+  `lockfree_mpmc/mpmc/8p8c`,
+  `lockfree_queue_bounded_mpmc/mpmc/{1,2,4}p{1,2,4}c` plus
+  `lockfree_queue_bounded_mpmc/mpmc/8p8c`,
   `nim_channels/mpmc/{1,2,4}p{1,2,4}c`.
 - `bench_spmc_bounded`:
-  `lockfreequeues_spmc/mpmc/1p{1,2,4}c`,
-  `lockfreequeues_queue_bounded_spmc/mpmc/1p{1,2,4}c`.
+  `lockfree_spmc/mpmc/1p{1,2,4}c`,
+  `lockfree_queue_bounded_spmc/mpmc/1p{1,2,4}c`.
 - `bench_unbounded_spsc`:
-  `lockfreequeues_unbounded_spsc/spsc_unbounded/1p1c`.
+  `lockfree_unbounded_spsc/spsc_unbounded/1p1c`.
 - `bench_unbounded_spmc`:
-  `lockfreequeues_unbounded_spmc/mpmc_unbounded/1p{1,2,4}c`.
+  `lockfree_unbounded_spmc/mpmc_unbounded/1p{1,2,4}c`.
 - `bench_unbounded_mpsc`:
-  `lockfreequeues_unbounded_mpsc/mpsc_unbounded/{1,2,4}p1c`.
+  `lockfree_unbounded_mpsc/mpsc_unbounded/{1,2,4}p1c`.
 - `bench_unbounded_mpmc`:
-  `lockfreequeues_unbounded_mpmc/mpmc_unbounded/{1,2,4}p{1,2,4}c`.
+  `lockfree_unbounded_mpmc/mpmc_unbounded/{1,2,4}p{1,2,4}c`.
 - `bench_latency`:
-  `lockfreequeues_{spsc,spmc,mpsc,mpmc}/{spsc,mpmc,mpsc,mpmc}/1p1c`.
+  `lockfree_{spsc,spmc,mpsc,mpmc}/{spsc,mpmc,mpsc,mpmc}/1p1c`.
 
 ## Comparison libraries — third-party adapters
 
@@ -273,7 +273,7 @@ version of each comparison adapter at run time. Schema (v1):
   "schema": 1,
   "generated_at": "<ISO-8601 UTC>",
   "host": { "os": "...", "arch": "..." },
-  "lockfreequeues_version": "5.0.0",
+  "lockfree_version": "5.0.0",
   "nim_version": "2.2.10",
   "adapters": {
     "<slug>": {
@@ -363,9 +363,9 @@ Adapter version sourcing rules (no hand-typed mirrors of README files):
 - **Nim compiler builtin** (`nim_channel`): always set to the
   `NimVersion` constant from `system`, which equals the compiler
   used for the bench compile.
-- **In-tree** (`lockfreequeues`): the `LockfreequeuesVersion`
-  constant from `src/lockfreequeues.nim` (mirrors the `version` line
-  in `lockfreequeues.nimble`; bump in lockstep on every release).
+- **In-tree** (`lockfree`): the `LockfreeVersion`
+  constant from `src/lockfree.nim` (mirrors the `version` line
+  in `lockfree.nimble`; bump in lockstep on every release).
 
 ### Running comparison adapters locally
 
@@ -456,10 +456,10 @@ README values may lag by up to one release cycle.
 1. Open the latest devel snapshot at
    <https://elijahr.github.io/lockfreequeues/dev/benchmarks/>.
 2. Read the throughput chart for these four shapes:
-   - `lockfreequeues_spsc/spsc/1p1c`
-   - `lockfreequeues_spmc/mpmc/1p2c`
-   - `lockfreequeues_mpsc/mpsc/2p1c`
-   - `lockfreequeues_mpmc/mpmc/2p2c`
+   - `lockfree_spsc/spsc/1p1c`
+   - `lockfree_spmc/mpmc/1p2c`
+   - `lockfree_mpsc/mpsc/2p1c`
+   - `lockfree_mpmc/mpmc/2p2c`
 3. Edit `README.md` between the BENCHMARKS markers, replacing the four
    `_to be filled at next release_` cells with the rounded throughput
    values (one decimal). Keep the table layout unchanged.

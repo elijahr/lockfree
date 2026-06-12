@@ -64,7 +64,7 @@ class MergeBmfTests(unittest.TestCase):
     def test_single_valid_input_round_trips(self) -> None:
         inp = self.dir / "throughput.json"
         payload = {
-            "lockfreequeues_spsc/spsc/1p1c": {
+            "lockfree_spsc/spsc/1p1c": {
                 "throughput_ops_ms": {
                     "value": 7411.0,
                     "lower_value": 7300.0,
@@ -106,12 +106,12 @@ class MergeBmfTests(unittest.TestCase):
         a = self.dir / "throughput.json"
         b = self.dir / "latency.json"
         write_json(a, {
-            "lockfreequeues_spsc/spsc/1p1c": {
+            "lockfree_spsc/spsc/1p1c": {
                 "throughput_ops_ms": {"value": 7411.0},
             },
         })
         write_json(b, {
-            "lockfreequeues_spsc/spsc/1p1c": {
+            "lockfree_spsc/spsc/1p1c": {
                 "latency_p50_ns": {"value": 292.0},
                 "latency_p99_ns": {"value": 480.0},
             },
@@ -121,7 +121,7 @@ class MergeBmfTests(unittest.TestCase):
         self.assertEqual(
             json.loads(self.out.read_text()),
             {
-                "lockfreequeues_spsc/spsc/1p1c": {
+                "lockfree_spsc/spsc/1p1c": {
                     "latency_p50_ns": {"value": 292.0},
                     "latency_p99_ns": {"value": 480.0},
                     "throughput_ops_ms": {"value": 7411.0},
@@ -134,19 +134,19 @@ class MergeBmfTests(unittest.TestCase):
         a = self.dir / "a.json"
         b = self.dir / "b.json"
         write_json(a, {
-            "lockfreequeues_spsc/spsc/1p1c": {
+            "lockfree_spsc/spsc/1p1c": {
                 "throughput_ops_ms": {"value": 7411.0},
             },
         })
         write_json(b, {
-            "lockfreequeues_spsc/spsc/1p1c": {
+            "lockfree_spsc/spsc/1p1c": {
                 "throughput_ops_ms": {"value": 9999.0},
             },
         })
         result = run_merge(str(self.out), str(a), str(b))
         self.assertEqual(result.returncode, 1)
         self.assertIn("collision", result.stderr.lower())
-        self.assertIn("lockfreequeues_spsc/spsc/1p1c", result.stderr)
+        self.assertIn("lockfree_spsc/spsc/1p1c", result.stderr)
         self.assertIn("throughput_ops_ms", result.stderr)
 
     # 7. Schema validation: NaN value -> exit 1.
@@ -171,7 +171,7 @@ class MergeBmfTests(unittest.TestCase):
     def test_invalid_measure_key_uppercase(self) -> None:
         inp = self.dir / "bad_measure.json"
         write_json(inp, {
-            "lockfreequeues_spsc/spsc/1p1c": {
+            "lockfree_spsc/spsc/1p1c": {
                 "Throughput": {"value": 7411.0},
             },
         })
@@ -211,22 +211,22 @@ class MergeBmfTests(unittest.TestCase):
         latency = self.dir / "bench_latency.json"
 
         write_json(spsc, {
-            "lockfreequeues_spsc/spsc/1p1c": {
+            "lockfree_spsc/spsc/1p1c": {
                 "throughput_ops_ms": {"value": 7000.0},
             },
         })
         write_json(mpsc, {
-            "lockfreequeues_mpsc/mpsc/4p1c": {
+            "lockfree_mpsc/mpsc/4p1c": {
                 "throughput_ops_ms": {"value": 6000.0},
             },
         })
         write_json(mpmc, {
-            "lockfreequeues_mpmc/mpmc/4p4c": {
+            "lockfree_mpmc/mpmc/4p4c": {
                 "throughput_ops_ms": {"value": 5000.0},
             },
         })
         write_json(unbounded, {
-            "lockfreequeues_unbounded_mpmc/mpmc_unbounded/4p4c": {
+            "lockfree_unbounded_mpmc/mpmc_unbounded/4p4c": {
                 "throughput_ops_ms": {"value": 4000.0},
             },
         })
@@ -237,7 +237,7 @@ class MergeBmfTests(unittest.TestCase):
         # the *measure* keys are disjoint (latency_* vs throughput_*),
         # which is the same shape the production pipeline ships.
         write_json(latency, {
-            "lockfreequeues_spsc/spsc/1p1c": {
+            "lockfree_spsc/spsc/1p1c": {
                 "latency_p50_ns": {"value": 250.0},
                 "latency_p99_ns": {"value": 800.0},
             },
@@ -254,28 +254,28 @@ class MergeBmfTests(unittest.TestCase):
         # with bench_spsc) plus the 3 unique slugs from mpsc, mpmc,
         # and unbounded = 4 top-level keys.
         self.assertEqual(set(merged.keys()), {
-            "lockfreequeues_spsc/spsc/1p1c",
-            "lockfreequeues_mpsc/mpsc/4p1c",
-            "lockfreequeues_mpmc/mpmc/4p4c",
-            "lockfreequeues_unbounded_mpmc/mpmc_unbounded/4p4c",
+            "lockfree_spsc/spsc/1p1c",
+            "lockfree_mpsc/mpsc/4p1c",
+            "lockfree_mpmc/mpmc/4p4c",
+            "lockfree_unbounded_mpmc/mpmc_unbounded/4p4c",
         })
         # Shared spsc slug carries BOTH throughput_ops_ms (from
         # bench_spsc) and latency_p50_ns / latency_p99_ns (from
         # bench_latency); the cross-binary merge must preserve every
         # measure on the shared slug.
-        spsc = merged["lockfreequeues_spsc/spsc/1p1c"]
+        spsc = merged["lockfree_spsc/spsc/1p1c"]
         self.assertEqual(spsc["throughput_ops_ms"]["value"], 7000.0)
         self.assertEqual(spsc["latency_p50_ns"]["value"], 250.0)
         self.assertEqual(spsc["latency_p99_ns"]["value"], 800.0)
         # The other three slugs each carry only their own measure.
         self.assertEqual(
-            merged["lockfreequeues_mpsc/mpsc/4p1c"]
+            merged["lockfree_mpsc/mpsc/4p1c"]
                   ["throughput_ops_ms"]["value"], 6000.0)
         self.assertEqual(
-            merged["lockfreequeues_mpmc/mpmc/4p4c"]
+            merged["lockfree_mpmc/mpmc/4p4c"]
                   ["throughput_ops_ms"]["value"], 5000.0)
         self.assertEqual(
-            merged["lockfreequeues_unbounded_mpmc/mpmc_unbounded/4p4c"]
+            merged["lockfree_unbounded_mpmc/mpmc_unbounded/4p4c"]
                   ["throughput_ops_ms"]["value"], 4000.0)
 
     def test_output_is_alpha_sorted(self) -> None:
