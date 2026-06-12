@@ -65,5 +65,5 @@
 # runs. Both directories live under ~/.cache/act and survive between
 # invocations; the operator (or wrapper) handles cleanup. See AGENTS.md
 # §3.6 "Caching" subsection.
---artifact-server-path /Users/eek/.cache/act/artifacts
---cache-server-path /Users/eek/.cache/act/cache
+--artifact-server-path ~/.cache/act/artifacts
+--cache-server-path ~/.cache/act/cache
