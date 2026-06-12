@@ -1312,8 +1312,8 @@ proc clear*(
 # `__atomic_load_16` etc. library calls on BOTH x86_64 (no -mcx16 inline)
 # AND aarch64 (no LSE inline), so the only consistent inlining path under
 # gcc is `__sync_val_compare_and_swap` on `__int128` (cmpxchg16b / casp).
-# Byte-for-byte fidelity to atomic128_ref.hpp (via the design doc) is the
-# F1 closure invariant.
+# Byte-for-byte fidelity to atomic128_ref.hpp (via the design doc) is a
+# required invariant.
 #
 # Gate-3 inline static-assert: each helper opens with
 # `_Static_assert(__GCC_HAVE_SYNC_COMPARE_AND_SWAP_16 ...)` (cpp backend:

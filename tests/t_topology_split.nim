@@ -31,7 +31,7 @@
 ## unbounded_mpmc/2p2c, unbounded_mpsc/2p1c, and unbounded_mpsc/
 ## 4p1c in 3.3.9 retry #4 (see the bench_unbounded_*.nim headers).
 ##
-## The deletion-safety check (Task 2.7) verifies the union of post-split
+## The deletion-safety check verifies the union of post-split
 ## BMFs is a strict superset of the pre-split BMF captured in
 ## `tests/fixtures/pre-split-slugs.json`. That fixture is committed and
 ## treated as immutable by this test suite.
@@ -56,9 +56,9 @@ const
   BenchUnboundedMpmcSrc = RepoRoot / "benchmarks" / "nim" / "bench_unbounded_mpmc.nim"
   SupersetCheckScript = RepoRoot / "benchmarks" / "scripts" / "superset_check.py"
 
-# ---------- Task 2.1: pre-split fixture exists and is non-empty ----------
+# ---------- pre-split fixture exists and is non-empty ----------
 
-suite "topology split: pre-split fixture (Task 2.1)":
+suite "topology split: pre-split fixture":
   test "fixture file exists and parses to a non-empty BMF JSON object":
     check fileExists(PreSplitFixturePath)
     let node = parseJson(readFile(PreSplitFixturePath))
@@ -94,9 +94,9 @@ proc compileBench(src: string, defs: openArray[string], suffix: string): string 
 proc parseBmf(path: string): JsonNode =
   parseJson(readFile(path))
 
-# ---------- Task 2.3: bench_spsc emits spsc/spsc/1p1c ----------
+# ---------- bench_spsc emits spsc/spsc/1p1c ----------
 
-suite "topology split: bench_spsc (Task 2.3)":
+suite "topology split: bench_spsc":
   test "compiles + emits BMF containing lockfree_spsc/spsc/1p1c":
     let bin = compileBench(
       BenchSpscSrc,
@@ -117,9 +117,9 @@ suite "topology split: bench_spsc (Task 2.3)":
     check slug["throughput_ops_ms"]["value"].getFloat() > 0.0
     removeFile(bmf)
 
-# ---------- Task 2.4: bench_mpsc emits mpsc/mpsc/{1,2,4}p1c ----------
+# ---------- bench_mpsc emits mpsc/mpsc/{1,2,4}p1c ----------
 
-suite "topology split: bench_mpsc (Task 2.4)":
+suite "topology split: bench_mpsc":
   test "compiles + emits BMF for mpsc 1p1c, 2p1c, 4p1c":
     let bin = compileBench(
       BenchMpscSrc,
@@ -140,15 +140,15 @@ suite "topology split: bench_mpsc (Task 2.4)":
       check node[slug]["throughput_ops_ms"]["value"].getFloat() > 0.0
     removeFile(bmf)
 
-# ---------- Task 2.5a: bench_mpmc_bounded emits mpmc grid + channels ----------
+# ---------- bench_mpmc_bounded emits mpmc grid + channels ----------
 #
-# the original Task 2.5 `bench_mpmc` suite into two
+# The bench_mpmc and bench_spmc binaries split the mpmc/spmc work into two
 # per-family suites. The mpmc binary owns the Mpmc 4x4 grid + 8p8c
 # oversubscription case, the Queue-bounded-mpmc parity grid, and the
 # nim_channels {1,2,4}p{1,2,4}c grid (channels match the mpmc shape
-# set). The spmc binary (Task 2.5b below) owns the 3-shape spmc set.
+# set). The spmc binary (below) owns the 3-shape spmc set.
 
-suite "topology split: bench_mpmc_bounded (Task 2.5a)":
+suite "topology split: bench_mpmc_bounded":
   test "compiles + emits BMF for mpmc 4x4 grid + 8p8c + channels {1,2,4}p{1,2,4}c":
     let bin = compileBench(
       BenchMpmcMpmcSrc,
@@ -182,9 +182,9 @@ suite "topology split: bench_mpmc_bounded (Task 2.5a)":
     check (not node.hasKey("lockfree_spmc/mpmc/1p1c"))
     removeFile(bmf)
 
-# ---------- Task 2.5b: bench_spmc_bounded emits spmc 1p{1,2,4}c ----------
+# ---------- bench_spmc_bounded emits spmc 1p{1,2,4}c ----------
 
-suite "topology split: bench_spmc_bounded (Task 2.5b)":
+suite "topology split: bench_spmc_bounded":
   test "compiles + emits BMF for spmc 1p{1,2,4}c":
     let bin = compileBench(
       BenchMpmcSpmcSrc,
@@ -209,16 +209,16 @@ suite "topology split: bench_spmc_bounded (Task 2.5b)":
     check (not node.hasKey("nim_channels/mpmc/1p1c"))
     removeFile(bmf)
 
-# ---------- Task 2.6a: bench_unbounded_spsc emits spsc 1p1c ----------
+# ---------- bench_unbounded_spsc emits spsc 1p1c ----------
 #
-# split the original Task 2.6 `bench_unbounded` suite
-# into four per-family suites (Task 2.6a..2.6d). Each binary owns one
-# unbounded family; the union of their slug sets equals what the
-# pre-split `bench_unbounded` binary emitted. The split mirrors the
-# v5.0.0 B3 mpmc-binary split; see the bench_unbounded_*.nim headers
+# The four bench_unbounded_* binaries split the unbounded work
+# into four per-family suites. Each binary owns one
+# unbounded family; the union of their slug sets equals what a
+# single `bench_unbounded` binary would emit. The split mirrors the
+# v5.0.0 mpmc-binary split; see the bench_unbounded_*.nim headers
 # for the iCache-contention diagnostic.
 
-suite "topology split: bench_unbounded_spsc (Task 2.6a)":
+suite "topology split: bench_unbounded_spsc":
   test "compiles + emits BMF for unbounded_spsc 1p1c":
     let bin = compileBench(
       BenchUnboundedSpscSrc,
@@ -239,9 +239,9 @@ suite "topology split: bench_unbounded_spsc (Task 2.6a)":
     check (not node.hasKey("lockfree_unbounded_mpmc/mpmc_unbounded/1p1c"))
     removeFile(bmf)
 
-# ---------- Task 2.6b: bench_unbounded_spmc emits spmc 1p{1,2,4}c -----
+# ---------- bench_unbounded_spmc emits spmc 1p{1,2,4}c -----
 
-suite "topology split: bench_unbounded_spmc (Task 2.6b)":
+suite "topology split: bench_unbounded_spmc":
   test "compiles + emits BMF for unbounded_spmc 1p{1,2,4}c":
     let bin = compileBench(
       BenchUnboundedSpmcSrc,
@@ -263,9 +263,9 @@ suite "topology split: bench_unbounded_spmc (Task 2.6b)":
     check (not node.hasKey("lockfree_unbounded_mpmc/mpmc_unbounded/1p1c"))
     removeFile(bmf)
 
-# ---------- Task 2.6c: bench_unbounded_mpsc emits mpsc {1,2,4}p1c -----
+# ---------- bench_unbounded_mpsc emits mpsc {1,2,4}p1c -----
 
-suite "topology split: bench_unbounded_mpsc (Task 2.6c)":
+suite "topology split: bench_unbounded_mpsc":
   test "compiles + emits BMF for unbounded_mpsc {1,2,4}p1c":
     let bin = compileBench(
       BenchUnboundedMpscSrc,
@@ -287,9 +287,9 @@ suite "topology split: bench_unbounded_mpsc (Task 2.6c)":
     check (not node.hasKey("lockfree_unbounded_mpmc/mpmc_unbounded/1p1c"))
     removeFile(bmf)
 
-# ---------- Task 2.6d: bench_unbounded_mpmc emits mpmc full grid -----
+# ---------- bench_unbounded_mpmc emits mpmc full grid -----
 
-suite "topology split: bench_unbounded_mpmc (Task 2.6d)":
+suite "topology split: bench_unbounded_mpmc":
   test "compiles + emits BMF for unbounded_mpmc {1,2,4}p{1,2,4}c":
     let bin = compileBench(
       BenchUnboundedMpmcSrc,
@@ -314,9 +314,9 @@ suite "topology split: bench_unbounded_mpmc (Task 2.6d)":
     check (not node.hasKey("lockfree_unbounded_mpsc/mpsc_unbounded/1p1c"))
     removeFile(bmf)
 
-# ---------- Task 2.7: strict-superset deletion-safety check ----------
+# ---------- strict-superset deletion-safety check ----------
 
-suite "topology split: deletion-safety (Task 2.7)":
+suite "topology split: deletion-safety":
   test "post-split union is a strict superset of pre-split fixture":
     # Compile and run all eight post-split binaries at small overrides
     # (spsc + mpsc + mpmc_mpmc + mpmc_spmc + unbounded_spsc +

@@ -1,6 +1,5 @@
 ## RAII wrapper template (`withBoundEndpoint` / `withBoundProducer` /
-## `withBoundConsumer`) + `Queueable[T]` concept per design §5.5 and impl
-## plan T-TYPESTATE-DUAL-API (PG-7).
+## `withBoundConsumer`) + `Queueable[T]` concept per design §5.5.
 ##
 ## ## Purpose
 ##
@@ -185,7 +184,7 @@ type Queueable*[T] = concept x
 # ---------------------------------------------------------------------------
 # Concept-hookup verification.
 #
-# Per T-TYPESTATE-DUAL-API acceptance criterion: `Queueable[T]` must
+# `Queueable[T]` must
 # resolve under generic instantiation across the full Path-C-encoded
 # payload set (ref / string / seq / POD). The static doAsserts below
 # pin the conformance contract: bare `BQueue[T, ccSingle, ccSingle, ...]`

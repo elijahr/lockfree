@@ -15,7 +15,7 @@ requires "typestates >= 0.12.0"
 
 # Optional dependencies (flag-only opt-in). chronos is the async-adapter
 # backend pulled in only when callers build with `-d:lockfreeChronos`.
-# See `src/lockfree/chronos.nim` (CRITICAL-4 flag-only rework) and
+# See `src/lockfree/chronos.nim` (flag-only chronos opt-in) and
 # `docs/api/chronos.md` for the integration guide.
 when defined(lockfreeChronos):
   requires "chronos >= 4.0.0 & < 5.0.0"
@@ -60,8 +60,8 @@ task test, "Runs the test suite":
   proc runArc =
     # Test with arc MM
     exec "nim c --mm:arc --threads:on --nimcache:" & (nimcacheBase / "test_arc") & " -r tests/test.nim"
-    # NEBR (nebr) lifted test suite — T-INTEGRATE.e (umbrella v0.1.0).
-    # Runs under arc only here; PG-10 CI cells will refine the matrix
+    # NEBR (nebr) lifted test suite.
+    # Runs under arc only here; CI cells will refine the matrix
     # (orc/refc/atomicArc + TSan/ASan) and may also lift the upstream
     # `should_fail/runner.nim` + `compile_only/` + `bench/` + `probes/`
     # harnesses currently sitting at tests/smr/debra-legacy/ alongside

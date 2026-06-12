@@ -26,9 +26,9 @@ proc newTestWorkspace(prefix: string): string =
   ## so test failure messages stay legible.
   result = createTempDir("bench_latency_" & prefix & "_", "")
 
-# ---------- Task 1.1: intdefine defaults + override ----------
+# ---------- intdefine defaults + override ----------
 
-suite "bench_latency intdefines (Task 1.1)":
+suite "bench_latency intdefines":
   test "defaults: BenchLatencyRuns == 33, BenchLatencyMessageCount == 100_000":
     # Compile bench_latency.nim with -d:BenchLatencyTestCompileTime=1.
     # The binary, when this define is set, runs a `static` block that
@@ -62,7 +62,7 @@ suite "bench_latency intdefines (Task 1.1)":
     if exitCode != 0:
       echo "compile output:\n", output
 
-# ---------- Task 1.2: --bmf-out integration ----------
+# ---------- --bmf-out integration ----------
 
 proc compileBenchLatency(extraDefs: openArray[string], dir: string): string =
   ## Compile bench_latency.nim with extra -d: defines into `dir` and
@@ -79,7 +79,7 @@ proc compileBenchLatency(extraDefs: openArray[string], dir: string): string =
     raise newException(IOError, "bench_latency compile failed:\n" & output)
   result = outBin
 
-suite "bench_latency --bmf-out integration (Task 1.2)":
+suite "bench_latency --bmf-out integration":
   test "spsc variant emits latency_p50_ns / latency_p99_ns on expected slug":
     # Override message count + runs to keep the integration run under ~5s.
     let dir = newTestWorkspace("t12_spsc")
@@ -151,7 +151,7 @@ suite "bench_latency --bmf-out integration (Task 1.2)":
     let (_, exitCode) = execCmdEx(cmd)
     check exitCode == 1
 
-# ---------- Task 1.5: multi-measure-per-slug merge ----------
+# ---------- multi-measure-per-slug merge ----------
 #
 # Validates the end-to-end shape: a single slug
 # carries BOTH `throughput_ops_ms` (from bench_throughput's BMF
@@ -162,7 +162,7 @@ suite "bench_latency --bmf-out integration (Task 1.2)":
 
 const MergeBmfPath = RepoRoot / "benchmarks" / "merge_bmf.py"
 
-suite "bench_latency multi-measure-per-slug merge (Task 1.5)":
+suite "bench_latency multi-measure-per-slug merge":
   test "merge_bmf.py unions throughput + latency on shared slug":
     let dir = createTempDir("bench_latency_t15_", "")
     defer:

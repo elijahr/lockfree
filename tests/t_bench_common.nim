@@ -1,10 +1,10 @@
 ## Tests for benchmarks/nim/bench_common.nim — the shared bench harness module.
 ##
-## Task 0.1 RED test: this file must fail to compile until bench_common.nim
-## exists and exports the public API surface described in the design doc
+## Asserts that bench_common.nim exports the public API surface described in
+## the design doc
 ## (`/Users/eek/.local/spellbook/docs/Users-eek-Development-lockfree/plans/2026-05-01-bench-rollup-design.md`
-##  section 2.1). The test's only job at this stage is to reference each
-## promised symbol so the compiler enforces the contract.
+##  section 2.1). The test references each promised symbol so the compiler
+## enforces the contract.
 ##
 ## Subsequent tasks (0.2 onward) will add behavior tests against these
 ## symbols.
@@ -71,7 +71,7 @@ suite "bench_common benchBackoffOnPeerWait toggle":
     # would not re-evaluate the cached binding.
     check disableHarnessBackoff == false
 
-# ---------- Task 0.2: BMFEmitter behavior ----------
+# ---------- BMFEmitter behavior ----------
 
 proc readJsonFile(path: string): JsonNode =
   parseJson(readFile(path))
@@ -156,7 +156,7 @@ suite "bench_common BMFEmitter":
     check inner["upper_value"].getFloat() == 105.0
     removeFile(path)
 
-# ---------- Task 0.4: Stats helpers ----------
+# ---------- Stats helpers ----------
 
 suite "bench_common Stats":
   test "mean of integer-like floats":
@@ -192,7 +192,7 @@ suite "bench_common Stats":
     check percentile(data, 0.0) == 0.0
     check percentile(data, 1.0) == 99.0
 
-# ---------- Task 0.3: Histogram ----------
+# ---------- Histogram ----------
 
 import std/[math, random]
 
@@ -260,7 +260,7 @@ suite "bench_common Histogram":
       h.record(v)
     check h.topK() == @[1.0, 3.0, 5.0, 7.0, 9.0]
 
-  # ---------- Task 6.2: HistogramTopK sized to scale with overrides ----------
+  # ---------- HistogramTopK sized to scale with overrides ----------
   #
   # `runLatencyHarness` builds a fresh Histogram per run and averages
   # per-run percentiles (design 2.5); each histogram only sees
@@ -283,7 +283,7 @@ suite "bench_common Histogram":
       # BenchLatencyMessageCount upward. At seenAll=3.3M the p999 tail
       # count is 3300 and lies inside the K=5000 exact top-K stratum,
       # so percentile(0.999) is read from the exact top-K heap.
-      # Tolerance is 5% per impl plan acceptance criterion. The test
+      # Tolerance is 5%. The test
       # allocates a 3.3M-sample seq and runs `record()` that many
       # times, so it is gated behind `-d:BenchCommonStress` to keep
       # the default `nimble benchtests` invocation under ~1 second.
@@ -298,13 +298,13 @@ suite "bench_common Histogram":
       let relErr = abs(approx - exact) / exact
       check relErr < 0.05
 
-# ---------- Task 0.5: runThroughputHarness smoke ----------
+# ---------- runThroughputHarness smoke ----------
 
 # Tiny inline adapter that satisfies bench_common's BenchAdapter shape
 # (push -> PushResult, pop -> PopResult[uint64]) wrapping a Nim
-# system Channel. Lives in this test file because Task 0.9 has not
-# yet reconciled benchmarks/nim/adapter.nim (legacy) with bench_common
-# (new); once that lands, this shim moves to a real adapter file.
+# system Channel. Lives in this test file because benchmarks/nim/adapter.nim
+# (legacy) is not yet reconciled with bench_common (new); this shim moves to
+# a real adapter file once that reconciliation happens.
 
 type SmokeAdapter = object
   chan: ptr Channel[uint64]
@@ -338,7 +338,7 @@ suite "bench_common runThroughputHarness":
     check metrics.runs == 1
     check metrics.ops_ms_mean > 0.0
 
-# ---------- Task 0.6: runLatencyHarness smoke ----------
+# ---------- runLatencyHarness smoke ----------
 
 suite "bench_common runLatencyHarness":
   test "smoke: 1P/1C, 1000 messages, 1 run, 0 warmup; p50<p99<max":
@@ -354,7 +354,7 @@ suite "bench_common runLatencyHarness":
     check metrics.p99_ns >= metrics.p50_ns
     check metrics.max_ns >= metrics.p99_ns
 
-# ---------- Task 0.8: lockfree adapter smoke tests ----------
+# ---------- lockfree adapter smoke tests ----------
 
 import std/sets
 import ../benchmarks/nim/adapters/lockfree_spmc_adapter
@@ -383,7 +383,7 @@ proc roundTripUint64Set[A](adapter: var A, count: int): tuple[popped: int, ok: b
     expected.incl(uint64(i))
   result = (seen.len, seen == expected)
 
-suite "bench_common adapters: lockfree smoke (Task 0.8)":
+suite "bench_common adapters: lockfree smoke":
   test "Spmc 1024-cap, 1p1c, 100 sequential round-trip":
     var a = makeLockfreequeuesSpmcAdapter[1024, 1, uint64](1024)
     let r = roundTripUint64Set(a, SmokeMessageCount)

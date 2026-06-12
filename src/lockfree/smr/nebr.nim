@@ -1,16 +1,14 @@
 ## lockfree/smr/nebr: NEBR Safe Memory Reclamation
 ##
 ## NEBR = Neutralization-Enhanced Bounded Reclamation. This module is the
-## in-tree fork of nim-debra lifted into lockfree at T-INTEGRATE.b
-## (v0.1.0 impl plan PG-2). Semantically identical to upstream nim-debra
+## in-tree fork of nim-debra. Semantically identical to upstream nim-debra
 ## except for import paths.
 ##
 ## Public facade re-exporting the manager + neutralize substrate plus the
 ## thread-registration, epoch, and client-binding helpers that downstream
-## consumers (Queue[T] with ref payloads, T-DESTRUCTOR-WALK) need.
+## consumers (Queue[T] with ref payloads, the destructor walk) need.
 ##
-## Design refs: docs/internal/2026-06-06-umbrella-v0.1.0-impl-plan.md
-## §T-INTEGRATE.b; nim-debra design §3.1, §3.7.
+## Design refs: nim-debra design §3.1, §3.7.
 
 when not compileOption("threads"):
   {.error: "lockfree/smr/nebr requires --threads:on".}
