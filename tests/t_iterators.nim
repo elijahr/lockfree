@@ -1,12 +1,12 @@
-## items / pairs iterators for Queue/BQueue (T-ITERATORS, design §5.3).
+## items / pairs iterators for Queue/BQueue (design §5.3).
 ##
 ## `items` is the Nim-convention alias for `drain`: drain-to-empty
-## destructive iteration (§5.3.2, OQ5.10 disposition: ship `items` as
-## alias, document destructive semantics).
+## destructive iteration (§5.3.2). `items` ships as the alias with
+## documented destructive semantics.
 ##
 ## `pairs` (BQueue only per §5.3.1) yields `(localOrdinal, item)` where
 ## localOrdinal is the drain ordinal observed by THIS iterator instance
-## (OQ5.2 disposition — no global ordering for multi-consumer drains).
+## (no global ordering for multi-consumer drains).
 ##
 ## Per AGENTS.md §3.5 slim-verification, this test file is single-MM
 ## (--mm:arc) and exercises bounded SPSC + MPSC + Bound SPMC/MPMC plus

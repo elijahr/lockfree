@@ -7,13 +7,10 @@
 ##
 ## Design references:
 ##   §5.2 — consumer claim path (tryClaim on cells[mySlot])
-##   §6   — close-on-empty integration (HIGH-2 inline-skip)
+##   §6   — close-on-empty integration (inline-skip)
 ##   §8   — memory ordering (success=moAcquireRelease, failure=moRelaxed)
-##   §2.3.1 / CRITICAL-1 — tryClaim NEVER inspects observed.second:
-##                         q.push(0) (default(T)) must return some(0).
-##
-## Pre-T6 baseline: the T3 stub `break` (after `discard prevIdx`)
-## returned `none(T)` always. Both assertions below fail under T3..T5.
+##   §2.3.1 — tryClaim NEVER inspects observed.second:
+##            q.push(0) (default(T)) must return some(0).
 
 import std/options
 import std/unittest

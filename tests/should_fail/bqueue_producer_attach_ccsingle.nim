@@ -1,8 +1,8 @@
 ## ccSingle BQueueProducer cannot call `attach()`.
 ##
 ## Claim-state typestate uses a single user-facing object
-## type with `when ccProd == ccMulti:` internal layout switch (Wall 2
-## fix from B.4.1.5). `attach` is declared ONLY with the
+## type with `when ccProd == ccMulti:` internal layout switch.
+## `attach` is declared ONLY with the
 ## `BQueueProducer[T, ccMulti, ccCons, N, P, C]` param signature, so
 ## the compiler statically excludes ccSingle from the attach overload
 ## set. Calling `attach()` on a `BQueueProducer[..., ccSingle, ...]`

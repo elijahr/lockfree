@@ -29,11 +29,11 @@
 ## 4. `CLOSED_BIT == 1'u shl (sizeof(uint)*8 - 1)` — the §4 close
 ##    sentinel must occupy the high bit so the empty/filled epoch
 ##    counter (low bits) cannot collide with it. Moving this bit
-##    would invalidate every producer/consumer mask in T2's
+##    would invalidate every producer/consumer mask in the cell
 ##    primitives. On 64-bit (uint == uint64) this is identical to
 ##    `1'u64 shl 63`.
 ##
-## Once T2 lands the three cell primitives (`tryPublish` / `tryClaim`
+## Alongside the three cell primitives (`tryPublish` / `tryClaim`
 ## / `tryCloseOnEmpty`) this smoke test stays in place as a guard:
 ## if the alias is ever changed to wrap the pair, the assignment in
 ## test 1 fails to compile; if the pair is ever changed to include

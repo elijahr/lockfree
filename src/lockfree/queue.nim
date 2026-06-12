@@ -245,7 +245,7 @@ proc tryCloseOnEmpty*[T](cell: var LCRQCell[T], expectedSeq: uint): bool {.inlin
 ## structural pattern, distinct context / state types because typestate
 ## attachments are unique per type (TA-004) and the bqueue/queue split
 ## demands independent lifecycles. Mirrors nebr
-## `pinned_scope.nim:67-93` verbatim in shape.
+## `pinned_scope.nim` verbatim in shape.
 ##
 ## State-preserving discipline: every Queue
 ## state-preserving op (`push`, `pop`, `getProducer`, `getConsumer`,
@@ -937,7 +937,7 @@ proc pop*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
   ## Spsc-absorbed pop — direct slot read + segment advance with
   ## `freeAligned(oldSeg)`. No pin (no retire-race; only one consumer
   ## ever runs, only one producer ever writes). Lifted verbatim from
-  ## `unbounded_spsc.nim:122-166`.
+  ## the unbounded SPSC pop path.
   # Path-C admission gate (25-row composition matrix + reject chain).
   # See internal/path_c_admit.nim for the verbatim REJECT messages
   # and the accept-arm dispatch (ref T / string / seq[U] / POD).
@@ -956,7 +956,7 @@ proc pop*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
       # user-facing type. Legacy body returned `some(value)` directly,
       # which compiled only for POD T (where SlotEncoding(T) == T).
       # Non-POD T (string, seq, ref) requires the unwrap. Mirrors the
-      # Bound-endpoint pop surface at queue.nim:1379.
+      # Bound-endpoint pop surface.
       return some(unwrapOrIdentity[T](value))
     let nextSeg = seg.next.load(moAcquire)
     if nextSeg == nil:
@@ -1456,9 +1456,8 @@ proc pop*[
     self: Bound[T, Tag, Queue[T, ccProd, ccSingle, ST, S, MaxThreads]]
 ): Option[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
   ## Pop for `ccCons == ccSingle` (SPSC + MPSC). Single consumer thread,
-  ## no pin required. Body lifted from the pre-v5.0.0 direct-on-Queue
-  ## pop overloads (`queue.nim:1021` and `:1061`) with cardinality
-  ## dispatch consolidated via the existing `when` arms.
+  ## no pin required. Body consolidates the two direct-on-Queue pop
+  ## overloads with cardinality dispatch via the existing `when` arms.
   # Path-C admission gate (25-row composition matrix + reject chain).
   # Rejects: distinct ref alias (row 7), nested ref (row 8), value types
   # with managed fields, unsupported T. Accepts: ref T, string, seq[U]

@@ -126,7 +126,7 @@ suite "Typestate-context CC threading (0.8.0 Step 8 completion)":
     check complete.signalsSent == 0
 
   test "reclaimStart(handle) chain accepts ccMulti — load-bearing block site":
-    # This is the lfq v5.0.0 reclaim.nim:97 shape: a ccMulti handle reaches
+    # This is the lfq v5.0.0 reclaim.nim shape: a ccMulti handle reaches
     # reclaimStart, which previously required a ccSingle context and rejected
     # the ccMulti manager. Verifies the full chain reclaimStart -> loadEpochs
     # -> checkSafe -> tryReclaim propagates CC end-to-end.

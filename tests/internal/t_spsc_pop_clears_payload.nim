@@ -1,5 +1,5 @@
-## T-VERIFY-POP-CLEARS.spsc — Regression test locking in the
-## destructive-read behavior of the bounded-SPSC pop path.
+## Regression test locking in the destructive-read behavior of the
+## bounded-SPSC pop path.
 ##
 ## Locks in the regression: the bounded-SPSC pop
 ## reads the slot via `move(queue.storage[op.slot])`, which is
@@ -11,7 +11,7 @@
 ## REVERT CHECK
 ## ------------
 ## If the `move(queue.storage[op.slot])` at
-## `src/lockfree/typestates/spsc_pop.nim:72` were reverted to a
+## `src/lockfree/typestates/spsc_pop.nim` were reverted to a
 ## plain `queue.storage[op.slot]` read, two assertions in this test
 ## would fail:
 ##
@@ -86,7 +86,7 @@ proc newRefCounter(payload: int): RefCounter =
   result = RefCounter(payload: payload)
   discard std_atomics.fetchAdd(liveRefs, 1, std_atomics.moRelaxed)
 
-suite "T-VERIFY-POP-CLEARS.spsc — bounded SPSC pop is destructive":
+suite "bounded SPSC pop is destructive":
   test "pop clears slot (single push/pop)":
     liveRefs.store(0, moRelaxed)
 

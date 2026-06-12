@@ -107,8 +107,8 @@ export PinScopeCardinality, NoSlice
 ##
 ## **State-preserving discipline:** every state-preserving op on BQueue
 ## stays in bqueue.nim (same module) and omits `{.transition.}`. Cross-
-## module callers would need `{.notATransition.}` per
-## `pragmas.nim:633-642`; the current implementation does NOT expose
+## module callers would need `{.notATransition.}` per the typestates
+## pragma rules; the current implementation does NOT expose
 ## any cross-module state-preserving ops, so none are tagged.
 ## ----------------------------------------------------------------------
 
@@ -226,10 +226,9 @@ proc validateBQueueParams*[
 ## per-family typestate Base types (`SpscBase`, `MpscBase`,
 ## `SpmcBase`, `MpmcBase`, `*PushBase`). For those casts to be
 ## sound the BQueue object must share its leading field layout with
-## each Base. Pin one canonical instantiation per cardinality (per
-## legacy `mpsc.nim:60-72` rationale: object-field offsets are
-## computed structurally, so a match for one instantiation implies a
-## match for all).
+## each Base. Pin one canonical instantiation per cardinality:
+## object-field offsets are computed structurally, so a match for one
+## instantiation implies a match for all.
 ## ----------------------------------------------------------------------
 
 static:
@@ -626,8 +625,8 @@ proc pop*[T; N: static int](
     let currentHead = head.incOrResetN1(i)
     let idx = currentHead.index()
     # storage holds SlotEncoding(T); decode at the boundary.
-    # Mirror single-item ``complete``'s use of ``move`` (typestates/
-    # spsc_pop.nim:72) so the slot is left as ``default(SlotEncoding(T))``
+    # Mirror single-item ``complete``'s use of ``move`` (in the SPSC pop
+    # typestate) so the slot is left as ``default(SlotEncoding(T))``
     # after consumption — destroy-walk on the (now-zero) slot is a no-op
     # in ``disposeSlotEncoded``.
     when T is ref or T is string or T is seq:
@@ -673,7 +672,7 @@ proc pop*[T; ccProd: static PinScopeCardinality, N, P, C: static int](
 ## Destructors driving Lifecycle / Claim-state terminal transitions
 ##.
 ##
-## Mirror nebr `pinned_scope.nim:178-180` verbatim: the typestate
+## Mirror nebr `pinned_scope.nim` verbatim: the typestate
 ## terminal transition is emitted by `=destroy` via
 ## `destructorTransition: InitialState -> TerminalState`. State-
 ## preserving ops (push, pop, getProducer, getConsumer, attach,

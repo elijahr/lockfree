@@ -105,7 +105,7 @@ when (compiles do:
   suite "lockfree/chronos — AsyncQueue (unbounded SPSC, manual producer)":
     # The unbounded async-adapter currently exposes pop on the wrapper
     # but routes push through the inner queue's Bound endpoint (design
-    # §5.4.5 / OQ5.3 — endpoint-side async push is still open). The
+    # §5.4.5 — endpoint-side async push is still open). The
     # canonical pattern documented in `src/lockfree/chronos.nim` is to
     # acquire a same-thread producer via `q.queue.getProducerHere()`,
     # push through it, and then fire `q.event` to wake any awaiting

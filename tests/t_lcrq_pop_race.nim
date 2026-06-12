@@ -1,7 +1,7 @@
-## T6.C3 — MPMC pop case-(b) data-loss race regression guard.
+## MPMC pop case-(b) data-loss race regression guard.
 ##
-## Background
-## ----------
+## Invariant
+## ---------
 ## With `tryClaim(seg.cells[mySlot], expectedSeq=0)` wired into the
 ## MPMC pop fast path, the consumer claim path has two post-CAS
 ## branches when `tryClaim` returns `none`:
@@ -11,22 +11,19 @@
 ##       it has CAS'd `tail` forward but has not yet completed the
 ##       cell-publish DWCAS.
 ##
-## The T6 implementation treated case (b) as `backoffOnRetry +
-## continue` to the OUTER `while true` loop. That is incorrect: the
-## consumer has already reserved `mySlot` via the successful
-## `prevConsumerIdx.compareExchange(prevIdx, mySlot, ...)` CAS. When
-## the outer loop re-enters, it reloads `prevConsumerIdx` (now equal
-## to `mySlot`) and computes `mySlot' = prevIdx' + 1 = mySlot + 1`,
-## advancing the consumer PAST the slot it reserved. When the
-## delayed producer eventually publishes to the original `mySlot`,
-## no consumer is targeting it; the value is orphaned (effectively
-## dropped from the queue).
+## Case (b) MUST spin on the SAME `mySlot`, not backoff-and-continue to
+## the OUTER `while true` loop. The consumer has already reserved
+## `mySlot` via the successful
+## `prevConsumerIdx.compareExchange(prevIdx, mySlot, ...)` CAS. A
+## continue to the outer loop reloads `prevConsumerIdx` (now equal to
+## `mySlot`) and computes `mySlot' = prevIdx' + 1 = mySlot + 1`,
+## advancing the consumer PAST the slot it reserved. When the delayed
+## producer eventually publishes to the original `mySlot`, no consumer
+## is targeting it; the value is orphaned (effectively dropped from the
+## queue).
 ##
-## Fix
-## ---
-## The post-T6 patch replaces the case-(b) `backoff + continue` with
-## an INNER spin loop on the same `mySlot`. The consumer that
-## reserved the slot owns it until either:
+## The required behavior is an INNER spin loop on the same `mySlot`. The
+## consumer that reserved the slot owns it until either:
 ##   * the producer publishes (seq becomes 1) — claim and return; or
 ##   * the cell transitions to CLOSED — escalate to `nextSeg`.
 ## `mySlot` is held FIXED across the inner loop; the consumer never
@@ -52,18 +49,18 @@
 ## maximises contention on `prevConsumerIdx` and amplifies the
 ## case-(b) window.
 ##
-## Note on pre-fix detectability
-## -----------------------------
-## On the operator's M-series macOS dev box, the pre-fix T6
-## implementation passed `t_unbounded_mpmc_threaded` 4/4 because
-## typical scheduling lets the producer's `tryPublish` complete
-## before the consumer's next loop iteration. This stress test runs
-## at 10x the item count and 2x the consumer count of the standard
-## threaded suite specifically to expose tail-of-distribution
-## scheduling on machines where the gap widens (loaded systems,
-## emulators, slower cores). On hardware where the race never fires
-## pre-fix, this test serves as a forward-looking regression guard
-## against re-introduction of the case-(b) `continue` pattern.
+## Note on detectability
+## ---------------------
+## The case-(b) defect can hide under typical scheduling, where the
+## producer's `tryPublish` completes before the consumer's next loop
+## iteration, so a standard `t_unbounded_mpmc_threaded` run passes even
+## with the buggy `continue`. This stress test runs at 10x the item
+## count and 2x the consumer count of the standard threaded suite
+## specifically to expose tail-of-distribution scheduling on machines
+## where the gap widens (loaded systems, emulators, slower cores). On
+## hardware where the race never fires, this test serves as a
+## forward-looking regression guard against re-introduction of the
+## case-(b) `continue` pattern.
 
 import lockfree/atomics
 import lockfree/atomics/dsl

@@ -1,31 +1,22 @@
-## T-TEST-NIMONY local scope: verify nimony-gated arms don't regress
-## the non-nimony build. CI Cell 14 (continue-on-error) validates
-## actual nimony semantics; this test only ensures the arc baseline
-## compiles + runs cleanly while the nimony branches are inert under
-## standard Nim 2.x memory managers.
+## Verify nimony-gated arms don't regress the non-nimony build. The
+## continue-on-error nimony CI job validates actual nimony semantics;
+## this test only ensures the arc baseline compiles + runs cleanly while
+## the nimony branches are inert under standard Nim 2.x memory managers.
 ##
-## Locally exercised:
-##   * `src/lockfree/managed_ref.nim` `when defined(nimony):` block
-##     (lines 275-309) — the nimony arm of `incRefSlot` / `decRefSlot`
-##     which is inert under arc/orc/atomicArc/refc.
+## Locally exercised: the single `when defined(nimony):` block in
+## `src/lockfree/managed_ref.nim` — the nimony arm of `incRefSlot` /
+## `decRefSlot` (the arcops bridge), inert under arc/orc/atomicArc/refc.
 ##
-## Nimony-gated sites inventory (verified 2026-06-06):
-##   * `src/lockfree/managed_ref.nim:275` — single `when defined(nimony):`
-##     block (incRefSlot / decRefSlot arcops bridge).
-##
-## Partial-port TODOs inside the nimony arms (PG-10 Cell 14 inventory):
-##   * OQ4.2 (managed_ref.nim:288, 299) — heap-header offset for
-##     NimHeapHeader layout; current code assumes the rc field lives at
-##     the slot bits address. Verified against
-##     /tmp/nimony-research/lib/std/system/arcops.nim;
-##     replacement deferred to v0.2.
-##   * OQ4.4 (managed_ref.nim:306) — dispose-on-last-ref symbol omitted
-##     in v0.1.0. `arcDec` returning true currently `discard`s the
-##     last-ref signal; the leak is observable only under `-d:nimony`
-##     (Cell 14, `continue-on-error`).
+## Partial-port gaps inside the nimony arms:
+##   * Heap-header offset for NimHeapHeader layout: the current code
+##     assumes the rc field lives at the slot bits address. Replacement
+##     deferred to v0.2.
+##   * Dispose-on-last-ref symbol omitted in v0.1.0. `arcDec` returning
+##     true currently `discard`s the last-ref signal; the leak is
+##     observable only under `-d:nimony`.
 ##
 ## Out of scope (local): actual nimony codegen / semantics — that lives
-## entirely behind CI Cell 14.
+## entirely behind the continue-on-error nimony CI job.
 
 import std/options
 import lockfree/bqueue

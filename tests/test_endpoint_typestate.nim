@@ -6,7 +6,7 @@ type DummyQueue = object
 
 suite "endpoint typestate":
   test "single Endpoint typestate verifies":
-    # verifyTypestates() at endpoint.nim:67 runs at module-import time.
+    # verifyTypestates() in endpoint.nim runs at module-import time.
     # If the FSM declaration (Unbound -> Bound -> Closed) is rejected by
     # typestates 0.12.0's AST verifier, this importing test fails to
     # compile. Reaching the runtime body proves the FSM was accepted.

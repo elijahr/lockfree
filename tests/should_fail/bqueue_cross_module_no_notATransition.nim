@@ -4,8 +4,7 @@
 ## Verifies that a `{.transition.}`-tagged proc declared in an
 ## EXTERNAL module (i.e., a different file from the BQueueLifecycle
 ## typestate declaration in `bqueue.nim`) is REJECTED by the
-## typestates v0.9.3 verifier. The reject site is
-## `nim-typestates/src/typestates/pragmas.nim:742-751`:
+## typestates v0.9.3 verifier. The verifier rejects with:
 ##
 ##     Cannot define transition on typestate '<name>' from external
 ##     module. The typestate was defined in '<path>'. Transitions
@@ -13,15 +12,15 @@
 ##     declaration. Hint: Use {.notATransition.} for read-only
 ##     operations on imported states.
 ##
-## This is the load-bearing test that proves F.3.5 intra-module
+## This is the load-bearing test that proves intra-module
 ## containment is actually enforced — without it, the same-module
 ## discipline ((`bqueue.nim` owns both the BQueueLifecycle
 ## typestate declaration and every state-preserving op) would be a
 ## convention rather than a checked invariant.
 ##
-## Per the master brief F.3.5: "Both the Lifecycle and Claim-state
-## typestate declarations AND their consuming procs MUST live in the
-## same module ... to avoid the cross-module prohibition firing."
+## Both the Lifecycle and Claim-state typestate declarations AND their
+## consuming procs MUST live in the same module to avoid the
+## cross-module prohibition firing.
 
 import lockfree/bqueue
 import typestates
@@ -36,6 +35,6 @@ proc evilTransition*[T; ccProd, ccCons: static PinScopeCardinality, N, P, C: sta
     BQueueLifecycleCtx[T, ccProd, ccCons, N, P, C](s)
   )
 
-# EXPECTED COMPILE ERROR — pragmas.nim:742-751:
+# EXPECTED COMPILE ERROR:
 # "Cannot define transition on typestate 'BQueueLifecycle' from
 # external module."

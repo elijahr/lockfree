@@ -109,9 +109,10 @@ suite "T2: tryPublish / tryClaim / tryCloseOnEmpty cell primitives":
     check after.second == 0
 
   test "T2.C3: tryClaim on filled cell with non-nil pointer payload round-trips through Option[ptr int]":
-    # Cross-T sanity for the pointer instantiation. T2.C2 already
-    # exercises the CRITICAL-1 regression class (payload bit-pattern
-    # == 0); this test proves the primitive instantiates and CAS-ses
+    # Cross-T sanity for the pointer instantiation. The default-value
+    # tryClaim test already exercises the zero-payload regression class
+    # (payload bit-pattern == 0); this test proves the primitive
+    # instantiates and CAS-ses
     # correctly for `T = ptr X` and the post-state zeroes the cell.
     #
     # Note: a true `T=ptr X, payload=nil` round-trip cannot be

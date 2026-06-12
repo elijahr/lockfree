@@ -68,13 +68,12 @@ suite "Unbounded queue Segment cache-line padding":
 
   test "Segment field offsets are CacheLineBytes-aligned (mpmc)":
     # Queue[T, ccMulti, ccMulti, _, rkEbr, ...] — Segment for the
-    # mpmc-equiv shape (strict-LCRQ post-T3) carries `tail`,
+    # mpmc-equiv strict-LCRQ shape carries `tail`,
     # `prevConsumerIdx`, and `cells` as cache-line-padded fields.
     # `head` is not present on the ccProd==ccMulti × ccCons==ccMulti
-    # shape (only on ccProd==ccMulti × ccCons==ccSingle). `committed`
-    # was removed in T3 (strict-LCRQ migration); the per-cell seq
-    # counter now lives inside each `Atomic[Pair[uint64, T]]` entry of
-    # `cells`.
+    # shape (only on ccProd==ccMulti × ccCons==ccSingle). The strict-LCRQ
+    # shape carries no `committed` field; the per-cell seq counter lives
+    # inside each `Atomic[Pair[uint64, T]]` entry of `cells`.
     type Seg = q_mod.Segment[uint64, ccMulti, ccMulti, 64]
     check segmentTailOffsetForTest(Seg) mod Cl == 0
     check segmentPrevConsumerIdxOffsetForTest(Seg) mod Cl == 0

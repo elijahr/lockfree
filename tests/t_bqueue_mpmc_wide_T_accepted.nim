@@ -15,14 +15,14 @@
 ## bytes on a 64-bit target).
 ##
 ## Twin of `tests/should_fail/unbounded_mpmc_wide_T_rejected.nim`
-## (the negative control): together they form the SCOPE-7 structural
+## (the negative control): together they form the structural
 ## tripwire against accidental cross-queue constraint extension.
 ## If a regression accidentally widens the `sizeof(T) <= 8`
 ## guard into `bqueue.nim`, this file fails at compile-time — the
 ## tripwire fires before any user-visible breakage.
 ##
-## Per design §9.3.1 / SCOPE-7. Runs under all four MMs via the
-## standard `tests/test.nim` MM matrix.
+## Per design §9.3.1. Runs under all four MMs via the standard
+## `tests/test.nim` MM matrix.
 
 import options
 import unittest2

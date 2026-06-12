@@ -92,7 +92,7 @@ suite "unregisterThread — runtime API on DebraManager (ccSingle)":
 
     # Post-condition: all three threadvars cleared. `threadLocalIdx`
     # must be reset to 0 (the zero value); the registered flag is the
-    # authoritative bit per signal.nim:104-108, so it MUST be false.
+    # authoritative bit per signal.nim, so it MUST be false.
     check threadLocalRegistered == false
     check threadLocalIdx == 0
     check threadLocalManager == nil

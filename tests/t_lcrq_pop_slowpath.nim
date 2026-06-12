@@ -1,7 +1,7 @@
-## T8 — MPMC pop §5.2 slow-path inline-skip regression coverage.
+## MPMC pop §5.2 slow-path inline-skip regression coverage.
 ##
-## Background
-## ----------
+## Invariant
+## ---------
 ## The strict-LCRQ slow-path on the MPMC consumer arm: when
 ## `mySlot >= tail` but a re-load shows the producer
 ## has reserved a tail slot past `mySlot` (i.e. the producer is
@@ -12,38 +12,38 @@
 ## `closesSeenThisSegment`, escalating to `nextSeg` when the count
 ## reaches the StarvingThreshold = S bound (design §5.2.1, §7.1).
 ##
-## The HIGH-2 review finding for this site was that a per-pop-call
-## local counter cannot accumulate across pop() calls. A low-throughput
-## consumer issuing one pop per request on a partially-closed segment
-## would never reach the threshold within a single call → livelock.
-## The fix is the inline-skip pattern: advance `mySlot` past closed
-## cells WITHIN THE SAME pop() call, bounded by S iterations.
+## A per-pop-call local counter cannot accumulate across pop() calls. A
+## low-throughput consumer issuing one pop per request on a partially-
+## closed segment would never reach the threshold within a single call,
+## livelocking. The required behavior is the inline-skip pattern:
+## advance `mySlot` past closed cells WITHIN THE SAME pop() call,
+## bounded by S iterations.
 ##
 ## Test strategy
 ## -------------
-## The HIGH-2 livelock is fundamentally a multi-consumer race, and
-## reliably reproducing close-on-empty arbitration requires concurrent
-## consumers (which `t_lcrq_pop_race` already covers under stress). The
-## tests here are deterministic single-threaded behavioral guards on
-## the slow-path code path:
+## The livelock is fundamentally a multi-consumer race, and reliably
+## reproducing close-on-empty arbitration requires concurrent consumers
+## (which `t_lcrq_pop_race` already covers under stress). The tests here
+## are deterministic single-threaded behavioral guards on the slow-path
+## code path:
 ##
-##   T8.S1: empty queue → pop returns none(T). Exercises the
-##   `mySlot >= tail` branch with no producer activity. Validates the
-##   slow-path doesn't infinite-loop, doesn't crash, and returns
-##   none(T) cleanly when no successor segment exists.
+##   * empty queue → pop returns none(T). Exercises the `mySlot >= tail`
+##     branch with no producer activity. Validates the slow-path doesn't
+##     infinite-loop, doesn't crash, and returns none(T) cleanly when no
+##     successor segment exists.
 ##
-##   T8.S2: drain a partially-filled segment, then push more, then
-##   pop again. Exercises segment cross-over: the consumer's
-##   prevConsumerIdx state must remain consistent across the
-##   slow-path branch and subsequent fast-path claims.
+##   * drain a partially-filled segment, then push more, then pop again.
+##     Exercises segment cross-over: the consumer's prevConsumerIdx state
+##     must remain consistent across the slow-path branch and subsequent
+##     fast-path claims.
 ##
-##   T8.S3: alternating push/pop with small segment size. Forces
-##   repeated entry into the `mySlot >= tail` branch (after each
-##   pop the queue is briefly empty) without losing items.
+##   * alternating push/pop with small segment size. Forces repeated
+##     entry into the `mySlot >= tail` branch (after each pop the queue
+##     is briefly empty) without losing items.
 ##
 ## Design references:
 ##   §5.2   — MPMC consumer post-CAS empty branch (slow-path)
-##   §5.2.1 — inline-skip rationale (HIGH-2 remediation)
+##   §5.2.1 — inline-skip rationale
 ##   §7.1   — StarvingThreshold = S formal bound
 ##   §7.2   — per-consumer-call close counter (closesSeenThisSegment)
 

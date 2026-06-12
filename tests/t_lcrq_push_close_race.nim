@@ -1,7 +1,7 @@
-## T9 — MPMC push close-CAS-on-empty arbitration regression guard.
+## MPMC push close-CAS-on-empty arbitration regression guard.
 ##
-## Background
-## ----------
+## Invariant
+## ---------
 ## The consumer pop slow-path calls
 ## `tryCloseOnEmpty(seg.cells[mySlot], 0)` on empty cells past
 ## `prevConsumerIdx+1` when `tail` has raced ahead. This closes the
@@ -18,15 +18,14 @@
 ##
 ## Per design §4.2 + §6.4, the producer MUST escalate to the next
 ## segment on this failure (allocating if `seg.next == nil`), NOT
-## retry within the same segment. The pre-T9 implementation
-## `continue`d the outer loop, which would re-load `seg.tail`
-## (advanced by peers) and try a different slot in the SAME
-## segment — silently dropping the item the producer was about
-## to publish (the tail reservation stands, no other producer
-## targets it).
+## retry within the same segment. A plain `continue` of the outer loop
+## re-loads `seg.tail` (advanced by peers) and tries a different slot in
+## the SAME segment — silently dropping the item the producer was about
+## to publish (the tail reservation stands, no other producer targets
+## it).
 ##
-## Fix (T9)
-## --------
+## Required behavior
+## -----------------
 ## On `tryPublish` failure, the producer re-loads the cell:
 ##   * if `CLOSED_BIT` set — escalate to `seg.next` (allocate +
 ##     link if nil), advance `tailSegment`, `seg = nextSeg`,
@@ -41,7 +40,7 @@
 ## between its `tail`-CAS and its cell-publish DWCAS — small on
 ## modern hardware. A high-iteration stress soak with small
 ## segments and many aggressive consumers amplifies the window;
-## consumers driving slow-path closes (T8) on cells the producer
+## consumers driving slow-path closes on cells the producer
 ## hasn't yet published to is exactly the trigger.
 ##
 ## The test pushes `TotalItems` integers from `ProducerCount`
@@ -54,12 +53,12 @@
 ## Small `SegmentSize` forces frequent segment turnover, which
 ## also tests the alloc-and-link escalation path.
 ##
-## Note on pre-fix detectability
-## -----------------------------
-## Like t_lcrq_pop_race, on the operator's M-series macOS dev box
-## the producer-publish gap is small enough that this test may
-## pass even on a pre-T9 implementation under typical scheduling.
-## The test serves as a forward-looking regression guard against
+## Note on detectability
+## ---------------------
+## Like t_lcrq_pop_race, the producer-publish gap is small enough that
+## this test may pass even on a buggy implementation under typical
+## scheduling. The test serves as a forward-looking regression guard
+## against
 ## removal of the close-CAS-on-empty escalation, and amplifies the
 ## window enough to expose the bug on slower / contended hardware
 ## (CI, emulators, loaded systems).

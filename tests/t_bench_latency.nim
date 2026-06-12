@@ -94,7 +94,7 @@ suite "bench_latency --bmf-out integration (Task 1.2)":
     check exitCode == 0
     check fileExists(bmfPath)
     let node = parseJson(readFile(bmfPath))
-    # Expected slug per design 2.2 / table at design line 357.
+    # Expected slug per the benchmark-name slug table (design §2.2).
     let slug = "lockfree_spsc/spsc/1p1c"
     check node.hasKey(slug)
     let s = node[slug]

@@ -9,10 +9,10 @@
 ##   §4     — producer publish path
 ##   §8     — memory ordering (success=moRelease, failure=moRelaxed)
 ##
-## Pre-T5 baseline: the T3 stub `wasMoved(item)` dropped the value
-## via sink destructor; cell[slot] stayed (0, 0) and itemCount
-## incremented (so queue.len lied). Assertion 1 (seq==1) is the
-## primary tooth.
+## A publish that drops the value (e.g. `wasMoved(item)` via a sink
+## destructor) while still incrementing itemCount leaves cell[slot] at
+## (0, 0) and makes `queue.len` lie. Assertion 1 (seq==1) is the primary
+## tooth guarding against that.
 
 import std/unittest
 

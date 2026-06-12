@@ -25,7 +25,7 @@
 ##
 ## This is the structural twin of
 ## `tests/t_bqueue_mpmc_wide_T_accepted.nim` (the positive control):
-## together they form the SCOPE-7 tripwire against accidental
+## together they form the tripwire against accidental
 ## cross-queue constraint extension.
 
 import lockfree/queue

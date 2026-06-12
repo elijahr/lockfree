@@ -1,24 +1,14 @@
-## T-VERIFY-POP-CLEARS.unbounded-mpmc — Regression test locking in the
-## destructive-read behavior of the unbounded-MPMC pop path.
+## Regression test locking in the destructive-read behavior of the
+## unbounded-MPMC pop path.
 ##
-## Locks in the regression: the unbounded-MPMC pop site DOES NOT use a
-## `move(seg.data[mySlot])` read — that mechanism is the pre-strict-LCRQ
-## code path, replaced by the DWCAS-based `tryClaim` extractor
+## The unbounded-MPMC pop site DOES NOT use a `move(seg.data[mySlot])`
+## read. That mechanism belongs to the non-strict-LCRQ code path; the
+## strict-LCRQ MPMC pop uses the DWCAS-based `tryClaim` extractor
 ## (§5.2.1 / §5.3).
 ##
-## **IMPL PLAN ANCHOR CORRECTION**
-## ------------------------------
-## The impl plan `T-VERIFY-POP-CLEARS.unbounded-mpmc` task cites
-## `queue.nim:1475` (`some(move(seg.data[mySlot]))`) as the MPMC pop
-## anchor. That citation is incorrect: line 1476 is actually inside the
-## **SPMC** second-variant pop (`Bound[..., Queue[T, ccSingle, ccMulti,
-## ...]]`), and the legacy `move(seg.data[mySlot])` line referenced
-## around line 1623 is an INFORMATIONAL comment describing the
-## pre-strict-LCRQ MPMC pop — superseded by `tryClaim`. The
-## strict-LCRQ MPMC consumer never reads `seg.data[...]`
-## (the field does not exist on MPMC segments; see `Segment[T,
-## ccMulti, ccMulti, S]` which has `cells: array[S, LCRQCell[T]]`
-## instead).
+## The strict-LCRQ MPMC consumer never reads `seg.data[...]`: the field
+## does not exist on MPMC segments. `Segment[T, ccMulti, ccMulti, S]`
+## carries `cells: array[S, LCRQCell[T]]` instead.
 ##
 ## The legitimate slot-clearing mechanism for MPMC is the
 ## CAS-then-default-store inside `tryClaim`:
@@ -38,7 +28,7 @@
 ## REVERT CHECK
 ## ------------
 ## If the `desired = Pair[uint, T](first: observed.first, second:
-## default(T))` line inside `tryClaim` (proc at line ~204) were reverted
+## default(T))` line inside `tryClaim` were reverted
 ## to a non-clearing form (e.g. `desired = observed` to leave the
 ## payload in place, or `desired = Pair(first: observed.first, second:
 ## observed.second)` for the same effect), two assertions in this test
@@ -58,13 +48,13 @@
 ## bit-transport contract per design §2.8 (no =copy/=destroy hooks fire,
 ## but for `int` T that is irrelevant since `int` is a pure value type).
 ## The mm:none exclusion is preserved for consistency with the other
-## seven `T-VERIFY-POP-CLEARS` tests, which use a ref-counted
+## seven destructive-pop regression tests, which use a ref-counted
 ## instrumented type that genuinely depends on the ARC family.
 ##
 ## NOTE: this test uses `int` T (not the ref-counted `RefCounter` used
 ## by the other seven tests) because the MPMC unbounded path requires
-## `supportsCopyMem(T)` (DWCAS pair-half constraint; see queue.nim
-## §1166-1176 static-asserts). A ref-typed payload is structurally
+## `supportsCopyMem(T)` (DWCAS pair-half constraint, enforced by the
+## queue.nim static-asserts). A ref-typed payload is structurally
 ## infeasible for MPMC unbounded regardless of `mm:arc` availability.
 
 import std/options
@@ -97,7 +87,7 @@ static:
 
 const SENTINEL = 42
 
-suite "T-VERIFY-POP-CLEARS.unbounded-mpmc — unbounded MPMC pop is destructive":
+suite "unbounded MPMC pop is destructive":
   test "pop clears cell payload (single push/pop)":
     var manager = initDebraManager[4, debra_mod.ccMulti]()
     var q = newUnboundedMpmcQueue[int, stEager, 16, 4](addr manager)

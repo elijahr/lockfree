@@ -26,8 +26,8 @@ suite "close":
     check c.handleManager != nil
 
   test "Bound -> Closed transition (Queue/SPSC backend, debra-free)":
-    # SPSC Queue is debra-free per queue.nim:280-285 (absorbed UnboundedSpsc
-    # body). bindToThread / close are no-ops via the `when compiles` gate.
+    # SPSC Queue is debra-free (absorbed UnboundedSpsc body).
+    # bindToThread / close are no-ops via the `when compiles` gate.
     var q = newUnboundedSpscQueue[int, stEager, 16, 4]()
     var u = Unbound[int, AnyThreadTag, typeof(q)](queue: addr q, idx: 0)
     var b = move(u).bindToThread()

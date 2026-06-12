@@ -2,7 +2,7 @@
 ##
 ## ### Why 2-step instead of single-call macro
 ##
-## Plan originally specified single-call macros `spawnBoundProducer(q): body`.
+## A single-call macro form (`spawnBoundProducer(q): body`) is not viable.
 ## Nim 2.2.10 codegen issue: `{.thread, nimcall, gcsafe.}` procs emitted by
 ## macros OR templates inside a block/proc context are silently downgraded to
 ## closures, then `createThread` calls into invalid memory at thread entry

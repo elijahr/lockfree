@@ -6,18 +6,17 @@
 ##   - `seq == 0` (low 63 bits of the epoch counter == 0)
 ##   - `payload == default(T)`
 ##
-## Why this test passes against allocAligned zero-init even before T4:
-## `allocAligned[Segment[T, ccMulti, ccMulti, S]]` already zeros the
-## page, and `(seq=0, default(int)=0)` IS the all-zero bit pattern.
-## The pre-T4 stub (`discard`) and the T4 explicit-store loop are
+## Why this test passes against allocAligned zero-init even without the
+## explicit store loop: `allocAligned[Segment[T, ccMulti, ccMulti, S]]`
+## already zeros the page, and `(seq=0, default(int)=0)` IS the all-zero
+## bit pattern. An empty `discard` body and the explicit-store loop are
 ## observationally indistinguishable on T=int with this allocator.
 ## The test still earns its keep as a regression guard: if a future
 ## change swaps `allocAligned` for `alloc` (no zero-init), drops the
 ## init loop, or introduces a non-zero empty sentinel without
-## reseeding cells, this test fails. The teeth of the test were
-## verified by a temporary local mutation during T4 development
-## (store `Pair(first: 7'u64, second: 99)` instead of zero — the test
-## failed on assertion 1; restoring the zero store made it pass).
+## reseeding cells, this test fails. The teeth of the test bite under a
+## non-zero store such as `Pair(first: 7'u64, second: 99)`, which fails
+## assertion 1; the zero store passes.
 ##
 ## Design references:
 ##   §2.5.1 — state machine (empty cell = (seq=0, default(T)))

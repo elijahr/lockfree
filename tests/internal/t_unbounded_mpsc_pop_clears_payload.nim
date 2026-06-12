@@ -1,5 +1,5 @@
-## T-VERIFY-POP-CLEARS.unbounded-mpsc — Regression test locking in the
-## destructive-read behavior of the unbounded-MPSC pop path.
+## Regression test locking in the destructive-read behavior of the
+## unbounded-MPSC pop path.
 ##
 ## Locks in the regression: the unbounded-MPSC pop
 ## site inlined in `queue.nim` reads the segment slot via
@@ -12,8 +12,8 @@
 ## REVERT CHECK
 ## ------------
 ## If the `let value = move(seg.data[head])` at the inlined
-## unbounded-MPSC pop site in `src/lockfree/queue.nim` (line
-## ~875) were reverted to a plain `let value = seg.data[head]` read,
+## unbounded-MPSC pop site in `src/lockfree/queue.nim` were reverted
+## to a plain `let value = seg.data[head]` read,
 ## two assertions in this test would fail:
 ##
 ## 1. The `staticRead`-based grep-assert: the source no longer contains
@@ -73,7 +73,7 @@ proc newRefCounter(payload: int): RefCounter =
   result = RefCounter(payload: payload)
   discard std_atomics.fetchAdd(liveRefs, 1, std_atomics.moRelaxed)
 
-suite "T-VERIFY-POP-CLEARS.unbounded-mpsc — unbounded MPSC pop is destructive":
+suite "unbounded MPSC pop is destructive":
   test "pop clears segment slot (single push/pop)":
     liveRefs.store(0, std_atomics.moRelaxed)
 

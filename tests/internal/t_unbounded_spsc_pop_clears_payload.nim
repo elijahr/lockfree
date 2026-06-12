@@ -1,5 +1,5 @@
-## T-VERIFY-POP-CLEARS.unbounded-spsc — Regression test locking in the
-## destructive-read behavior of the unbounded-SPSC pop path.
+## Regression test locking in the destructive-read behavior of the
+## unbounded-SPSC pop path.
 ##
 ## Locks in the regression: the unbounded-SPSC pop site inlined in
 ## `queue.nim` reads the segment
@@ -12,7 +12,7 @@
 ## REVERT CHECK
 ## ------------
 ## If the `let v = move(seg.data[head])` at the inlined unbounded-SPSC
-## pop site in `src/lockfree/queue.nim` (line ~1361) were reverted
+## pop site in `src/lockfree/queue.nim` were reverted
 ## to a plain `let v = seg.data[head]` read, two assertions in this
 ## test would fail:
 ##
@@ -76,7 +76,7 @@ proc newRefCounter(payload: int): RefCounter =
 
 const MT = 4
 
-suite "T-VERIFY-POP-CLEARS.unbounded-spsc — unbounded SPSC pop is destructive":
+suite "unbounded SPSC pop is destructive":
   test "pop clears segment slot (single push/pop)":
     liveRefs.store(0, std_atomics.moRelaxed)
 

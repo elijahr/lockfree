@@ -33,7 +33,7 @@ template testMupGetProducerThrowsNoProducersAvailable*(queue: untyped) =
   # `joinThread(threads[i])`. Nim's `joinThread` takes its `Thread[T]`
   # argument by value, which the codegen emits as a memcpy of the whole
   # struct. While the worker is finishing up, `threadProcWrapper` writes
-  # `thrd.core = nil` and `thrd.dataFn = nil` (system/threadimpl.nim:109-110),
+  # `thrd.core = nil` and `thrd.dataFn = nil` (in system/threadimpl.nim),
   # and aarch64 TSAN flags that memcpy as a race against those final
   # stores. Reading only the `sys` field (set once at `createThread` and
   # never touched again) avoids the copy. On non-POSIX targets, fall back

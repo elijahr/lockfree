@@ -157,11 +157,11 @@ proc loadEpochs*[MaxThreads: static int, CC: static PinScopeCardinality](
   ## happens after our prior writes — so T cannot have observed a still-live
   ## pointer to an object we are about to free.
   ##
-  ## The SC RMW used to be issued against `manager.globalEpoch`
-  ## (`globalEpoch.fetchAdd(0)`), but `globalEpoch` is a hot shared cache
-  ## line and every reclaimer-side subscription bounced it across cores.
-  ## Three properties were needed for the subscription handshake to be
-  ## correct under TSAN:
+  ## The SC RMW is issued against a stack-local `Atomic[uint64]`, NOT
+  ## `manager.globalEpoch`: `globalEpoch` is a hot shared cache line, and
+  ## issuing the RMW there bounces it across cores on every reclaimer-side
+  ## subscription. The subscription handshake requires three properties to
+  ## be correct under TSAN:
   ##
   ## 1. **Hardware StoreLoad barrier.** A plain SC load is too weak — on
   ##    x86 it lowers to a bare `mov` and loses the `mfence` that an SC

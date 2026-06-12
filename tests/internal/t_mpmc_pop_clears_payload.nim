@@ -1,5 +1,5 @@
-## T-VERIFY-POP-CLEARS.mpmc — Regression test locking in the
-## destructive-read behavior of the bounded-MPMC pop path.
+## Regression test locking in the destructive-read behavior of the
+## bounded-MPMC pop path.
 ##
 ## Locks in the regression: the bounded-MPMC pop
 ## reads the cell via `move(queue.cells.dataPtr(op.slot)[])`, which is
@@ -11,7 +11,7 @@
 ## REVERT CHECK
 ## ------------
 ## If the `move(queue.cells.dataPtr(op.slot)[])` at
-## `src/lockfree/typestates/mpmc_pop.nim:99` were reverted to a
+## `src/lockfree/typestates/mpmc_pop.nim` were reverted to a
 ## plain `queue.cells.dataPtr(op.slot)[]` read, two assertions in this
 ## test would fail:
 ##
@@ -73,7 +73,7 @@ proc newRefCounter(payload: int): RefCounter =
   result = RefCounter(payload: payload)
   discard std_atomics.fetchAdd(liveRefs, 1, std_atomics.moRelaxed)
 
-suite "T-VERIFY-POP-CLEARS.mpmc — bounded MPMC pop is destructive":
+suite "bounded MPMC pop is destructive":
   test "pop clears cell (single push/pop)":
     liveRefs.store(0, std_atomics.moRelaxed)
 
