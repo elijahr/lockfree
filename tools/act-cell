@@ -28,6 +28,34 @@
 # intent for Tier A.
 set -euo pipefail
 
+# Pre-pass: handle watchdog-related flags that may appear before the cell
+# argument (or, in the case of --print-watchdog-config, alone). This runs
+# before the "must have a cell arg" check below so that
+# `tools/act-cell --print-watchdog-config` works as a config probe with no
+# cell.
+NO_WATCHDOG=0
+PRINT_WATCHDOG_CONFIG=0
+PREPASS_REMAINING=()
+for arg in "$@"; do
+  case "$arg" in
+    --no-watchdog) NO_WATCHDOG=1 ;;
+    --print-watchdog-config) PRINT_WATCHDOG_CONFIG=1 ;;
+    *) PREPASS_REMAINING+=("$arg") ;;
+  esac
+done
+set -- "${PREPASS_REMAINING[@]+"${PREPASS_REMAINING[@]}"}"
+
+# Watchdog threshold resolution: 5-minute stall, 90-minute hard timeout
+# (defaults), overridable via env vars for testing / operator tuning.
+STALL_SECS="${LFQ_ACT_STALL_SECS:-300}"
+HARD_TIMEOUT_SECS="${LFQ_ACT_HARD_TIMEOUT_SECS:-5400}"
+
+if [[ "$PRINT_WATCHDOG_CONFIG" -eq 1 ]]; then
+  echo "STALL_SECS=${STALL_SECS}"
+  echo "HARD_TIMEOUT_SECS=${HARD_TIMEOUT_SECS}"
+  exit 0
+fi
+
 if [[ $# -lt 1 ]]; then
   echo "usage: $0 <cell|alias> [extra act args...]" >&2
   echo "  Tier A (always-on):           1a 1b 1c 1d 13 (test-fast); 12 (chronos); 14 (nimony); L (lint)" >&2
@@ -40,17 +68,24 @@ fi
 CELL="$1"
 shift
 
-# Sift --push-devel out of the trailing args before they pass through to act.
-# Preserves order of remaining args (act's last-arg-wins behavior is intact).
+# Sift --push-devel (and any trailing watchdog flags) out of the trailing
+# args before they pass through to act. Preserves order of remaining args
+# (act's last-arg-wins behavior is intact).
 PUSH_DEVEL=false
 PASSTHROUGH_ARGS=()
 for arg in "$@"; do
   case "$arg" in
     --push-devel) PUSH_DEVEL=true ;;
+    --no-watchdog) NO_WATCHDOG=1 ;;
+    --print-watchdog-config) PRINT_WATCHDOG_CONFIG=1 ;;
     *) PASSTHROUGH_ARGS+=("$arg") ;;
   esac
 done
 set -- "${PASSTHROUGH_ARGS[@]+"${PASSTHROUGH_ARGS[@]}"}"
+
+# Defensive LFQ_ACT_BIN resolution (B1+B2-b will land the canonical version;
+# resolving here defensively keeps the watchdog test self-contained).
+ACT_BIN="${LFQ_ACT_BIN:-act}"
 
 # Resolve cell -> (job, matrix-flags). Job names come from ci.yml `jobs:`
 # keys; matrix-flags from the `include:` entries in the `test` job. The
@@ -156,6 +191,108 @@ JSON
   EVENT_ARGS=(push --eventpath "$EVENT_PAYLOAD")
 fi
 
-CMD=(act "${EVENT_ARGS[@]+"${EVENT_ARGS[@]}"}" -W .github/workflows/ci.yml --container-architecture "$host_arch" -j "$JOB" "${MATRIX_ARGS[@]+"${MATRIX_ARGS[@]}"}" "$@")
+CMD=("$ACT_BIN" "${EVENT_ARGS[@]+"${EVENT_ARGS[@]}"}" -W .github/workflows/ci.yml --container-architecture "$host_arch" -j "$JOB" "${MATRIX_ARGS[@]+"${MATRIX_ARGS[@]}"}" "$@")
 printf 'act-cell: host_arch=%s push_devel=%s running: %s\n' "$host_arch" "$PUSH_DEVEL" "${CMD[*]}" >&2
-exec "${CMD[@]}"
+
+# --------------------------------------------------------------------------
+# Watchdog wrapper
+# --------------------------------------------------------------------------
+# Two-layer protection against stuck `act` runs:
+#   1. Stall watchdog: if combined stdout+stderr stops growing for STALL_SECS
+#      seconds, SIGTERM the entire process group, then SIGKILL after grace.
+#   2. Hard timeout: regardless of activity, after HARD_TIMEOUT_SECS the run
+#      is terminated.
+#
+# --no-watchdog disables the stall layer (hard timeout still enforced via
+# `timeout(1)`); intended escape hatch for interactive iteration where the
+# operator wants to watch a long-running step without false-firing the stall
+# detector.
+#
+# Implementation notes:
+# - The inner command runs under `setsid` so it lives in its own process
+#   group. `act` shells out to `docker exec`, which spawns real
+#   grandchildren; only `kill -- -PGID` reaches the full subtree.
+# - cleanup() is idempotent and runs from BOTH the EXIT trap and explicit
+#   INT/TERM traps. This is the belt-and-suspenders that prevents orphan
+#   watcher processes from leaking into later cell runs.
+if [[ "$NO_WATCHDOG" -eq 1 ]]; then
+  # --no-watchdog: hard timeout only. `timeout(1)` sends SIGTERM, then
+  # SIGKILL after 10s grace if the child does not exit cleanly.
+  exec timeout --kill-after=10s "${HARD_TIMEOUT_SECS}s" "${CMD[@]}"
+fi
+
+WATCH_LOG="$(mktemp -t act-cell-watch.XXXXXX)"
+WATCH_PID=""
+HARD_PID=""
+CHILD_PID=""
+CLEANUP_DONE=""
+
+cleanup() {
+  if [[ -n "${CLEANUP_DONE}" ]]; then return; fi
+  CLEANUP_DONE=1
+  if [[ -n "${WATCH_PID}" ]]; then
+    kill "${WATCH_PID}" 2>/dev/null || true
+  fi
+  if [[ -n "${HARD_PID}" ]]; then
+    kill "${HARD_PID}" 2>/dev/null || true
+  fi
+  if [[ -n "${CHILD_PID}" ]] && kill -0 "${CHILD_PID}" 2>/dev/null; then
+    kill -TERM -- "-${CHILD_PID}" 2>/dev/null || true
+    sleep 0.5
+    kill -KILL -- "-${CHILD_PID}" 2>/dev/null || true
+  fi
+  rm -f "${WATCH_LOG}" 2>/dev/null || true
+}
+trap 'cleanup; exit 130' INT TERM
+trap 'cleanup' EXIT
+
+# Enable job control so each background pipeline gets its own process group
+# (PGID == leader PID). This is the portable substitute for `setsid` on
+# systems (notably macOS) that do not ship util-linux setsid by default.
+# `act` shells out to `docker exec`, which spawns real grandchildren; only
+# `kill -- -PGID` reaches the full subtree.
+set -m
+
+# Launch the child in its own process group. Tee combined stdout+stderr to
+# WATCH_LOG so the stall watcher can poll the file's mtime to detect
+# inactivity.
+bash -c '"$@" 2>&1 | tee "$0"' "${WATCH_LOG}" "${CMD[@]}" &
+CHILD_PID=$!
+
+# Stall watcher: poll WATCH_LOG mtime; if no progress for STALL_SECS seconds,
+# kill the whole process group. Use a small check interval so the test can
+# observe firing quickly with compressed thresholds.
+STALL_CHECK_INTERVAL=1
+( while kill -0 "${CHILD_PID}" 2>/dev/null; do
+    sleep "${STALL_CHECK_INTERVAL}"
+    if [[ -e "${WATCH_LOG}" ]]; then
+      last_mtime=$(stat -f %m "${WATCH_LOG}" 2>/dev/null || stat -c %Y "${WATCH_LOG}" 2>/dev/null || echo 0)
+      now=$(date +%s)
+      if [[ $((now - last_mtime)) -ge "${STALL_SECS}" ]]; then
+        echo "act-cell: stall watchdog firing after ${STALL_SECS}s of inactivity" >&2
+        kill -TERM -- "-${CHILD_PID}" 2>/dev/null || true
+        sleep 0.5
+        kill -KILL -- "-${CHILD_PID}" 2>/dev/null || true
+        exit 0
+      fi
+    fi
+  done ) &
+WATCH_PID=$!
+
+# Hard timeout: independent process-group kill. We do NOT use timeout(1) in
+# the watchdog form because the child is already wrapped in `setsid bash -c`
+# and timeout(1) would only see the wrapper.
+( sleep "${HARD_TIMEOUT_SECS}"
+  if kill -0 "${CHILD_PID}" 2>/dev/null; then
+    echo "act-cell: hard timeout fired after ${HARD_TIMEOUT_SECS}s" >&2
+    kill -TERM -- "-${CHILD_PID}" 2>/dev/null || true
+    sleep 0.5
+    kill -KILL -- "-${CHILD_PID}" 2>/dev/null || true
+  fi ) &
+HARD_PID=$!
+
+set +e
+wait "${CHILD_PID}"
+CHILD_RC=$?
+set -e
+exit "${CHILD_RC}"
