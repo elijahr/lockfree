@@ -21,11 +21,11 @@ block:
   let back = unwrap(ms)
   doAssert back == original
 
-# wrap/unwrap roundtrip — seq[int]
+# wrap/unwrapSeq roundtrip — seq[int]
 block:
   let original = @[1, 2, 3, 4, 5]
   let ms = wrap(@[1, 2, 3, 4, 5])
-  let back = unwrap(ms)
+  let back = unwrapSeq(ms)
   doAssert back == original
 
 # Empty string
@@ -37,7 +37,7 @@ block:
 # Empty seq
 block:
   let ms = wrap(newSeq[int]())
-  let back = unwrap(ms)
+  let back = unwrapSeq(ms)
   doAssert back == @[]
 
 # ABI — sizeof identity with uint
@@ -53,7 +53,7 @@ block:
 
 block:
   var ms = ManagedSlice[int](0)
-  disposeSlot(ms)
+  disposeSeqSlot(ms)
 
 # disposeSlot — non-empty slot frees the box without crash. Leak /
 # double-free detection lives in the valgrind CI cell.
@@ -63,6 +63,6 @@ block:
 
 block:
   let ms = wrap(@[7, 8, 9])
-  disposeSlot(ms)
+  disposeSeqSlot(ms)
 
 echo "managed_slice smoke OK"

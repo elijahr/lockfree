@@ -17,7 +17,7 @@
 ## Type dispatch (mirrors ``SlotEncoding`` in slot_encoding.nim):
 ##   * ``ref X``    → ``ManagedRef[X]``    via ``toManagedRef`` / ``toRef``
 ##   * ``string``   → ``ManagedSlice[char]`` via ``wrap`` / ``unwrap``
-##   * ``seq[U]``   → ``ManagedSlice[U]``    via ``wrap`` / ``unwrap``
+##   * ``seq[U]``   → ``ManagedSlice[U]``    via ``wrap`` / ``unwrapSeq``
 ##   * else (POD)   → ``T`` identity (assumed sizeof(T) <= sizeof(uint))
 
 import ../managed_ref
@@ -73,13 +73,18 @@ template unwrapOrIdentity*[T](encoded: SlotEncoding(T)): T =
   ## the queue's +1 refcount share (claimed by ``wrapOrIdentity`` at
   ## push) is INHERITED by the caller's binding. ``=destroy`` will
   ## fire on the caller's binding when their local leaves scope.
-  bind unwrap, toRef
+  bind unwrap, unwrapSeq, toRef
   when T is ref:
     toRef(encoded)
   elif T is string:
+    # Non-generic string unwrap (StringBox path).
     unwrap(encoded)
   elif T is seq:
-    unwrap(encoded)
+    # Distinctly-named seq unwrap (SeqBox path). MUST NOT call ``unwrap``:
+    # for ``seq[char]`` the slot encoding is ``ManagedSlice[char]``, which
+    # would resolve to the non-generic string ``unwrap`` and apply the
+    # StringBox layout to a SeqBox. See managed_slice.nim.
+    unwrapSeq(encoded)
   else:
     encoded
 
@@ -103,14 +108,21 @@ template disposeSlotEncoded*[T](encoded: SlotEncoding(T)) =
   ##                   leaking the refcount. ``decRefSlot`` calls
   ##                   ``GC_unref`` on the bit-cast ``ref X`` directly,
   ##                   which is immune to cursor elision.
-  ## * ``string`` /
-  ##   ``seq[U]``    — delegate to ``managed_slice.disposeSlot`` which
-  ##                   destroys the box payload and frees the box.
+  ## * ``string``     — delegate to ``managed_slice.disposeSlot``
+  ##                   (non-generic StringBox path) which destroys the
+  ##                   box payload and frees the box.
+  ## * ``seq[U]``    — delegate to ``managed_slice.disposeSeqSlot``
+  ##                   (distinctly-named SeqBox path). MUST NOT call
+  ##                   ``disposeSlot``: for ``seq[char]`` the slot
+  ##                   encoding is ``ManagedSlice[char]``, which would
+  ##                   resolve to the non-generic string ``disposeSlot``
+  ##                   and run the StringBox destructor over a SeqBox.
   ##
   ## All arms tolerate the zero / nil-bits sentinel: ``decRefSlot``
   ## short-circuits on nil bits via its own guard;
-  ## ``managed_slice.disposeSlot`` checks the box pointer for nil.
-  bind decRefSlot, disposeSlot
+  ## ``managed_slice.disposeSlot`` / ``disposeSeqSlot`` check the box
+  ## pointer for nil.
+  bind decRefSlot, disposeSlot, disposeSeqSlot
   when T is ref:
     # NOTE: we cannot use the "reconstruct ref X and let it die"
     # pattern here. Under --mm:arc the compiler's cursor inference
@@ -122,8 +134,14 @@ template disposeSlotEncoded*[T](encoded: SlotEncoding(T)) =
     # ``T is ref X``, so we hand it to decRefSlot directly.
     decRefSlot(encoded)
   elif T is string:
+    # Non-generic string disposer (StringBox path).
     disposeSlot(encoded)
   elif T is seq:
-    disposeSlot(encoded)
+    # Distinctly-named seq disposer (SeqBox path). MUST NOT call
+    # ``disposeSlot``: for ``seq[char]`` the slot encoding is
+    # ``ManagedSlice[char]``, which would resolve to the non-generic
+    # string ``disposeSlot`` and run the StringBox destructor over a
+    # SeqBox. See managed_slice.nim.
+    disposeSeqSlot(encoded)
   else:
     discard

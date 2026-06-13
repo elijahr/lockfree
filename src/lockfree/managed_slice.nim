@@ -46,6 +46,19 @@
 # ``lockfree/bqueue``), the internal ``slot_encoding`` mapper, and the
 # managed-payload tests.
 
+# Under ``-d:lockfreeSliceDisposeTrace`` the dispose paths below call
+# ``bumpStringDispose`` / ``bumpSeqDispose`` from the test-only trace
+# shim so ``tests/composition/t_seq_char_dispose.nim`` can assert that a
+# ``seq[char]`` slot is routed to the SEQ disposer (``disposeSeqSlot``)
+# and NOT the string disposer (``disposeSlot(ManagedSlice[char])``). The
+# import is guarded by the define so it is NEVER pulled into release
+# builds (zero-cost when the define is unset). The shim path is supplied
+# by the ``testSliceDispose`` nimble task (``--path:tests/composition``);
+# it imports only ``std/atomics`` so there is no import cycle back into
+# ``managed_slice``.
+when defined(lockfreeSliceDisposeTrace):
+  import slice_dispose_trace_shim
+
 type
   StringBox = ptr object
     v: string
@@ -130,8 +143,18 @@ proc unwrap*(ms: ManagedSlice[char]): string {.inline.} =
     copyMem(addr result, addr box.v, sizeof(string))
   deallocShared(box)
 
-proc unwrap*[U](ms: ManagedSlice[U]): seq[U] {.inline.} =
+proc unwrapSeq*[U](ms: ManagedSlice[U]): seq[U] {.inline.} =
   ## Unpack a ``seq[U]`` from the slot encoding. Frees the heap box.
+  ##
+  ## Distinctly named (``unwrapSeq``, not ``unwrap``) so the seq path is
+  ## never shadowed by the non-generic ``unwrap(ManagedSlice[char])``
+  ## (string/StringBox) overload. ``ManagedSlice[char]`` is the slot
+  ## encoding for BOTH ``string`` (``T = char``) and ``seq[char]``
+  ## (``U = char``); they collapse to the same instantiation, so Nim
+  ## overload resolution would pick the non-generic string ``unwrap`` for
+  ## a ``seq[char]`` slot, applying the StringBox layout to a SeqBox.
+  ## The distinct name forces the SeqBox path explicitly. See
+  ## ``internal/path_c_wrap.nim``.
   let box = cast[SeqBox[U]](ms.uint)
   when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc) or
        defined(gcRefc):
@@ -154,8 +177,15 @@ proc unwrap*[U](ms: ManagedSlice[U]): seq[U] {.inline.} =
 proc disposeSlot*(ms: ManagedSlice[char]) {.inline.} =
   ## Destroy-walk dispose for an unpopped string slot. Safe on the
   ## nil slot (0).
+  ##
+  ## Non-generic (string / StringBox) overload. ``disposeSeqSlot`` is
+  ## the distinctly-named SEQ counterpart so a ``seq[char]`` slot is
+  ## never routed here by overload resolution (StringBox vs SeqBox
+  ## layout). See ``internal/path_c_wrap.nim``.
   if ms.uint == 0:
     return
+  when defined(lockfreeSliceDisposeTrace):
+    bumpStringDispose()
   let box = cast[StringBox](ms.uint)
   when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc) or
        defined(gcRefc):
@@ -163,11 +193,23 @@ proc disposeSlot*(ms: ManagedSlice[char]) {.inline.} =
   # mm:none: no destructor — payload lifecycle is caller's.
   deallocShared(box)
 
-proc disposeSlot*[U](ms: ManagedSlice[U]) {.inline.} =
+proc disposeSeqSlot*[U](ms: ManagedSlice[U]) {.inline.} =
   ## Destroy-walk dispose for an unpopped seq slot. Safe on the nil
   ## slot (0).
+  ##
+  ## Distinctly named (``disposeSeqSlot``, not ``disposeSlot``) so the
+  ## seq path is never shadowed by the non-generic
+  ## ``disposeSlot(ManagedSlice[char])`` (string/StringBox) overload.
+  ## ``ManagedSlice[char]`` is the slot encoding for BOTH ``string``
+  ## and ``seq[char]``; they collapse to the same instantiation, so Nim
+  ## overload resolution would pick the non-generic string
+  ## ``disposeSlot`` for a ``seq[char]`` slot, running the StringBox
+  ## destructor over a SeqBox. The distinct name forces the SeqBox path
+  ## explicitly. See ``internal/path_c_wrap.nim``.
   if ms.uint == 0:
     return
+  when defined(lockfreeSliceDisposeTrace):
+    bumpSeqDispose()
   let box = cast[SeqBox[U]](ms.uint)
   when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc) or
        defined(gcRefc):

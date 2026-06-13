@@ -58,6 +58,7 @@ import ./composition/t_path_c_matrix
 # `testRefcountTrace` task); in the plain umbrella it emits a visible
 # skip notice instead of a 0==0 tautology.
 import ./composition/t_refcount_use_patterns
+import ./composition/t_seq_char_dispose
 import ./composition/t_verify_pop_clears_spsc_bounded
 import ./composition/t_verify_pop_clears_mpsc_bounded
 import ./composition/t_verify_pop_clears_spmc_bounded
@@ -105,7 +106,8 @@ export
   t_verify_pop_clears_mpsc_bounded, t_verify_pop_clears_spmc_bounded,
   t_verify_pop_clears_mpmc_bounded, t_verify_pop_clears_spsc_unbounded,
   t_verify_pop_clears_mpsc_unbounded, t_verify_pop_clears_spmc_unbounded,
-  t_verify_pop_clears_mpmc_unbounded, t_refcount_use_patterns
+  t_verify_pop_clears_mpmc_unbounded, t_refcount_use_patterns,
+  t_seq_char_dispose
 
 when (
   compiles do:

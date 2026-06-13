@@ -117,6 +117,24 @@ task testRefcountTrace, "Runs the refcount-balance matrix under -d:lockfreeRefco
     " -r tests/composition/t_refcount_use_patterns.nim"
 
 
+task testSliceDispose, "Runs the seq[char] dispose-routing regression under -d:lockfreeSliceDisposeTrace":
+  # The dispose-routing assertion in
+  # tests/composition/t_seq_char_dispose.nim is REAL only under
+  # -d:lockfreeSliceDisposeTrace, where the shim counters in
+  # tests/composition/slice_dispose_trace_shim.nim are wired to the
+  # disposeSlot (string) / disposeSeqSlot (seq) paths in
+  # src/lockfree/managed_slice.nim. The --path adds tests/composition so
+  # managed_slice's guarded `import slice_dispose_trace_shim` resolves
+  # (the import is itself behind the define, so this path is irrelevant
+  # to release builds). Runs under arc — the destructor-driven dispose
+  # path the test exercises.
+  let nimcacheBase = getHomeDir() / ".cache" / "nim"
+  exec "nim c --mm:arc --threads:on -d:lockfreeSliceDisposeTrace " &
+    "--path:tests/composition " &
+    "--nimcache:" & (nimcacheBase / "test_slice_dispose") &
+    " -r tests/composition/t_seq_char_dispose.nim"
+
+
 task testShell, "Runs the standalone shell-test regression scripts":
   # Three shell tests had no runner and
   # so never ran in CI. `exec` aborts the task (nonzero task exit) on the
