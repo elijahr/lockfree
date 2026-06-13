@@ -93,6 +93,12 @@ suite "pop(Queue SPSC, int)":
   test "empty":
     testSicPopCountEmpty(q)
 
+  test "zero count returns none (T1-G1-001)":
+    testSicPopCountZero(q)
+
+  test "negative count returns none without crash (T1-G1-001)":
+    testSicPopCountNegative(q)
+
   test "too many":
     testSicPopCountTooMany(q)
 

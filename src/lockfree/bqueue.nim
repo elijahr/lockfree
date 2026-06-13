@@ -606,6 +606,11 @@ proc pop*[T; N: static int](
   ## SPSC batch pop.
   # Path-C admission gate (25-row composition matrix + reject chain).
   pathCAdmit(T)
+  # Guard against non-positive counts, mirroring the MPSC sibling overload.
+  # Without this, `count < 0` reaches `newSeq[T](negative)` (RangeDefect/UB) and
+  # `count == 0` would return `some(@[])` where the MPSC arm returns `none`.
+  if unlikely(count <= 0):
+    return none(seq[T])
   let head = loadAcquireN1[N](self.head).validate()
   let tail = loadSequentialN1[N](self.tail).validate()
 

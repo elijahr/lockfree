@@ -153,6 +153,44 @@ template testSicPopCountEmpty*(queue: untyped) =
   else:
     queue.checkState(head = 0, tail = 0, storage = repeat(0, 9))
 
+template testSicPopCountZero*(queue: untyped) =
+  ## Gating test for review finding T1-G1-001 / coverage gap T2-002:
+  ## bounded single-consumer batch `pop(0)` must return `none`, matching the
+  ## MPSC sibling overload (before the fix, the SPSC arm returned `some(@[])`).
+  ## The item must survive (pop(0) consumes nothing).
+  when compiles(queue.getProducerHere(0)):
+    discard (
+      block:
+        var lfqT = queue.getProducerHere(0)
+        lfqT.push(@[1, 2, 3])
+    )
+  else:
+    discard queue.push(@[1, 2, 3])
+  check(queue.pop(0).isNone)
+  # The buffered items must be untouched: a subsequent pop(1) yields the head.
+  let after = queue.pop(1)
+  check(after.isSome)
+  check(after.get() == @[1])
+
+template testSicPopCountNegative*(queue: untyped) =
+  ## Gating test for review finding T1-G1-001 / coverage gap T2-002:
+  ## bounded single-consumer batch `pop(-1)` must return `none` and must NOT
+  ## crash. Before the fix, a negative count reached `newSeq[T](negative)`
+  ## (RangeDefect/UB on the SPSC arm).
+  when compiles(queue.getProducerHere(0)):
+    discard (
+      block:
+        var lfqT = queue.getProducerHere(0)
+        lfqT.push(@[1, 2, 3])
+    )
+  else:
+    discard queue.push(@[1, 2, 3])
+  check(queue.pop(-1).isNone)
+  # Items survive the no-op negative pop.
+  let after = queue.pop(1)
+  check(after.isSome)
+  check(after.get() == @[1])
+
 template testSicPopCountTooMany*(queue: untyped) =
   when compiles(queue.getProducerHere(0)):
     discard (
