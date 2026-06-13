@@ -45,6 +45,7 @@ export endpoint_types
 import ./bqueue
 import ./queue
 import ./role_tags
+export role_tags
 import ./exceptions
 import std/typetraits
 import lockfree/atomics
@@ -239,6 +240,7 @@ proc getConsumer*[T; ccProd: static PinScopeCardinality, N, P, C: static int](
   result.queue = addr(self)
 
   if idx >= 0:
+    assert idx < C, "getConsumer(idx) out of range: idx must be < C (consumer count)"
     result.idx = idx
     return
 
@@ -358,6 +360,11 @@ proc bindConsumer*[
 ): Bound[T, AnyThreadTag, Queue[T, ccProd, ccSingle, ST, S, MaxThreads]] {.raises: [].} =
   ## One-shot bind for the SC consumer of an MPSC-style Queue.
   ## Replaces the deleted v4.x `attachConsumer`.
+  ##
+  ## This is the proc-form equivalent of the `getConsumerHere` template
+  ## for the SC consumer case; it is kept as a proc (not a template
+  ## alias) so it can carry the `{.raises: [].}` effect annotation that
+  ## replaced v4.x `attachConsumer`.
   var u = self.getConsumer()
   u.bindToThread()
 

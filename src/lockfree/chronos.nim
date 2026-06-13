@@ -187,8 +187,8 @@ when defined(lockfreeChronos):
   ## direct push/pop body. Multi-side cardinalities (MPSC / SPMC / MPMC)
   ## require the typestate-guarded `Bound[...]` endpoint dance on the
   ## sync queue and are exposed through user-side endpoint factories
-  ## through user-side endpoint factories rather than a direct push/pop
-  ## on the wrapper. The `AsyncQueue` types are still parameterized for
+  ## rather than a direct push/pop on the wrapper. The `AsyncQueue` types
+  ## are still parameterized for
   ## all cardinalities so that follow-up work can layer an `asyncPop` on
   ## `Bound` without reshaping the wrapper.
   ## ------------------------------------------------------------------
@@ -197,8 +197,8 @@ when defined(lockfreeChronos):
       self: AsyncBQueue[T, ccSingle, ccSingle, N, 0, 0], item: sink T
   ): bool =
     ## SPSC async-adapter push. Forwards to the sync `BQueue.push` and
-    ## fires the `AsyncEvent` on success so an awaiting `pop` wakes
-    ## fires the event. Returns the underlying push outcome so the user
+    ## fires the `AsyncEvent` on success so an awaiting `pop` wakes.
+    ## Returns the underlying push outcome so the user
     ## can implement back-pressure (a `false` return means the bounded
     ## queue is full; the event is NOT fired in that case).
     result = self.queue.push(item)
@@ -236,17 +236,10 @@ when defined(lockfreeChronos):
       let v = self.queue.pop()
       if v.isSome:
         return v
-      try:
-        await self.event.wait()
-      except CancelledError as e:
-        # Propagate cancellation to the caller; the inner sync pop
-        # already released any pinscope it took before this line ran.
-        raise e
-      finally:
-        # No pinscope to unwind for the SPSC arm; the placeholder is
-        # the cancellation-discipline anchor (R10). Future multi-side
-        # cardinalities reuse this skeleton verbatim.
-        discard
+      # SPSC arm holds no pinscope across the await — the sync pop
+      # acquires and releases any pin entirely inside q.queue.pop().
+      # CancelledError propagates naturally (no cleanup to unwind).
+      await self.event.wait()
 
   ## ------------------------------------------------------------------
   ## SPSC unbounded pop.
@@ -284,12 +277,10 @@ when defined(lockfreeChronos):
       let v = self.queue.pop()
       if v.isSome:
         return v
-      try:
-        await self.event.wait()
-      except CancelledError as e:
-        raise e
-      finally:
-        discard
+      # SPSC arm holds no pinscope across the await — the sync pop
+      # acquires and releases any pin entirely inside q.queue.pop().
+      # CancelledError propagates naturally (no cleanup to unwind).
+      await self.event.wait()
 
   ## ------------------------------------------------------------------
   ## Helper accessors. The underlying sync queue is publicly accessible
