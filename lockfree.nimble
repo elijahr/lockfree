@@ -135,6 +135,24 @@ task testSliceDispose, "Runs the seq[char] dispose-routing regression under -d:l
     " -r tests/composition/t_seq_char_dispose.nim"
 
 
+task testDestructorWalkTrace, "Runs the destructor-walk string/seq slot-count regression under -d:lockfreeSliceDisposeTrace":
+  # The string (suite B) and seq (suite C) destroy-walk assertions in
+  # tests/t_destructor_walk.nim pin the EXACT number of per-slot box-free
+  # calls (disposeSlot for string / disposeSeqSlot for seq) via the shim
+  # counters in tests/composition/slice_dispose_trace_shim.nim, which
+  # src/lockfree/managed_slice.nim wires up only under
+  # -d:lockfreeSliceDisposeTrace. In the plain umbrella those counters are
+  # no-ops and the string suite falls back to a visible skip (the seq
+  # suite still asserts element-lifecycle via its instrumented Tracked
+  # element in every lane). This task runs the REAL slot-count assertions.
+  # Runs under arc — the destructor-driven dispose path under test.
+  let nimcacheBase = getHomeDir() / ".cache" / "nim"
+  exec "nim c --mm:arc --threads:on -d:lockfreeSliceDisposeTrace " &
+    "--path:tests/composition " &
+    "--nimcache:" & (nimcacheBase / "test_destructor_walk_trace") &
+    " -r tests/t_destructor_walk.nim"
+
+
 task testShell, "Runs the standalone shell-test regression scripts":
   # Three shell tests had no runner and
   # so never ran in CI. `exec` aborts the task (nonzero task exit) on the

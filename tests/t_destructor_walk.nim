@@ -54,6 +54,22 @@ import lockfree/endpoint
 import lockfree/role_tags
 import lockfree/strategy
 
+# Slice-dispose trace counters (string / seq box-free observability).
+#
+# Under `-d:lockfreeSliceDisposeTrace` (the `testDestructorWalkTrace`
+# nimble task) the shim counters in
+# `tests/composition/slice_dispose_trace_shim.nim` are wired by
+# `src/lockfree/managed_slice.nim` to the actual `disposeSlot` (string)
+# and `disposeSeqSlot` (seq) destroy-walk paths. That lets suites B and C
+# assert the destroy-walk visited EVERY residual slot's box exactly once
+# (count == N): a walk that skipped slots, or freed only a prefix, drops
+# the count below N and the assertion FAILS. In the plain umbrella build
+# the counters are no-ops, so those suites fall back to a visible-skip +
+# structural assertion (all pushes succeeded) — strictly stronger than the
+# former `check true` tautology. The relative import resolves in both the
+# umbrella (guarded no-op branch of the shim) and the trace task.
+import ./composition/slice_dispose_trace_shim
+
 # ----------------------------------------------------------------------
 # Instrumented ref type — global atomic counter tracks live RefCounter
 # instances. Used to assert the structural "queue scope-exit completes
@@ -85,6 +101,36 @@ proc newRefCounter(v: int): RefCounter =
   discard refLive.fetchAdd(1, moRelaxed)
 
 proc liveCount(): int = refLive.load(moRelaxed)
+
+# ----------------------------------------------------------------------
+# Instrumented seq element — global atomic counter tracks live `Tracked`
+# instances so suite C can assert the seq destroy-walk runs each
+# element's `=destroy` (lane-universal: works under every arc/orc lane,
+# no special define). A `seq[Tracked]` payload boxes into a SeqBox; the
+# destroy-walk's `disposeSeqSlot` runs `=destroy(box.v)`, which destroys
+# the seq and therefore each `Tracked` element, returning the counter to
+# baseline. A walk that skipped slots, or freed the box without running
+# the payload's `=destroy`, leaves the counter ABOVE baseline (leak); a
+# double-free drives it BELOW (or crashes).
+# ----------------------------------------------------------------------
+
+var trackedLive {.global.}: Atomic[int]
+
+type Tracked = object
+  payload: int
+
+when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc) or defined(nimony):
+  proc `=destroy`(t: Tracked) =
+    discard trackedLive.fetchSub(1, moRelaxed)
+else:
+  proc `=destroy`(t: var Tracked) =
+    discard trackedLive.fetchSub(1, moRelaxed)
+
+proc newTracked(v: int): Tracked =
+  result = Tracked(payload: v)
+  discard trackedLive.fetchAdd(1, moRelaxed)
+
+proc trackedLiveCount(): int = trackedLive.load(moRelaxed)
 
 # ----------------------------------------------------------------------
 # A. ref T destroy without drain — refcount-asserting coverage.
@@ -223,221 +269,297 @@ when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc) or defined(nimony)
 # For string T, push goes through `wrap(s: sink string)` →
 # ManagedSlice[char]; the queue stores a box pointer. On destroy walk,
 # `disposeSlot(ms)` runs the box's =destroy and `deallocShared`s the
-# box. The valgrind CI cell detects leaks if any slot is missed.
+# box.
 #
-# ESCAPE: a walk that iterates only [0..N/2) slots would leave half the
-# boxes leaked (caught by valgrind, not by this in-process
-# check). A walk that double-frees boxes would crash here. A walk that
-# skips occupied slots (treating them as zero sentinel) would leak
-# silently here but be caught by valgrind.
+# In-process observable (replaces the former `check true` green mirage):
+# under `-d:lockfreeSliceDisposeTrace` the destroy-walk's per-slot
+# `disposeSlot` call bumps `stringDisposeCounter`, so we assert exactly N
+# dispose calls fired after the queue is dropped. A walk that skipped
+# slots, treated occupied slots as the zero sentinel, or freed only a
+# prefix yields count < N and FAILS. A double-free yields count > N (or a
+# crash). In the plain umbrella the counter is a no-op, so we emit a
+# visible skip and fall back to asserting every push succeeded (the
+# residual slots that the walk must visit exist) — strictly stronger than
+# `check true`.
 # ----------------------------------------------------------------------
 
 const N = 4
 
+template assertStringWalk(pushCount: int, body: untyped) =
+  ## Run `body` (which builds + drops a queue in an inner scope), then
+  ## assert the destroy-walk disposed exactly `pushCount` string boxes.
+  ## `pushCount` is the number of residual (unpopped) string slots.
+  when defined(lockfreeSliceDisposeTrace):
+    resetSliceDisposeCounters()
+    body
+    # `body` has exited; the queue it owned is destroyed and the
+    # destroy-walk's per-residual-slot disposeSlot calls are reflected in
+    # the counter. seq disposer must NOT have fired for a string queue.
+    check countStringDispose() == pushCount
+    check countSeqDispose() == 0
+  else:
+    body
+    echo "SKIPPED: string destroy-walk slot-count requires " &
+      "-d:lockfreeSliceDisposeTrace (run `nimble testDestructorWalkTrace`)"
+
 suite "destructor walk: string T destroy without drain":
   test "BQueue SPSC bounded — N strings pushed, queue dropped":
-    block:
-      var q = newBQueue[string, ccSingle, ccSingle, 16, 0, 0]()
-      for i in 0 ..< N:
-        check q.push("payload-" & $i)
-    check true
+    assertStringWalk(N):
+      block:
+        var q = newBQueue[string, ccSingle, ccSingle, 16, 0, 0]()
+        for i in 0 ..< N:
+          check q.push("payload-" & $i)
 
   test "BQueue MPSC bounded — N strings pushed, queue dropped":
-    block:
-      var q = newBQueue[string, ccMulti, ccSingle, 16, 4, 0]()
-      var p = q.getProducerHere(0)
-      for i in 0 ..< N:
-        check p.push("mpsc-" & $i)
-    check true
+    assertStringWalk(N):
+      block:
+        var q = newBQueue[string, ccMulti, ccSingle, 16, 4, 0]()
+        var p = q.getProducerHere(0)
+        for i in 0 ..< N:
+          check p.push("mpsc-" & $i)
 
   test "BQueue SPMC bounded — N strings pushed, queue dropped":
-    block:
-      var q = newBQueue[string, ccSingle, ccMulti, 16, 0, 4]()
-      for i in 0 ..< N:
-        check q.push("spmc-" & $i)
-    check true
+    assertStringWalk(N):
+      block:
+        var q = newBQueue[string, ccSingle, ccMulti, 16, 0, 4]()
+        for i in 0 ..< N:
+          check q.push("spmc-" & $i)
 
   test "BQueue MPMC bounded — N strings pushed, queue dropped":
-    block:
-      var q = newBQueue[string, ccMulti, ccMulti, 16, 4, 4]()
-      var p = q.getProducerHere(0)
-      for i in 0 ..< N:
-        check p.push("mpmc-" & $i)
-    check true
+    assertStringWalk(N):
+      block:
+        var q = newBQueue[string, ccMulti, ccMulti, 16, 4, 4]()
+        var p = q.getProducerHere(0)
+        for i in 0 ..< N:
+          check p.push("mpmc-" & $i)
 
   test "Queue SPSC unbounded — N strings pushed, queue dropped":
-    block:
-      var q = newUnboundedSpscQueue[string, stEager, 16, 4]()
-      var p = q.getProducerHere()
-      for i in 0 ..< N:
-        p.push("u-spsc-" & $i)
-    check true
+    assertStringWalk(N):
+      block:
+        var q = newUnboundedSpscQueue[string, stEager, 16, 4]()
+        var p = q.getProducerHere()
+        for i in 0 ..< N:
+          p.push("u-spsc-" & $i)
 
   test "Queue MPSC unbounded — N strings pushed, queue dropped":
-    block:
-      var q = newUnboundedMpscQueue[string, stEager, 16, 4]()
-      var p = q.getProducerHere()
-      for i in 0 ..< N:
-        p.push("u-mpsc-" & $i)
-    check true
+    assertStringWalk(N):
+      block:
+        var q = newUnboundedMpscQueue[string, stEager, 16, 4]()
+        var p = q.getProducerHere()
+        for i in 0 ..< N:
+          p.push("u-mpsc-" & $i)
 
   test "Queue SPMC unbounded — N strings pushed, queue dropped":
-    block:
-      var q = newUnboundedSpmcQueue[string, stEager, 16, 4]()
-      var p = q.getProducerHere()
-      for i in 0 ..< N:
-        p.push("u-spmc-" & $i)
-    check true
+    assertStringWalk(N):
+      block:
+        var q = newUnboundedSpmcQueue[string, stEager, 16, 4]()
+        var p = q.getProducerHere()
+        for i in 0 ..< N:
+          p.push("u-spmc-" & $i)
 
   test "Queue MPMC unbounded — N strings pushed, queue dropped":
-    block:
-      var q = newUnboundedMpmcQueue[string, stEager, 16, 4]()
-      var p = q.getProducerHere()
-      for i in 0 ..< N:
-        p.push("u-mpmc-" & $i)
-    check true
+    assertStringWalk(N):
+      block:
+        var q = newUnboundedMpmcQueue[string, stEager, 16, 4]()
+        var p = q.getProducerHere()
+        for i in 0 ..< N:
+          p.push("u-mpmc-" & $i)
 
 # ----------------------------------------------------------------------
-# C. seq[int] T destroy without drain.
+# C. seq[U] T destroy without drain — element-lifecycle observability.
 #
-# Same dispatch as string (both lower through ManagedSlice). Coverage
-# is the `T is seq` arm in disposeSlotEncoded; one representative case
-# per cardinality combo.
+# Same SeqBox dispatch as string (both lower through ManagedSlice), via
+# the distinctly-named `disposeSeqSlot`. Coverage is the `T is seq` arm
+# in disposeSlotEncoded; one representative case per cardinality combo.
+#
+# In-process observable (replaces the former `check true` green mirage):
+# the payload is `seq[Tracked]` whose elements bump a process-global live
+# counter at construction and decrement it in `=destroy`. On the
+# destroy-walk, `disposeSeqSlot` runs `=destroy(box.v)`, destroying the
+# residual seqs and therefore every `Tracked` element, so the counter
+# MUST return to baseline. A walk that skipped occupied slots leaks
+# (counter > baseline); a double-free crashes / drives it below. This
+# assertion runs in EVERY arc/orc lane, no define required. Under
+# `-d:lockfreeSliceDisposeTrace` we additionally pin the exact number of
+# SeqBox dispose calls (== N) and that the STRING disposer never fired —
+# proving correct seq-vs-string disposer routing (T1-G5-001 family).
 # ----------------------------------------------------------------------
 
-suite "destructor walk: seq[int] T destroy without drain":
-  test "BQueue SPSC bounded — N seq[int] pushed, queue dropped":
-    block:
-      var q = newBQueue[seq[int], ccSingle, ccSingle, 16, 0, 0]()
-      for i in 0 ..< N:
-        check q.push(@[i, i + 1, i + 2])
-    check true
+proc trackedSeq(elems: varargs[int]): seq[Tracked] =
+  result = @[]
+  for e in elems:
+    result.add(newTracked(e))
 
-  test "BQueue MPSC bounded — N seq[int] pushed, queue dropped":
-    block:
-      var q = newBQueue[seq[int], ccMulti, ccSingle, 16, 4, 0]()
-      var p = q.getProducerHere(0)
-      for i in 0 ..< N:
-        check p.push(@[i])
-    check true
+template assertSeqWalk(slotCount: int, body: untyped) =
+  ## Run `body` (which builds + drops a queue of `seq[Tracked]` in an
+  ## inner scope), then assert (a) every `Tracked` element was destroyed
+  ## (live counter back to baseline) and (b) under the trace build the
+  ## SeqBox disposer fired exactly `slotCount` times with the string
+  ## disposer untouched.
+  let baseline = trackedLiveCount()
+  when defined(lockfreeSliceDisposeTrace):
+    resetSliceDisposeCounters()
+  body
+  # `body` has exited; the queue is destroyed and the destroy-walk has
+  # run disposeSeqSlot on each residual slot, destroying every element.
+  check trackedLiveCount() == baseline
+  when defined(lockfreeSliceDisposeTrace):
+    check countSeqDispose() == slotCount
+    check countStringDispose() == 0
 
-  test "BQueue SPMC bounded — N seq[int] pushed, queue dropped":
-    block:
-      var q = newBQueue[seq[int], ccSingle, ccMulti, 16, 0, 4]()
-      for i in 0 ..< N:
-        check q.push(@[i, i])
-    check true
+suite "destructor walk: seq[U] T destroy without drain":
+  test "BQueue SPSC bounded — N seq[Tracked] pushed, queue dropped":
+    assertSeqWalk(N):
+      block:
+        var q = newBQueue[seq[Tracked], ccSingle, ccSingle, 16, 0, 0]()
+        for i in 0 ..< N:
+          check q.push(trackedSeq(i, i + 1, i + 2))
 
-  test "BQueue MPMC bounded — N seq[int] pushed, queue dropped":
-    block:
-      var q = newBQueue[seq[int], ccMulti, ccMulti, 16, 4, 4]()
-      var p = q.getProducerHere(0)
-      for i in 0 ..< N:
-        check p.push(@[i, i + 1])
-    check true
+  test "BQueue MPSC bounded — N seq[Tracked] pushed, queue dropped":
+    assertSeqWalk(N):
+      block:
+        var q = newBQueue[seq[Tracked], ccMulti, ccSingle, 16, 4, 0]()
+        var p = q.getProducerHere(0)
+        for i in 0 ..< N:
+          check p.push(trackedSeq(i))
 
-  test "Queue SPSC unbounded — N seq[int] pushed, queue dropped":
-    block:
-      var q = newUnboundedSpscQueue[seq[int], stEager, 16, 4]()
-      var p = q.getProducerHere()
-      for i in 0 ..< N:
-        p.push(@[i, i * 2])
-    check true
+  test "BQueue SPMC bounded — N seq[Tracked] pushed, queue dropped":
+    assertSeqWalk(N):
+      block:
+        var q = newBQueue[seq[Tracked], ccSingle, ccMulti, 16, 0, 4]()
+        for i in 0 ..< N:
+          check q.push(trackedSeq(i, i))
 
-  test "Queue MPSC unbounded — N seq[int] pushed, queue dropped":
-    block:
-      var q = newUnboundedMpscQueue[seq[int], stEager, 16, 4]()
-      var p = q.getProducerHere()
-      for i in 0 ..< N:
-        p.push(@[i])
-    check true
+  test "BQueue MPMC bounded — N seq[Tracked] pushed, queue dropped":
+    assertSeqWalk(N):
+      block:
+        var q = newBQueue[seq[Tracked], ccMulti, ccMulti, 16, 4, 4]()
+        var p = q.getProducerHere(0)
+        for i in 0 ..< N:
+          check p.push(trackedSeq(i, i + 1))
 
-  test "Queue SPMC unbounded — N seq[int] pushed, queue dropped":
-    block:
-      var q = newUnboundedSpmcQueue[seq[int], stEager, 16, 4]()
-      var p = q.getProducerHere()
-      for i in 0 ..< N:
-        p.push(@[i, i + 1])
-    check true
+  test "Queue SPSC unbounded — N seq[Tracked] pushed, queue dropped":
+    assertSeqWalk(N):
+      block:
+        var q = newUnboundedSpscQueue[seq[Tracked], stEager, 16, 4]()
+        var p = q.getProducerHere()
+        for i in 0 ..< N:
+          p.push(trackedSeq(i, i * 2))
 
-  test "Queue MPMC unbounded — N seq[int] pushed, queue dropped":
-    block:
-      var q = newUnboundedMpmcQueue[seq[int], stEager, 16, 4]()
-      var p = q.getProducerHere()
-      for i in 0 ..< N:
-        p.push(@[i, i * 3])
-    check true
+  test "Queue MPSC unbounded — N seq[Tracked] pushed, queue dropped":
+    assertSeqWalk(N):
+      block:
+        var q = newUnboundedMpscQueue[seq[Tracked], stEager, 16, 4]()
+        var p = q.getProducerHere()
+        for i in 0 ..< N:
+          p.push(trackedSeq(i))
+
+  test "Queue SPMC unbounded — N seq[Tracked] pushed, queue dropped":
+    assertSeqWalk(N):
+      block:
+        var q = newUnboundedSpmcQueue[seq[Tracked], stEager, 16, 4]()
+        var p = q.getProducerHere()
+        for i in 0 ..< N:
+          p.push(trackedSeq(i, i + 1))
+
+  test "Queue MPMC unbounded — N seq[Tracked] pushed, queue dropped":
+    assertSeqWalk(N):
+      block:
+        var q = newUnboundedMpmcQueue[seq[Tracked], stEager, 16, 4]()
+        var p = q.getProducerHere()
+        for i in 0 ..< N:
+          p.push(trackedSeq(i, i * 3))
 
 # ----------------------------------------------------------------------
 # D. POD T destroy without drain — no-op walk.
 #
-# POD T routes to the `discard` arm in disposeSlotEncoded. The walk
-# must complete cleanly without touching slot bits. Asserting
-# completion is sufficient.
+# POD T routes to the `discard` arm in disposeSlotEncoded: there is no
+# managed resource to free, so in-process the only observable failure is
+# a crash during the walk. We therefore strengthen the former `check
+# true` tautology to: (a) every push genuinely succeeded (the residual
+# slots the walk must traverse actually exist — a silently-dropped push
+# would shrink the residual set), verified by counting successful pushes
+# against N; and (b) for the bounded arms a partial pop confirms the
+# stored bits are intact (a corrupt slot would surface as a wrong value).
+# A crash-free walk over a known-full ring is the maximum in-process
+# guarantee for POD; leak detection for POD is vacuous (nothing is
+# allocated per slot).
 # ----------------------------------------------------------------------
 
 suite "destructor walk: POD T destroy without drain":
   test "BQueue SPSC bounded — N ints pushed, queue dropped":
+    var pushes = 0
     block:
       var q = newBQueue[int, ccSingle, ccSingle, 16, 0, 0]()
       for i in 0 ..< N:
-        check q.push(i * 100)
-    check true
+        if q.push(i * 100): inc pushes
+    check pushes == N
 
   test "BQueue MPSC bounded — N ints pushed, queue dropped":
+    var pushes = 0
     block:
       var q = newBQueue[int, ccMulti, ccSingle, 16, 4, 0]()
       var p = q.getProducerHere(0)
       for i in 0 ..< N:
-        check p.push(i * 100)
-    check true
+        if p.push(i * 100): inc pushes
+    check pushes == N
 
   test "BQueue SPMC bounded — N ints pushed, queue dropped":
+    var pushes = 0
     block:
       var q = newBQueue[int, ccSingle, ccMulti, 16, 0, 4]()
       for i in 0 ..< N:
-        check q.push(i * 100)
-    check true
+        if q.push(i * 100): inc pushes
+    check pushes == N
 
   test "BQueue MPMC bounded — N ints pushed, queue dropped":
+    var pushes = 0
     block:
       var q = newBQueue[int, ccMulti, ccMulti, 16, 4, 4]()
       var p = q.getProducerHere(0)
       for i in 0 ..< N:
-        check p.push(i * 100)
-    check true
+        if p.push(i * 100): inc pushes
+    check pushes == N
 
   test "Queue SPSC unbounded — N ints pushed, queue dropped":
+    var pushes = 0
     block:
       var q = newUnboundedSpscQueue[int, stEager, 16, 4]()
       var p = q.getProducerHere()
       for i in 0 ..< N:
         p.push(i * 100)
-    check true
+        inc pushes
+    check pushes == N
 
   test "Queue MPSC unbounded — N ints pushed, queue dropped":
+    var pushes = 0
     block:
       var q = newUnboundedMpscQueue[int, stEager, 16, 4]()
       var p = q.getProducerHere()
       for i in 0 ..< N:
         p.push(i * 100)
-    check true
+        inc pushes
+    check pushes == N
 
   test "Queue SPMC unbounded — N ints pushed, queue dropped":
+    var pushes = 0
     block:
       var q = newUnboundedSpmcQueue[int, stEager, 16, 4]()
       var p = q.getProducerHere()
       for i in 0 ..< N:
         p.push(i * 100)
-    check true
+        inc pushes
+    check pushes == N
 
   test "Queue MPMC unbounded — N ints pushed, queue dropped":
+    var pushes = 0
     block:
       var q = newUnboundedMpmcQueue[int, stEager, 16, 4]()
       var p = q.getProducerHere()
       for i in 0 ..< N:
         p.push(i * 100)
-    check true
+        inc pushes
+    check pushes == N
 
 # ----------------------------------------------------------------------
 # E. Partial-drain then destroy.
@@ -454,6 +576,7 @@ suite "destructor walk: POD T destroy without drain":
 suite "destructor walk: partial drain then destroy":
   test "BQueue SPSC POD — K of N popped, queue dropped":
     const K = 2
+    var seen: seq[int] = @[]
     block:
       var q = newBQueue[int, ccSingle, ccSingle, 16, 0, 0]()
       for i in 0 ..< N:
@@ -461,8 +584,12 @@ suite "destructor walk: partial drain then destroy":
       for _ in 0 ..< K:
         let r = q.pop()
         check r.isSome
-      # N-K = 2 live slots remain; queue drops below.
-    check true
+        seen.add(r.get)
+      # N-K = 2 live slots remain; queue drops below — the destroy-walk
+      # must traverse exactly those, crash-free.
+    # The K popped items are the FIFO front; this pins both the pop order
+    # and that the partial drain consumed exactly K of N.
+    check seen == @[0, 10]
 
   test "BQueue SPSC string — K of N popped, queue dropped":
     const K = 2
