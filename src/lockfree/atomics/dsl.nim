@@ -15,6 +15,19 @@
 ##
 ## `compareExchange` and friends stay out of the DSL. This module is
 ## opt-in; `import debra/atomics` does NOT bring it in.
+##
+## ### Name coexistence with `std/locks`
+##
+## The exported `acquire`/`release` take `var Atomic[T]` and intentionally
+## coexist with `system`/`std/locks` `acquire`/`release` (which take a
+## `Lock`). At a call site that imports both, the two overload sets are
+## disambiguated purely by the first argument's type, so `acquire(x)`
+## resolves to the lock primitive when `x: Lock` and to the atomic
+## acquire-load when `x: Atomic[T]`. This compiles unambiguously, but a
+## reader must check the argument's type to know which `acquire` is meant.
+## This overlap is deliberate (it keeps the DSL terse and symmetric); if
+## you mix `std/locks` and this DSL in one module and want the distinction
+## visible at the call site, qualify the lock calls (`locks.acquire(l)`).
 
 import ../atomics
 

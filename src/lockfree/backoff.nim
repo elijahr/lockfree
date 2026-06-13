@@ -56,6 +56,19 @@ const
     ## `schedYield` after the cpuPause burst. Below this threshold,
     ## stays in cpuPause-only mode (no syscall cost).
 
+static:
+  # Reject pathological `-d:LockfreeQueuesMaxSpin` overrides at compile
+  # time. A spin budget above this ceiling makes no operational sense
+  # (worst-case spin already completes in single-digit microseconds at
+  # MaxSpin=256) and the growth step's `spins * 2` guard relies on a sane
+  # ceiling well below `int.high`. 1 shl 20 (~1M) is far beyond any
+  # useful backoff yet leaves >2000x headroom under int32.high.
+  doAssert MaxSpin <= (1 shl 20),
+    "MaxSpin (-d:LockfreeQueuesMaxSpin) is unreasonably large: " & $MaxSpin
+  doAssert InitialSpin >= 1, "InitialSpin must be >= 1, got " & $InitialSpin
+  doAssert MaxSpin >= InitialSpin,
+    "MaxSpin (" & $MaxSpin & ") must be >= InitialSpin (" & $InitialSpin & ")"
+
 proc backoffOnRetry*(spins: var int) {.inline.} =
   ## Called on the failure path of a CAS-retry loop. Burns `spins`
   ## cpuPause cycles, optionally yields the OS quantum if contention
@@ -73,7 +86,19 @@ proc backoffOnRetry*(spins: var int) {.inline.} =
     cpuPause()
   if spins >= YieldThreshold:
     schedYield()
-  spins = min(spins * 2, MaxSpin)
+  # Grow toward `MaxSpin` without ever evaluating `spins * 2` when it
+  # could overflow `int`. Doubling first and capping after (the obvious
+  # `min(spins * 2, MaxSpin)`) is unsafe when a pathological
+  # `-d:LockfreeQueuesMaxSpin` is set near `int.high`: `spins * 2` would
+  # raise OverflowDefect (checks on) or wrap negative (checks off,
+  # silently disabling backoff). Comparing against `MaxSpin div 2` first
+  # bounds the multiply: it only runs when `spins < MaxSpin div 2`, so
+  # `spins * 2 < MaxSpin <= int.high`.
+  spins =
+    if spins >= MaxSpin div 2:
+      MaxSpin
+    else:
+      spins * 2
 
 proc backoffOnPeerWait*() {.inline.} =
   ## Called inside a tight `while peer-flag-not-set: ...` loop.

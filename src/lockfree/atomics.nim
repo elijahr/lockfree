@@ -2165,9 +2165,16 @@ when sizeof(pointer) == 8:
     ## updated as a single atomic transaction via a 16-byte CAS-loop
     ## (cmpxchg16b / casp / `_InterlockedCompareExchange128`).
     ##
-    ## Wraparound matches the underlying integer half-type
-    ## (`SomeInteger`): unsigned halves wrap modulo `2^(sizeof(half)*8)`;
-    ## signed halves overflow per Nim signed-overflow rules.
+    ## Half-type overflow behavior follows the underlying integer type
+    ## (`SomeInteger`). Unsigned halves wrap modulo `2^(sizeof(half)*8)`.
+    ## Signed halves do NOT silently wrap: the half-add `prev.first +
+    ## delta.first` is an ordinary checked Nim addition, so under default
+    ## builds (overflow checks on) a signed-half overflow raises
+    ## `OverflowDefect` — aborting the CAS loop rather than completing the
+    ## "atomic transaction". Signed halves only wrap two's-complement
+    ## under `-d:danger` or an explicit `{.push overflowChecks: off.}`.
+    ## For counters that must never trap (e.g. an LCRQ generation tag),
+    ## use an unsigned half-type.
     enforceDwcasConstraints(A, B)
     var prev = load(loc, moRelaxed)
     while true:
