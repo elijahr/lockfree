@@ -1223,21 +1223,30 @@ proc threadFence*(order: MemoryOrder) {.inline.} =
       # `MemoryBarrier` macro expands to — emitted directly to avoid
       # `<windows.h>` bloat and namespace pollution.
       #
-      # Dispatch is performed at the Nim level via `when` rather than
-      # via C `#ifdef` inside `{.emit:.}`, because `{.emit:.}` does not
-      # reliably place `#ifdef`/`#else`/`#endif` at column 0 inside a
-      # function body — MSVC then rejects them with C2014.
-      when defined(arm64) or defined(aarch64):
-        {.emit: ["__dmb(_ARM64_BARRIER_SY);"].}
-      elif defined(i386) or defined(i686):
-        # 32-bit MSVC: `__faststorefence` is x86_64-only. The standard
-        # MSVC `MemoryBarrier` fallback on 32-bit is a `lock`-prefixed
-        # `or` on a dummy stack slot — `_InterlockedOr(&_dummy, 0)`
-        # carries full memory-barrier semantics on x86 by virtue of the
-        # `lock` prefix (Intel SDM Vol. 3A §8.2.5).
-        {.emit: ["{ long _dummy = 0; (void)_InterlockedOr(&_dummy, 0); }"].}
-      else:
-        {.emit: ["__faststorefence();"].}
+      # Architecture dispatch is performed inside the emitted C via
+      # `#ifdef _M_ARM64` / `#elif defined(_M_IX86)` / `#else`, mirroring
+      # the `store`/`load` release arms (which note that "no `defined(arm64)`
+      # is reliably set under MSVC", so the Nim-level `defined(arm64)`
+      # predicate would silently route Windows-on-ARM64 into the x86_64-only
+      # `__faststorefence` arm). The directives are emitted with leading `\n`
+      # so each lands at column 0 — the placement MSVC requires (avoiding the
+      # C2014 that a mid-line `#ifdef` would trigger). `_M_ARM64`, `_M_IX86`,
+      # and `_M_X64` are MSVC's predefined target-architecture macros.
+      #
+      #   * ARM64: `__dmb(_ARM64_BARRIER_SY)` — a full system data barrier.
+      #   * 32-bit x86 (`_M_IX86`): `__faststorefence` is x86_64-only, so use
+      #     the standard MSVC `MemoryBarrier` fallback — a `lock`-prefixed
+      #     `or` on a dummy stack slot. `_InterlockedOr(&_dummy, 0)` carries
+      #     full memory-barrier semantics on x86 via the `lock` prefix
+      #     (Intel SDM Vol. 3A §8.2.5).
+      #   * else (x86_64, `_M_X64`): `__faststorefence()`.
+      {.emit: ["\n#ifdef _M_ARM64\n"].}
+      {.emit: ["__dmb(_ARM64_BARRIER_SY);"].}
+      {.emit: ["\n#elif defined(_M_IX86)\n"].}
+      {.emit: ["{ long _dummy = 0; (void)_InterlockedOr(&_dummy, 0); }"].}
+      {.emit: ["\n#else\n"].}
+      {.emit: ["__faststorefence();"].}
+      {.emit: ["\n#endif\n"].}
     else:
       msvcReadWriteBarrier()
   else:
