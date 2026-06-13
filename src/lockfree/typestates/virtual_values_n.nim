@@ -3,6 +3,16 @@
 ## Used by spsc (SPSC) and the unbounded queue variants for `mod N` physical
 ## slot calculation over a virtual space of 0..<2*N. Bounded MPMC/MPSC/SPMC
 ## queues use Vyukov-style sequence-numbered cells (mpmc_cell) instead.
+##
+## NOTE (v0.1.0): PhysicalSlotN is production-live (type-safe slot
+## indexing across the bounded N-cardinality push/pop modules and
+## mpmc_cell). The index-arithmetic transition surface
+## (validate/add/wrapIfNeeded/index/incOrResetN) and the N-variant
+## fullness/atomic-loader helpers are currently exercised only by unit
+## tests — bounded MPMC/MPSC/SPMC use the Vyukov cell seq protocol
+## (mpmc_cell) and SPSC uses the N+1 variant (virtual_values_n1). They
+## are retained as tested building blocks for a possible future
+## unbounded-arithmetic migration.
 
 import typestates
 

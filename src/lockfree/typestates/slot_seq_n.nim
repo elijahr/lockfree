@@ -22,6 +22,13 @@ import ./virtual_values_n
 type SlotSeqN*[N: static int] = object
   ## Array of per-slot sequence counters. Used by bounded MPMC/SPMC/MPSC
   ## queues that adopt the Vyukov per-slot generation protocol.
+  ##
+  ## NOTE (v0.1.0): no PRODUCTION consumer — the bounded Vyukov path uses
+  ## the co-located MPMCCellPayload.seq in mpmc_cell.nim for
+  ## cache-locality. SlotSeqN is retained as a tested building block
+  ## (exercised by tests/t_typestates_import.nim) and a placeholder for a
+  ## future standalone-seq-array phase; do not adopt it in production
+  ## without revisiting the false-sharing tradeoff.
   seqs*: array[N, Atomic[uint64]]
 
 proc init*[N: static int](s: var SlotSeqN[N]) =

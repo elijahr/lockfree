@@ -140,8 +140,13 @@ template withBoundConsumer*[
 # ---------------------------------------------------------------------------
 
 template withBoundEndpoint*(queue, endpoint, body: untyped): untyped =
-  ## Alias for `withBoundProducer`. Use `withBoundConsumer` for the
-  ## consumer endpoint case.
+  ## WARNING: this umbrella alias ALWAYS binds a PRODUCER endpoint (it
+  ## forwards to withBoundProducer). A consumer-intent call here will
+  ## SILENTLY acquire a producer slot — there is no role auto-detection.
+  ## For a consumer endpoint you MUST call withBoundConsumer explicitly.
+  ## The producer/consumer dispatch (getProducer vs getConsumer) cannot
+  ## be inferred from the queue type alone, so this alias hard-codes the
+  ## producer role.
   withBoundProducer(queue, endpoint, body)
 
 # ---------------------------------------------------------------------------
@@ -203,8 +208,7 @@ type Queueable*[T] = concept x
 # template above.
 # ---------------------------------------------------------------------------
 
-type QueueableHookupDummy = object
-  v: int
+type QueueableHookupDummy = object ## nominal ref target for the Path-C ref-arm Queueable conformance pin (static doAssert below); has no fields by design
 
 static:
   doAssert (BQueue[int, ccSingle, ccSingle, 16, 0, 0]) is Queueable[int],
