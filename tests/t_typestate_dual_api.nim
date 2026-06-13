@@ -4,6 +4,8 @@
 ## must work uniformly across the full Path-C-encoded payload set
 ## (ref / string / seq / POD) per operator directive 2026-06-06.
 
+import std/atomics
+import std/bitops
 import options
 import unittest2
 
@@ -14,6 +16,9 @@ import lockfree/endpoint
 import lockfree/role_tags
 import lockfree/strategy
 import lockfree/typestates/with_bound
+
+from lockfree/smr/nebr import DebraManager
+import ./debra_cc_helpers
 
 type Foo = object
   v: int
@@ -105,9 +110,12 @@ suite "withBoundProducer / withBoundConsumer RAII":
   #     same thread re-acquires the same slot on re-bind regardless of
   #     whether the prior endpoint was closed.
   # The Queue (unbounded) overload of `close()` DOES do real work (debra
-  # `unregisterThread`); the cross-thread RAII contract is exercised
-  # implicitly by `tests/t_unbounded_mpmc_threaded.nim` and the chronos
-  # suite, which run long enough to expose debra-guard leaks.
+  # `unregisterThread`); that release contract is pinned directly and
+  # deterministically by the "withBound RAII release contract (unbounded
+  # Queue, T2-005)" suite below, which reads the manager's
+  # `activeThreadMask` before/after each scope and asserts the bit is
+  # cleared on exit (mutation-twin verified: dropping `defer: close()`
+  # from the Queue overloads makes that suite FAIL).
   # -------------------------------------------------------------------------
 
   test "withBoundProducer re-bind contract: sequential bind succeeds":
@@ -134,6 +142,84 @@ suite "withBoundProducer / withBoundConsumer RAII":
       second = c2.pop().get
     check first == 42
     check second == 99
+
+# ---------------------------------------------------------------------------
+# withBound RAII RELEASE contract (unbounded Queue) — T2-005.
+#
+# The re-bind tests above cannot detect a withBound that fails to release,
+# because BQueue's close() is a typestate-only no-op and getProducer is
+# keyed by getThreadId() (same thread re-acquires the same slot). For a
+# REAL release assertion we use the unbounded Queue path, whose close()
+# does actual work: it calls `unregisterThread`, clearing the calling
+# thread's bit in the debra manager's `activeThreadMask`.
+#
+# We construct an unbounded MPMC Queue with a BORROWED manager so the test
+# can read `manager.activeThreadMask` directly. The RAII template
+# `withBoundProducer` / `withBoundConsumer` registers the thread on
+# bindToThread (sets a mask bit) and MUST clear it on scope exit via
+# `defer: close()`. We assert the set-bit population returns to its
+# baseline after each scope — a release that did not fire leaves the bit
+# set and the post-scope popcount stays elevated.
+#
+# MUTATION TWIN (verified manually, reverted): removing `defer: close()`
+# from the Queue overloads of `withBoundProducer`/`withBoundConsumer` in
+# `src/lockfree/typestates/with_bound.nim` leaves the bit set after scope
+# exit, so `activeBits() == baseline` FAILS. This is the cross-thread
+# release contract the BQueue re-bind tests structurally cannot pin.
+# ---------------------------------------------------------------------------
+
+proc activeBits(mgr: var DebraManager): int =
+  ## Population count of the manager's active-thread mask: the number of
+  ## currently-registered threads. Returns to baseline once every bound
+  ## endpoint has released (unregistered) on scope exit.
+  countSetBits(mgr.activeThreadMask.load())
+
+suite "withBound RAII release contract (unbounded Queue, T2-005)":
+  test "withBoundProducer releases the debra slot on scope exit":
+    const MaxThreads = 16
+    var manager = initMultiConsumerManager[MaxThreads]()
+    var q = newUnboundedMpmcQueue[int, stEager, 16, MaxThreads](addr manager)
+
+    let baseline = activeBits(manager)
+    withBoundProducer(q, p):
+      p.push(1)
+      p.push(2)
+      # Inside the scope the producer thread is registered: the mask must
+      # carry at least one more set bit than the baseline.
+      check activeBits(manager) > baseline
+    # After scope exit the deferred close() must have unregistered the
+    # thread, returning the active-bit population to baseline.
+    check activeBits(manager) == baseline
+
+  test "withBoundConsumer releases the debra slot on scope exit":
+    const MaxThreads = 16
+    var manager = initMultiConsumerManager[MaxThreads]()
+    var q = newUnboundedMpmcQueue[int, stEager, 16, MaxThreads](addr manager)
+
+    # Seed two items via a producer scope that itself releases.
+    block:
+      withBoundProducer(q, p):
+        p.push(10)
+        p.push(20)
+
+    let baseline = activeBits(manager)
+    withBoundConsumer(q, c):
+      check activeBits(manager) > baseline
+      check c.pop().isSome
+    check activeBits(manager) == baseline
+
+  test "sequential producer + consumer scopes each return mask to baseline":
+    const MaxThreads = 16
+    var manager = initMultiConsumerManager[MaxThreads]()
+    var q = newUnboundedMpmcQueue[int, stEager, 16, MaxThreads](addr manager)
+
+    let baseline = activeBits(manager)
+    withBoundProducer(q, p):
+      p.push(7)
+    check activeBits(manager) == baseline
+    withBoundConsumer(q, c):
+      check c.pop() == some(7)
+    check activeBits(manager) == baseline
 
 # ---------------------------------------------------------------------------
 # Queueable[T] concept — non-typestate-aware ergonomic surface.
