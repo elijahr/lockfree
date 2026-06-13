@@ -1281,17 +1281,21 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
   when ccProd == ccSingle and ccCons == ccSingle:
     # SPSC-absorbed — no pin, no committed flag, no debra.
     var seg = self.queue.tailSegment.load(moRelaxed)
-    let tail = seg.tail.load(moRelaxed)
+    # Single load: `tail` doubles as the write index. The grow branch
+    # sets `tail = 0` explicitly (mirroring the SPMC arm below) rather
+    # than re-loading the fresh segment's tail. Single producer, so no
+    # peer can advance `tail` between these statements.
+    var tail = seg.tail.load(moRelaxed)
     if tail >= S:
       let newSeg = newSegment[T, ccProd, ccCons, S]()
       seg.next.store(newSeg, moRelease)
       self.queue.tailSegment.store(newSeg, moRelease)
       seg = newSeg
+      tail = 0
       discard self.queue.segments.fetchAdd(1, moRelaxed)
-    let pos = seg.tail.load(moRelaxed)
     # data[] holds SlotEncoding(T); encode at the boundary.
-    seg.data[pos] = wrapOrIdentity[T](item)
-    seg.tail.store(pos + 1, moRelease)
+    seg.data[tail] = wrapOrIdentity[T](item)
+    seg.tail.store(tail + 1, moRelease)
     discard self.queue.itemCount.fetchAdd(1, moRelaxed)
   elif ccProd == ccSingle and ccCons == ccMulti:
     # spmc-equiv — single producer, no pin.
@@ -1392,7 +1396,11 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
                       expectedSeg, newSeg, moRelease, moRelaxed
                     )
                     discard self.queue.segments.fetchAdd(1, moRelaxed)
-                    seg = newSeg
+                    # No local `seg = newSeg`: the `continue` re-enters
+                    # the loop head, which re-reads `seg` from
+                    # `tailSegment` (the authoritative value). Escalation
+                    # correctness rests on the tailSegment-CAS above, not
+                    # on a carried-forward local.
                     continue
                   else:
                     # A peer linked seg.next first; free our
@@ -1403,14 +1411,12 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
                     discard self.queue.tailSegment.compareExchange(
                       expectedSeg, linkedNext, moRelease, moRelaxed
                     )
-                    seg = linkedNext
                     continue
                 else:
                   var expectedSeg = seg
                   discard self.queue.tailSegment.compareExchange(
                     expectedSeg, nextSeg, moRelease, moRelaxed
                   )
-                  seg = nextSeg
                   continue
               # Not CLOSED_BIT — should not occur given tail-CAS
               # reservation discipline (we hold the reservation;
@@ -1503,6 +1509,19 @@ proc pop*[
             result = some(unwrapOrIdentity[T](move(seg.data[seg.head])))
             inc seg.head
             discard self.queue.itemCount.fetchSub(1, moRelaxed)
+          # Deliberate transient-empty return: when `head < tail` but the
+          # committed flag at `head` is not yet visible, a producer has
+          # reserved the slot via tail-bump but has not finished
+          # publishing. This is the producer-reserved-but-unpublished
+          # window. Unlike the MPMC pop (which spins a bounded
+          # `waitForPublish` budget for exactly this race, CRIT-1), the
+          # non-blocking MPSC pop returns `none(T)` here rather than
+          # waiting — matching the documented non-blocking contract. A
+          # caller draining with `while pop().isNone: ...` may therefore
+          # observe a spurious empty while an item is mid-publish; the
+          # single-consumer drain contract assumes producers have joined
+          # before the final drain, so the window is closed by the time a
+          # genuine end-of-stream `none` is returned.
           break
         let nextSeg = seg.next.load(moAcquire)
         if nextSeg == nil:
@@ -1631,14 +1650,22 @@ proc pop*[
   block:
     var scope = pinScope(unpinned(h))
     var seg = self.queue.headSegment.load(moAcquire)
+    # Exponential CAS-retry backoff budget. Reset to `InitialSpin` on
+    # every segment-advance (each `seg = nextSeg` / `seg = headSegment`
+    # site below) so a pop() that crosses several contended segments does
+    # not carry a saturated spin count forward and degrade into a yield
+    # storm on a fresh segment. The inner publish-wait uses its own
+    # independent `waitBackoff` (see the `waitForPublish` block).
     var spins = InitialSpin
     # Per-pop-call close counter that accumulates closes across
     # outer-loop iterations within a SINGLE pop() call. Reset to 0 on
     # every segment-advance (every `seg = nextSeg` site below). When it
-    # reaches S (the StarvingThreshold), the consumer falls through to
-    # the nextSeg advance path even if cells remain unclosed — this
-    # prevents low-throughput consumers from livelocking on a
-    # partially-closed segment.
+    # reaches the segment size `S`, the consumer falls through to the
+    # nextSeg advance path even if cells remain unclosed — this prevents
+    # low-throughput consumers from livelocking on a partially-closed
+    # segment. (`S` is the starvation cutoff; there is no separate
+    # `StarvingThreshold` constant — the threshold is fixed to segment
+    # capacity.)
     var closesSeenThisSegment = 0
     while true:
       let tail = seg.tail.load(moAcquire)
@@ -1653,8 +1680,9 @@ proc pop*[
           # Nested inline-skip scan. `mySlot` advances monotonically
           # past closed cells until we either (a) hit a publishable
           # cell — break out to retry outer loop where the fast-path
-          # will claim it; (b) exhaust the StarvingThreshold budget —
-          # break out to fall through to the nextSeg-advance path
+          # will claim it; (b) exhaust the starvation budget (the
+          # segment size `S`) — break out to fall through to the
+          # nextSeg-advance path
           # below; or (c) run off the end of the segment (mySlot >= S)
           # — same fall-through. Bounded by S iterations per outer
           # invocation.
@@ -1717,9 +1745,9 @@ proc pop*[
             # have been advanced by peer consumers in the meantime.
             backoffOnRetry(spins)
             continue
-          # Either StarvingThreshold reached, or we walked off the end
-          # of the segment with all-closed cells. Fall through to the
-          # nextSeg advance path below.
+          # Either the starvation cutoff `S` was reached, or we walked
+          # off the end of the segment with all-closed cells. Fall
+          # through to the nextSeg advance path below.
         let nextSeg = seg.next.load(moAcquire)
         if nextSeg == nil:
           break
@@ -1747,9 +1775,11 @@ proc pop*[
             discard self.queue.segments.fetchSub(1, moRelaxed)
           seg = nextSeg
           closesSeenThisSegment = 0
+          spins = InitialSpin
         else:
           seg = self.queue.headSegment.load(moAcquire)
           closesSeenThisSegment = 0
+          spins = InitialSpin
         backoffOnRetry(spins)
         continue
       # Strict-LCRQ MPMC fast-path consumer claim.
@@ -1826,9 +1856,11 @@ proc pop*[
                 discard self.queue.segments.fetchSub(1, moRelaxed)
               seg = nextSeg
               closesSeenThisSegment = 0
+              spins = InitialSpin
             else:
               seg = self.queue.headSegment.load(moAcquire)
               closesSeenThisSegment = 0
+              spins = InitialSpin
           backoffOnRetry(spins)
           continue
         # Case (b): producer mid-publish. We have already reserved
@@ -1854,8 +1886,15 @@ proc pop*[
         var fellThroughOnClose = false
         block waitForPublish:
           var waitSpins = 0
+          # Independent backoff budget for the inner publish-wait. Using
+          # the outer-loop `spins` here would inherit the accumulated
+          # (often saturated) backoff from prior contended iterations,
+          # collapsing this short in-flight-publisher wait into an
+          # immediate schedYield storm. A fresh `InitialSpin` keeps the
+          # publish-wait's escalation independent of outer-loop history.
+          var waitBackoff = InitialSpin
           while true:
-            backoffOnRetry(spins)
+            backoffOnRetry(waitBackoff)
             let inner = load(seg.cells[mySlot], moAcquire)
             if seqIsClosed(inner.first):
               # Cell was closed while we waited (close-on-empty raced
@@ -1933,9 +1972,11 @@ proc pop*[
                 discard self.queue.segments.fetchSub(1, moRelaxed)
               seg = nextSeg
               closesSeenThisSegment = 0
+              spins = InitialSpin
             else:
               seg = self.queue.headSegment.load(moAcquire)
               closesSeenThisSegment = 0
+              spins = InitialSpin
           backoffOnRetry(spins)
           continue
         continue

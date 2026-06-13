@@ -16,8 +16,13 @@
 ##
 ## **MUST be invoked at module scope.** Inside a proc body, the emitted
 ## `{.thread, nimcall.}` worker is silently downgraded to a closure (Nim
-## 2.2.10 codegen issue), causing runtime segfaults. There is no compile-
-## time guard in v5.0.0; convention-enforced via doc-comments.
+## 2.2.10 codegen issue), causing runtime segfaults. Module-scope misuse
+## IS caught at compile time: each `defineProducerWorker` /
+## `defineConsumerWorker` expansion emits an `export` statement, which Nim
+## rejects outside top-level scope (`Error: 'export' is only allowed at
+## top level`). This export-as-scope-probe trips a clear compile error
+## before a nested-scope misuse can ship — it is not a bespoke `{.error.}`
+## but it is a real guard, not merely a doc-comment convention.
 ##
 ## ### Usage
 ##
