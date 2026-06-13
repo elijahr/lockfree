@@ -119,10 +119,31 @@ proc wrap*[U](s: sink seq[U]): ManagedSlice[U] {.inline.} =
   ## problem. No ``supportsCopyMem(U)`` guard is applied here or in
   ## path_c_admit.nim.
   let box = cast[SeqBox[U]](allocShared0(sizeof(seq[U])))
-  when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc) or
-       defined(gcRefc):
+  when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc):
+    # arc/orc/atomicArc: ``box.v = s`` is a compiler-emitted ``=sink``
+    # into the zero-initialised box (the box was alloc0'd, satisfying
+    # the =sink "destination already destroyed" precondition). The
+    # payload pointer moves; the ``sink`` source ``s`` is consumed.
     box.v = s
+  elif defined(gcRefc):
+    # refc: ``box.v = s`` through a cast raw ``ptr object`` field is NOT
+    # compiled as a ``=sink`` move. refc routes it through its legacy
+    # ``genericAssign`` path, which shallow-shares the seq buffer and
+    # then runs ``=destroy`` on the live ``sink`` source ``s`` at wrap's
+    # scope exit. The box's shared payload is destroyed AGAIN at
+    # ``disposeSeqSlot``/``unwrapSeq``, so each element's user
+    # ``=destroy`` runs TWICE (double-destruction; observable as the
+    # destructor-walk live counter going negative under --mm:refc, and a
+    # genuine double-free for elements that own heap resources). Bit-
+    # transport the seq header into the box and ``wasMoved`` the source
+    # so its scope-exit ``=destroy`` is a no-op: this reproduces the move
+    # semantics arc/orc get from the compiler, destroying each element
+    # exactly once. (Validated: ctor==dtor on refc/arc/orc.)
+    copyMem(addr box.v, addr s, sizeof(seq[U]))
+    wasMoved(s)
   else:
+    # mm:none — strict bit-transport. Source `s` not zeroed; caller
+    # owns lifecycle (see module doc-comment).
     copyMem(addr box.v, addr s, sizeof(seq[U]))
   result = ManagedSlice[U](cast[uint](box))
 
