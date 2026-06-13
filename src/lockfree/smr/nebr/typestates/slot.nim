@@ -1,6 +1,22 @@
-## ThreadSlot typestate for thread slot lifecycle.
+## ThreadSlot typestate: a compile-time-only ordering marker for the slot
+## lifecycle.
 ##
-## Tracks the lifecycle of a thread slot in the DEBRA manager:
+## IMPORTANT: this typestate is a *compile-time marker only*. The state
+## transitions (`claim`/`activate`/`drain`/`release`) perform NO atomic
+## operations and carry NO backing runtime state: each is a pure cast
+## between distinct wrappers of the same `SlotContext`. They do not touch
+## `manager.activeThreadMask`, `threadId`, or any per-slot flag, so an
+## `Active` value here has no relationship to whether the slot's bit is
+## actually set.
+##
+## The authoritative slot state machine lives in `registration.nim`: a
+## slot is genuinely claimed by the `activeThreadMask` compare-exchange
+## (registration.nim, `register`) and released by the corresponding mask
+## clear. This typestate only documents/enforces the *legal ordering* of
+## those phases at compile time for callers that choose to model them; it
+## does not gate the underlying bitmask.
+##
+## The intended phase ordering it encodes:
 ## - Free: Slot is available for claiming
 ## - Claiming: Thread is attempting to claim the slot
 ## - Active: Slot is actively in use by a thread

@@ -66,7 +66,11 @@ proc complete*[MaxThreads: static int, CC: static PinScopeCardinality](
   ## Complete epoch advance by atomically incrementing globalEpoch.
   let ctx = AdvanceContext[MaxThreads, CC](a)
 
-  # Atomically increment the global epoch using fetchAdd
+  # Atomically increment the global epoch using fetchAdd. `fetchAdd`
+  # returns the prior value, so `newEpoch` is THIS advance's produced
+  # epoch (oldEpoch + 1) — a local report of this RMW's result, not a
+  # re-read of the global counter, which a concurrent advancer may have
+  # already pushed past oldEpoch + 1.
   let oldEpoch = ctx.manager.globalEpoch.fetchAdd(1'u64, moRelease)
   let newEpoch = oldEpoch + 1'u64
 

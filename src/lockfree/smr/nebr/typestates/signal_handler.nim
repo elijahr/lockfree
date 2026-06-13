@@ -2,17 +2,17 @@
 ##
 ## Ensures signal handler is installed before DEBRA operations.
 ##
-## On POSIX this installs a real SIGUSR1 handler (placeholder — the
-## production handler lives in `debra/signal.nim`). On Windows the
-## "install" step is a no-op because the neutralization protocol uses
-## SuspendThread/ResumeThread directly; the typestate transition is
-## retained for API parity so callers compile unchanged.
+## The `install` transition delegates to the production
+## `signal.installSignalHandler` (the single source of truth for the
+## SIGUSR1 neutralization handler), so driving this typestate installs
+## the *real* handler rather than a placeholder. On Windows
+## `installSignalHandler` is itself a no-op because the neutralization
+## protocol uses SuspendThread/ResumeThread directly; the typestate
+## transition is retained for API parity so callers compile unchanged.
 
 import typestates
 
-when not defined(windows):
-  import std/posix
-  import ../../../constants
+import ../signal
 
 type
   SignalHandlerContext* = object of RootObj
@@ -32,11 +32,6 @@ typestate SignalHandlerContext:
   transitions:
     HandlerUninstalled -> HandlerInstalled
 
-when not defined(windows):
-  proc neutralizationHandler(sig: cint) {.noconv.} =
-    ## SIGUSR1 handler - placeholder, real impl in signal.nim
-    discard
-
 proc initSignalHandler*(): HandlerUninstalled =
   ## Create uninstalled signal handler context.
   HandlerUninstalled(SignalHandlerContext(installed: false))
@@ -44,14 +39,12 @@ proc initSignalHandler*(): HandlerUninstalled =
 proc install*(h: HandlerUninstalled): HandlerInstalled {.transition.} =
   ## Install SIGUSR1 handler for DEBRA+ neutralization.
   ##
-  ## On Windows this is a no-op (no async handler is needed); the
-  ## transition still flips `installed = true` for API parity.
-  when not defined(windows):
-    var sa: Sigaction
-    sa.sa_handler = neutralizationHandler
-    discard sigemptyset(sa.sa_mask)
-    sa.sa_flags = 0
-    discard sigaction(QuiescentSignal, sa, nil)
+  ## Delegates to the production `signal.installSignalHandler` so this
+  ## typestate installs the real neutralization handler (idempotent and
+  ## thread-safe). On Windows `installSignalHandler` is a no-op (no async
+  ## handler is needed); the transition still flips `installed = true` for
+  ## API parity.
+  installSignalHandler()
   result = HandlerInstalled(SignalHandlerContext(installed: true))
 
 func isInstalled*(h: HandlerInstalled): bool {.notATransition.} =
