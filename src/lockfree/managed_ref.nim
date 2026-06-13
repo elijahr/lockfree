@@ -261,7 +261,11 @@ template decRefSlot*[X](mref: ManagedRef[X]) =
 #     negative offset from the payload. See `# TODO: nimony partial
 #     port` markers in the templates. The nimony CI lane is the
 #     validator; correctness here is tightened in v0.2 once the nimony
-#     heap-header layout is verifiable.
+#     heap-header layout is verifiable. CORRUPTION RISK (not merely a
+#     leak): if the assumed offset is wrong, `arcInc` / `arcDec`
+#     read-modify-write the FIRST PAYLOAD WORD instead of the rc field —
+#     silent memory corruption of the user's object, not just a refcount
+#     leak. This MUST be resolved before the nimony arm is load-bearing.
 #
 #   * **Dispose symbol (unresolved)** — `nimonyDestroyAndDispose` is a
 #     symbol TBD. On `arcDec → true` (last reference) the cell needs an
@@ -325,36 +329,6 @@ when defined(nimony):
         # pending resolution. The leak is observable only under
         # -d:nimony.
         discard
-
-# ---------------------------------------------------------------------
-# Atomic load / store helpers over ``Atomic[ManagedRef[X]]``.
-#
-# The slot itself is stored as ``Atomic[uint]`` in the queue (so the
-# DWCAS pair surfaces). These templates centralise the cast
-# at the load/store boundary so callers in queue.nim / bqueue.nim do
-# not repeat the pattern. They are pure cast wrappers; codegen is
-# identical to a raw ``Atomic[uint]`` load/store.
-#
-# We deliberately do NOT define them as full ``Atomic[ManagedRef[X]]``
-# because the queue's atomic surface is ``Atomic[uint]`` /
-# ``Atomic[Pair[uint, uint]]`` — the cast is
-# applied at the read/write site.
-# ---------------------------------------------------------------------
-
-import ./atomics
-
-template loadManagedRef*[X](
-    slot: var Atomic[uint], order: MemoryOrder): ManagedRef[X] =
-  ## Atomic load + reinterpret to ``ManagedRef[X]``. The slot is
-  ## stored as ``Atomic[uint]``; this is the typed-view
-  ## helper for the queue's pop path.
-  fromBits(ManagedRef[X], slot.load(order))
-
-template storeManagedRef*[X](
-    slot: var Atomic[uint], mref: ManagedRef[X], order: MemoryOrder) =
-  ## Atomic store of the slot encoding. Symmetric to
-  ## ``loadManagedRef``.
-  slot.store(toBits(mref), order)
 
 # ---------------------------------------------------------------------
 # Reset helper used by the queue's destructor walk.
