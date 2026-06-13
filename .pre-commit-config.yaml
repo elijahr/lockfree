@@ -18,7 +18,6 @@ repos:
         name: nph (Nim formatter)
         entry: nph
         language: system
-        types_or: [file]
         files: \.nim$
         pass_filenames: true
       - id: nimble-check

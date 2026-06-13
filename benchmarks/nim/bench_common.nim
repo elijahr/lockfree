@@ -176,7 +176,7 @@ proc emit*(em: BMFEmitter, path: string) =
 
 proc mean*(data: openArray[float]): float =
   ## Arithmetic mean. Empty input returns 0.0 (matches the legacy
-  ## `benchmarks/nim/stats.nim` contract that this module replaces).
+  ## stats-helper contract that this module replaces).
   if data.len == 0:
     return 0.0
   var s = 0.0

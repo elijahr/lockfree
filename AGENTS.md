@@ -186,7 +186,7 @@ If invoking `act` directly (not via a wrapper), pass
 
 The image is a custom build maintained in-repo:
 
-- **Dockerfile**: `.github/docker/lockfree-ci.Dockerfile`. Ubuntu 22.04 base with
+- **Dockerfile**: `.github/docker/lockfree-ci.Dockerfile`. Ubuntu 24.04 base with
   `git`, `gh`, `clang`, `valgrind`, `build-essential`, `libpcre3-dev`, `bash`,
   `xz-utils`, `unzip`, `ca-certificates`, `curl`. Node and Nim come from vfox
   (see below), not apt — earlier image revisions used apt nodejs at `/usr/bin/node`
