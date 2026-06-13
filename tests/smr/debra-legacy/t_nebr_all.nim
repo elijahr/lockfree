@@ -45,3 +45,4 @@ import ./t_nebr_bind_client
 import ./t_nebr_manager_cc_surface
 import ./t_nebr_unregister_thread
 import ./t_nebr_unregister_thread_stress
+import ./t_nebr_unregister_slot_reuse

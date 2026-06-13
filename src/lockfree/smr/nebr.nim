@@ -90,7 +90,56 @@ proc unregisterThread*[
     threadLocalManager == cast[pointer](addr manager),
     "unregisterThread: thread-affinity violation or stale handle on a live slot"
 
+  let slot = addr manager.threads[handle.idx]
+
+  # Memory-safety contract (NEBR slot reuse).
+  #
+  # The slot's `activeThreadMask` bit is about to be cleared, after which
+  # `register` may re-claim THIS slot index for a DIFFERENT thread. `register`
+  # only stores `threadId` + the threadvars; it never re-initialises the slot's
+  # epoch/pinned/neutralized/bag pointers/advanceCounter. So whatever state we
+  # leave here is inherited verbatim by the next owner. Two hazards follow if we
+  # leave it dirty:
+  #
+  #  * Leftover limbo bags (currentBag / limboBagTail) belong to the departing
+  #    thread's retire lifecycle. A reused slot's `tryReclaim` would walk them
+  #    under the new owner's epoch arithmetic — a use-after-free / double-free of
+  #    objects retired against a now-departed reader set.
+  #  * A stale `pinned = true` makes `loadEpochs` (reclaim.nim) observe this slot
+  #    as pinned forever, pinning `safeEpoch` at the stale epoch and stalling ALL
+  #    reclamation manager-wide until manager destroy.
+  #
+  # We do NOT eagerly drain the bags here: the departing thread's retired objects
+  # may not be epoch-safe to free yet, and freeing them now would be a different
+  # (premature-reclamation) UAF. NEBR has no manager-level orphan-reclaim list,
+  # so the conservative correct contract is: callers must drain their own limbo
+  # (via `tryReclaim` until empty) BEFORE unregistering. We assert that here so a
+  # violation surfaces loudly instead of leaking or double-freeing on reuse.
+  #
+  # `unregisterThread` is `{.raises: [].}` (a pinned compile-time contract in the
+  # test suite), so these are `doAssert`s (consistent with the affinity assert
+  # above and the `boundClients` assert in `=destroy`), not raised exceptions.
+  doAssert not slot.pinned.load(moAcquire),
+    "unregisterThread: slot is still pinned (thread is inside a critical " &
+      "section); unpin before unregistering"
+  doAssert slot.limboBagTail == nil and slot.currentBag == nil,
+    "unregisterThread: slot still holds retired objects in limbo; drain via " &
+      "tryReclaim (until it reclaims nothing) before unregistering — otherwise " &
+      "a reused slot would walk this thread's pending retires (UAF/double-free)"
+
   manager.threads[handle.idx].threadId.store(InvalidThreadId, moRelease)
+
+  # Reset the slot to its `initDebraManager` clean state so a subsequent
+  # `register` re-claiming this index starts from init values rather than
+  # inheriting this thread's epoch/flags/counters. The bag pointers are already
+  # nil (asserted above); reset them anyway for defensiveness and symmetry with
+  # initDebraManager.
+  slot.epoch.store(0'u64, moRelease)
+  slot.pinned.store(false, moRelease)
+  slot.neutralized.store(false, moRelease)
+  slot.currentBag = nil
+  slot.limboBagTail = nil
+  slot.advanceCounter = 0'u64
 
   var expected = manager.activeThreadMask.load(moAcquire)
   while (expected and bit) != 0'u64:
@@ -104,8 +153,10 @@ proc unregisterThread*[
   threadLocalRegistered = false
   threadLocalManager = nil
 
-proc neutralizeStalled*[MaxThreads: static int](
-    manager: var DebraManager[MaxThreads], epochsBeforeNeutralize: uint64 = 2
+proc neutralizeStalled*[
+    MaxThreads: static int, CC: static PinScopeCardinality = ccSingle
+](
+    manager: var DebraManager[MaxThreads, CC], epochsBeforeNeutralize: uint64 = 2
 ): int =
   ## Signal all stalled threads. Returns number of signals sent.
   let op = scanStart(addr manager)
