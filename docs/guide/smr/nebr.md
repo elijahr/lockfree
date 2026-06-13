@@ -49,9 +49,13 @@ import lockfree/smr/nebr
 var manager = newManager(maxThreads = 4)
 ```
 
-`maxThreads` is the **lifetime** distinct-thread count, not the
-concurrent count. There is no per-thread unregister; each
-`register()` consumes a slot for the lifetime of the manager.
+`maxThreads` is the slot count: the manager has `maxThreads` reusable
+slots. A thread holds a slot between `register()` and `unregisterThread()`.
+If threads come and go over the manager's lifetime, size `maxThreads`
+for the **peak concurrent** registered-thread count, not the lifetime
+total — provided every departing thread unregisters and frees its slot
+(see [Unregister a thread](#unregister-a-thread)). If threads never
+unregister, size for the **lifetime** distinct-thread count.
 
 ### Register a thread (once per operating thread)
 
@@ -68,6 +72,47 @@ proc workerProc() {.thread.} =
 If `maxThreads` is exhausted at `register()` time, the call raises
 `DebraRegistrationError`. (The name predates the rename to nebr; the
 exception type retains its historical name for backward compatibility.)
+
+### Unregister a thread
+
+When an operating thread is done — before it exits — it should release
+its slot so a future `register()` can re-claim that index for another
+thread:
+
+```nim
+proc workerProc() {.thread.} =
+  let handle = manager.registerThread()
+  # … pin, unpin, retire from this thread …
+  manager.unregisterThread(handle)
+```
+
+`unregisterThread` carries a **caller contract**. Before calling, the
+thread MUST:
+
+1. **Have exited every pin scope.** Never unregister from inside a
+   critical section — the slot must be unpinned.
+2. **Have drained its own limbo.** Run reclamation until it reclaims
+   nothing: call `reclaimNow(handle)` (the convenience entry point; the
+   underlying mechanism is `tryReclaim`) repeatedly until it returns
+   `0`. Unregistering while retired objects are still pending is a
+   programming error.
+
+Why drain first: a released slot is reused in place by the next
+`register()`, which does **not** re-initialise the slot's epoch, pin
+flag, or limbo bags. A departing thread's still-pending retired objects
+are not necessarily epoch-safe to free yet, and `nebr` keeps no
+manager-level orphan-reclaim list to adopt them. So freeing them at
+unregister time would be a premature-free, and leaving them on the
+reused slot would let the next owner's reclamation walk a dead thread's
+retires (a use-after-free / double-free). Draining first is the
+conservative resolution of both hazards.
+
+Violating either precondition trips a `doAssert`: in debug builds the
+program aborts loudly at the point of misuse. Under `-d:danger`
+assertions are compiled out, so a contract violation becomes the very
+slot-reuse use-after-free the contract exists to prevent. Treat the
+drain-and-unpin-before-unregister contract as mandatory in all builds,
+not just as a debug check.
 
 ### Pin / unpin around critical sections
 
@@ -232,8 +277,12 @@ For the formal safety argument, see
 
 ## Limitations
 
-- **Bounded threads.** `maxThreads` is fixed at manager creation;
-  there is no per-thread unregister. Size accordingly.
+- **Bounded slots.** `maxThreads` (the slot count) is fixed at manager
+  creation. A thread may release its slot via `unregisterThread` for
+  reuse, but the slot *count* cannot grow at runtime. Size for peak
+  concurrent registered threads. Unregistering carries a
+  drain-and-unpin-before-unregister contract — see
+  [Unregister a thread](#unregister-a-thread).
 - **No in-operation recovery.** A neutralized thread must not
   continue its critical section. There is no `sigsetjmp` rollback.
 - **`sigsetjmp`-free critical sections.** Per D3, critical sections

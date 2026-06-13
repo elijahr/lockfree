@@ -76,7 +76,49 @@ proc unregisterThread*[
     manager: var DebraManager[MaxThreads, CC], handle: ThreadHandle[MaxThreads, CC]
 ) {.raises: [].} =
   ## Unregister the current thread from the NEBR manager, releasing the
-  ## slot it claimed via `registerThread`.
+  ## slot it claimed via `registerThread` so a future `registerThread` may
+  ## re-claim that slot index for a different thread.
+  ##
+  ## **Caller contract (preconditions).** Both must hold or this proc fails a
+  ## `doAssert` (see "Failure behavior" below):
+  ##
+  ## 1. **Unpinned.** The calling thread MUST have exited *all* pin scopes
+  ##    before calling. The slot's `pinned` flag must be clear. Calling from
+  ##    inside a critical section is a programming error.
+  ## 2. **Drained limbo.** The calling thread MUST have drained its own
+  ##    retired/limbo objects before calling, i.e. run reclamation until it
+  ##    reclaims nothing — `reclaimNow(handle)` (the convenience entry point;
+  ##    underlying mechanism `tryReclaim`) until it returns `0`. The slot's
+  ##    `currentBag` and `limboBagTail` must be `nil`. Unregistering with
+  ##    pending limbo is a programming error.
+  ##
+  ## **Why the contract exists.** Releasing the slot lets `registerThread`
+  ## re-claim THIS slot index for a DIFFERENT thread; `register` reuses the
+  ## slot in place and does not re-initialise its epoch/pinned/limbo state.
+  ## So any state left here is inherited verbatim by the next owner:
+  ##
+  ## * A departing thread's still-pending retired objects are NOT necessarily
+  ##   epoch-safe to free yet, and NEBR keeps NO manager-level orphan-reclaim
+  ##   list — it cannot adopt them. Eagerly freeing them here would be a
+  ##   premature-free UAF; leaving them on a reused slot would let the new
+  ##   owner's `tryReclaim` walk them under a different epoch (a stale-slot
+  ##   use-after-free / double-free). Requiring the caller to drain first is
+  ##   the conservative resolution of both hazards.
+  ## * A stale `pinned = true` would make reclamation observe this slot as
+  ##   pinned forever, stalling ALL reclamation manager-wide.
+  ##
+  ## **Failure behavior.** Contract violations are reported via `doAssert`
+  ## (this proc is `{.raises: [].}`, a compile-time-pinned contract, so it
+  ## cannot raise). In debug builds a violation aborts loudly. Under
+  ## `-d:danger` assertions are compiled out, so violating the contract is
+  ## undefined behavior (the very slot-reuse UAF / double-free this contract
+  ## prevents) rather than a loud abort. Treat the contract as mandatory in
+  ## all builds, not merely as a debug aid.
+  ##
+  ## A handle with an out-of-range index, a slot whose `activeThreadMask` bit
+  ## is already clear (double-unregister), or a thread-affinity mismatch is
+  ## handled before the precondition checks: the first two return silently;
+  ## the affinity mismatch is its own `doAssert`.
 
   if handle.idx < 0 or handle.idx >= MaxThreads:
     return
