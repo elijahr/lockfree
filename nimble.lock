@@ -20,19 +20,6 @@
       "checksums": {
         "sha1": "421a7d735870ac5c9a2c1a57fc602cfa1e86af1d"
       }
-    },
-    "debra": {
-      "version": "0.9.0",
-      "vcsRevision": "d6701c095b777294d151618c59948cca28a84fa7",
-      "url": "https://github.com/elijahr/nim-debra",
-      "downloadMethod": "git",
-      "dependencies": [
-        "typestates",
-        "unittest2"
-      ],
-      "checksums": {
-        "sha1": "1e94406421168ab97a4563cb4c12f74317b95a12"
-      }
     }
   },
   "tasks": {}

@@ -91,7 +91,7 @@ jobs:
         # cloned tree is cached via the nimble cache step.
         run: |
           set -euo pipefail
-          NIM_VERSION='2.2.8'   # keep in sync with the Setup Nim step
+          NIM_VERSION='2.2.10'   # keep in sync with the Setup Nim step
           NIM_SRC="$HOME/.cache/nim-source-${NIM_VERSION}"
           if [ ! -f "$NIM_SRC/compiler/ast.nim" ]; then
             rm -rf "$NIM_SRC"

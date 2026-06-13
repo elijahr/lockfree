@@ -102,7 +102,7 @@ jobs:
       - name: Restore cache
         uses: actions/cache@v4
         with:
-          path: ${HOME}/.cache
+          path: ~/.cache
           # Mirrors build.yml / bench.yml: include the nimble manifest +
           # lockfile in the key so a dep bump invalidates the cache
           # instead of silently reusing a stale entry.
