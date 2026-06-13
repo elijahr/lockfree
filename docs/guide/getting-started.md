@@ -16,10 +16,11 @@ import-path map.
 nimble install lockfree
 ```
 
-`lockfree` requires Nim `>= 2.2.0` and is published on the Nimble
-registry under the package name `lockfree`. The runtime dependencies
-are `typestates >= 0.10.0` and (transitively, until the SMR is fully
-absorbed) `debra >= 0.8.0`.
+`lockfree` requires Nim `>= 2.2.10` and is published on the Nimble
+registry under the package name `lockfree`. The only runtime dependency
+is `typestates >= 0.12.0`; the DEBRA safe-memory-reclamation substrate is
+bundled in-tree as `lockfree/smr/nebr` (lifted from `nim-debra`), so it is
+not a separate dependency.
 
 Pin a version in your own `.nimble` file:
 

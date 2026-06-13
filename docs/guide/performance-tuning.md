@@ -184,9 +184,9 @@ separately to confirm the result is also clean under sanitiser.
 ### MM choice (`orc` / `arc` / `atomicArc`)
 
 The Nim memory manager affects two things: how `ref` items are
-managed (relevant only when you have opted into them with
-`-d:allowNonLockFreeQueueItems`), and how `string` / `seq` move
-through the queue if you happen to be using them as items.
+managed (admitted directly via Path-C as ManagedRef tokens), and how
+`string` / `seq` move through the queue (Path-C ManagedSlice tokens) if
+you are using them as items.
 
 For lock-free correctness, `arc` and `orc` are equivalent on the
 queues' own state — both are lock-free for the queues' own atomics.
@@ -194,13 +194,13 @@ queues' own state — both are lock-free for the queues' own atomics.
 fall back to non-atomic refcounting; on platforms where it would not,
 `atomicArc` adds cost without adding safety.
 
-Nim 2.2.0 or newer is required (see `lockfreequeues.nimble`'s `requires`
+Nim 2.2.10 or newer is required (see `lockfree.nimble`'s `requires`
 line). Older Nim toolchains miss some of the atomic builtins the queues
 rely on.
 
 For the safety implications of each memory manager choice, see
 [Safety Model → Test matrix](safety-model.md#test-matrix) and
-[Memory Management → Item types and ARC / ORC](memory-management.md#item-types-and-arc-orc).
+[Memory Management → What the queue does with payloads](concepts/memory-management.md#what-the-queue-does-with-payloads).
 
 ## Methodology link
 

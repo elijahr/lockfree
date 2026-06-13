@@ -1,13 +1,13 @@
 # Contributing
 
-How to set up a development environment for `lockfreequeues`, run the test
+How to set up a development environment for `lockfree`, run the test
 matrix, build the docs locally, and ship a release. This page supersedes
 the short top-level `CONTRIBUTING.md` at the repo root; the root file
 remains as a 9-line tooling stub for tools that expect it (GitHub's
 contributor banner, OSS scanners).
 
 If you are filing a bug or feature request, the project's
-[issue tracker](https://github.com/elijahr/lockfreequeues/issues) is the
+[issue tracker](https://github.com/elijahr/lockfree/issues) is the
 right starting point.
 
 ## Repository orientation
@@ -15,19 +15,19 @@ right starting point.
 ### Top-level layout
 
 ```text
-lockfreequeues/
-├── src/lockfreequeues/      # public API + internal helpers
+lockfree/
+├── src/lockfree/      # public API + internal helpers
 ├── tests/                   # unittest2 suites + the `test.nim` aggregator
 ├── examples/                # runnable examples (driven by `nimble examples`)
 ├── benchmarks/              # bench harness (Nim binaries + Python merge)
 ├── docs/                    # mkdocs source (this site)
 ├── .github/workflows/       # CI: build, docs, bench, release
-├── lockfreequeues.nimble    # package manifest + tasks
+├── lockfree.nimble    # package manifest + tasks
 ├── nim.cfg                  # default compile flags
 └── config.nims              # nimble script hooks
 ```
 
-### `src/lockfreequeues/` — the public API
+### `src/lockfree/` — the public API
 
 v5 collapsed the v4 per-family files (`sipsic.nim`, `mupsic.nim`,
 `unbounded_sipsic.nim`, etc.) into two unified generic types
@@ -45,8 +45,8 @@ parameterised on cardinality phantoms:
   smart constructors (`newUnboundedSpscQueue`,
   `newUnboundedMpscQueue`, `newUnboundedSpmcQueue`,
   `newUnboundedMpmcQueue`) match the bounded pattern. The SPSC variant
-  skips the debra manager allocation; the others use nim-debra EBR for
-  segment reclamation.
+  skips the DEBRA manager allocation; the others use the in-tree
+  `lockfree/smr/nebr` EBR substrate for segment reclamation.
 - `typestates/` — typestate scaffolding for the per-slot state machine
   governing publish / claim / drain transitions. The CFG-verified state
   machines come from nim-typestates. See
@@ -79,7 +79,7 @@ threaded variants in `*_threaded.nim` files. Tests use `unittest2`.
 
 ### `nimble test` — the 8-combo MM × sanitiser matrix
 
-The `test` task in `lockfreequeues.nimble` runs the suite under every
+The `test` task in `lockfree.nimble` runs the suite under every
 relevant combination:
 
 - C backend with default MM (`orc`) and explicit `arc`, `refc`.
@@ -199,7 +199,7 @@ local build is the prerequisite for a green PR.
 
 The repo's `.editorconfig` is the canonical formatter contract: 2-space
 indent, LF line endings, UTF-8, trailing newline. Beyond that, the
-conventions visible in `src/lockfreequeues/`:
+conventions visible in `src/lockfree/`:
 
 - Bounded and unbounded queue families share a single file each
   (`bqueue.nim`, `queue.nim`); cardinality is selected via phantom
@@ -242,7 +242,7 @@ change is non-trivial.
 
 Releases are cut from `devel`. The flow:
 
-1. On `devel`, bump `version` in `lockfreequeues.nimble` and add the
+1. On `devel`, bump `version` in `lockfree.nimble` and add the
    release section to `CHANGELOG.md`.
 2. Open a release-prep PR. CI must be green.
 3. Merge to `devel`, tag the merge commit `vX.Y.Z`.
@@ -276,5 +276,5 @@ only needed when retiring an older series.
 
 ## License
 
-`lockfreequeues` is released under the [MIT License](https://github.com/elijahr/lockfreequeues/blob/devel/LICENSE).
+`lockfree` is released under the [MIT License](https://github.com/elijahr/lockfree/blob/devel/LICENSE).
 Add yourself to `AUTHORS` in your first PR if you would like attribution.

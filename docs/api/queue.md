@@ -194,7 +194,7 @@ documented limitation; see the lockfree CHANGELOG `[0.1.0]` entry.
 - [Managed Ref](../guide/managed-ref.md) — Path-C wrapper for `ref T`.
 - [Managed Slice](../guide/managed-slice.md) — Path-C wrapper for
   `string` and `seq[T]`.
-- [Memory Management](../guide/memory-management.md) — DEBRA managers,
+- [Memory Management](../guide/concepts/memory-management.md) — DEBRA managers,
   deallocation strategies, and the attach/detach lifecycle.
 - [Safety Model](../guide/safety-model.md) — happens-before guarantees.
 - [Bounded vs Unbounded](../guide/bounded-vs-unbounded.md) — choosing

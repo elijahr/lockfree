@@ -1,6 +1,6 @@
 # API Reference
 
-v5 exposes two unified, cardinality-parameterized queue types. Each
+`lockfree` v0.1.0 exposes two unified, cardinality-parameterized queue types. Each
 covers all four producer/consumer combinations (SPSC, MPSC, SPMC, MPMC),
 selected at compile time via the `ccProd` and `ccCons` parameters. They
 replace the v4.x family-prefixed types (`Sipsic` / `Sipmuc` / `Mupsic` /

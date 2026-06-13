@@ -42,16 +42,19 @@ is a data race regardless of any lock-free property. On `atomicArc` the
 refcount itself is atomic, but the slot bytes (the ref handle) are still
 read and written without coordination beyond the queue's CAS protocol, so
 the race surfaces as torn slot reads or as refcount mutation around a
-partially-written slot. In every case the queue itself remains lock-free;
-the unsoundness is in the item-type contract.
+partially-written slot. In every case the queue itself remains lock-free.
 
-### Allowing non-lock-free types
+### `ref` / `string` / `seq` payloads: Path-C admission
 
-If you understand the trade-offs and need to use non-lock-free types:
-
-```bash
-nim c -d:allowNonLockFreeQueueItems your_program.nim
-```
+This is why such payloads are never stored inline. Instead, `lockfree`
+lowers `ref T`, `string`, and `seq` to an 8-byte `ManagedRef` /
+`ManagedSlice` token (a `distinct uint`) before it reaches the slot array.
+The slot only ever carries a plain machine word, so the torn-read and
+concurrent-refcount-mutation hazards above cannot occur; the payload itself
+stays on the heap where the memory manager placed it, and ownership transfers
+through the token. There is no opt-in flag — Path-C is always on for these
+types. See [ManagedRef — `ref T` payloads](managed-ref.md) and
+[Memory management](concepts/memory-management.md) for the lifecycle.
 
 ### Recommended patterns
 
@@ -59,8 +62,9 @@ For maximum safety and portability:
 
 - **Value types**: `int`, `uint64`, `float`, enums, simple `object`.
 - **Pointers**: `ptr T` when you need indirection — you manage lifetime.
-- **Avoid `ref` types** on `arc` / `orc`; prefer `ptr T` with manual memory
-  management.
+- **`ref` / `string` / `seq`**: supported directly via Path-C (ManagedRef /
+  ManagedSlice); the memory manager owns the payload lifetime. `ptr T` with
+  manual lifetime management remains available if you prefer it.
 - **Test on the target platform**: lock-free atomic availability is
   platform-dependent. `debra/atomics` rejects non-lock-free `Atomic[T]`
   by default; build on your deployment target to surface any rejection,

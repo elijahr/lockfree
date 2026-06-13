@@ -15,16 +15,16 @@ API documentation: <https://elijahr.github.io/lockfree>
 
 | Requirement | Supported |
 |-------------|-----------|
-| Nim         | `>= 2.2.0` |
+| Nim         | `>= 2.2.10` |
 | Memory managers | `orc` (default), `arc`, `refc`, `atomicArc` |
 | Backends    | C, C++ |
 | Threads     | `--threads:on` required (default in Nim 2.2+) |
 | Platforms (CI-verified) | Linux x86_64, Linux arm64, macOS arm64 |
 | Sanitisers (CI-verified) | ThreadSanitizer (under `atomicArc`), AddressSanitizer |
-| Dependencies | [`debra`](https://github.com/elijahr/nim-debra) `>= 0.8.0`, [`typestates`](https://github.com/elijahr/nim-typestates) `>= 0.10.0` |
+| Dependencies | [`typestates`](https://github.com/elijahr/nim-typestates) `>= 0.12.0` (DEBRA reclamation is bundled in-tree as `lockfree/smr/nebr`) |
 | License     | MIT |
 
-**Item-type constraints.** Slots are shared across threads and stored in a plain `array[S, T]`, so the queue rejects `ref T` item types under `arc` / `orc` / `atomicArc` at compile time (the refcount mutation isn't safe under the concurrent slot read/write). Use a value type, a `ptr T`, or pass `-d:allowNonLockFreeQueueItems` to disable the check at your own risk.
+**Item types.** Value types and `ptr T` are stored directly in the slot array. `ref T`, `string`, and `seq` are admitted through Path-C: each slot holds an 8-byte `ManagedRef` / `ManagedSlice` token (a `distinct uint`) rather than the payload itself, so no refcount or buffer mutation races against the concurrent slot read/write. This works under `orc` / `arc` / `atomicArc` / `refc`; bounded `BQueue[T, …]` additionally supports move-only and wide `T`. See [`docs/guide/managed-ref.md`](docs/guide/managed-ref.md) for the full story.
 
 **Atomics.** All atomics route through [`debra/atomics`](https://github.com/elijahr/nim-debra), which statically rejects any `Atomic[T]` instantiation that would dispatch to libatomic spinlock fallback. Enforcement is on by default; opt out with `-d:debraAllowNonLockFreeAtomics` (per-call-site warning fires).
 
@@ -198,28 +198,24 @@ Unbounded queues are linked segments that grow as needed. Use them when:
 
 ## Dependencies
 
-- [`debra`](https://github.com/elijahr/nim-debra) `>= 0.8.0` for epoch-based
-  reclamation in the unbounded multi-thread queues. `nim-debra` is a
-  general-purpose DEBRA+ implementation; nothing about it is specific to this
-  library, and it can be reused as the reclamation backend for any lock-free
-  data structure you build.
-- [`typestates`](https://github.com/elijahr/nim-typestates) `>= 0.10.0` for the
+- [`typestates`](https://github.com/elijahr/nim-typestates) `>= 0.12.0` for the
   slot-ownership state machines that back push and pop.
+
+Epoch-based reclamation for the unbounded multi-thread queues is provided by
+`lockfree/smr/nebr`, the DEBRA+ implementation bundled in-tree (lifted from
+`nim-debra`); it is not a separate dependency you need to install.
 
 ## Compile-time options
 
 | Flag                                       | Default | Effect                                                                                  |
 |--------------------------------------------|---------|-----------------------------------------------------------------------------------------|
-| `-d:allowNonLockFreeQueueItems`            | off     | Disable the arc/orc compile-time check that rejects `ref` item types.                   |
 | `-d:LockFreeQueuesAdvanceEvery=N`          | 64      | DEBRA epoch-advance cadence for unbounded queues' Eager reclamation per-pop fast path.  |
 
 ## Thread safety
 
-By design, `lockfree` rejects queues whose item type is `ref T` under arc, orc, or atomicArc. This is intentional: a queue holding `ref` items is not safe under our concurrency model.
+Slots are stored in a plain `array[S, T]` and shared across threads. Storing a `ref T` (or `string` / `seq`) inline would be unsafe: a producer's `seg.data[i] = item` and a consumer's read of `seg.data[i]` fire Nim's `=copy`/`=sink` hooks, which mutate the refcount or buffer on the same object other threads are reading or writing concurrently. That race exists regardless of whether the underlying refcount is atomic — arc's refcount is non-atomic, and even orc/atomicArc's atomic refcount can't make a torn read/write of the slot value safe.
 
-Slots are stored in a plain `array[S, T]` and shared across threads. When a producer writes `seg.data[i] = item` and a consumer reads `seg.data[i]`, those assignments fire Nim's `=copy`/`=sink` hooks for ref types, which mutate the refcount on the same object that other threads are reading or writing concurrently. That race exists regardless of whether the underlying refcount itself is atomic — arc's refcount is non-atomic, and even orc/atomicArc's atomic refcount can't make a torn read/write of the slot value safe.
-
-Use a value type, a `ptr T`, or, if you accept the trade-off, compile with `-d:allowNonLockFreeQueueItems` to disable the check.
+`lockfree` sidesteps this with Path-C admission: `ref T`, `string`, and `seq` payloads are lowered to an 8-byte `ManagedRef` / `ManagedSlice` token (`distinct uint`) before they reach the slot array, so the slot only ever carries a plain machine word. The payload itself lives on the heap where the memory manager placed it; ownership transfers through the token. Value types and `ptr T` are stored directly. No opt-in flag is required.
 
 The full safety model — slot-ownership typestates, why the queue itself is lock-free even when items are not, and the matrix of MM x sanitiser combinations under CI — lives in [`docs/guide/safety-model.md`](docs/guide/safety-model.md). The typestate transitions are documented in [`docs/guide/slot-ownership-typestates.md`](docs/guide/slot-ownership-typestates.md).
 
@@ -289,7 +285,8 @@ Pull requests and issues welcome. See
 ## Changelog
 
 See [CHANGELOG.md](CHANGELOG.md). The current release is
-[5.0.0](CHANGELOG.md#500---2026-05-25).
+[0.1.0](CHANGELOG.md#010---umbrella-consolidation-in-progress), the umbrella
+consolidation of the `lockfreequeues` v5 and `nim-debra` substrates.
 
 ## References
 

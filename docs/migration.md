@@ -411,11 +411,15 @@ instantiation-time feedback the legacy per-family types provided.
 
 ## Dependency bumps
 
-`lockfreequeues 5.0.0` requires (per the coordinated release wave):
+`lockfree 0.1.0` requires:
 
-- `typestates >= 0.10.0`
-- `nim-debra >= 0.8.0` (only required when instantiating the
-  debra-integrated unbounded `Queue` cardinalities; bounded-only
-  (`BQueue`) users and the debra-free unbounded SPSC arm do not pull in
-  the reclamation path.)
-- `nim >= 2.2.0` (unchanged from 4.1.x).
+- `typestates >= 0.12.0`
+- `nim >= 2.2.10`
+
+The DEBRA safe-memory-reclamation substrate (formerly the external
+`nim-debra >= 0.8.0` dependency) is now bundled in-tree as
+`lockfree/smr/nebr`, so it is no longer a separate dependency you need to
+install. Reclamation is still only exercised when you instantiate the
+DEBRA-integrated unbounded `Queue` cardinalities; bounded-only (`BQueue`)
+users and the DEBRA-free unbounded SPSC arm do not engage the reclamation
+path.

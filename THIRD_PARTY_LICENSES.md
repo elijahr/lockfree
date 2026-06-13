@@ -1,7 +1,7 @@
 # Third-Party Licenses
 
-`lockfreequeues` itself is licensed under MIT (see `LICENSE`).
-The benchmark suite (under `benchmarks/`) compares `lockfreequeues`
+`lockfree` itself is licensed under MIT (see `LICENSE`).
+The benchmark suite (under `benchmarks/`) compares `lockfree`
 against several upstream queue libraries; this file records the license
 obligations for each one.
 
@@ -24,39 +24,31 @@ Per-vendor block schema:
 
 ## Production library dependencies
 
-The libraries below are linked into the production `lockfreequeues`
-crate (not the bench suite). They are pinned via `nimble.lock` at the
-repository root and resolved by `nimble install` against the
-elijahr/nim-typestates and elijahr/nim-debra registry entries.
+The library below is linked into the production `lockfree` package (not
+the bench suite). It is pinned via `nimble.lock` at the repository root
+and resolved by `nimble install` against the elijahr/nim-typestates
+registry entry.
+
+The former external `nim-debra` dependency is no longer a third-party
+dependency: the DEBRA safe-memory-reclamation substrate was lifted
+in-tree as `src/lockfree/smr/nebr`. It is part of this repository's own
+MIT-licensed source (same author) and is covered by `LICENSE`, so it
+carries no separate third-party obligation here.
 
 ### nim-typestates
 
 - **Source:** https://github.com/elijahr/nim-typestates
-- **Version:** `0.10.0` (pinned via `nimble.lock`)
+- **Version:** `0.12.0` (pinned via `nimble.lock`)
 - **License:** MIT
 - **Vendored at:** _(not vendored — resolved via Nimble; sibling-source
   worktree overrides under `config.nims` are advisory and only active
   when a sibling clone is present alongside this repo, see CB-014
   comment in `config.nims`)_
 - **Upgrade procedure:** bump the `requires` line in
-  `lockfreequeues.nimble`, run `nimble lock` to refresh `nimble.lock`,
-  and re-run the test matrix. Any version below `0.10.0` lacks the
+  `lockfree.nimble`, run `nimble lock` to refresh `nimble.lock`,
+  and re-run the test matrix. Any version below `0.12.0` lacks the
   multi-line pragma scanner and will reject the unified Queue's
   typestate-pragma combined forms.
-
-### nim-debra
-
-- **Source:** https://github.com/elijahr/nim-debra
-- **Version:** `0.8.0` (pinned via `nimble.lock`)
-- **License:** MIT
-- **Vendored at:** _(not vendored — resolved via Nimble; same sibling-
-  source override caveat as `nim-typestates` above.)_
-- **Upgrade procedure:** bump the `requires` line in
-  `lockfreequeues.nimble`, run `nimble lock` to refresh `nimble.lock`,
-  and re-run the test matrix. The EBR reclamation contract consumed by
-  unbounded multi-cardinality `Queue` arms is documented in the
-  `Registration & lifecycle (unbounded multi-cardinality arms)`
-  section of `CHANGELOG.md`.
 
 ## Comparison MVP libraries (PR 3)
 
@@ -64,7 +56,7 @@ The libraries below are linked at compile time by the bench suite when
 the relevant `-d:adapter_*_available` gate is set; their source is NOT
 vendored into this repository. The benchmark adapter code (under
 `benchmarks/nim/adapters/<lib>_adapter.nim`) is original
-`lockfreequeues` source and inherits the project's MIT license.
+`lockfree` source and inherits the project's MIT license.
 
 ### Loony
 
@@ -75,13 +67,13 @@ vendored into this repository. The benchmark adapter code (under
 - **License:** MIT
 - **Vendored at:** _(not vendored — resolved at build time via Nimble)_
 - **Upgrade procedure:** _(nimble-managed; Loony is not listed in the
-  root `lockfreequeues.nimble` manifest because the package is a
+  root `lockfree.nimble` manifest because the package is a
   benchmark-only optional adapter, gated by
   `-d:adapter_loony_available`. The bench CI workflow runs
   `nimble install loony` immediately before the bench compile step.
   Production-dep pinning is via the committed `nimble.lock` at the
-  root of this repository, which covers nim, unittest2, typestates,
-  and debra. To pin Loony for a deterministic local bench, run
+  root of this repository, which covers nim, unittest2, and typestates.
+  To pin Loony for a deterministic local bench, run
   `nimble install loony@<version>` before invoking `nimble benchmarks`.)_
 
 ### Boost.LockFree
@@ -133,7 +125,7 @@ vendored into this repository. The benchmark adapter code (under
 The docs site under `docs/` ships an interactive throughput chart
 (`docs/benchmarks.md`) that renders via the vendored uPlot bundle
 below. The chart wiring (`docs/assets/bench-charts.js` +
-`docs/assets/bench-charts.css`) is original `lockfreequeues` source
+`docs/assets/bench-charts.css`) is original `lockfree` source
 and inherits the project's MIT license.
 
 ### uPlot
@@ -198,7 +190,7 @@ the nimble `threading` package is resolved at build time).
 - **Upgrade procedure:** _(nimble-managed; same rationale as Loony
   above — `threading` is a bench-only optional adapter gated by
   `-d:adapter_threading_channels_available`, so it is not listed in
-  the root `lockfreequeues.nimble` manifest. Production deps are
+  the root `lockfree.nimble` manifest. Production deps are
   pinned via `nimble.lock`.)_
 
 ### Nim system.Channel (stdlib)
@@ -218,7 +210,7 @@ v5.0.0 adds four more vendored C/C++ comparison targets (`atomic_queue`,
 crates that ride alongside `crossbeam-queue` in the existing
 `bench-ffi-crossbeam` cdylib (`flume`, `kanal`). The benchmark adapter
 code (`benchmarks/nim/adapters/<lib>_adapter.nim` and the C/C++
-wrappers in each vendor directory) is original `lockfreequeues` source
+wrappers in each vendor directory) is original `lockfree` source
 under MIT.
 
 ### atomic_queue (max0x7ba)
@@ -247,7 +239,7 @@ under MIT.
   vendoring time — see `benchmarks/vendor/liblfds/README.md`).
 - **License:** public-domain dedication with an explicit multi-grant
   (MIT, BSD, Apache, GPL/LGPL, Creative Commons) per the upstream
-  homepage. `lockfreequeues` consumes liblfds under the MIT grant
+  homepage. `lockfree` consumes liblfds under the MIT grant
   from that list (matches the project's own MIT license) and under
   the public-domain dedication. The verbatim grant text is preserved
   in `benchmarks/vendor/liblfds/LICENSE`.
@@ -302,7 +294,7 @@ under MIT.
   `bench_ffi_flume_version()`, and recorded at run time in
   `meta.adapters.flume.version`. Nothing in this tree is a hand-typed
   mirror of `Cargo.lock`.
-- **License:** Apache-2.0 OR MIT (choose either; `lockfreequeues`
+- **License:** Apache-2.0 OR MIT (choose either; `lockfree`
   takes MIT to match the project license).
 - **Vendored at:** _(crate sources are downloaded by Cargo at build
   time; only our own thin C-ABI shim under

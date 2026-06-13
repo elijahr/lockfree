@@ -150,6 +150,6 @@ present in the resolved import path, or explicitly via
 
 ## Further reading
 
-- [`api/endpoint`](../api/endpoint.md) — auto-generated endpoint reference.
+- [`api/typestates`](../api/typestates.md) — endpoint claim state (`Unbound → Bound → Closed`) and the `with_bound` scope macro reference.
 - Internal: [design-sections/05-api-surfaces.md](https://github.com/elijahr/lockfree/blob/devel/docs/internal/design-sections/05-api-surfaces.md) — full API surface specification.
 - [nebr](smr/nebr.md) — what the `Unbound → Bound` transition registers with.

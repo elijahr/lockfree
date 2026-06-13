@@ -119,7 +119,7 @@ you allocate roughly 39 segments per second, which is invisible.
 The segments are aligned to a cache-line boundary so the per-segment
 metadata (the `next`, `head`, and `tail` atomics) does not false-share
 with adjacent segments — see
-[Memory Management → Cache-line padding](memory-management.md#cache-line-padding)
+[Memory Management](concepts/memory-management.md)
 for why this matters.
 
 ### Deallocation timing under DEBRA
@@ -135,7 +135,7 @@ registered: each multi-cardinality view calls `attach()` (or
 thread before its first op, and reclamation then happens in the
 background.
 
-See [Memory Management → DEBRA integration](memory-management.md#debra-integration)
+See [Memory Management](concepts/memory-management.md)
 for the attach-time registration model and the `stManual` vs `stEager`
 deallocation strategy switch.
 
@@ -320,7 +320,7 @@ cell's `(seq, payload)` pair into a single DWCAS word.
 |-------|-----------------|
 | Unbounded MPMC (`Queue[T, ccMulti, ccMulti, …]`) | **`supportsCopyMem(T) AND sizeof(T) <= 8`** on 64-bit (`<= 4` on 32-bit). Lock-free progress via strict-LCRQ (close-CAS-on-empty, paper §4). |
 | Unbounded SPSC / SPMC / MPSC | `supportsCopyMem(T)`; no `sizeof(T)` cap. |
-| Bounded MPMC and friends (`BQueue[T, …]`) | Move-only T, wide T, and ref T (with `-d:allowNonLockFreeQueueItems`) all supported. Lock-free progress via Vyukov per-slot seq. |
+| Bounded MPMC and friends (`BQueue[T, …]`) | Move-only T, wide T, and ref T all supported (ref/string/seq admitted via Path-C). Lock-free progress via Vyukov per-slot seq. |
 
 **Decision shortcut for MPMC workloads:**
 

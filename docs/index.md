@@ -35,24 +35,24 @@ Linked segments that grow as needed. The MP/MC shapes use DEBRA+ epoch-based rec
 
 | Requirement | Supported |
 |-------------|-----------|
-| Nim         | `>= 2.2.0` |
+| Nim         | `>= 2.2.10` |
 | Memory managers | `orc` (default), `arc`, `refc`, `atomicArc` |
 | Backends    | C, C++ |
 | Threads     | `--threads:on` required (default in Nim 2.2+) |
 | Platforms (CI-verified) | Linux x86_64, Linux arm64, macOS arm64 |
 | Sanitisers (CI-verified) | ThreadSanitizer (under `atomicArc`), AddressSanitizer |
-| Dependencies | [`debra`](https://github.com/elijahr/nim-debra) `>= 0.8.0`, [`typestates`](https://github.com/elijahr/nim-typestates) `>= 0.10.0` |
+| Dependencies | [`typestates`](https://github.com/elijahr/nim-typestates) `>= 0.12.0` (DEBRA reclamation is bundled in-tree as `lockfree/smr/nebr`) |
 | License     | MIT |
 
-**Item-type constraints.** Slots are shared across threads and stored in a
-plain `array[S, T]`, so the queue rejects `ref T` item types under `arc` /
-`orc` / `atomicArc` at compile time. Use a value type, a `ptr T`, or pass
-`-d:allowNonLockFreeQueueItems` to disable the check at your own risk.
-Additionally in v5.0.0, the unbounded MPMC arm
-(`Queue[T, ccMulti, ccMulti, …]`) requires
-`supportsCopyMem(T) AND sizeof(T) <= 8` (Phase B strict-LCRQ migration);
+**Item types.** Value types and `ptr T` are stored directly in the slot
+array. `ref T`, `string`, and `seq` are admitted through Path-C: each slot
+holds an 8-byte `ManagedRef` / `ManagedSlice` token (`distinct uint`) rather
+than the payload, so no refcount or buffer mutation races against the
+concurrent slot read/write. No opt-in flag is required. The unbounded MPMC
+arm (`Queue[T, ccMulti, ccMulti, …]`) requires
+`supportsCopyMem(T) AND sizeof(T) <= 8` (strict-LCRQ migration);
 for wider or move-only `T`, use `BQueue[T, ccMulti, ccMulti, …]` or wrap
-as `ptr T`. See
+as `ptr T`. See [ManagedRef — `ref T` payloads](guide/managed-ref.md) and
 [From lockfreequeues v5](migrations/from-lockfreequeues-v5.md).
 
 **Atomics.** All atomics route through `debra/atomics`, which statically

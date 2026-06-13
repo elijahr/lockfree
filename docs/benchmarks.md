@@ -1,6 +1,6 @@
 # Benchmarks
 
-Performance benchmarks comparing lockfreequeues against alternative implementations.
+Performance benchmarks comparing lockfree against alternative implementations.
 
 ## How to read these numbers
 
@@ -35,10 +35,10 @@ whose adapter blocks on a full queue instead of returning a non-blocking
 "full" signal — Nim's `system/Channel` and `Threading.Channels` work that way.
 Their bars are also rendered with a dotted edge. The throughput numbers for
 those libraries reflect blocking semantics, not the `try_push` path the
-lockfreequeues bounded variants expose, so cross-comparisons need that
+lockfree bounded variants expose, so cross-comparisons need that
 asterisk in mind.
 
-## When to pick lockfreequeues
+## When to pick lockfree
 
 If your bottleneck is **single-producer single-consumer with a known capacity**
 — an audio callback handing buffers to a render thread, a GPU command queue,
@@ -56,11 +56,11 @@ against 1,720 ops/ms for `system/Channel` at the same shape — roughly 10.6x
 faster. The bounded MPSC queue (`newMpscQueue`) shows a similar gap (about
 3.7x at `4p1c`) when only the producer side fans out.
 
-When NOT to reach for lockfreequeues:
+When NOT to reach for lockfree:
 
 - **You actually want blocking semantics.** If "queue full" should park the
   producer until the consumer drains a slot, `system/Channel` and
-  `Threading.Channels` give that for free. The lockfreequeues bounded
+  `Threading.Channels` give that for free. The lockfree bounded
   variants return a non-blocking signal instead, and you'd need to layer a
   semaphore or condvar on top.
 - **Your runtime forbids ARC/ORC.** The library rejects `ref T` items under
@@ -100,7 +100,7 @@ python benchmarks/runner.py run --runs=33
 
 ## Queue Types Compared
 
-### lockfreequeues variants
+### lockfree variants
 
 The in-tree queues are driven directly from the unified `BQueue` (bounded)
 and `Queue` (unbounded) generics. Each topology is benchmarked from the
@@ -166,9 +166,9 @@ drops that adapter's slugs instead of breaking the run.
 
 Library upstreams and licenses, the per-adapter compile gates, and the
 local run recipes are documented in
-[`benchmarks/README.md`](https://github.com/elijahr/lockfreequeues/blob/devel/benchmarks/README.md);
+[`benchmarks/README.md`](https://github.com/elijahr/lockfree/blob/devel/benchmarks/README.md);
 per-library obligations are tracked in
-[`THIRD_PARTY_LICENSES.md`](https://github.com/elijahr/lockfreequeues/blob/devel/THIRD_PARTY_LICENSES.md).
+[`THIRD_PARTY_LICENSES.md`](https://github.com/elijahr/lockfree/blob/devel/THIRD_PARTY_LICENSES.md).
 
 ## Results
 
@@ -178,7 +178,7 @@ Results are generated per-platform. See the `benchmarks/results/` directory for 
 
 The charts below pull from a snapshot published by the `bench` CI workflow on
 every push to `devel` (see `.github/workflows/bench.yml`). The hero panel
-shows lockfreequeues vs alternatives at a single representative bounded
+shows lockfree vs alternatives at a single representative bounded
 shape; the per-topology panels below trace each library across the
 producer/consumer shape grid (and pair bounded with unbounded variants where
 the topology supports both). Each panel's legend toggles libraries on and
@@ -188,7 +188,7 @@ one, plus the topology context. Dotted bars and a `(blocking)` badge in the
 legend mark libraries with blocking-on-full semantics — see the methodology
 section below.
 
-#### Headline: lockfreequeues vs alternatives
+#### Headline: lockfree vs alternatives
 
 <div markdown="0">
   <div id="bench-status" class="bench-status" hidden></div>
@@ -229,10 +229,10 @@ between queue implementations under identical conditions.
 
 Specific caveats:
 
-- **Cache-line padding asymmetry.** Some libraries (lockfreequeues, MoodyCamel,
+- **Cache-line padding asymmetry.** Some libraries (lockfree, MoodyCamel,
   Boost.LockFree, atomic_queue, rigtorp) pad their head/tail/sequence fields to
   64 bytes; others may not.
-- **Memory ordering.** lockfreequeues uses `acquire`/`release` ordering on its
+- **Memory ordering.** lockfree uses `acquire`/`release` ordering on its
   hot paths; some external libraries default to `seq_cst`, which is stricter
   and may show as higher latency.
 - **NUMA pinning.** None on `ubuntu-latest`. NUMA-aware comparison would
