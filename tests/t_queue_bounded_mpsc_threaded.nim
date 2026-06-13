@@ -35,6 +35,7 @@ type TestContext[N: static int] = object
   received: ptr array[ItemCount, Atomic[bool]]
   duplicateFound: ptr Atomic[bool]
   producersDone: ptr Atomic[int]
+  fifoViolation: ptr Atomic[bool]
   producerIdx: int
 
 proc producer[N: static int](ctx: ptr TestContext[N]) {.thread.} =
@@ -47,10 +48,26 @@ proc producer[N: static int](ctx: ptr TestContext[N]) {.thread.} =
 
 proc consumer[N: static int](ctx: ptr TestContext[N]) {.thread.} =
   var consumed = 0
+  # MPSC: a single consumer with multiple producers. Global order is not
+  # FIFO across producers, but the contract IS per-producer FIFO: each
+  # producer pushes its block `base+1 .. base+ItemsPerProducer` in order,
+  # so values originating from the SAME producer must be observed in
+  # strictly increasing order by the single consumer. We bucket the
+  # last-seen value per producer (derived from the value range) and flag
+  # any per-producer regression. This catches a reordering bug that
+  # preserved count + uniqueness.
+  var lastSeenPerProducer: array[ProducerCount, int]
+  for j in 0 ..< ProducerCount:
+    lastSeenPerProducer[j] = 0
   while consumed < ItemCount:
     let item = ctx.queue[].pop()
     if item.isSome:
-      let val = item.get - 1 # Items are 1-indexed
+      let raw = item.get # 1-indexed, in [1 .. ItemCount]
+      let prod = (raw - 1) div ItemsPerProducer # originating producer
+      if raw <= lastSeenPerProducer[prod]:
+        ctx.fifoViolation[].store(true, moRelaxed)
+      lastSeenPerProducer[prod] = raw
+      let val = raw - 1
       if ctx.received[val].exchange(true, moRelaxed):
         ctx.duplicateFound[].store(true, moRelaxed)
       inc consumed
@@ -62,12 +79,14 @@ suite "Queue MPSC threaded":
     received: array[ItemCount, Atomic[bool]]
     duplicateFound: Atomic[bool]
     producersDone: Atomic[int]
+    fifoViolation: Atomic[bool]
 
   setup:
     for i in 0 ..< ItemCount:
       received[i].store(false, moRelaxed)
     duplicateFound.store(false, moRelaxed)
     producersDone.store(0, moRelaxed)
+    fifoViolation.store(false, moRelaxed)
 
   test "high contention":
     var queue = q_mod.newBQueue[int, ccMulti, ccSingle, 16, ProducerCount, 0]()
@@ -79,6 +98,7 @@ suite "Queue MPSC threaded":
         received: addr received,
         duplicateFound: addr duplicateFound,
         producersDone: addr producersDone,
+        fifoViolation: addr fifoViolation,
         producerIdx: i,
       )
 
@@ -87,6 +107,7 @@ suite "Queue MPSC threaded":
       received: addr received,
       duplicateFound: addr duplicateFound,
       producersDone: addr producersDone,
+      fifoViolation: addr fifoViolation,
       producerIdx: 0,
     )
 
@@ -102,6 +123,7 @@ suite "Queue MPSC threaded":
     joinThread(consThread)
 
     check(not duplicateFound.load(moRelaxed))
+    check(not fifoViolation.load(moRelaxed)) # per-producer FIFO order
     for i in 0 ..< ItemCount:
       check(received[i].load(moRelaxed))
 
@@ -115,6 +137,7 @@ suite "Queue MPSC threaded":
         received: addr received,
         duplicateFound: addr duplicateFound,
         producersDone: addr producersDone,
+        fifoViolation: addr fifoViolation,
         producerIdx: i,
       )
 
@@ -123,6 +146,7 @@ suite "Queue MPSC threaded":
       received: addr received,
       duplicateFound: addr duplicateFound,
       producersDone: addr producersDone,
+      fifoViolation: addr fifoViolation,
       producerIdx: 0,
     )
 
@@ -138,5 +162,6 @@ suite "Queue MPSC threaded":
     joinThread(consThread)
 
     check(not duplicateFound.load(moRelaxed))
+    check(not fifoViolation.load(moRelaxed)) # per-producer FIFO order
     for i in 0 ..< ItemCount:
       check(received[i].load(moRelaxed))

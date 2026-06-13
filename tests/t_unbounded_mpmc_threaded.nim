@@ -177,10 +177,19 @@ suite "UnboundedMpmc threaded":
     for i in 1 .. 1000:
       p.push(i)
 
+    let peakSegments = queue.segmentCount()
+
     # Pop all items
     var c = queue.getConsumerHere()
     for i in 1 .. 1000:
       discard c.pop()
 
-    # Segments SHOULD be freed with Eager
-    check(queue.segmentCount() <= 3)
+    # Segments SHOULD be freed with Eager. After a full single-threaded
+    # drain the steady state is exactly ONE live segment (the current
+    # tail) — the deterministic minimum for a non-empty-then-emptied
+    # unbounded queue. The former `<= 3` ceiling passed even if the Eager
+    # reclaimer under-reclaimed (e.g. left 2 segments retired); the exact
+    # count catches under-reclamation, mirroring the Manual arm's exact
+    # `== peakSegments` assertion above.
+    check(peakSegments > 1) # sanity: the workload actually grew the queue
+    check(queue.segmentCount() == 1)

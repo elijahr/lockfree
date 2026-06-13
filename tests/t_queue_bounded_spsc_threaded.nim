@@ -30,6 +30,7 @@ type TestContext[N: static int] = object
   received: ptr array[ItemCount, Atomic[bool]]
   duplicateFound: ptr Atomic[bool]
   producerDone: ptr Atomic[bool]
+  fifoViolation: ptr Atomic[bool]
 
 proc producer[N: static int](ctx: ptr TestContext[N]) {.thread.} =
   for i in 1 .. ItemCount:
@@ -39,10 +40,20 @@ proc producer[N: static int](ctx: ptr TestContext[N]) {.thread.} =
 
 proc consumer[N: static int](ctx: ptr TestContext[N]) {.thread.} =
   var consumed = 0
+  # Single producer + single consumer => strict global FIFO. The
+  # producer pushes 1, 2, 3, ... in order, so the consumer MUST observe
+  # strictly increasing values. A reordering bug that preserved count and
+  # uniqueness (which the received[]/duplicate checks already pin) would
+  # still break monotonicity here.
+  var lastSeen = 0
   while consumed < ItemCount:
     let item = ctx.queue[].pop()
     if item.isSome:
-      let val = item.get - 1
+      let raw = item.get
+      if raw <= lastSeen:
+        ctx.fifoViolation[].store(true, moRelaxed)
+      lastSeen = raw
+      let val = raw - 1
       if ctx.received[val].exchange(true, moRelaxed):
         ctx.duplicateFound[].store(true, moRelaxed)
       inc consumed
@@ -54,12 +65,14 @@ suite "Queue SPSC threaded":
     received: array[ItemCount, Atomic[bool]]
     duplicateFound: Atomic[bool]
     producerDone: Atomic[bool]
+    fifoViolation: Atomic[bool]
 
   setup:
     for i in 0 ..< ItemCount:
       received[i].store(false, moRelaxed)
     duplicateFound.store(false, moRelaxed)
     producerDone.store(false, moRelaxed)
+    fifoViolation.store(false, moRelaxed)
 
   test "high contention":
     var queue = q_mod.newBQueue[int, ccSingle, ccSingle, 16, 0, 0]()
@@ -68,6 +81,7 @@ suite "Queue SPSC threaded":
       received: addr received,
       duplicateFound: addr duplicateFound,
       producerDone: addr producerDone,
+      fifoViolation: addr fifoViolation,
     )
 
     var prodThread, consThread: Thread[ptr TestContext[16]]
@@ -78,6 +92,7 @@ suite "Queue SPSC threaded":
     joinThread(consThread)
 
     check(not duplicateFound.load(moRelaxed))
+    check(not fifoViolation.load(moRelaxed)) # strict SPSC FIFO order
     for i in 0 ..< ItemCount:
       check(received[i].load(moRelaxed))
 
@@ -88,6 +103,7 @@ suite "Queue SPSC threaded":
       received: addr received,
       duplicateFound: addr duplicateFound,
       producerDone: addr producerDone,
+      fifoViolation: addr fifoViolation,
     )
 
     var prodThread, consThread: Thread[ptr TestContext[64]]
@@ -98,5 +114,6 @@ suite "Queue SPSC threaded":
     joinThread(consThread)
 
     check(not duplicateFound.load(moRelaxed))
+    check(not fifoViolation.load(moRelaxed)) # strict SPSC FIFO order
     for i in 0 ..< ItemCount:
       check(received[i].load(moRelaxed))

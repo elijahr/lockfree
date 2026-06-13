@@ -25,7 +25,18 @@
 when not (compiles do:
   import chronos
 ):
-  echo "[chronos] chronos not reachable in this build env; tests gated off"
+  # LOUD skip marker: chronos is NOT in lockfree.nimble requires, so the
+  # default build env has no chronos and this entire adapter suite
+  # compiles to a no-op with ZERO assertions. A green umbrella run does
+  # NOT imply the chronos adapter was tested. The banner below makes that
+  # explicit so the absence of coverage is never mistaken for passing
+  # coverage. CI must install chronos in a dedicated lane to exercise the
+  # real assertions in the `when (compiles ...)` branch below.
+  echo "================================================================"
+  echo "SKIPPED [t_chronos]: chronos adapter NOT TESTED (chronos not on " &
+    "the Nim path in this build env). 0 assertions ran. Install chronos " &
+    "and re-run to exercise lockfree/chronos. This is a SKIP, not a PASS."
+  echo "================================================================"
 
 when (compiles do:
   import chronos

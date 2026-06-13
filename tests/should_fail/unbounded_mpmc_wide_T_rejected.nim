@@ -23,6 +23,17 @@
 ## ever removed from the unbounded MPMC arm, BOTH layers stop firing
 ## and the test fails — the tripwire is sound either way.
 ##
+## LAYER-ATTRIBUTION CAVEAT (T2-011): this single negative-control does
+## NOT independently pin the queue.nim `proc push` `{.error.}` ("requires
+## sizeof(T) <= 8"). Because construction trips the OUTER "Pair half-type"
+## guard first, a maintainer who loosened ONLY the queue.nim layer would
+## leave "Pair half-type" still firing and this test still green —
+## masking that inner-guard regression. The two layers are not separately
+## tripwired here; a dedicated control exercising a T that passes the
+## Pair-half-type layer but trips the sizeof(T) layer would be needed to
+## pin the inner guard on its own. Treated as a known doc-attribution
+## limitation, not a behavioral defect (both guards are verified present).
+##
 ## This is the structural twin of
 ## `tests/t_bqueue_mpmc_wide_T_accepted.nim` (the positive control):
 ## together they form the tripwire against accidental

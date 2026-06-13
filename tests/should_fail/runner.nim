@@ -49,14 +49,20 @@ const cases = @[
       "t_queue_cardinality_mismatch §6.3 (2) — ccCons=ccSingle queue rejects ccMulti handle",
     file: "tests/should_fail/cc_consumer_single_rejects_multi.nim",
     outcome: eoCompileFails,
-    substring: "newUnboundedMpscQueue",
+    # Tightened (T2-010): pin the EXPECTED manager-cardinality signature
+    # the guard enforces (ccSingle), not the bare constructor name the
+    # compiler echoes from the call line. A different error on the same
+    # construction line can no longer false-match.
+    substring: "DebraManager[MaxThreads, ccSingle]",
   ),
   Case(
     name:
       "t_queue_cardinality_mismatch §6.3 (3) — ccCons=ccMulti queue rejects ccSingle manager",
     file: "tests/should_fail/cc_consumer_multi_rejects_single.nim",
     outcome: eoCompileFails,
-    substring: "newUnboundedMpmcQueue",
+    # Tightened (T2-010): pin the EXPECTED manager-cardinality signature
+    # the guard enforces (ccMulti), not the bare constructor name.
+    substring: "DebraManager[MaxThreads, ccMulti]",
   ),
   Case(
     name:
@@ -117,25 +123,31 @@ const cases = @[
     name: "t_bqueue_claimstate §6.3 (10) — ccSingle BQueueProducer cannot attach",
     file: "tests/should_fail/bqueue_producer_attach_ccsingle.nim",
     outcome: eoCompileFails,
-    substring: "BQueueProducer",
+    # Tightened (T2-010): pin the failure MODE (the ccSingle alias is not
+    # declared), not just the echoed identifier — an unrelated error on
+    # the same declaration line can no longer false-match.
+    substring: "undeclared identifier: 'BQueueProducer'",
   ),
   Case(
     name: "t_bqueue_claimstate §6.3 (11) — ccSingle BQueueConsumer cannot attach",
     file: "tests/should_fail/bqueue_consumer_attach_ccsingle.nim",
     outcome: eoCompileFails,
-    substring: "BQueueConsumer",
+    # Tightened (T2-010): pin the failure mode, not the echoed identifier.
+    substring: "undeclared identifier: 'BQueueConsumer'",
   ),
   Case(
     name: "t_queue_claimstate §6.3 (12) — ccSingle QueueProducer cannot attach",
     file: "tests/should_fail/queue_producer_attach_ccsingle.nim",
     outcome: eoCompileFails,
-    substring: "QueueProducer",
+    # Tightened (T2-010): pin the failure mode, not the echoed identifier.
+    substring: "undeclared identifier: 'QueueProducer'",
   ),
   Case(
     name: "t_queue_claimstate §6.3 (13) — ccSingle QueueConsumer cannot attach",
     file: "tests/should_fail/queue_consumer_attach_ccsingle.nim",
     outcome: eoCompileFails,
-    substring: "QueueConsumer",
+    # Tightened (T2-010): pin the failure mode, not the echoed identifier.
+    substring: "undeclared identifier: 'QueueConsumer'",
   ),
   Case(
     name:
@@ -148,7 +160,10 @@ const cases = @[
     name: "endpoint L1 — push on Unbound endpoint is a lifecycle violation",
     file: "tests/should_fail/endpoint_push_on_unbound.nim",
     outcome: eoCompileFails,
-    substring: "push",
+    # Tightened (T2-010): the bare word "push" matched any mention of
+    # push in the output. Pin the actual diagnostic (no push routine is
+    # declared for an Unbound endpoint).
+    substring: "undeclared routine: 'push'",
   ),
   Case(
     name: "endpoint L2 (tripwire a) — SPSC push on consumer-tag endpoint",
@@ -179,7 +194,9 @@ const cases = @[
       "spawn — defineProducerWorker inside proc body must compile-fail (module-scope guard)",
     file: "tests/should_fail/spawn_nested_scope.nim",
     outcome: eoCompileFails,
-    substring: "top level",
+    # Tightened (T2-010): pin the full guard diagnostic, not the bare
+    # fragment "top level".
+    substring: "'export' is only allowed at top level",
   ),
   Case(
     name:

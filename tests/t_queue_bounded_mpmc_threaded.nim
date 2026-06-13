@@ -1,9 +1,10 @@
 ## Renamed and migrated from `t_mpmc_threaded.nim` — mechanical
-## conversion to the unified Queue type. This file is DISABLED at the
-## import site in `tests/test.nim` due to a pre-existing deadlock
-## unrelated to the typestate / cardinality-collapse migration. The
-## file body is still mechanically converted to keep it compiling
-## against the new Queue API.
+## conversion to the unified Queue type. This file is ACTIVE: it is
+## imported (tests/test.nim line 20) and exported (line 96) by the
+## umbrella, and runs with full assertions (real 4P/4C threads, complete
+## received[] coverage, and an exchange-based duplicate trap). An earlier
+## docstring claimed it was DISABLED due to a deadlock; that was stale —
+## the suite is genuine, strong coverage, not dead code.
 ##
 ## Mechanical conversion:
 ##   ptr Mpmc[N, P, C, int] -> ptr Queue[int, ccMulti, ccMulti, stEager,

@@ -38,22 +38,30 @@ suite "Stress - Spsc (SPSC)":
   test "Spsc 100k int":
     var queue = newSpscQueue[int, StandardBuffer]()
 
-    # Push all items
+    # Interleave push with drain-on-full so every item is accounted for.
+    # `pushed` counts items that entered the queue (either directly or
+    # after popping to make room); `popped` counts items drained during
+    # the fill phase plus the final drain below. A ring-buffer collision
+    # that silently dropped items would break the exact pushed == popped
+    # equality (the former `popped > 0` passed even with 99,999 losses).
+    var pushed = 0
+    var popped = 0
     for i in 0 ..< Count100k:
       while not queue.push(i):
-        # Pop to make room
-        let _ = queue.pop()
-      check queue.push(i) or true # Already pushed in while loop
+        # Pop to make room, accounting for the drained item.
+        if queue.pop().isSome:
+          inc popped
+      inc pushed
 
-    # Pop remaining items
-    var popped = 0
+    # Drain remaining items.
     while true:
       let item = queue.pop()
       if item.isNone:
         break
       inc popped
 
-    check popped > 0
+    check pushed == Count100k
+    check pushed == popped
 
   test "Spsc 100k with buffer=16 (frequent wrapping)":
     var queue = newSpscQueue[int, SmallBuffer]()
