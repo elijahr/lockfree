@@ -25,6 +25,15 @@ type TestObject = object
   payload: string
   checksum: uint32
 
+# The object-payload stress arm transports `ref TestObject`, not a bare
+# `TestObject`. A value object containing a `string` field is rejected by
+# Path-C admission (`src/lockfree/internal/path_c_admit.nim` value-type-
+# with-managed-fields arm); the canonical fix the reject message itself
+# prescribes is to wrap in a `ref`, which the queue admits via its
+# ManagedRef refcount path. This preserves the object-payload + checksum
+# coverage (a wide POD object would lose the managed-field exercise).
+type TestObjectRef = ref TestObject
+
 proc computeChecksum(id: int, payload: string): uint32 =
   result = uint32(id)
   for c in payload:
@@ -107,14 +116,15 @@ suite "Stress - Spsc (SPSC)":
     check pushed == popped
 
   test "Spsc 100k TestObject with checksum verification":
-    var queue = newSpscQueue[TestObject, StandardBuffer]()
+    var queue = newSpscQueue[TestObjectRef, StandardBuffer]()
     var pushed = 0
     var verified = 0
 
     for i in 0 ..< Count100k:
       let payload = "payload_" & $i
-      let obj =
-        TestObject(id: i, payload: payload, checksum: computeChecksum(i, payload))
+      let obj = TestObjectRef(
+        id: i, payload: payload, checksum: computeChecksum(i, payload)
+      )
       if queue.push(obj):
         inc pushed
 
@@ -153,14 +163,18 @@ type
     received: ptr Atomic[int]
 
 proc mpmcProducer[N, P, C: static int](ctx: ptr MpmcPCtx[N, P, C, int]) {.thread.} =
-  let p = ctx.queue[].getProducer(idx = ctx.producerIdx)
+  # `getProducerHere(idx)` reserves the pinned slot AND binds the endpoint
+  # to this thread in one step. The bare `getProducer(idx)` returns an
+  # Unbound endpoint, on which `push` is a compile error (the Bound/Unbound
+  # typestate guard requires bindToThread() before any push).
+  var p = ctx.queue[].getProducerHere(idx = ctx.producerIdx)
   for i in 0 ..< ctx.count:
     while not p.push(i):
       discard
     discard ctx.sent[].fetchAdd(1, moRelaxed)
 
 proc mpmcConsumer[N, P, C: static int](ctx: ptr MpmcCCtx[N, P, C, int]) {.thread.} =
-  let c = ctx.queue[].getConsumer(idx = ctx.consumerIdx)
+  var c = ctx.queue[].getConsumerHere(idx = ctx.consumerIdx)
   var localReceived = 0
   while localReceived < ctx.count:
     let item = c.pop()
@@ -279,7 +293,7 @@ type SpmcCCtx[N, C: static int, T] = object
   received: ptr Atomic[int]
 
 proc spmcConsumer[N, C: static int](ctx: ptr SpmcCCtx[N, C, int]) {.thread.} =
-  let c = ctx.queue[].getConsumer(idx = ctx.consumerIdx)
+  var c = ctx.queue[].getConsumerHere(idx = ctx.consumerIdx)
   var localReceived = 0
   while localReceived < ctx.count:
     let item = c.pop()
@@ -328,7 +342,7 @@ type MpscPCtx[N, P: static int, T] = object
   sent: ptr Atomic[int]
 
 proc mpscProducer[N, P: static int](ctx: ptr MpscPCtx[N, P, int]) {.thread.} =
-  let p = ctx.queue[].getProducer(idx = ctx.producerIdx)
+  var p = ctx.queue[].getProducerHere(idx = ctx.producerIdx)
   for i in 0 ..< ctx.count:
     while not p.push(i):
       discard

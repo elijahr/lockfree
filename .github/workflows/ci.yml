@@ -16,6 +16,7 @@
 #  1c   Baseline arc + nebr aggregator      ubuntu-latest stable      arc   gcc    LFQ_TEST_VARIANT=arc
 #  1d   Baseline refc                       ubuntu-latest stable      refc  gcc    LFQ_TEST_VARIANT=refc
 #  12   chronos Tier 3 adapter              ubuntu-latest stable      arc   gcc   -d:lockfreeChronos
+#  15   stress (100k bounded, orc+arc)      ubuntu-latest stable      orc+arc gcc  testStress task (not in umbrella)
 #  13   nim devel (informational)           ubuntu-latest devel       orc   gcc   continue-on-error: true (orc-only after 1→1a/b/c/d split)
 #  14   nimony aufbruch (informational)     ubuntu-latest nimony      arc   gcc   continue-on-error: true (pinned SHA + actions/cache@v4)
 #
@@ -419,6 +420,62 @@ jobs:
             -d:lockfreeChronos \
             -r \
             tests/t_chronos.nim
+          echo "::endgroup::"
+
+  # ===========================================================================
+  # Cell 15 — high-volume stress suite (100k bounded). Tier A.
+  # ===========================================================================
+  # tests/t_stress.nim is NOT imported by the umbrella (tests/test.nim): a
+  # 100k x many-types run on every umbrella lane would dominate wall-clock.
+  # This dedicated cell runs the `testStress` nimble task (orc + arc lanes)
+  # so the high-volume ring-buffer collision coverage actually executes in
+  # CI instead of sitting orphaned.
+  stress:
+    name: '15: stress (100k bounded, orc+arc)'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/elijahr/lockfree-ci:latest
+    env:
+      LOCKFREE_NIM_FROM_IMAGE: 'true'
+    timeout-minutes: 15
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Cache nimble packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nimble/pkgs2
+            ~/.nimble/bin
+          key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}-stress
+          restore-keys: |
+            nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}-
+            nimble-${{ runner.os }}-stable-
+
+      - name: Cache Nim nimcache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/nim
+          key: nimcache-${{ runner.os }}-stable-stress-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          restore-keys: |
+            nimcache-${{ runner.os }}-stable-stress-
+            nimcache-${{ runner.os }}-stable-base-
+
+      - name: Install dependencies
+        run: |
+          nimble install -dy
+          nimble setup
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+            [ -e "$d/src" ] || ln -s . "$d/src"
+          done
+
+      - name: Run stress suite (orc + arc)
+        run: |
+          set -o pipefail
+          echo "::group::testStress (100k bounded, orc + arc)"
+          nimble testStress
           echo "::endgroup::"
 
   # ===========================================================================

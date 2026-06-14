@@ -153,6 +153,21 @@ task testDestructorWalkTrace, "Runs the destructor-walk string/seq slot-count re
     " -r tests/t_destructor_walk.nim"
 
 
+task testStress, "Runs the high-volume (100k) bounded-queue stress suite":
+  # tests/t_stress.nim drives 100k-message fills across SPSC/MPSC/SPMC/MPMC
+  # bounded queues (int, string, and a ref-object checksum arm). It is NOT
+  # imported by the umbrella (tests/test.nim): a 100k x many-types run on
+  # every umbrella lane would dominate wall-clock. This dedicated task runs
+  # it on its own. Two MM lanes: orc (default) and arc (the destructor-
+  # driven ManagedRef refcount path the ref-object arm exercises). Per-lane
+  # nimcache subdirs keep the two lanes from clobbering each other's .c.o.
+  let nimcacheBase = getHomeDir() / ".cache" / "nim"
+  exec "nim c --threads:on " &
+    "--nimcache:" & (nimcacheBase / "t_stress_orc") & " -r tests/t_stress.nim"
+  exec "nim c --mm:arc --threads:on " &
+    "--nimcache:" & (nimcacheBase / "t_stress_arc") & " -r tests/t_stress.nim"
+
+
 task testShell, "Runs the standalone shell-test regression scripts":
   # Three shell tests had no runner and
   # so never ran in CI. `exec` aborts the task (nonzero task exit) on the
