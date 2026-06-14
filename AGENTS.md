@@ -753,6 +753,42 @@ All atomics route through `debra/atomics`, which statically rejects
 fallback (non-lock-free atomics). Opt out per call-site with
 `-d:debraAllowNonLockFreeAtomics` (warning fires).
 
+### 7.9 refc `=sink`-bypass double-free in managed-payload box transports
+
+Assigning a `seq`/`ref` payload into a heap "box" through a raw
+`cast[ptr SomeBox]` field — `box.v = s`, where `box` is a
+`cast[SeqBox[U]]` over `allocShared0` memory — is NOT lowered as a
+`=sink` (move) under the **refc** MM. refc routes the assignment through
+its legacy `genericAssign`, which shallow-shares the buffer and then
+runs `=destroy` on the live source `s` at scope exit. A later explicit
+`=destroy` on the box payload then double-frees: each element is
+destroyed twice.
+
+Under arc / orc / atomicArc the compiler emits a real `=sink` for the
+same assignment, so the bug is INVISIBLE on those lanes and manifests
+only under refc.
+
+The fix is to reproduce the move explicitly in the refc branch instead
+of relying on `box.v = s`:
+
+```nim
+when defined(gcRefc):
+  copyMem(addr box.v, addr s, sizeof(typeof(s)))
+  wasMoved(s)
+else:
+  box.v = s            # arc/orc/atomicArc lower this as a real =sink
+```
+
+(`mm:none` uses strict bit-transport with caller-owned lifetime and
+does not box-store an owned payload at all.)
+
+Lesson: managed-payload box-over-`allocShared` transports MUST be
+tested under the **refc lane specifically** — arc/orc green is NOT
+evidence of refc-safety. Destroy-walk tests must assert real
+construct-count == destroy-count via a live/free counter, not merely
+"no crash"; a shallow-shared double-free passes a no-crash check on
+small payloads and only surfaces as corruption later.
+
 ---
 
 ## 8. Memory ordering conventions
@@ -1096,6 +1132,23 @@ If a doc isn't reachable from one of those, it shouldn't be tracked.
   `.github/workflows/momus.yml`)
 - Gating priority: gemini gates the PR; momus is informational
   unless gemini is unavailable.
+
+#### Gemini review caveats on large branches
+
+- **Gemini reviews the ENTIRE branch diff against base**, not just the
+  most recent commits. On a large consolidation branch this surfaces an
+  effectively-unbounded stream of pre-existing findings spread across
+  successive `/gemini review` passes; convergence is slow, batch by
+  batch, as fixes land.
+- **Gemini occasionally emits false positives** — e.g. claiming a
+  correct Nim standard-library identifier is a typo, or reporting "zero
+  callers" for a symbol that is in fact live. ALWAYS verify each finding
+  against source before applying it; a hallucinated "fix" can break
+  correct code. A brief thread reply correcting a verified false
+  positive lets gemini drop it on re-review.
+- **Gemini posts `COMMENTED` reviews, never `APPROVE`.** Convergence is
+  signalled by a review pass with ZERO inline findings, not by an
+  approval verdict.
 
 When the bot regurgitates findings already addressed in a previous
 cycle's commit (verifiable via `git log` on the branch), do not
