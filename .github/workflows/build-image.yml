@@ -1,5 +1,9 @@
 name: build-image
 
+# Builds and publishes ghcr.io/<owner>/lockfree-ci:latest (plus a nim-version
+# SHA tag) so the ci.yml container matrix can pull it. Runs on changes to the
+# Dockerfile or this workflow, or via manual dispatch.
+
 on:
   push:
     branches: [main, devel]
