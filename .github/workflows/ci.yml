@@ -399,16 +399,20 @@ jobs:
 
       - name: Install dependencies + chronos
         # CRITICAL #4 preservation: chronos is NOT in lockfree.nimble's
-        # `requires` — Tier 3 adapter must compile/run without chronos
-        # for the rest of the matrix. We install chronos here at the CI
-        # step only, with the version pin per R3 (>= 4.0.0).
+        # default `requires` — the Tier 3 adapter must compile/run without
+        # chronos for the rest of the matrix (chronos is gated behind the
+        # `-d:lockfreeChronos` define in lockfree.nimble). We install
+        # chronos here at the CI step only, pinned to the SAME range the
+        # nimble file declares under the define (>= 4.0.0 & < 5.0.0) so CI
+        # never silently pulls a chronos 5.x the adapter is not declared
+        # to support.
         run: |
           nimble install -dy
           nimble setup
           for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
-          nimble install -y 'chronos@>= 4.0.0'
+          nimble install -y 'chronos@>= 4.0.0 & < 5.0.0'
 
       - name: Compile + run with -d:lockfreeChronos
         run: |
