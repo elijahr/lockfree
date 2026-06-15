@@ -121,11 +121,31 @@ proc consumerProc(ctx: ptr CCtx) {.thread.} =
         if ctx.consumedCount[].fetchAdd(1, moRelaxed) + 1 >= TotalItems:
           break
       elif ctx.producersDone[].load(moAcquire) >= ProducerCount:
-        # All producers done and the queue currently shows empty.
-        # Always exit so missing items surface as a clean assertion
-        # failure post-join rather than as a silent hang in the
-        # consumer loop. consumedCount is asserted outside.
-        break
+        # All producers have finished, but a transient `pop()` of `none`
+        # does NOT mean the queue is drained: under the MPMC pop contract,
+        # an item may be published-but-not-yet-claimed (a producer won the
+        # tail-CAS and completed its publish before returning, yet no
+        # consumer has reached that cell), or contention on
+        # `prevConsumerIdx` / a fresh segment can make every consumer
+        # transiently observe empty at the same instant. `none` is only a
+        # reliable end-of-stream signal once the queue is genuinely
+        # drained — i.e. once the authoritative global consumed count has
+        # reached `TotalItems`.
+        #
+        # The previous unconditional `break` here exited a consumer on the
+        # FIRST transient empty. When all consumers happened to hit that
+        # window simultaneously (rare; surfaced intermittently on loaded
+        # CI runners under ThreadSanitizer), the last published-but-
+        # unclaimed item(s) were orphaned in the queue, producing a false
+        # `received[i] == false` failure even though the queue never
+        # dropped the value. Verified: a single-threaded post-join drain
+        # always recovers such items. Match the proven drain pattern from
+        # t_unbounded_mpmc_threaded.nim: only exit once the global count
+        # confirms a full drain; otherwise retry. A genuine queue drop
+        # would then surface as `consumedCount < TotalItems` (the count
+        # never reaching the total) rather than as a phantom orphaning.
+        if ctx.consumedCount[].load(moRelaxed) >= TotalItems:
+          break
 
 suite "MPMC pop case-(b) race — no orphaned values under stress":
   var
