@@ -726,6 +726,15 @@ jobs:
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.local/bin:$PATH"
           vfox --version
+          # vfox stages the plugin under its DEFAULT home (~/.vfox/tmp)
+          # and then renames it into $VFOX_HOME/plugin. With vfox 1.0.11
+          # that rename does NOT mkdir -p the destination's parent chain,
+          # so when $VFOX_HOME (~/.version-fox) does not yet exist the add
+          # fails: `rename ~/.vfox/tmp/vfox-XXX ~/.version-fox/plugin/nim:
+          # no such file or directory`. Pre-create $VFOX_HOME/plugin so the
+          # rename target exists. Matches the Dockerfile's `mkdir -p
+          # $VFOX_HOME` precondition for the same `vfox add`.
+          mkdir -p "$VFOX_HOME/plugin"
           # vfox-nim plugin from pinned zipball. vfox's `add --source`
           # rejects URLs that don't end in `.zip` (its type-detection
           # splits on the trailing dot), so download to a local .zip
@@ -756,6 +765,13 @@ jobs:
           NIM_VERSION: '2.2.10'
         run: |
           set -euo pipefail
+          # Pin vfox's home so the install path is deterministic. Without
+          # this, vfox falls back to its DEFAULT home (~/.vfox) and
+          # installs Nim under ~/.vfox/cache/..., while the symlink/PATH
+          # step below looks under ~/.version-fox/cache/... -> "No such
+          # file or directory". vfox needs a NATIVE Windows path (C:\...),
+          # so derive it from %USERPROFILE% rather than the bash $HOME.
+          export VFOX_HOME="${USERPROFILE}\\.version-fox"
           mkdir -p "$HOME/.local/bin"
           # vfox's Windows .zip wraps its contents in a top-level
           # directory (vfox_<ver>_windows_x86_64/vfox.exe + completions),
@@ -771,6 +787,12 @@ jobs:
           # via the $GITHUB_PATH push below, not via vfox.
           export PATH="$HOME/.local/bin:$PATH"
           vfox --version
+          # Pre-create $VFOX_HOME/plugin so vfox's tmp->plugin rename has
+          # an existing destination (see the macOS step for the full
+          # rationale; vfox 1.0.11 does not mkdir -p this itself). Use a
+          # bash-style path for mkdir; VFOX_HOME stays native (C:\...) for
+          # vfox's own consumption.
+          mkdir -p "$HOME/.version-fox/plugin"
           # vfox-nim plugin from pinned zipball (same flow as macOS).
           curl -fsSL \
             "https://api.github.com/repos/elijahr/vfox-nim/zipball/${VFOX_NIM_REF}" \
@@ -779,9 +801,11 @@ jobs:
           vfox install --yes "nim@${NIM_VERSION}"
           # vfox-nim on Windows installs official prebuilt Nim binaries
           # (auto mode picks the binary path; source builds are not
-          # supported on Windows). Layout matches the Linux/macOS image:
-          # $USERPROFILE/.version-fox/cache/nim/v-<ver>/nim-<ver>/bin.
-          NIM_BIN="${USERPROFILE}/.version-fox/cache/nim/v-${NIM_VERSION}/nim-${NIM_VERSION}/bin"
+          # supported on Windows). The official zip's top-level dir
+          # (nim-<ver>/) is preserved under vfox's v-<ver>/ wrapper, so
+          # the layout matches the Linux/macOS image:
+          # $VFOX_HOME/cache/nim/v-<ver>/nim-<ver>/bin/nim.exe.
+          NIM_BIN="$HOME/.version-fox/cache/nim/v-${NIM_VERSION}/nim-${NIM_VERSION}/bin"
           # GITHUB_PATH expects native paths on Windows; printf for
           # literal backslashes (echo may interpret escape sequences).
           printf '%s\\.version-fox\\cache\\nim\\v-%s\\nim-%s\\bin\n' \
