@@ -1,43 +1,50 @@
 # API Reference
 
-Auto-generated API documentation from source code.
+!!! info "Frozen historical mirror"
+    This page is part of the **nim-debra T0 documentation mirror** (see
+    [Provenance](PROVENANCE.md)). The standalone `debra` package no longer
+    exists — it was consolidated into the lockfree umbrella as
+    `lockfree/smr/nebr` at the T0 merge point. Because there is no `debra`
+    package to introspect, the auto-generated API tables that once lived on
+    this page cannot be regenerated and have been replaced with this pointer.
 
-For a high-level overview of the custom atomics module — including the
-DWCAS (16-byte / 128-bit) surface introduced in v0.10.0 — see the
-[Atomics guide](guide/atomics.md). The auto-extracted entries below
-cover every public symbol; the guide covers the *why* and the worked
-LCRQ example.
+    For the **live, supported SMR API**, see:
+
+    - [SMR API reference — `lockfree/smr/nebr`](../../api/smr/nebr.md)
+    - [SMR guide — `nebr`](../../guide/smr/nebr.md)
+
+The sections below record the public surface that the original
+`debra` package exposed at the consolidation point. Each maps to the
+current `lockfree/smr/nebr` module; consult the live API reference above
+for the up-to-date, auto-extracted signatures.
 
 ## Atomics
 
 Custom atomics module with compile-time lock-free guarantees, per-op
 memory-order validation, and DWCAS (16-byte / 128-bit) atomics via
-`Atomic[Pair[A, B]]`. See [guide/atomics.md](guide/atomics.md) for the
-narrative overview.
-
-::: debra.atomics
+`Atomic[Pair[A, B]]`. Now part of lockfree as
+[`lockfree/atomics`](../../api/atomics.md); see
+[guide/atomics.md](guide/atomics.md) for the narrative overview.
 
 ---
 
 ## Main Module
 
-::: debra
+DEBRA+ manager, thread registration, pin/unpin, retire, and reclamation
+entry points. Now part of lockfree as
+[`lockfree/smr/nebr`](../../api/smr/nebr.md).
 
 ---
 
 ## Core Types
 
-Type definitions for DEBRA+ manager and thread state.
-
-::: debra.types
+Type definitions for the DEBRA+ manager and thread state.
 
 ---
 
 ## Constants
 
-Configuration constants for DEBRA+ algorithm.
-
-::: debra.constants
+Configuration constants for the DEBRA+ algorithm.
 
 ---
 
@@ -45,25 +52,23 @@ Configuration constants for DEBRA+ algorithm.
 
 Data structures for thread-local retire queues.
 
-::: debra.limbo
-
 ---
 
 ## Signal Handling
 
-POSIX signal handling for neutralization protocol.
-
-::: debra.signal
+POSIX signal handling for the neutralization protocol.
 
 ---
 
 ## Typestates
 
+The original `debra.typestates.*` modules enforced the DEBRA+ protocol at
+compile time. The equivalent live typestates ship with lockfree; see the
+[SMR API reference](../../api/smr/nebr.md).
+
 ### Signal Handler
 
 Signal handler installation lifecycle.
-
-::: debra.typestates.signal_handler
 
 ---
 
@@ -71,15 +76,11 @@ Signal handler installation lifecycle.
 
 Manager initialization and shutdown lifecycle.
 
-::: debra.typestates.manager
-
 ---
 
 ### Registration
 
 Thread registration lifecycle.
-
-::: debra.typestates.registration
 
 ---
 
@@ -87,15 +88,11 @@ Thread registration lifecycle.
 
 Thread slot allocation and release.
 
-::: debra.typestates.slot
-
 ---
 
 ### Epoch Guard
 
 Pin/unpin critical section lifecycle.
-
-::: debra.typestates.guard
 
 ---
 
@@ -103,15 +100,11 @@ Pin/unpin critical section lifecycle.
 
 Object retirement to limbo bags.
 
-::: debra.typestates.retire
-
 ---
 
 ### Reclamation
 
 Safe memory reclamation from limbo bags.
-
-::: debra.typestates.reclaim
 
 ---
 
@@ -119,12 +112,8 @@ Safe memory reclamation from limbo bags.
 
 Thread neutralization protocol.
 
-::: debra.typestates.neutralize
-
 ---
 
 ### Epoch Advance
 
 Global epoch advancement.
-
-::: debra.typestates.advance

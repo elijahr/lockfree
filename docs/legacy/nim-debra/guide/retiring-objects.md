@@ -81,9 +81,11 @@ naturally. There is no forward-declaration dance.
 
 You must be pinned to retire:
 
-```nim
-{% include-markdown "../../examples/retire_single.nim" %}
-```
+!!! note "Example source not mirrored"
+    The `examples/retire_single.nim` source was part of the standalone
+    `nim-debra` repo and is not included in this frozen mirror. View it at
+    the upstream link below, or see the live
+    [SMR guide](../../../guide/smr/nebr.md) for the current `lockfree/smr/nebr` API.
 
 [:material-file-code: View full source](https://github.com/elijahr/nim-debra/blob/main/examples/retire_single.nim)
 
@@ -92,9 +94,11 @@ You must be pinned to retire:
 When retiring multiple objects in a single critical section, use
 `retireReadyFromRetired()` to chain retirements:
 
-```nim
-{% include-markdown "../../examples/retire_multiple.nim" %}
-```
+!!! note "Example source not mirrored"
+    The `examples/retire_multiple.nim` source was part of the standalone
+    `nim-debra` repo and is not included in this frozen mirror. View it at
+    the upstream link below, or see the live
+    [SMR guide](../../../guide/smr/nebr.md) for the current `lockfree/smr/nebr` API.
 
 [:material-file-code: View full source](https://github.com/elijahr/nim-debra/blob/main/examples/retire_multiple.nim)
 

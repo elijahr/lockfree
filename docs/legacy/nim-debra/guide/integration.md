@@ -18,9 +18,11 @@ This guide shows how to integrate nim-debra into lock-free data structures for s
 
 A complete Treiber stack implementation with DEBRA+ reclamation:
 
-```nim
-{% include-markdown "../../examples/lockfree_stack.nim" %}
-```
+!!! note "Example source not mirrored"
+    The `examples/lockfree_stack.nim` source was part of the standalone
+    `nim-debra` repo and is not included in this frozen mirror. View it at
+    the upstream link below, or see the live
+    [SMR guide](../../../guide/smr/nebr.md) for the current `lockfree/smr/nebr` API.
 
 [:material-file-code: View full source](https://github.com/elijahr/nim-debra/blob/main/examples/lockfree_stack.nim)
 
@@ -28,9 +30,11 @@ A complete Treiber stack implementation with DEBRA+ reclamation:
 
 A complete Michael-Scott queue implementation with DEBRA+ reclamation:
 
-```nim
-{% include-markdown "../../examples/lockfree_queue.nim" %}
-```
+!!! note "Example source not mirrored"
+    The `examples/lockfree_queue.nim` source was part of the standalone
+    `nim-debra` repo and is not included in this frozen mirror. View it at
+    the upstream link below, or see the live
+    [SMR guide](../../../guide/smr/nebr.md) for the current `lockfree/smr/nebr` API.
 
 [:material-file-code: View full source](https://github.com/elijahr/nim-debra/blob/main/examples/lockfree_queue.nim)
 
@@ -60,9 +64,11 @@ Your code uses these directly. The compiler verifies you follow the protocol.
 
 Define a typestate for processing items after they leave the data structure:
 
-```nim
-{% include-markdown "../../examples/item_processing.nim" %}
-```
+!!! note "Example source not mirrored"
+    The `examples/item_processing.nim` source was part of the standalone
+    `nim-debra` repo and is not included in this frozen mirror. View it at
+    the upstream link below, or see the live
+    [SMR guide](../../../guide/smr/nebr.md) for the current `lockfree/smr/nebr` API.
 
 [:material-file-code: View source](https://github.com/elijahr/nim-debra/blob/main/examples/item_processing.nim)
 
@@ -72,9 +78,11 @@ Define a typestate for processing items after they leave the data structure:
 
 Combine stack states, DEBRA states, and bridges to the item processing pipeline:
 
-```nim
-{% include-markdown "../../examples/lockfree_stack_typestates.nim" %}
-```
+!!! note "Example source not mirrored"
+    The `examples/lockfree_stack_typestates.nim` source was part of the standalone
+    `nim-debra` repo and is not included in this frozen mirror. View it at
+    the upstream link below, or see the live
+    [SMR guide](../../../guide/smr/nebr.md) for the current `lockfree/smr/nebr` API.
 
 [:material-file-code: View source](https://github.com/elijahr/nim-debra/blob/main/examples/lockfree_stack_typestates.nim)
 

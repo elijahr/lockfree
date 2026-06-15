@@ -33,9 +33,11 @@ Attempting to register more threads than the limit will raise `DebraRegistration
 
 The following example demonstrates multiple threads registering and using DEBRA:
 
-```nim
-{% include-markdown "../../examples/thread_registration.nim" %}
-```
+!!! note "Example source not mirrored"
+    The `examples/thread_registration.nim` source was part of the standalone
+    `nim-debra` repo and is not included in this frozen mirror. View it at
+    the upstream link below, or see the live
+    [SMR guide](../../../guide/smr/nebr.md) for the current `lockfree/smr/nebr` API.
 
 [:material-file-code: View full source](https://github.com/elijahr/nim-debra/blob/main/examples/thread_registration.nim)
 

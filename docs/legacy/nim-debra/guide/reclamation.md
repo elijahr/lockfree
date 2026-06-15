@@ -42,9 +42,11 @@ The safe epoch is the minimum of all pinned thread epochs. Objects retired in ep
 
 Attempt reclamation every N operations to amortize the cost:
 
-```nim
-{% include-markdown "../../examples/reclamation_periodic.nim" %}
-```
+!!! note "Example source not mirrored"
+    The `examples/reclamation_periodic.nim` source was part of the standalone
+    `nim-debra` repo and is not included in this frozen mirror. View it at
+    the upstream link below, or see the live
+    [SMR guide](../../../guide/smr/nebr.md) for the current `lockfree/smr/nebr` API.
 
 [:material-file-code: View full source](https://github.com/elijahr/nim-debra/blob/main/examples/reclamation_periodic.nim)
 
@@ -55,9 +57,11 @@ each thread reclaims its own. A background thread is still useful for driving
 the global epoch forward (`manager.advance()`) while workers continue to
 retire and reclaim on their own slots.
 
-```nim
-{% include-markdown "../../examples/reclamation_background.nim" %}
-```
+!!! note "Example source not mirrored"
+    The `examples/reclamation_background.nim` source was part of the standalone
+    `nim-debra` repo and is not included in this frozen mirror. View it at
+    the upstream link below, or see the live
+    [SMR guide](../../../guide/smr/nebr.md) for the current `lockfree/smr/nebr` API.
 
 [:material-file-code: View full source](https://github.com/elijahr/nim-debra/blob/main/examples/reclamation_background.nim)
 

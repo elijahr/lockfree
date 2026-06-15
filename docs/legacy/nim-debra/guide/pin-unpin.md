@@ -31,9 +31,11 @@ When you call `unpin()`:
 
 The following example demonstrates pin/unpin patterns and neutralization handling:
 
-```nim
-{% include-markdown "../../examples/pin_unpin.nim" %}
-```
+!!! note "Example source not mirrored"
+    The `examples/pin_unpin.nim` source was part of the standalone
+    `nim-debra` repo and is not included in this frozen mirror. View it at
+    the upstream link below, or see the live
+    [SMR guide](../../../guide/smr/nebr.md) for the current `lockfree/smr/nebr` API.
 
 [:material-file-code: View full source](https://github.com/elijahr/nim-debra/blob/main/examples/pin_unpin.nim)
 
