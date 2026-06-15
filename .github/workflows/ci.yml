@@ -130,6 +130,21 @@ jobs:
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
 
+      - name: Install typestates CLI binary
+        # `nimble install -dy` above resolves typestates as a *dependency*
+        # (-d = deps only), which does NOT build the package's binary.
+        # typestates is a binary package (namedBin maps src/typestates_bin
+        # to the `typestates` executable), so install it without -d to
+        # build the CLI and drop it in ~/.nimble/bin (already on PATH in
+        # the image). Symlink into /usr/local/bin too, so the verify step
+        # resolves the binary regardless of the exec context's PATH (same
+        # rationale as the nim/nimble symlinks in the image).
+        run: |
+          nimble install -y 'typestates@0.12.0'
+          ln -sf ~/.nimble/bin/typestates /usr/local/bin/typestates
+          typestates --help >/dev/null 2>&1 || true
+          command -v typestates
+
       - name: Typestates verify
         run: typestates verify -W --format=github src/
 
@@ -702,7 +717,11 @@ jobs:
           curl -fsSL \
             "https://github.com/version-fox/vfox/releases/download/v${VFOX_VERSION}/vfox_${VFOX_VERSION}_macos_${vfox_arch}.tar.gz" \
             -o /tmp/vfox.tar.gz
-          tar -xzf /tmp/vfox.tar.gz -C "$HOME/.local/bin"
+          # vfox's release tarballs wrap their contents in a top-level
+          # directory (vfox_<ver>_macos_<arch>/vfox + completions/...),
+          # so --strip-components=1 is required to land the `vfox` binary
+          # directly in ~/.local/bin instead of one level down.
+          tar -xzf /tmp/vfox.tar.gz -C "$HOME/.local/bin" --strip-components=1
           chmod +x "$HOME/.local/bin/vfox"
           echo "$HOME/.local/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.local/bin:$PATH"
@@ -738,12 +757,18 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$HOME/.local/bin"
-          # vfox's Windows .zip extracts vfox.exe at the archive root.
+          # vfox's Windows .zip wraps its contents in a top-level
+          # directory (vfox_<ver>_windows_x86_64/vfox.exe + completions),
+          # so `unzip -j` (junk paths) is required to flatten vfox.exe
+          # directly into ~/.local/bin rather than a nested subdir.
           # Windows GHA runners are x86_64.
           curl -fsSL \
             "https://github.com/version-fox/vfox/releases/download/v${VFOX_VERSION}/vfox_${VFOX_VERSION}_windows_x86_64.zip" \
             -o /tmp/vfox.zip
-          unzip -o /tmp/vfox.zip -d "$HOME/.local/bin"
+          unzip -j -o /tmp/vfox.zip '*/vfox.exe' -d "$HOME/.local/bin"
+          # vfox is only needed within this step (for `vfox add` / `vfox
+          # install`); in-step PATH export suffices. Later steps reach Nim
+          # via the $GITHUB_PATH push below, not via vfox.
           export PATH="$HOME/.local/bin:$PATH"
           vfox --version
           # vfox-nim plugin from pinned zipball (same flow as macOS).

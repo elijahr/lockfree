@@ -43,6 +43,12 @@ ENV TZ=UTC
 # - ca-certificates + curl: for vfox plugin downloads + general HTTPS
 # - libpcre3-dev: Nim regex backend (some test files)
 # - clang: TSAN/ASAN cells use --cc:clang
+# - libclang-rt-18-dev: clang's compiler-rt sanitizer runtime
+#   (libclang_rt.tsan / libclang_rt.asan). The clang metapackage does
+#   NOT bundle these; without them `clang -fsanitize=thread` and
+#   `-fsanitize=address` fail to link. Pinned to 18 because noble's
+#   default clang is clang-18 — bump this version in lockstep whenever
+#   the clang version the image installs changes.
 # - bash: still useful for workflow `run:` steps
 # - xz-utils: vfox-nim's binary tarballs are xz-compressed
 # - unzip: vfox extracts plugin .zip archives
@@ -52,6 +58,7 @@ RUN apt-get update && \
         build-essential \
         ca-certificates \
         clang \
+        libclang-rt-18-dev \
         curl \
         git \
         gh \
