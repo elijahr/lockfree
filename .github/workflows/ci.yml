@@ -598,6 +598,12 @@ jobs:
     timeout-minutes: ${{ matrix.timeout }}
     env:
       LOCKFREE_NIM_FROM_IMAGE: ${{ matrix.nim-from-image }}
+      # Platform cells (10 arm64, 11 macOS, 17 Windows) give PLATFORM coverage
+      # on the default MM only; the full orc/cpp/arc/refc matrix is already
+      # covered by the fast Linux baseline cells (1a-d). Without this, their
+      # `nimble test` compiled all four lanes cold and overran the timeout.
+      # Cells 6/7 use the dedicated testTSan/testASan tasks and ignore it.
+      LFQ_TEST_VARIANT: ${{ matrix.mm }}
 
     strategy:
       fail-fast: false
