@@ -856,8 +856,20 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
+          # typestates v0.12.0 srcDir flattening workaround (Windows variant).
+          # The POSIX cells symlink `src -> .`; Git-Bash on Windows cannot
+          # follow that self-referential link (it loops -> "Too many levels
+          # of symbolic links"), so materialize a real src/ dir mirroring the
+          # package contents instead.
           for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
-            [ -e "$d/src" ] || ln -s . "$d/src"
+            [ -e "$d/src" ] && continue
+            mkdir "$d/src"
+            for f in "$d"/*; do
+              case "$f" in
+                */src) ;;
+                *) cp -r -- "$f" "$d/src/" ;;
+              esac
+            done
           done
 
       - name: Run tests (POSIX)
