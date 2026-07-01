@@ -1,0 +1,209 @@
+/* lockfreequeues bench chart styling — paired with bench-charts.js.
+ * The charts are rendered by Apache ECharts (loaded via CDN); ECharts
+ * owns the tooltip, axis, and series chrome. These rules cover the
+ * page-level layout (panel containers, controls bar, status banner,
+ * hero panel scaffolding) plus the DOM-bar fallback that runs when
+ * the ECharts global is missing.
+ */
+
+/* ── panel layout ─────────────────────────────────────────────────── */
+.bench-panel {
+  width: 100%;
+  max-width: 100%;
+  margin: 1.5em 0;
+}
+
+.bench-panel-title {
+  margin: 0 0 0.5em 0;
+  font-size: 1em;
+  font-weight: 600;
+}
+
+/* Source-code link injected next to panel/section headings. Kept
+ * unobtrusive: small font, muted color via Material foreground--light,
+ * no underline until hover. Applies both to JS-injected throughput
+ * headings and to the markdown-owned `#### Latency` heading decorated
+ * at render time. */
+.bench-source-link {
+  margin-left: 0.6em;
+  font-size: 0.72em;
+  font-weight: 400;
+  color: var(--md-default-fg-color--light, #aaaaaa);
+  text-decoration: none;
+  vertical-align: middle;
+  letter-spacing: 0;
+}
+
+.bench-source-link:hover,
+.bench-source-link:focus {
+  color: var(--md-accent-fg-color, #3f51b5);
+  text-decoration: underline;
+}
+
+#bench-chart,
+#bench-hero,
+#bench-throughput-spsc,
+#bench-throughput-mpsc,
+#bench-throughput-mpmc-bounded,
+#bench-throughput-mpmc-unbounded,
+#bench-latency {
+  width: 100%;
+  max-width: 100%;
+  margin: 1.5em 0;
+  box-sizing: border-box;
+}
+
+/* ── controls / chart mount ───────────────────────────────────────── */
+.bench-chart-controls {
+  display: flex;
+  gap: 1em;
+  align-items: center;
+  margin-bottom: 0.5em;
+  font-size: 0.9em;
+  flex-wrap: wrap;
+}
+
+.bench-chart-controls label {
+  cursor: pointer;
+  user-select: none;
+  margin-left: 0.25em;
+}
+
+.bench-chart-plot {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-height: 360px;
+  box-sizing: border-box;
+}
+
+.bench-chart-plot-hero {
+  min-height: 280px;
+}
+
+.bench-chart-error {
+  padding: 1em;
+  border: 1px dashed var(--md-default-fg-color--lightest, #555);
+  border-radius: 4px;
+  color: var(--md-default-fg-color--light, #aaa);
+  font-style: italic;
+  text-align: center;
+}
+
+.bench-chart-empty {
+  padding: 1em;
+  color: var(--md-default-fg-color--light, #aaa);
+  font-style: italic;
+  text-align: center;
+}
+
+/* ── hero panel ───────────────────────────────────────────────────── */
+.bench-panel-hero {
+  background: var(--md-code-bg-color, rgba(0, 0, 0, 0.05));
+  padding: 1em;
+  border-radius: 8px;
+}
+
+.bench-hero-heading {
+  margin: 0 0 0.75em 0;
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
+.bench-hero-footnote {
+  font-size: 0.8em;
+  color: var(--md-default-fg-color--light, #aaa);
+  margin-top: 0.5em;
+}
+
+.bench-hero-empty {
+  padding: 1em 0;
+  color: var(--md-default-fg-color--light, #aaa);
+  font-style: italic;
+}
+
+/* ── hero DOM-bar fallback (only when ECharts global is missing) ─── */
+.bench-hero-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bench-hero-row {
+  display: grid;
+  grid-template-columns: 200px 1fr 100px;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.25em 0;
+}
+
+.bench-hero-label {
+  font-family: var(--md-code-font, monospace);
+  font-size: 0.85em;
+}
+
+.bench-hero-bar {
+  height: 1.2em;
+  border-radius: 2px;
+  min-width: 2px;
+}
+
+.bench-hero-bar-blocking {
+  background: transparent !important;
+  border: 2px dotted currentColor;
+  box-sizing: border-box;
+}
+
+.bench-hero-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85em;
+}
+
+.bench-hero-axis-caption {
+  margin: 0.4em 0 0.6em 0;
+  font-size: 0.8em;
+  color: var(--md-default-fg-color--light, #aaa);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── status banner ────────────────────────────────────────────────── */
+.bench-status {
+  margin-bottom: 1em;
+  padding: 0.75em 1em;
+  font-style: italic;
+  border-left: 4px solid var(--md-default-fg-color--lightest, #888);
+}
+
+.bench-status[data-status="fixture"] {
+  border-left-color: #fbc02d;
+  background: rgba(251, 192, 45, 0.08);
+}
+
+.bench-status[data-status="error"] {
+  border-left-color: #e53935;
+  background: rgba(229, 57, 53, 0.08);
+}
+
+.bench-status p {
+  margin: 0;
+}
+
+/* ── responsive breakpoints ───────────────────────────────────────── */
+@media (max-width: 767px) {
+  .bench-panel { font-size: 0.875em; }
+  .bench-chart-plot { min-height: 320px; }
+  .bench-hero-row {
+    grid-template-columns: 1fr;
+    gap: 0.1em;
+  }
+  .bench-hero-value { text-align: left; }
+}
+
+@media (max-width: 374px) {
+  .bench-chart-plot {
+    overflow-x: auto;
+    min-width: 320px;
+  }
+}
