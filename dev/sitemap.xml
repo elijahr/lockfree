@@ -2,250 +2,250 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/benchmarks/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/contributing/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/migration/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/atomics/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/bqueue/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/chronos/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/lockfree/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/managed_ref/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/managed_slice/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/queue/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/typestates/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/internal/path_c_admit/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/internal/path_c_wrap/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/internal/slot_encoding/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/smr/nebr/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/typestates/segment_state/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/typestates/slot_state/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/typestates/with_bound/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/design/v5-port-candidates-from-v4.3/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/examples/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/bounded-vs-unbounded/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/core-concepts/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/examples/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/getting-started/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/managed-ref/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/managed-slice/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/nimony/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/performance-tuning/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/safety-model/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/slot-ownership-typestates/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/typestates/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/concepts/lock-freedom/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/concepts/memory-management/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/concepts/smr/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/queues/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/queues/bounded-vyukov/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/queues/legacy/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/queues/strict-lcrq-mpmc/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/smr/nebr/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/MIGRATION_v0.8.0/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/PROVENANCE/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/api/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/contributing/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/safety-model/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/design/2026-04-25-batched-retire-reclaim/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/design/2026-04-25-custom-atomics/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/atomics/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/concepts/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/epoch-advancement/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/getting-started/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/integration/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/neutralization/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/pin-unpin/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/reclamation/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/retiring-objects/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/thread-registration/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/migrations/from-lockfreequeues-v5/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/migrations/from-nim-debra/</loc>
-         <lastmod>2026-08-10</lastmod>
+         <lastmod>2026-08-11</lastmod>
     </url>
 </urlset>
