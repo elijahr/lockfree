@@ -28,12 +28,12 @@ const LockfreeVersion* {.strdefine.} = "0.1.0"
 when compileOption("threads"):
   import lockfree/atomics
   import lockfree/atomics/dsl
-  import ./lockfree/[bqueue, endpoint, exceptions, queue, reclamation, strategy]
+  import ./lockfree/[bqueue, channel, endpoint, exceptions, queue, reclamation, strategy]
   import ./lockfree/internal/pinscope_stub
   import ./lockfree/typestates/with_bound
 
   export atomics, dsl
-  export bqueue, endpoint, exceptions, queue, reclamation, strategy
+  export bqueue, channel, endpoint, exceptions, queue, reclamation, strategy
   export pinscope_stub
   export with_bound
 else:
@@ -41,11 +41,11 @@ else:
   # (Queue SPSC works without threads).
   import lockfree/atomics
   import lockfree/atomics/dsl
-  import ./lockfree/[bqueue, endpoint, queue, reclamation, strategy]
+  import ./lockfree/[bqueue, channel, endpoint, queue, reclamation, strategy]
   import ./lockfree/internal/pinscope_stub
   import ./lockfree/typestates/with_bound
 
   export atomics, dsl
-  export bqueue, endpoint, queue, reclamation, strategy
+  export bqueue, channel, endpoint, queue, reclamation, strategy
   export pinscope_stub
   export with_bound

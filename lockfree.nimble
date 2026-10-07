@@ -265,6 +265,10 @@ task benchteststress, "Runs the bench harness test suite including 3.3M-sample s
   exec "nim c -d:release -d:BenchCommonStress --threads:on -r tests/t_bench_common.nim"
 
 
+task cabi, "Builds and runs the C ABI verification test suite":
+  exec "nim c -d:danger --threads:on -r tests/t_cabi.nim"
+
+
 # task `stresstests` removed in v5.0.0 . The 9 legacy
 # `stress-tests/t_*_threaded.nim` files referenced the per-family
 # aliases (`Mpmc[N, P, C, T]`, `Spmc[N, C, T]`, etc.) and the
