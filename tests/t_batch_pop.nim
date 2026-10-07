@@ -17,8 +17,9 @@ import lockfree/bqueue
 import lockfree/queue
 import lockfree/strategy
 import lockfree/endpoint
-import lockfree/smr/nebr as debra_mod
-from lockfree/smr/nebr import initDebraManager
+import lockfree/atomics
+import lockfree/atomics/backoff
+from lockfree/smr/nebr as debra_mod import initDebraManager
 
 type
   MoveOnlyItem = object
@@ -198,3 +199,144 @@ suite "popBatch and popChunk Primitives":
     for i in 0 .. 5:
       check buf[i].val == (i + 1) * 7
     check q.len == 0
+
+  type
+    BQueueBatchPCtx[N, P, C: static int] = object
+      queue: ptr BQueue[int, bqueue.ccMulti, bqueue.ccMulti, N, P, C]
+      producerIdx: int
+      items: int
+      sent: ptr Atomic[int]
+
+    BQueueBatchCCtx[N, P, C: static int] = object
+      queue: ptr BQueue[int, bqueue.ccMulti, bqueue.ccMulti, N, P, C]
+      consumerIdx: int
+      targetTotal: int
+      totalPopped: ptr Atomic[int]
+
+  proc bqueueBatchProducerWorker[N, P, C: static int](ctx: ptr BQueueBatchPCtx[N, P, C]) {.thread.} =
+    var p = ctx.queue[].getProducerHere(idx = ctx.producerIdx)
+    for i in 1 .. ctx.items:
+      while not p.push(i):
+        cpuPause()
+      discard ctx.sent[].fetchAdd(1, moRelaxed)
+
+  proc bqueueBatchConsumerWorker[N, P, C: static int](ctx: ptr BQueueBatchCCtx[N, P, C]) {.thread.} =
+    var c = ctx.queue[].getConsumerHere(idx = ctx.consumerIdx)
+    var buf: array[16, int]
+    while ctx.totalPopped[].load(moRelaxed) < ctx.targetTotal:
+      let n = c.popBatch(buf)
+      if n > 0:
+        discard ctx.totalPopped[].fetchAdd(n, moRelaxed)
+      else:
+        cpuPause()
+
+  test "BQueue MPMC 4P/4C 100k items popBatch stress":
+    const TotalItems = 100_000
+    const NumProducers = 4
+    const NumConsumers = 4
+    const PerProducer = TotalItems div NumProducers
+
+    var queue = newBQueue[int, bqueue.ccMulti, bqueue.ccMulti, 1024, 4, 4]()
+    var sent, totalPopped: Atomic[int]
+    sent.store(0, moRelaxed)
+    totalPopped.store(0, moRelaxed)
+
+    var pctxs: array[NumProducers, BQueueBatchPCtx[1024, 4, 4]]
+    var cctxs: array[NumConsumers, BQueueBatchCCtx[1024, 4, 4]]
+    var pThreads: array[NumProducers, Thread[ptr BQueueBatchPCtx[1024, 4, 4]]]
+    var cThreads: array[NumConsumers, Thread[ptr BQueueBatchCCtx[1024, 4, 4]]]
+
+    for i in 0 ..< NumConsumers:
+      cctxs[i] = BQueueBatchCCtx[1024, 4, 4](
+        queue: addr queue, consumerIdx: i, targetTotal: TotalItems, totalPopped: addr totalPopped
+      )
+      createThread(cThreads[i], bqueueBatchConsumerWorker[1024, 4, 4], addr cctxs[i])
+
+    for i in 0 ..< NumProducers:
+      pctxs[i] = BQueueBatchPCtx[1024, 4, 4](
+        queue: addr queue, producerIdx: i, items: PerProducer, sent: addr sent
+      )
+      createThread(pThreads[i], bqueueBatchProducerWorker[1024, 4, 4], addr pctxs[i])
+
+    for i in 0 ..< NumProducers:
+      joinThread(pThreads[i])
+    for i in 0 ..< NumConsumers:
+      joinThread(cThreads[i])
+
+    check sent.load(moRelaxed) == TotalItems
+    check totalPopped.load(moRelaxed) == TotalItems
+
+  type
+    UnbBatchStressPCtx = object
+      queue: ptr Queue[int, bqueue.ccMulti, bqueue.ccMulti, stEager, 64, 16]
+      count: int
+      sent: ptr Atomic[int]
+      producersDone: ptr Atomic[int]
+
+    UnbBatchStressCCtx = object
+      queue: ptr Queue[int, bqueue.ccMulti, bqueue.ccMulti, stEager, 64, 16]
+      totalExpected: int
+      totalProducers: int
+      totalPopped: ptr Atomic[int]
+      producersDone: ptr Atomic[int]
+
+  proc unbBatchStressProducerThread(ctx: ptr UnbBatchStressPCtx) {.thread.} =
+    {.cast(gcsafe).}:
+      var p = ctx.queue[].getProducerHere()
+      for i in 1 .. ctx.count:
+        p.push(i)
+        discard ctx.sent[].fetchAdd(1, moRelaxed)
+      discard ctx.producersDone[].fetchAdd(1, moRelease)
+
+  proc unbBatchStressConsumerThread(ctx: ptr UnbBatchStressCCtx) {.thread.} =
+    {.cast(gcsafe).}:
+      var c = ctx.queue[].getConsumerHere()
+      var buf: array[16, int]
+      while true:
+        let n = c.popBatch(buf)
+        if n > 0:
+          if ctx.totalPopped[].fetchAdd(n, moRelaxed) + n >= ctx.totalExpected:
+            break
+        elif ctx.producersDone[].load(moAcquire) >= ctx.totalProducers:
+          if ctx.totalPopped[].load(moRelaxed) >= ctx.totalExpected:
+            break
+        else:
+          cpuPause()
+
+  test "Queue Unbounded MPMC 4P/4C 100k items popBatch stress":
+    const TotalItems = 100_000
+    const NumProducers = 4
+    const NumConsumers = 4
+    const PerProducer = TotalItems div NumProducers
+
+    var queue = newUnboundedMpmcQueue[int, stEager, 64, 16]()
+    var sent, totalPopped, producersDone: Atomic[int]
+    sent.store(0, moRelaxed)
+    totalPopped.store(0, moRelaxed)
+    producersDone.store(0, moRelaxed)
+
+    var pctxs: array[NumProducers, UnbBatchStressPCtx]
+    var cctxs: array[NumConsumers, UnbBatchStressCCtx]
+    var pThreads: array[NumProducers, Thread[ptr UnbBatchStressPCtx]]
+    var cThreads: array[NumConsumers, Thread[ptr UnbBatchStressCCtx]]
+
+    for i in 0 ..< NumConsumers:
+      cctxs[i] = UnbBatchStressCCtx(
+        queue: addr queue, totalExpected: TotalItems, totalProducers: NumProducers,
+        totalPopped: addr totalPopped, producersDone: addr producersDone
+      )
+      createThread(cThreads[i], unbBatchStressConsumerThread, addr cctxs[i])
+
+    for i in 0 ..< NumProducers:
+      pctxs[i] = UnbBatchStressPCtx(
+        queue: addr queue, count: PerProducer, sent: addr sent, producersDone: addr producersDone
+      )
+      createThread(pThreads[i], unbBatchStressProducerThread, addr pctxs[i])
+
+    for i in 0 ..< NumProducers:
+      joinThread(pThreads[i])
+    for i in 0 ..< NumConsumers:
+      joinThread(cThreads[i])
+
+    check sent.load(moRelaxed) == TotalItems
+    check totalPopped.load(moRelaxed) == TotalItems

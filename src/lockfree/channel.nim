@@ -75,13 +75,14 @@ type
     tx*: Sender[T]
     rx*: Receiver[T]
 
-proc `=destroy`*[T](s: Sender[T]) =
+proc `=destroy`*[T](s: var Sender[T]) =
   if s.core != nil:
     if s.core.rc.fetchSub(1, moRelease) == 1:
       threadFence(moAcquire)
       if s.core.destroyProc != nil:
         s.core.destroyProc(s.core)
       deallocShared(s.core)
+    s.core = nil
 
 proc `=copy`*[T](dest: var Sender[T], src: Sender[T]) =
   if dest.core != src.core:
@@ -95,13 +96,14 @@ proc `=dup`*[T](src: Sender[T]): Sender[T] =
   if result.core != nil:
     discard result.core.rc.fetchAdd(1, moRelaxed)
 
-proc `=destroy`*[T](r: Receiver[T]) =
+proc `=destroy`*[T](r: var Receiver[T]) =
   if r.core != nil:
     if r.core.rc.fetchSub(1, moRelease) == 1:
       threadFence(moAcquire)
       if r.core.destroyProc != nil:
         r.core.destroyProc(r.core)
       deallocShared(r.core)
+    r.core = nil
 
 proc `=copy`*[T](dest: var Receiver[T], src: Receiver[T]) =
   if dest.core != src.core:

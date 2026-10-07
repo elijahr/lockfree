@@ -300,6 +300,62 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check totalPopped.load(moRelaxed) == (NumProducers * ItemsPerProducer)
     check lfq_queue_destroy(queue) == LFQ_OK
 
+  test "C ABI Bounded MPMC 4P/4C 100k items stress":
+    var queue: ptr lfq_queue_t = nil
+    check lfq_bounded_mpmc_create(1024, 4, 4, nil, nil, addr queue) == LFQ_OK
+
+    const NumProducers = 4
+    const NumConsumers = 4
+    const ItemsPerProducer = 25_000
+
+    var producerThreads: array[NumProducers, Thread[ptr ThreadProducerArg]]
+    var consumerThreads: array[NumConsumers, Thread[ptr ThreadConsumerArg]]
+    var pArgs: array[NumProducers, ThreadProducerArg]
+    var cArgs: array[NumConsumers, ThreadConsumerArg]
+    var totalPopped: Atomic[int]
+    totalPopped.store(0, moRelaxed)
+
+    for i in 0 ..< NumConsumers:
+      cArgs[i] = ThreadConsumerArg(queue: queue, targetTotal: NumProducers * ItemsPerProducer, totalPopped: addr totalPopped)
+      createThread(consumerThreads[i], threadConsumerWorker, addr cArgs[i])
+    for i in 0 ..< NumProducers:
+      pArgs[i] = ThreadProducerArg(queue: queue, items: ItemsPerProducer)
+      createThread(producerThreads[i], threadProducerWorker, addr pArgs[i])
+
+    joinThreads(producerThreads)
+    joinThreads(consumerThreads)
+
+    check totalPopped.load(moRelaxed) == (NumProducers * ItemsPerProducer)
+    check lfq_queue_destroy(queue) == LFQ_OK
+
+  test "C ABI Unbounded MPMC 4P/4C 100k items stress":
+    var queue: ptr lfq_queue_t = nil
+    check lfq_unbounded_mpmc_create(64, 16, nil, nil, addr queue) == LFQ_OK
+
+    const NumProducers = 4
+    const NumConsumers = 4
+    const ItemsPerProducer = 25_000
+
+    var producerThreads: array[NumProducers, Thread[ptr ThreadProducerArg]]
+    var consumerThreads: array[NumConsumers, Thread[ptr ThreadConsumerArg]]
+    var pArgs: array[NumProducers, ThreadProducerArg]
+    var cArgs: array[NumConsumers, ThreadConsumerArg]
+    var totalPopped: Atomic[int]
+    totalPopped.store(0, moRelaxed)
+
+    for i in 0 ..< NumConsumers:
+      cArgs[i] = ThreadConsumerArg(queue: queue, targetTotal: NumProducers * ItemsPerProducer, totalPopped: addr totalPopped)
+      createThread(consumerThreads[i], threadConsumerWorker, addr cArgs[i])
+    for i in 0 ..< NumProducers:
+      pArgs[i] = ThreadProducerArg(queue: queue, items: ItemsPerProducer)
+      createThread(producerThreads[i], threadProducerWorker, addr pArgs[i])
+
+    joinThreads(producerThreads)
+    joinThreads(consumerThreads)
+
+    check totalPopped.load(moRelaxed) == (NumProducers * ItemsPerProducer)
+    check lfq_queue_destroy(queue) == LFQ_OK
+
   test "Direct C99 Header Interoperability":
     let code = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -I" & includeDir & " " & (includeDir / "lockfree.h"))
     check code == 0
