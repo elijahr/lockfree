@@ -155,24 +155,28 @@ proc boundedProducerRelease[N, P, C: static int](prod: ptr lfq_producer_t): lfq_
   let p = cast[ptr BoundedProducerImpl[N, P, C]](prod)
   let q = cast[ptr BoundedQueueImpl[N, P, C]](p.base.queue)
   cAbiBoundary:
-    let idx = p.bound.idx
-    discard close(p.bound)
-    if idx >= 0 and idx < P:
-      q.rawQueue.producerThreadIds[idx].store(0, moRelease)
-    discard q.base.activeProducers.fetchSub(1, moRelaxed)
-    deallocShared(p)
+    try:
+      let idx = p.bound.idx
+      discard close(p.bound)
+      if idx >= 0 and idx < P:
+        q.rawQueue.producerThreadIds[idx].store(0, moRelease)
+    finally:
+      discard q.base.activeProducers.fetchSub(1, moRelaxed)
+      deallocShared(p)
     LFQ_OK
 
 proc boundedConsumerRelease[N, P, C: static int](cons: ptr lfq_consumer_t): lfq_status_t {.nimcall, gcsafe, raises: [].} =
   let c = cast[ptr BoundedConsumerImpl[N, P, C]](cons)
   let q = cast[ptr BoundedQueueImpl[N, P, C]](c.base.queue)
   cAbiBoundary:
-    let idx = c.bound.idx
-    discard close(c.bound)
-    if idx >= 0 and idx < C:
-      q.rawQueue.consumerThreadIds[idx].store(0, moRelease)
-    discard q.base.activeConsumers.fetchSub(1, moRelaxed)
-    deallocShared(c)
+    try:
+      let idx = c.bound.idx
+      discard close(c.bound)
+      if idx >= 0 and idx < C:
+        q.rawQueue.consumerThreadIds[idx].store(0, moRelease)
+    finally:
+      discard q.base.activeConsumers.fetchSub(1, moRelaxed)
+      deallocShared(c)
     LFQ_OK
 
 proc boundedProducerAcquire[N, P, C: static int](
@@ -339,33 +343,43 @@ proc unboundedProducerRelease[S, MaxThreads: static int](prod: ptr lfq_producer_
   let q = cast[ptr UnboundedQueueImpl[S, MaxThreads]](p.base.queue)
   cAbiBoundary:
     {.cast(gcsafe).}:
-      let mgrPtr = p.base.handleManager
-      let hIdx = p.base.handleIdx
-      for i in 0 ..< tlsThreadRegistrations.len:
-        if tlsThreadRegistrations[i].mgr == mgrPtr:
-          dec tlsThreadRegistrations[i].count
-          if tlsThreadRegistrations[i].count <= 0:
-            tlsThreadRegistrations.delete(i)
-            # Restore NEBR threadvars for this manager so unregisterThread doAssert passes
-            threadLocalManager = mgrPtr
-            threadLocalIdx = hIdx
-            threadLocalRegistered = true
+      try:
+        let mgrPtr = p.base.handleManager
+        let hIdx = p.base.handleIdx
+        for i in 0 ..< tlsThreadRegistrations.len:
+          if tlsThreadRegistrations[i].mgr == mgrPtr:
+            dec tlsThreadRegistrations[i].count
+            if tlsThreadRegistrations[i].count <= 0:
+              tlsThreadRegistrations.delete(i)
+              type Handle = typeof(registerThread(q.rawQueue[].manager[]))
+              let h = Handle(idx: hIdx, manager: q.rawQueue[].manager)
+              for _ in 0 .. 3:
+                discard q.rawQueue[].manager.globalEpoch.fetchAdd(1'u64, moRelease)
+                discard reclaimNow(h)
 
-            type Handle = typeof(registerThread(q.rawQueue[].manager[]))
-            let h = Handle(idx: hIdx, manager: q.rawQueue[].manager)
-            for _ in 0 .. 3:
-              discard q.rawQueue[].manager.globalEpoch.fetchAdd(1'u64, moRelease)
-              discard reclaimNow(h)
-            unregisterThread(q.rawQueue[].manager[], h)
+              let slot = addr q.rawQueue[].manager.threads[hIdx]
+              if slot.limboBagTail == nil and slot.currentBag == nil:
+                # Restore NEBR threadvars for this manager so unregisterThread passes contract
+                threadLocalManager = mgrPtr
+                threadLocalIdx = hIdx
+                threadLocalRegistered = true
+                try:
+                  unregisterThread(q.rawQueue[].manager[], h)
+                except:
+                  discard
 
-            if tlsThreadRegistrations.len > 0:
-              threadLocalManager = tlsThreadRegistrations[^1].mgr
-              threadLocalIdx = tlsThreadRegistrations[^1].handleIdx
-              threadLocalRegistered = true
-          break
-
-      discard q.base.activeProducers.fetchSub(1, moRelaxed)
-      deallocShared(p)
+              if tlsThreadRegistrations.len > 0:
+                threadLocalManager = tlsThreadRegistrations[^1].mgr
+                threadLocalIdx = tlsThreadRegistrations[^1].handleIdx
+                threadLocalRegistered = true
+              else:
+                threadLocalManager = nil
+                threadLocalIdx = 0
+                threadLocalRegistered = false
+            break
+      finally:
+        discard q.base.activeProducers.fetchSub(1, moRelaxed)
+        deallocShared(p)
       LFQ_OK
 
 proc unboundedConsumerRelease[S, MaxThreads: static int](cons: ptr lfq_consumer_t): lfq_status_t {.nimcall, gcsafe, raises: [].} =
@@ -373,33 +387,43 @@ proc unboundedConsumerRelease[S, MaxThreads: static int](cons: ptr lfq_consumer_
   let q = cast[ptr UnboundedQueueImpl[S, MaxThreads]](c.base.queue)
   cAbiBoundary:
     {.cast(gcsafe).}:
-      let mgrPtr = c.base.handleManager
-      let hIdx = c.base.handleIdx
-      for i in 0 ..< tlsThreadRegistrations.len:
-        if tlsThreadRegistrations[i].mgr == mgrPtr:
-          dec tlsThreadRegistrations[i].count
-          if tlsThreadRegistrations[i].count <= 0:
-            tlsThreadRegistrations.delete(i)
-            # Restore NEBR threadvars for this manager so unregisterThread doAssert passes
-            threadLocalManager = mgrPtr
-            threadLocalIdx = hIdx
-            threadLocalRegistered = true
+      try:
+        let mgrPtr = c.base.handleManager
+        let hIdx = c.base.handleIdx
+        for i in 0 ..< tlsThreadRegistrations.len:
+          if tlsThreadRegistrations[i].mgr == mgrPtr:
+            dec tlsThreadRegistrations[i].count
+            if tlsThreadRegistrations[i].count <= 0:
+              tlsThreadRegistrations.delete(i)
+              type Handle = typeof(registerThread(q.rawQueue[].manager[]))
+              let h = Handle(idx: hIdx, manager: q.rawQueue[].manager)
+              for _ in 0 .. 3:
+                discard q.rawQueue[].manager.globalEpoch.fetchAdd(1'u64, moRelease)
+                discard reclaimNow(h)
 
-            type Handle = typeof(registerThread(q.rawQueue[].manager[]))
-            let h = Handle(idx: hIdx, manager: q.rawQueue[].manager)
-            for _ in 0 .. 3:
-              discard q.rawQueue[].manager.globalEpoch.fetchAdd(1'u64, moRelease)
-              discard reclaimNow(h)
-            unregisterThread(q.rawQueue[].manager[], h)
+              let slot = addr q.rawQueue[].manager.threads[hIdx]
+              if slot.limboBagTail == nil and slot.currentBag == nil:
+                # Restore NEBR threadvars for this manager so unregisterThread passes contract
+                threadLocalManager = mgrPtr
+                threadLocalIdx = hIdx
+                threadLocalRegistered = true
+                try:
+                  unregisterThread(q.rawQueue[].manager[], h)
+                except:
+                  discard
 
-            if tlsThreadRegistrations.len > 0:
-              threadLocalManager = tlsThreadRegistrations[^1].mgr
-              threadLocalIdx = tlsThreadRegistrations[^1].handleIdx
-              threadLocalRegistered = true
-          break
-
-      discard q.base.activeConsumers.fetchSub(1, moRelaxed)
-      deallocShared(c)
+              if tlsThreadRegistrations.len > 0:
+                threadLocalManager = tlsThreadRegistrations[^1].mgr
+                threadLocalIdx = tlsThreadRegistrations[^1].handleIdx
+                threadLocalRegistered = true
+              else:
+                threadLocalManager = nil
+                threadLocalIdx = 0
+                threadLocalRegistered = false
+            break
+      finally:
+        discard q.base.activeConsumers.fetchSub(1, moRelaxed)
+        deallocShared(c)
       LFQ_OK
 
 proc unboundedProducerAcquire[S, MaxThreads: static int](
