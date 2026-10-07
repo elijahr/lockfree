@@ -378,3 +378,86 @@ suite "Smart withEndpoint Macro":
     withEndpoint(uq, cons):
       check cons.pop() == some(444)
       check cons.pop() == some(555)
+
+suite "Channel Facade — Lifecycle & Remediation (AUDIT-CHAN-01 & AUDIT-CHAN-02)":
+  test "dropping all Senders causes Receiver to return none(T) without hanging (bounded)":
+    let rx = block:
+      let (tx, rx) = newChannel[int](capacity = 16)
+      check tx.send(10)
+      check tx.send(20)
+      check tx.senders == 1
+      check rx.receivers == 1
+      rx
+    # tx is dropped out of scope
+    check rx.senders == 0
+    check rx.isClosed
+    # Remaining buffered items drain first
+    check rx.recv() == some(10)
+    check rx.recv() == some(20)
+    # Once empty and all senders are dropped, recv returns none without hanging
+    check rx.recv() == none(int)
+
+  test "dropping all Senders causes Receiver to return none(T) without hanging (unbounded)":
+    let rxU = block:
+      let (txU, rxU) = newUnboundedChannel[int](segmentSize = 16)
+      check txU.send(100)
+      check txU.send(200)
+      check txU.senders == 1
+      check rxU.receivers == 1
+      rxU
+    check rxU.senders == 0
+    check rxU.isClosed
+    check rxU.recv() == some(100)
+    check rxU.recv() == some(200)
+    check rxU.recv() == none(int)
+
+  test "dropping all Receivers causes Sender to return false (bounded)":
+    let tx = block:
+      let (tx, rx) = newChannel[int](capacity = 16)
+      check tx.senders == 1
+      check rx.receivers == 1
+      tx
+    # rx is dropped out of scope
+    check tx.receivers == 0
+    check not tx.send(42)
+    check not tx.trySend(43)
+
+  test "dropping all Receivers causes Sender to return false (unbounded)":
+    let txU = block:
+      let (txU, rxU) = newUnboundedChannel[int](segmentSize = 16)
+      check txU.senders == 1
+      check rxU.receivers == 1
+      txU
+    check txU.receivers == 0
+    check not txU.send(999)
+    check not txU.trySend(1000)
+
+  test "multiple senders: channel only closed when last sender drops":
+    let (tx1, rx) = newChannel[int](capacity = 16)
+    let tx2 = tx1
+    check tx1.send(100)
+    check tx2.send(200)
+    check rx.senders == 2
+    check not rx.isClosed
+    block:
+      let tx3 = tx2
+      check tx2.send(201)
+      check tx3.send(300)
+      check rx.senders == 3
+    # tx3 dropped
+    check rx.senders == 2
+    check not rx.isClosed
+    check tx1.send(101)
+    check tx2.send(202)
+
+  test "dynamic channel churn for memory leaks and MRU ring buffer stability":
+    # Creates and churns 500 bounded and unbounded channels, verifying MRU bounding
+    for i in 0 ..< 500:
+      let (tx, rx) = newChannel[int](capacity = 16)
+      check tx.send(i)
+      check rx.recv() == some(i)
+
+    for i in 0 ..< 500:
+      let (txU, rxU) = newUnboundedChannel[int](segmentSize = 16)
+      check txU.send(i)
+      check rxU.recv() == some(i)

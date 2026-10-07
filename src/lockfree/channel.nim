@@ -52,11 +52,16 @@ var gNextChannelId {.global.}: Atomic[uint64]
 proc allocChannelId(): uint64 =
   gNextChannelId.fetchAdd(1, moRelaxed) + 1
 
+const ChannelTlsMruCapacity* = 32
+  ## Maximum number of cached channel endpoints per thread to prevent unbounded TLS leakage.
+
 type
   ChannelCore[T] = object
     kind*: ChannelKind
     id*: uint64
     rc*: Atomic[int]
+    senders*: Atomic[int]
+    receivers*: Atomic[int]
     isClosed*: Atomic[bool]
     destroyProc*: proc(self: pointer) {.nimcall, gcsafe, raises: [].}
     sendProc*: proc(self: pointer, item: sink T): bool {.nimcall, gcsafe, raises: [].}
@@ -77,6 +82,8 @@ type
 
 proc `=destroy`*[T](s: var Sender[T]) =
   if s.core != nil:
+    if s.core.senders.fetchSub(1, moRelease) == 1:
+      s.core.isClosed.store(true, moRelease)
     if s.core.rc.fetchSub(1, moRelease) == 1:
       threadFence(moAcquire)
       if s.core.destroyProc != nil:
@@ -89,15 +96,18 @@ proc `=copy`*[T](dest: var Sender[T], src: Sender[T]) =
     `=destroy`(dest)
     dest.core = src.core
     if dest.core != nil:
+      discard dest.core.senders.fetchAdd(1, moRelaxed)
       discard dest.core.rc.fetchAdd(1, moRelaxed)
 
 proc `=dup`*[T](src: Sender[T]): Sender[T] =
   result.core = src.core
   if result.core != nil:
+    discard result.core.senders.fetchAdd(1, moRelaxed)
     discard result.core.rc.fetchAdd(1, moRelaxed)
 
 proc `=destroy`*[T](r: var Receiver[T]) =
   if r.core != nil:
+    discard r.core.receivers.fetchSub(1, moRelease)
     if r.core.rc.fetchSub(1, moRelease) == 1:
       threadFence(moAcquire)
       if r.core.destroyProc != nil:
@@ -110,11 +120,13 @@ proc `=copy`*[T](dest: var Receiver[T], src: Receiver[T]) =
     `=destroy`(dest)
     dest.core = src.core
     if dest.core != nil:
+      discard dest.core.receivers.fetchAdd(1, moRelaxed)
       discard dest.core.rc.fetchAdd(1, moRelaxed)
 
 proc `=dup`*[T](src: Receiver[T]): Receiver[T] =
   result.core = src.core
   if result.core != nil:
+    discard result.core.receivers.fetchAdd(1, moRelaxed)
     discard result.core.rc.fetchAdd(1, moRelaxed)
 
 # ---------------------------------------------------------------------------
@@ -133,7 +145,7 @@ proc boundedDestroy[T; N, P, C: static int](p: pointer) {.nimcall, gcsafe, raise
 
 proc boundedSend[T; N, P, C: static int](p: pointer, item: sink T): bool {.nimcall, gcsafe, raises: [].} =
   var bc = cast[ptr BoundedCore[T, N, P, C]](p)
-  if bc.core.isClosed.load(moAcquire):
+  if bc.core.receivers.load(moAcquire) == 0 or bc.core.isClosed.load(moAcquire):
     return false
 
   type BoundProd = Bound[T, AnyThreadTag, BQueue[T, ccMulti, ccMulti, N, P, C]]
@@ -143,15 +155,28 @@ proc boundedSend[T; N, P, C: static int](p: pointer, item: sink T): bool {.nimca
 
   var tlsProducers {.threadvar.}: seq[CachedEntry]
   let chanId = bc.core.id
+
+  var foundIdx = -1
   for i in 0 ..< tlsProducers.len:
     if tlsProducers[i].chanId == chanId:
-      return tlsProducers[i].bound.push(item)
+      foundIdx = i
+      break
+
+  if foundIdx >= 0:
+    if foundIdx > 0:
+      var hit = move(tlsProducers[foundIdx])
+      for j in countdown(foundIdx, 1):
+        tlsProducers[j] = move(tlsProducers[j - 1])
+      tlsProducers[0] = move(hit)
+    return tlsProducers[0].bound.push(item)
 
   try:
     var u = bc.queue.getProducer()
     var b = u.bindToThread()
-    tlsProducers.add(CachedEntry(chanId: chanId, bound: b))
-    return tlsProducers[^1].bound.push(item)
+    if tlsProducers.len >= ChannelTlsMruCapacity:
+      tlsProducers.setLen(ChannelTlsMruCapacity - 1)
+    tlsProducers.insert(CachedEntry(chanId: chanId, bound: b), 0)
+    return tlsProducers[0].bound.push(item)
   except NoProducersAvailableError:
     return false
 
@@ -164,15 +189,28 @@ proc boundedRecv[T; N, P, C: static int](p: pointer): Option[T] {.nimcall, gcsaf
 
   var tlsConsumers {.threadvar.}: seq[CachedEntry]
   let chanId = bc.core.id
+
+  var foundIdx = -1
   for i in 0 ..< tlsConsumers.len:
     if tlsConsumers[i].chanId == chanId:
-      return tlsConsumers[i].bound.pop()
+      foundIdx = i
+      break
+
+  if foundIdx >= 0:
+    if foundIdx > 0:
+      var hit = move(tlsConsumers[foundIdx])
+      for j in countdown(foundIdx, 1):
+        tlsConsumers[j] = move(tlsConsumers[j - 1])
+      tlsConsumers[0] = move(hit)
+    return tlsConsumers[0].bound.pop()
 
   try:
     var u = bc.queue.getConsumer()
     var b = u.bindToThread()
-    tlsConsumers.add(CachedEntry(chanId: chanId, bound: b))
-    return tlsConsumers[^1].bound.pop()
+    if tlsConsumers.len >= ChannelTlsMruCapacity:
+      tlsConsumers.setLen(ChannelTlsMruCapacity - 1)
+    tlsConsumers.insert(CachedEntry(chanId: chanId, bound: b), 0)
+    return tlsConsumers[0].bound.pop()
   except NoConsumersAvailableError:
     return none(T)
 
@@ -194,6 +232,8 @@ proc newBoundedChannelImpl*[T; N, P, C: static int](): tuple[tx: Sender[T], rx: 
   bc.core.kind = ckBounded
   bc.core.id = allocChannelId()
   bc.core.rc.store(2, moRelaxed)
+  bc.core.senders.store(1, moRelaxed)
+  bc.core.receivers.store(1, moRelaxed)
   bc.core.isClosed.store(false, moRelaxed)
   bc.core.destroyProc = boundedDestroy[T, N, P, C]
   bc.core.sendProc = boundedSend[T, N, P, C]
@@ -222,7 +262,7 @@ proc unboundedDestroy[T; ST: static DeallocationStrategy; S, MaxThreads: static 
 proc unboundedSend[T; ST: static DeallocationStrategy; S, MaxThreads: static int](p: pointer, item: sink T): bool {.nimcall, gcsafe, raises: [].} =
   {.cast(gcsafe).}:
     var uc = cast[ptr UnboundedCore[T, ST, S, MaxThreads]](p)
-    if uc.core.isClosed.load(moAcquire):
+    if uc.core.receivers.load(moAcquire) == 0 or uc.core.isClosed.load(moAcquire):
       return false
 
     type BoundProd = Bound[T, AnyThreadTag, Queue[T, ccMulti, ccMulti, ST, S, MaxThreads]]
@@ -232,15 +272,28 @@ proc unboundedSend[T; ST: static DeallocationStrategy; S, MaxThreads: static int
 
     var tlsProducers {.threadvar.}: seq[CachedEntry]
     let chanId = uc.core.id
+
+    var foundIdx = -1
     for i in 0 ..< tlsProducers.len:
       if tlsProducers[i].chanId == chanId:
-        tlsProducers[i].bound.push(item)
-        return true
+        foundIdx = i
+        break
+
+    if foundIdx >= 0:
+      if foundIdx > 0:
+        var hit = move(tlsProducers[foundIdx])
+        for j in countdown(foundIdx, 1):
+          tlsProducers[j] = move(tlsProducers[j - 1])
+        tlsProducers[0] = move(hit)
+      tlsProducers[0].bound.push(item)
+      return true
 
     var u = uc.queue.getProducer()
     var b = u.bindToThread()
-    tlsProducers.add(CachedEntry(chanId: chanId, bound: b))
-    tlsProducers[^1].bound.push(item)
+    if tlsProducers.len >= ChannelTlsMruCapacity:
+      tlsProducers.setLen(ChannelTlsMruCapacity - 1)
+    tlsProducers.insert(CachedEntry(chanId: chanId, bound: b), 0)
+    tlsProducers[0].bound.push(item)
     return true
 
 proc unboundedRecv[T; ST: static DeallocationStrategy; S, MaxThreads: static int](p: pointer): Option[T] {.nimcall, gcsafe, raises: [].} =
@@ -253,14 +306,27 @@ proc unboundedRecv[T; ST: static DeallocationStrategy; S, MaxThreads: static int
 
     var tlsConsumers {.threadvar.}: seq[CachedEntry]
     let chanId = uc.core.id
+
+    var foundIdx = -1
     for i in 0 ..< tlsConsumers.len:
       if tlsConsumers[i].chanId == chanId:
-        return tlsConsumers[i].bound.pop()
+        foundIdx = i
+        break
+
+    if foundIdx >= 0:
+      if foundIdx > 0:
+        var hit = move(tlsConsumers[foundIdx])
+        for j in countdown(foundIdx, 1):
+          tlsConsumers[j] = move(tlsConsumers[j - 1])
+        tlsConsumers[0] = move(hit)
+      return tlsConsumers[0].bound.pop()
 
     var u = uc.queue.getConsumer()
     var b = u.bindToThread()
-    tlsConsumers.add(CachedEntry(chanId: chanId, bound: b))
-    return tlsConsumers[^1].bound.pop()
+    if tlsConsumers.len >= ChannelTlsMruCapacity:
+      tlsConsumers.setLen(ChannelTlsMruCapacity - 1)
+    tlsConsumers.insert(CachedEntry(chanId: chanId, bound: b), 0)
+    return tlsConsumers[0].bound.pop()
 
 proc unboundedLen[T; ST: static DeallocationStrategy; S, MaxThreads: static int](p: pointer): int {.nimcall, gcsafe, raises: [].} =
   {.cast(gcsafe).}:
@@ -278,6 +344,8 @@ proc newUnboundedChannelImpl*[T; ST: static DeallocationStrategy; S, MaxThreads:
   uc.core.kind = ckUnbounded
   uc.core.id = allocChannelId()
   uc.core.rc.store(2, moRelaxed)
+  uc.core.senders.store(1, moRelaxed)
+  uc.core.receivers.store(1, moRelaxed)
   uc.core.isClosed.store(false, moRelaxed)
   uc.core.destroyProc = unboundedDestroy[T, ST, S, MaxThreads]
   uc.core.sendProc = unboundedSend[T, ST, S, MaxThreads]
@@ -389,9 +457,25 @@ converter toChannel*[T](t: tuple[tx: Sender[T], rx: Receiver[T]]): Channel[T] =
 proc send*[T](s: Sender[T], item: sink T): bool {.inline.} =
   ## Sends an item into the channel. Automatically registers the calling
   ## thread on first call without manual binding ceremonies.
-  ## Returns true on success, false if bounded channel is full or closed.
+  ## Returns true on success, false if channel is closed, all receivers dropped, or bounded channel is full.
   assert s.core != nil, "Sender: nil channel core"
+  if s.core.receivers.load(moAcquire) == 0:
+    return false
+  if s.core.isClosed.load(moAcquire):
+    return false
   s.core.sendProc(s.core, item)
+
+proc senders*[T](s: Sender[T]): int {.inline.} =
+  if s.core != nil: s.core.senders.load(moAcquire) else: 0
+
+proc senders*[T](r: Receiver[T]): int {.inline.} =
+  if r.core != nil: r.core.senders.load(moAcquire) else: 0
+
+proc receivers*[T](s: Sender[T]): int {.inline.} =
+  if s.core != nil: s.core.receivers.load(moAcquire) else: 0
+
+proc receivers*[T](r: Receiver[T]): int {.inline.} =
+  if r.core != nil: r.core.receivers.load(moAcquire) else: 0
 
 proc trySend*[T](s: Sender[T], item: sink T): bool {.inline.} =
   ## Non-blocking send alias.
@@ -477,6 +561,12 @@ proc isFull*[T](c: Channel[T]): bool {.inline.} =
 
 proc isEmpty*[T](c: Channel[T]): bool {.inline.} =
   c.rx.isEmpty()
+
+proc senders*[T](c: Channel[T]): int {.inline.} =
+  c.tx.senders
+
+proc receivers*[T](c: Channel[T]): int {.inline.} =
+  c.rx.receivers
 
 # ---------------------------------------------------------------------------
 # Smart Role-Inferring withEndpoint Macro
