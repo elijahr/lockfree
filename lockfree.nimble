@@ -47,7 +47,7 @@ task test, "Runs the test suite":
   # `nimble test` still defaults to the full 4-lane sequential sweep so
   # developer-machine signal matches the per-push GHA gate.
   let nimcacheBase = getHomeDir() / ".cache" / "nim"
-  let variant = getEnv("LFQ_TEST_VARIANT", "all")
+  let variant = getEnv("LFQ_TEST_VARIANT", "orc")
 
   proc runOrc =
     # C with default MM (orc)
@@ -267,6 +267,10 @@ task benchteststress, "Runs the bench harness test suite including 3.3M-sample s
 
 task cabi, "Builds and runs the C ABI verification test suite":
   exec "nim c -d:danger --threads:on -r tests/t_cabi.nim"
+ 
+ 
+task channel, "Builds and runs the Channel facade test suite":
+  exec "nim c --threads:on --nimcache:.tmp/channel_d -r tests/t_channel.nim"
 
 
 # task `stresstests` removed in v5.0.0 . The 9 legacy

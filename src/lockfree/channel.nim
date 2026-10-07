@@ -361,76 +361,74 @@ proc newUnboundedChannelImpl*[T; ST: static DeallocationStrategy; S, MaxThreads:
 # High-Level Channel Constructors
 # ---------------------------------------------------------------------------
 
-proc newChannel*[T](capacity: static int = 1024): tuple[tx: Sender[T], rx: Receiver[T]] =
+proc newBoundedChannel*[T, N: static int](): tuple[tx: Sender[T], rx: Receiver[T]] {.inline.} =
+  ## Creates a bounded channel with exact static capacity N.
+  newBoundedChannelImpl[T, N, 128, 128]()
+
+proc newBoundedChannel*[T](capacity: static int = 1024): tuple[tx: Sender[T], rx: Receiver[T]] {.inline.} =
   ## Creates a bounded channel with static capacity (defaults to 1024).
   newBoundedChannelImpl[T, capacity, 128, 128]()
 
-proc newChannel*[T](capacity: int): tuple[tx: Sender[T], rx: Receiver[T]] =
-  ## Creates a bounded channel with dynamic capacity (rounded to next power of 2).
-  if capacity <= 16:
-    newBoundedChannelImpl[T, 16, 128, 128]()
-  elif capacity <= 32:
-    newBoundedChannelImpl[T, 32, 128, 128]()
-  elif capacity <= 64:
+proc newBoundedChannel*[T](capacity: int): tuple[tx: Sender[T], rx: Receiver[T]] =
+  ## Creates a bounded channel with dynamic capacity coarse tiers (<= 64, <= 1024, else 65536).
+  if capacity <= 64:
     newBoundedChannelImpl[T, 64, 128, 128]()
-  elif capacity <= 128:
-    newBoundedChannelImpl[T, 128, 128, 128]()
-  elif capacity <= 256:
-    newBoundedChannelImpl[T, 256, 128, 128]()
-  elif capacity <= 512:
-    newBoundedChannelImpl[T, 512, 128, 128]()
   elif capacity <= 1024:
     newBoundedChannelImpl[T, 1024, 128, 128]()
-  elif capacity <= 2048:
-    newBoundedChannelImpl[T, 2048, 128, 128]()
-  elif capacity <= 4096:
-    newBoundedChannelImpl[T, 4096, 128, 128]()
-  elif capacity <= 8192:
-    newBoundedChannelImpl[T, 8192, 128, 128]()
-  elif capacity <= 16384:
-    newBoundedChannelImpl[T, 16384, 128, 128]()
-  elif capacity <= 32768:
-    newBoundedChannelImpl[T, 32768, 128, 128]()
   else:
     newBoundedChannelImpl[T, 65536, 128, 128]()
 
-proc newUnboundedChannel*[T](segmentSize: static int = 64): tuple[tx: Sender[T], rx: Receiver[T]] =
-  ## Creates an unbounded lock-free channel with static segment size.
+proc newChannel*[T, N: static int](): tuple[tx: Sender[T], rx: Receiver[T]] {.inline.} =
+  ## Alias for newBoundedChannel with exact static capacity N.
+  newBoundedChannel[T, N]()
+
+proc newChannel*[T](capacity: static int = 1024): tuple[tx: Sender[T], rx: Receiver[T]] {.inline.} =
+  ## Creates a bounded channel with static capacity (defaults to 1024).
+  newBoundedChannel[T](capacity)
+
+proc newChannel*[T](capacity: int): tuple[tx: Sender[T], rx: Receiver[T]] {.inline.} =
+  ## Creates a bounded channel with dynamic capacity coarse tiers (<= 64, <= 1024, else 65536).
+  newBoundedChannel[T](capacity)
+
+proc newUnboundedChannel*[T, S: static int](): tuple[tx: Sender[T], rx: Receiver[T]] {.inline.} =
+  ## Creates an unbounded lock-free channel with exact static segment size S.
+  newUnboundedChannelImpl[T, stEager, S, 128]()
+
+proc newUnboundedChannel*[T](segmentSize: static int = 64): tuple[tx: Sender[T], rx: Receiver[T]] {.inline.} =
+  ## Creates an unbounded lock-free channel with static segment size (defaults to 64).
   newUnboundedChannelImpl[T, stEager, segmentSize, 128]()
 
 proc newUnboundedChannel*[T](segmentSize: int): tuple[tx: Sender[T], rx: Receiver[T]] =
-  ## Creates an unbounded lock-free channel with dynamic segment size.
-  if segmentSize <= 16:
-    newUnboundedChannelImpl[T, stEager, 16, 128]()
-  elif segmentSize <= 32:
-    newUnboundedChannelImpl[T, stEager, 32, 128]()
-  elif segmentSize <= 64:
-    newUnboundedChannelImpl[T, stEager, 64, 128]()
-  elif segmentSize <= 128:
-    newUnboundedChannelImpl[T, stEager, 128, 128]()
-  elif segmentSize <= 256:
-    newUnboundedChannelImpl[T, stEager, 256, 128]()
-  else:
-    newUnboundedChannelImpl[T, stEager, 512, 128]()
+  ## Creates an unbounded lock-free channel with 1 standard tier (64).
+  discard segmentSize
+  newUnboundedChannelImpl[T, stEager, 64, 128]()
 
 proc newChannel*[T](config: ChannelConfig): tuple[tx: Sender[T], rx: Receiver[T]] =
   ## Creates a channel configured via `ChannelConfig`.
   case config.kind
   of ckBounded:
-    newChannel[T](if config.capacity > 0: config.capacity else: 1024)
+    newBoundedChannel[T](if config.capacity > 0: config.capacity else: 1024)
   of ckUnbounded:
     newUnboundedChannel[T](if config.segmentSize > 0: config.segmentSize else: 64)
 
+proc channel*[T, N: static int](): Channel[T] =
+  let tup = newBoundedChannel[T, N]()
+  Channel[T](tx: tup.tx, rx: tup.rx)
+
 proc channel*[T](capacity: static int = 1024): Channel[T] =
-  let tup = newChannel[T](capacity)
+  let tup = newBoundedChannel[T](capacity)
   Channel[T](tx: tup.tx, rx: tup.rx)
 
 proc channel*[T](capacity: int): Channel[T] =
-  let tup = newChannel[T](capacity)
+  let tup = newBoundedChannel[T](capacity)
   Channel[T](tx: tup.tx, rx: tup.rx)
 
 proc channel*[T](config: ChannelConfig): Channel[T] =
   let tup = newChannel[T](config)
+  Channel[T](tx: tup.tx, rx: tup.rx)
+
+proc unboundedChannel*[T, S: static int](): Channel[T] =
+  let tup = newUnboundedChannel[T, S]()
   Channel[T](tx: tup.tx, rx: tup.rx)
 
 proc unboundedChannel*[T](segmentSize: static int = 64): Channel[T] =

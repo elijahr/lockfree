@@ -50,7 +50,7 @@ suite "Channel Facade — Bounded Channels":
     check rx.isEmpty
 
   test "capacity saturation":
-    let (tx, rx) = newChannel[int](capacity = 16)
+    let (tx, rx) = newBoundedChannel[int, 16]()
     for i in 1 .. 16:
       check tx.send(i)
 

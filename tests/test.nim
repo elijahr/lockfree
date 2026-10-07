@@ -77,7 +77,6 @@ import ./compat/t_legacy_mupsic
 import ./compat/t_legacy_sipmuc
 import ./compat/t_legacy_mupmuc
 import ./compat/t_legacy_unbounded
-import ./t_channel
 import ./t_systems_opt
 
 # chronos adapter tests gated on chronos availability
@@ -120,7 +119,7 @@ export
   t_seq_char_dispose,
   t_compat_lockfreequeues, t_legacy_sipsic, t_legacy_mupsic,
   t_legacy_sipmuc, t_legacy_mupmuc, t_legacy_unbounded,
-  t_channel, t_systems_opt, t_batch_pop
+  t_systems_opt, t_batch_pop
 
 when (
   compiles do:
