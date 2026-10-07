@@ -530,6 +530,63 @@ proc pop*[T; ccProd: static PinScopeCardinality, N, P, C: static int](
   pathCAdmit(T)
   discard
 
+# --- SPSC and MPSC direct batch pop (on bare BQueue) ---------------------
+proc popBatch*[T; N: static int](
+    self: var BQueue[T, ccSingle, ccSingle, N, 0, 0],
+    dest: var openArray[T],
+    maxCount: int = -1
+): int =
+  ## SPSC direct batch pop into a caller-supplied buffer.
+  pathCAdmit(T)
+  let limit = if maxCount > 0: min(dest.len, maxCount) else: dest.len
+  if limit <= 0:
+    return 0
+  var count = 0
+  while count < limit:
+    var opt = self.pop()
+    if opt.isNone:
+      break
+    dest[count] = move(opt.get())
+    inc count
+  return count
+
+proc popBatch*[T; N, P: static int](
+    self: var BQueue[T, ccMulti, ccSingle, N, P, 0],
+    dest: var openArray[T],
+    maxCount: int = -1
+): int =
+  ## MPSC direct batch pop into a caller-supplied buffer.
+  pathCAdmit(T)
+  let limit = if maxCount > 0: min(dest.len, maxCount) else: dest.len
+  if limit <= 0:
+    return 0
+  var count = 0
+  while count < limit:
+    var opt = self.pop()
+    if opt.isNone:
+      break
+    dest[count] = move(opt.get())
+    inc count
+  return count
+
+proc popChunk*[T; N: static int](
+    self: var BQueue[T, ccSingle, ccSingle, N, 0, 0],
+    chunkSize: int
+): seq[T] =
+  if chunkSize <= 0: return @[]
+  result = newSeq[T](chunkSize)
+  let n = self.popBatch(result, chunkSize)
+  result.setLen(n)
+
+proc popChunk*[T; N, P: static int](
+    self: var BQueue[T, ccMulti, ccSingle, N, P, 0],
+    chunkSize: int
+): seq[T] =
+  if chunkSize <= 0: return @[]
+  result = newSeq[T](chunkSize)
+  let n = self.popBatch(result, chunkSize)
+  result.setLen(n)
+
 ## ----------------------------------------------------------------------
 ## Batch push / pop — `openArray` and `count`-style overloads.
 ##
@@ -913,6 +970,73 @@ proc pop*[T; Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag, N, P, C: sta
     none(seq[T])
   else:
     some(collected)
+
+proc popBatch*[
+    T;
+    Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag;
+    ccProd, ccCons: static PinScopeCardinality;
+    N, P, C: static int
+](
+    self: var Bound[T, Tag, BQueue[T, ccProd, ccCons, N, P, C]],
+    dest: var openArray[T],
+    maxCount: int = -1
+): int {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Multi-consumer BQueue batch pop into a caller-supplied openArray buffer.
+  ## Extracts up to `min(dest.len, maxCount)` items without allocating intermediate seqs.
+  ## Returns the number of items successfully extracted.
+  pathCAdmit(T)
+  let limit = if maxCount > 0: min(dest.len, maxCount) else: dest.len
+  if limit <= 0:
+    return 0
+  var count = 0
+  while count < limit:
+    var opt = self.pop()
+    if opt.isNone:
+      break
+    dest[count] = move(opt.get())
+    inc count
+  return count
+
+proc popBatch*[
+    T;
+    Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag;
+    ccProd, ccCons: static PinScopeCardinality;
+    N, P, C: static int
+](
+    self: Bound[T, Tag, BQueue[T, ccProd, ccCons, N, P, C]],
+    dest: var openArray[T],
+    maxCount: int = -1
+): int {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Multi-consumer BQueue batch pop (value-receiver overload).
+  var s = self
+  return s.popBatch(dest, maxCount)
+
+proc popChunk*[
+    T;
+    Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag;
+    ccProd, ccCons: static PinScopeCardinality;
+    N, P, C: static int
+](
+    self: var Bound[T, Tag, BQueue[T, ccProd, ccCons, N, P, C]],
+    chunkSize: int
+): seq[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Extracts a chunk of up to `chunkSize` items into a new seq[T].
+  if chunkSize <= 0: return @[]
+  result = newSeq[T](chunkSize)
+  let n = self.popBatch(result, chunkSize)
+  result.setLen(n)
+
+proc popChunk*[
+    T;
+    Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag;
+    ccProd, ccCons: static PinScopeCardinality;
+    N, P, C: static int
+](
+    self: Bound[T, Tag, BQueue[T, ccProd, ccCons, N, P, C]],
+    chunkSize: int
+): seq[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  var s = self
+  return s.popChunk(chunkSize)
 
 ## Same-thread shortcut helpers (`getProducerHere` / `getConsumerHere`)
 ## live in `endpoint.nim` next to `getProducer` / `getConsumer` so the
