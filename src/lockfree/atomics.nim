@@ -430,6 +430,20 @@ type Pair*[A, B] = object
   first* {.align: 16.}: A
   second*: B
 
+proc hasManagedFields*(T: typedesc): bool {.compileTime.} =
+  when compiles((var d: T; for _, v in d.fieldPairs: discard)):
+    var d: T
+    for _, v in d.fieldPairs:
+      when v is ref or v is string or v is seq:
+        return true
+      elif v is object or v is tuple:
+        when compiles((var d2: typeof(v); for _, v2 in d2.fieldPairs: discard)):
+          if hasManagedFields(typeof(v)):
+            return true
+    return false
+  else:
+    return false
+
 template enforceDwcasConstraints*(A, B: typedesc) =
   ## Gate 2 (Pair shape) + Gate 4 (lock-free) for `Atomic[Pair[A, B]]`.
   ##
@@ -461,7 +475,7 @@ template enforceDwcasConstraints*(A, B: typedesc) =
       )
     doAssert supportsCopyMem(A),
       "Pair half-type must be supportsCopyMem; " & $A & " is not"
-    doAssert supportsCopyMem(B),
+    doAssert supportsCopyMem(B) or (sizeof(B) <= 8 and not hasManagedFields(B)),
       "Pair half-type must be supportsCopyMem; " & $B & " is not"
   # Gate 4 (lock-free) is enforced inside the concrete dwcas* op
   # specializations (tasks 7-11) via the `_Static_assert` /
@@ -1520,8 +1534,7 @@ when sizeof(pointer) == 8:
     # taking its address is safe even when callers pass an rvalue
     # (e.g., `dwcasStore(a, makePair(...))`).
     let locPtr = addr loc.value
-    let desiredLocal = desired
-    let desiredPtr = addr desiredLocal
+    let desiredPtr = unsafeAddr desired
     # Backend dispatch (Option B): see `dwcasLoad` for rationale. Two arms
     # (gcc → __sync_*, clang/llvm_gcc → __atomic_*) cover both x86_64 and
     # aarch64 without library-call fallbacks. CPU pause hint inside the
@@ -1618,7 +1631,7 @@ when sizeof(pointer) == 8:
 
   proc store*[A, B](
       loc: var Atomic[Pair[A, B]],
-      desired: Pair[A, B],
+      desired: sink Pair[A, B],
       order: static MemoryOrder = moSequentiallyConsistent,
   ) {.inline.} =
     ## 16-byte atomic store via DWCAS substrate. Always seq_cst at the
@@ -1653,8 +1666,7 @@ when sizeof(pointer) == 8:
     # an rvalue (e.g., `dwcasExchange(a, makePair(...))`).
     let locPtr = addr loc.value
     let resultPtr = addr result
-    let desiredLocal = desired
-    let desiredPtr = addr desiredLocal
+    let desiredPtr = unsafeAddr desired
     # Backend dispatch (Option B): see `dwcasLoad` for rationale. CPU pause
     # hint inside gcc retry loop matches `dwcasStore`.
     when defined(gcc) and not defined(clang):
@@ -1724,7 +1736,7 @@ when sizeof(pointer) == 8:
 
   proc exchange*[A, B](
       loc: var Atomic[Pair[A, B]],
-      desired: Pair[A, B],
+      desired: sink Pair[A, B],
       order: static MemoryOrder = moSequentiallyConsistent,
   ): Pair[A, B] {.inline.} =
     ## 16-byte atomic exchange via DWCAS substrate. Atomically replaces the
@@ -1765,8 +1777,7 @@ when sizeof(pointer) == 8:
     # first so taking its address is safe even when callers pass an rvalue.
     let locPtr = addr loc.value
     let expectedPtr = addr expected
-    let desiredLocal = desired
-    let desiredPtr = addr desiredLocal
+    let desiredPtr = unsafeAddr desired
     # Backend dispatch (Option B): see `dwcasLoad` for rationale.
     when defined(gcc) and not defined(clang):
       {.
@@ -1821,7 +1832,7 @@ when sizeof(pointer) == 8:
   proc compareExchangeStrong*[A, B](
       loc: var Atomic[Pair[A, B]],
       expected: var Pair[A, B],
-      desired: Pair[A, B],
+      desired: sink Pair[A, B],
       success: static MemoryOrder,
       failure: static MemoryOrder,
   ): bool {.inline.} =
@@ -1857,7 +1868,7 @@ when sizeof(pointer) == 8:
   proc compareExchangeStrong*[A, B](
       loc: var Atomic[Pair[A, B]],
       expected: var Pair[A, B],
-      desired: Pair[A, B],
+      desired: sink Pair[A, B],
       order: static MemoryOrder,
   ): bool {.inline.} =
     ## Strong 16-byte CAS, single-order form. Failure order is derived
@@ -1876,7 +1887,7 @@ when sizeof(pointer) == 8:
     compareExchangeStrong(loc, expected, desired, order, casFailureFromSuccess(order))
 
   proc compareExchangeStrong*[A, B](
-      loc: var Atomic[Pair[A, B]], expected: var Pair[A, B], desired: Pair[A, B]
+      loc: var Atomic[Pair[A, B]], expected: var Pair[A, B], desired: sink Pair[A, B]
   ): bool {.inline.} =
     ## Strong 16-byte CAS, default-order form. Equivalent to passing
     ## `moSequentiallyConsistent` for both success and failure.
@@ -1921,8 +1932,7 @@ when sizeof(pointer) == 8:
     # first so taking its address is safe even when callers pass an rvalue.
     let locPtr = addr loc.value
     let expectedPtr = addr expected
-    let desiredLocal = desired
-    let desiredPtr = addr desiredLocal
+    let desiredPtr = unsafeAddr desired
     # Backend dispatch (Option B): see `dwcasLoad` for rationale. On the
     # gcc arm, `__sync_val_compare_and_swap` is always-strong on both
     # x86_64 (`cmpxchg16b`) and aarch64+LSE (`casp`), so the weak/strong
@@ -1980,7 +1990,7 @@ when sizeof(pointer) == 8:
   proc compareExchangeWeak*[A, B](
       loc: var Atomic[Pair[A, B]],
       expected: var Pair[A, B],
-      desired: Pair[A, B],
+      desired: sink Pair[A, B],
       success: static MemoryOrder,
       failure: static MemoryOrder,
   ): bool {.inline.} =
@@ -2019,7 +2029,7 @@ when sizeof(pointer) == 8:
   proc compareExchangeWeak*[A, B](
       loc: var Atomic[Pair[A, B]],
       expected: var Pair[A, B],
-      desired: Pair[A, B],
+      desired: sink Pair[A, B],
       order: static MemoryOrder,
   ): bool {.inline.} =
     ## Weak 16-byte CAS, single-order form. Failure order is derived
@@ -2038,7 +2048,7 @@ when sizeof(pointer) == 8:
     compareExchangeWeak(loc, expected, desired, order, casFailureFromSuccess(order))
 
   proc compareExchangeWeak*[A, B](
-      loc: var Atomic[Pair[A, B]], expected: var Pair[A, B], desired: Pair[A, B]
+      loc: var Atomic[Pair[A, B]], expected: var Pair[A, B], desired: sink Pair[A, B]
   ): bool {.inline.} =
     ## Weak 16-byte CAS, default-order form. Equivalent to passing
     ## `moSequentiallyConsistent` for both success and failure. Mirrors

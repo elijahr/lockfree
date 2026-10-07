@@ -198,9 +198,14 @@ proc tryPublish*[T](
   when compiles(value.isNil):
     doAssert not value.isNil,
       "Queue: cannot push nil for nullable T (Option transport restriction)"
-  let expected = Pair[uint, T](first: expectedSeq, second: default(T))
-  let desired = Pair[uint, T](first: expectedSeq + 1, second: value)
-  var prev = expected
+  var prev: Pair[uint, T]
+  prev.first = expectedSeq
+  var desired: Pair[uint, T]
+  desired.first = expectedSeq + 1
+  when compiles(desired.second = value):
+    desired.second = value
+  else:
+    copyMem(addr desired.second, unsafeAddr value, sizeof(T))
   # On CAS failure, debra writes the observed pair into `prev`; we don't
   # re-read it — escalation re-loads via fresh cell.load at the call site
   # (queue.nim push/pop). Required for the degenerate-R encoding.
@@ -214,23 +219,24 @@ proc tryClaim*[T](cell: var LCRQCell[T], expectedSeq: uint): Option[T] {.inline.
   ## encoding is the sole authority on cell state. A filled cell with
   ## payload `default(T)` (e.g. `q.push(0)`, `q.push(nil)`) is a
   ## legitimate publish and MUST be returned via `some(observed.second)`.
-  let observed = load(cell, moAcquire)
-  if observed.first != expectedSeq + 1:
+  var prev = load(cell, moAcquire)
+  if prev.first != expectedSeq + 1:
     return none(T)
-  let desired = Pair[uint, T](first: observed.first, second: default(T))
-  var prev = observed
+  var desired: Pair[uint, T]
+  desired.first = prev.first
   dwcasOrderRelaxedCAS:
     if compareExchangeStrong(cell, prev, desired, moAcquireRelease, moRelaxed):
-      return some(observed.second)
+      return some(move(prev.second))
   return none(T)
 
 proc tryCloseOnEmpty*[T](cell: var LCRQCell[T], expectedSeq: uint): bool {.inline.} =
   ## Consumer close-on-empty via DWCAS. Atomically sets
   ## `CLOSED_BIT` on an empty cell so no producer can later publish
   ## into it. Returns false if the cell is already filled or closed.
-  let expected = Pair[uint, T](first: expectedSeq, second: default(T))
-  let desired = Pair[uint, T](first: expectedSeq or CLOSED_BIT, second: default(T))
-  var prev = expected
+  var prev: Pair[uint, T]
+  prev.first = expectedSeq
+  var desired: Pair[uint, T]
+  desired.first = expectedSeq or CLOSED_BIT
   # On CAS failure, debra writes the observed pair into `prev`; we don't
   # re-read it — escalation re-loads via fresh cell.load at the call site
   # (queue.nim push/pop). Required for the degenerate-R encoding.
@@ -460,11 +466,12 @@ proc newSegment[T; ccProd, ccCons: static PinScopeCardinality, S: static int]():
     # using `T` directly compiles only when T is POD identity. For
     # ref / string / seq T the encoded form is ManagedRef /
     # ManagedSlice (distinct uint).
-    let zero = Pair[uint, SlotEncoding(T)](
-      first: 0'u, second: default(SlotEncoding(T))
-    )
     for i in 0 ..< S:
-      store(result.cells[i], zero, moRelaxed)
+      store(
+        result.cells[i],
+        Pair[uint, SlotEncoding(T)](first: 0'u, second: default(SlotEncoding(T))),
+        moRelaxed,
+      )
   elif ccProd == ccMulti:
     # MPSC: legacy committed flags init (unchanged).
     for i in 0 ..< S:
@@ -1873,9 +1880,9 @@ proc pop*[
       if seg.prevConsumerIdx.compareExchange(prevIdx, mySlot, moAcquire, moRelaxed):
         # cells hold LCRQCell[SlotEncoding(T)]; DWCAS extracts
         # the encoded form, which is decoded back to user-facing T.
-        let claimed = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
+        var claimed = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
         if claimed.isSome:
-          result = some(unwrapOrIdentity[T](claimed.get))
+          result = some(unwrapOrIdentity[T](move(claimed.get)))
           discard self.queue.itemCount.fetchSub(1, moRelaxed)
           break
         # tryClaim returned none. Distinguish via fresh acquire-load:
@@ -1983,9 +1990,9 @@ proc pop*[
             if inner.first != 0'u:
               # Producer published. Claim the value.
               # cells hold LCRQCell[SlotEncoding(T)]; decode.
-              let claimed = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
+              var claimed = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
               if claimed.isSome:
-                result = some(unwrapOrIdentity[T](claimed.get))
+                result = some(unwrapOrIdentity[T](move(claimed.get)))
                 discard self.queue.itemCount.fetchSub(1, moRelaxed)
                 when ST == stEager:
                   if h.advanceEvery(LockFreeQueuesAdvanceEvery):
