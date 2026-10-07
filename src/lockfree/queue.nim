@@ -2182,14 +2182,12 @@ proc popBatch*[
     type Handle = ThreadHandle[MgrT.MaxThreads, MgrT.CC]
     let h = Handle(idx: self.handleIdx, manager: mgr)
     var total = 0
-    block:
-      var scope = pinScope(unpinned(h))
-      while total < limit:
-        var opt = self.pop()
-        if opt.isNone:
-          break
-        dest[total] = move(opt.get())
-        inc total
+    while total < limit:
+      var opt = self.pop()
+      if opt.isNone:
+        break
+      dest[total] = move(opt.get())
+      inc total
     when ST == stEager:
       if h.advanceEvery(LockFreeQueuesAdvanceEvery):
         discard reclaimNow(h)
@@ -2202,14 +2200,12 @@ proc popBatch*[
     type Handle = ThreadHandle[MgrT.MaxThreads, MgrT.CC]
     let h = Handle(idx: self.handleIdx, manager: mgr)
     var total = 0
-    block:
-      var scope = pinScope(unpinned(h))
-      while total < limit:
-        var opt = self.pop()
-        if opt.isNone:
-          break
-        dest[total] = move(opt.get())
-        inc total
+    while total < limit:
+      var opt = self.pop()
+      if opt.isNone:
+        break
+      dest[total] = move(opt.get())
+      inc total
     when ST == stEager:
       if h.advanceEvery(LockFreeQueuesAdvanceEvery):
         discard reclaimNow(h)
@@ -2273,7 +2269,8 @@ proc popBatch*[
             var claimed = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
             if claimed.isSome:
               dest[totalPopped] = unwrapOrIdentity[T](move(claimed.get))
-              discard self.queue.itemCount.fetchSub(1, moRelaxed)
+              when not defined(lockfreeDisableItemCount):
+                discard self.queue.itemCount.fetchSub(1, moRelaxed)
               inc totalPopped
               continue
             let recheck = load(seg.cells[mySlot], moAcquire)
@@ -2308,7 +2305,8 @@ proc popBatch*[
                 var c = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
                 if c.isSome:
                   dest[totalPopped] = unwrapOrIdentity[T](move(c.get))
-                  discard self.queue.itemCount.fetchSub(1, moRelaxed)
+                  when not defined(lockfreeDisableItemCount):
+                    discard self.queue.itemCount.fetchSub(1, moRelaxed)
                   inc totalPopped
                   published = true
                   break
@@ -2323,12 +2321,13 @@ proc popBatch*[
           # k > 1: Amortized batch reservation!
           let newPrevIdx = prevIdx + k
           if seg.prevConsumerIdx.compareExchange(prevIdx, newPrevIdx, moAcquire, moRelaxed):
+            var batchClaimed = 0
             for slot in mySlot .. newPrevIdx:
               var claimed = tryClaim[SlotEncoding(T)](seg.cells[slot], 0'u)
               if claimed.isSome:
                 dest[totalPopped] = unwrapOrIdentity[T](move(claimed.get))
-                discard self.queue.itemCount.fetchSub(1, moRelaxed)
                 inc totalPopped
+                inc batchClaimed
               else:
                 let recheck = load(seg.cells[slot], moAcquire)
                 if not seqIsClosed(recheck.first):
@@ -2344,13 +2343,16 @@ proc popBatch*[
                       var c = tryClaim[SlotEncoding(T)](seg.cells[slot], 0'u)
                       if c.isSome:
                         dest[totalPopped] = unwrapOrIdentity[T](move(c.get))
-                        discard self.queue.itemCount.fetchSub(1, moRelaxed)
                         inc totalPopped
+                        inc batchClaimed
                         published = true
                         break
                     inc waitSpins
                   if not published:
                     discard tryCloseOnEmpty[SlotEncoding(T)](seg.cells[slot], 0'u)
+            when not defined(lockfreeDisableItemCount):
+              if batchClaimed > 0:
+                discard self.queue.itemCount.fetchSub(batchClaimed, moRelaxed)
             continue
           else:
             backoffOnRetry(spins)
