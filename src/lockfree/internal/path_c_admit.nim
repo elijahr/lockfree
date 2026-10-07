@@ -38,6 +38,20 @@
 
 import std/typetraits
 
+proc hasManagedFields*(T: typedesc): bool {.compileTime.} =
+  when compiles((var d: T; for _, v in d.fieldPairs: discard)):
+    var d: T
+    for _, v in d.fieldPairs:
+      when v is ref or v is string or v is seq:
+        return true
+      elif v is object or v is tuple:
+        when compiles((var d2: typeof(v); for _, v2 in d2.fieldPairs: discard)):
+          if hasManagedFields(typeof(v)):
+            return true
+    return false
+  else:
+    return false
+
 template pathCAdmit*(T: typedesc) =
   ## Static dispatch / admission gate for `Queue[T, ...]` and
   ## `BQueue[T, ...]` push, pop, drain entries.
@@ -85,13 +99,9 @@ template pathCAdmit*(T: typedesc) =
       "the lifecycle.".}
   # Value-type-with-managed-fields rejects.
   # These would silently leak if routed through any of the accept arms.
-  elif T is object and not supportsCopyMem(T):
+  # Types with custom `=copy {.error.}` but no managed fields are safe POD/value types.
+  elif (T is object or T is tuple) and hasManagedFields(T):
     {.error: "Queue item type '" & $T & "' is a value type containing " &
-      "managed fields (ref, string, or seq). Wrap in `ref " & $T & "` " &
-      "and pass the ref through the queue, or split the managed " &
-      "fields out and transport them separately.".}
-  elif T is tuple and not supportsCopyMem(T):
-    {.error: "Queue item type '" & $T & "' is a tuple containing " &
       "managed fields (ref, string, or seq). Wrap in `ref " & $T & "` " &
       "and pass the ref through the queue, or split the managed " &
       "fields out and transport them separately.".}
@@ -113,8 +123,8 @@ template pathCAdmit*(T: typedesc) =
   elif T is seq:
     discard
   # Accept rows 20-22 + plain POD — `ptr T`, `cstring`, `pointer`, and
-  # any plain POD that satisfies `supportsCopyMem`. Identity passthrough.
-  elif supportsCopyMem(T):
+  # any plain POD that satisfies `supportsCopyMem` or has no managed fields.
+  elif supportsCopyMem(T) or ((T is object or T is tuple) and not hasManagedFields(T)):
     discard
   # Unsupported fallback (default arm).
   else:
