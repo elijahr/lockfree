@@ -77,12 +77,8 @@ import ./compat/t_legacy_mupsic
 import ./compat/t_legacy_sipmuc
 import ./compat/t_legacy_mupmuc
 import ./compat/t_legacy_unbounded
-<<<<<<< HEAD
 import ./t_channel
-||||||| 29bc5fd
-=======
 import ./t_systems_opt
->>>>>>> strand/task-systems-opt
 
 # chronos adapter tests gated on chronos availability
 # (chronos is NOT in lockfree.nimble requires). When chronos

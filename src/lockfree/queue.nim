@@ -934,7 +934,7 @@ proc isEmpty*[
 ](self: var Queue[T, ccProd, ccCons, ST, S, MaxThreads]): bool {.inline.} =
   ## Returns true if the queue is empty (atomic snapshot).
   ## Checks if headSegment == tailSegment (and unconsumed slots).
-  when defined(lockfreeTrackItemCount):
+  when not defined(lockfreeDisableItemCount):
     if self.itemCount.load(moRelaxed) != 0:
       return false
   let head = self.headSegment.load(moAcquire)
@@ -994,7 +994,7 @@ proc pop*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
     if head < tail:
       let value = move(seg.data[head])
       seg.head = head + 1
-      when defined(lockfreeTrackItemCount):
+      when not defined(lockfreeDisableItemCount):
         discard self.itemCount.fetchSub(1, moRelaxed)
       # seg.data holds SlotEncoding(T).
       # Decode at the boundary so the returned Option[T] matches the
@@ -1330,7 +1330,7 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
     # data[] holds SlotEncoding(T); encode at the boundary.
     seg.data[tail] = wrapOrIdentity[T](item)
     seg.tail.store(tail + 1, moRelease)
-    when defined(lockfreeTrackItemCount):
+    when not defined(lockfreeDisableItemCount):
       discard self.queue.itemCount.fetchAdd(1, moRelaxed)
   elif ccProd == ccSingle and ccCons == ccMulti:
     # spmc-equiv — single producer, no pin.
@@ -1346,7 +1346,7 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
     # data[] holds SlotEncoding(T); encode at the boundary.
     seg.data[tail] = wrapOrIdentity[T](item)
     seg.tail.store(tail + 1, moRelease)
-    when defined(lockfreeTrackItemCount):
+    when not defined(lockfreeDisableItemCount):
       discard self.queue.itemCount.fetchAdd(1, moRelaxed)
   else:
     # ccProd == ccMulti — mpsc/mpmc-equiv: pin claim required.
@@ -1476,7 +1476,7 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
             else:
               seg.data[tail] = encoded
             seg.committed[tail].store(true, moRelease)
-          when defined(lockfreeTrackItemCount):
+          when not defined(lockfreeDisableItemCount):
             discard self.queue.itemCount.fetchAdd(1, moRelaxed)
           break
 
@@ -1525,7 +1525,7 @@ proc pop*[
         # data[] holds SlotEncoding(T); move out and decode.
         let encoded = move(seg.data[head])
         seg.head = head + 1
-        when defined(lockfreeTrackItemCount):
+        when not defined(lockfreeDisableItemCount):
           discard self.queue.itemCount.fetchSub(1, moRelaxed)
         return some(unwrapOrIdentity[T](encoded))
       let nextSeg = seg.next.load(moAcquire)
@@ -1555,7 +1555,7 @@ proc pop*[
             # data[] holds SlotEncoding(T); decode on the way out.
             result = some(unwrapOrIdentity[T](move(seg.data[seg.head])))
             inc seg.head
-            when defined(lockfreeTrackItemCount):
+            when not defined(lockfreeDisableItemCount):
               discard self.queue.itemCount.fetchSub(1, moRelaxed)
           # Deliberate transient-empty return: when `head < tail` but the
           # committed flag at `head` is not yet visible, a producer has
@@ -1703,7 +1703,7 @@ proc pop*[
       if seg.prevConsumerIdx.compareExchange(prevIdx, mySlot, moAcquire, moRelaxed):
         # data[] holds SlotEncoding(T); decode on the way out.
         result = some(unwrapOrIdentity[T](move(seg.data[mySlot])))
-        when defined(lockfreeTrackItemCount):
+        when not defined(lockfreeDisableItemCount):
           discard self.queue.itemCount.fetchSub(1, moRelaxed)
         break
 
@@ -1925,7 +1925,7 @@ proc pop*[
         var claimed = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
         if claimed.isSome:
           result = some(unwrapOrIdentity[T](move(claimed.get)))
-          when defined(lockfreeTrackItemCount):
+          when not defined(lockfreeDisableItemCount):
             discard self.queue.itemCount.fetchSub(1, moRelaxed)
           break
         # tryClaim returned none. Distinguish via fresh acquire-load:
@@ -2036,7 +2036,7 @@ proc pop*[
               var claimed = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
               if claimed.isSome:
                 result = some(unwrapOrIdentity[T](move(claimed.get)))
-                when defined(lockfreeTrackItemCount):
+                when not defined(lockfreeDisableItemCount):
                   discard self.queue.itemCount.fetchSub(1, moRelaxed)
                 when ST == stEager:
                   if h.advanceEvery(LockFreeQueuesAdvanceEvery):
