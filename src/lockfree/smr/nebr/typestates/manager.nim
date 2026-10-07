@@ -63,7 +63,7 @@ proc initialize*[MaxThreads: static int, CC: static PinScopeCardinality](
 
 proc shutdown*[MaxThreads: static int, CC: static PinScopeCardinality](
     m: sink ManagerReady[MaxThreads, CC]
-): ManagerShutdown[MaxThreads, CC] {.transition.} =
+): ManagerShutdown[MaxThreads, CC] {.transition, skipCfgAnalysis.} =
   ## Shutdown manager. Reclaims all remaining limbo bags.
   let ctx = ManagerContext[MaxThreads, CC](m)
   let mgr = ctx.manager
