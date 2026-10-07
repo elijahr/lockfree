@@ -70,6 +70,7 @@ import ./composition/t_verify_pop_clears_spmc_unbounded
 import ./composition/t_verify_pop_clears_mpmc_unbounded
 
 import ./t_wraparound
+import ./t_batch_pop
 import ./t_compat_lockfreequeues
 import ./compat/t_legacy_sipsic
 import ./compat/t_legacy_mupsic
@@ -123,7 +124,7 @@ export
   t_seq_char_dispose,
   t_compat_lockfreequeues, t_legacy_sipsic, t_legacy_mupsic,
   t_legacy_sipmuc, t_legacy_mupmuc, t_legacy_unbounded,
-  t_channel, t_systems_opt
+  t_channel, t_systems_opt, t_batch_pop
 
 when (
   compiles do:

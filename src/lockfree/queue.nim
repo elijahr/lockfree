@@ -2140,6 +2140,270 @@ proc pop*[
   else:
     some(items)
 
+# --- Batch pop via openArray (zero-allocation) for Queue ------------------
+
+proc popBatch*[
+    T;
+    Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag;
+    ccProd, ccCons: static PinScopeCardinality;
+    ST: static DeallocationStrategy;
+    S, MaxThreads: static int
+](
+    self: var Bound[T, Tag, Queue[T, ccProd, ccCons, ST, S, MaxThreads]],
+    dest: var openArray[T],
+    maxCount: int = -1
+): int {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Batch pop for Queue into caller-supplied buffer `dest`.
+  ## For MPMC strict-LCRQ, amortizes slot reservations on `prevConsumerIdx`
+  ## via atomic slot advance and runs SMR epoch advancement once for the entire batch.
+  pathCAdmit(T)
+  when defined(debug):
+    assert self.attachedTid == getThreadId(), "pop from wrong thread"
+
+  let limit = if maxCount > 0: min(dest.len, maxCount) else: dest.len
+  if limit <= 0:
+    return 0
+
+  when ccCons == ccSingle and ccProd == ccSingle:
+    # SPSC absorbed arm: debra-free, no atomic CAS needed for consumer.
+    var total = 0
+    while total < limit:
+      var opt = self.pop()
+      if opt.isNone:
+        break
+      dest[total] = move(opt.get())
+      inc total
+    return total
+
+  elif ccCons == ccSingle:
+    # MPSC single consumer arm:
+    type MgrT = typeof(self.queue.manager[])
+    let mgr = cast[ptr MgrT](self.handleManager)
+    type Handle = ThreadHandle[MgrT.MaxThreads, MgrT.CC]
+    let h = Handle(idx: self.handleIdx, manager: mgr)
+    var total = 0
+    block:
+      var scope = pinScope(unpinned(h))
+      while total < limit:
+        var opt = self.pop()
+        if opt.isNone:
+          break
+        dest[total] = move(opt.get())
+        inc total
+    when ST == stEager:
+      if h.advanceEvery(LockFreeQueuesAdvanceEvery):
+        discard reclaimNow(h)
+    return total
+
+  elif ccProd == ccSingle and ccCons == ccMulti:
+    # SPMC multi consumer arm:
+    type MgrT = typeof(self.queue.manager[])
+    let mgr = cast[ptr MgrT](self.handleManager)
+    type Handle = ThreadHandle[MgrT.MaxThreads, MgrT.CC]
+    let h = Handle(idx: self.handleIdx, manager: mgr)
+    var total = 0
+    block:
+      var scope = pinScope(unpinned(h))
+      while total < limit:
+        var opt = self.pop()
+        if opt.isNone:
+          break
+        dest[total] = move(opt.get())
+        inc total
+    when ST == stEager:
+      if h.advanceEvery(LockFreeQueuesAdvanceEvery):
+        discard reclaimNow(h)
+    return total
+
+  else:
+    # MPMC (ccMulti × ccMulti) strict-LCRQ:
+    type MgrT = typeof(self.queue.manager[])
+    let mgr = cast[ptr MgrT](self.handleManager)
+    type Handle = ThreadHandle[MgrT.MaxThreads, MgrT.CC]
+    let h = Handle(idx: self.handleIdx, manager: mgr)
+
+    var totalPopped = 0
+    block:
+      var scope = pinScope(unpinned(h))
+      var seg = self.queue.headSegment.load(moAcquire)
+      var spins = InitialSpin
+      var closesSeenThisSegment = 0
+
+      while totalPopped < limit:
+        let tail = seg.tail.load(moAcquire)
+        var prevIdx = seg.prevConsumerIdx.load(moAcquire)
+        var mySlot = prevIdx + 1
+
+        if mySlot >= tail:
+          let nextSeg = seg.next.load(moAcquire)
+          if nextSeg == nil:
+            break
+
+          let curPrevIdx = seg.prevConsumerIdx.load(moAcquire)
+          let forecloseFrom = max(curPrevIdx + 1, 0)
+          if not forecloseSegmentForRetire[T, S](seg, forecloseFrom):
+            backoffOnRetry(spins)
+            continue
+
+          if self.queue[].retireOnCAS(
+            scope,
+            self.queue.headSegment,
+            seg,
+            nextSeg,
+            segmentDestructor[T, ccMulti, ccMulti, S],
+          ):
+            when ST != stManual:
+              discard self.queue.segments.fetchSub(1, moRelaxed)
+            seg = nextSeg
+            closesSeenThisSegment = 0
+            spins = InitialSpin
+          else:
+            seg = self.queue.headSegment.load(moAcquire)
+            closesSeenThisSegment = 0
+            spins = InitialSpin
+          backoffOnRetry(spins)
+          continue
+
+        let availInSeg = max(0, min(tail, S) - mySlot)
+        let needed = limit - totalPopped
+        let k = min(availInSeg, needed)
+
+        if k <= 1:
+          if seg.prevConsumerIdx.compareExchange(prevIdx, mySlot, moAcquire, moRelaxed):
+            var claimed = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
+            if claimed.isSome:
+              dest[totalPopped] = unwrapOrIdentity[T](move(claimed.get))
+              discard self.queue.itemCount.fetchSub(1, moRelaxed)
+              inc totalPopped
+              continue
+            let recheck = load(seg.cells[mySlot], moAcquire)
+            if seqIsClosed(recheck.first):
+              inc closesSeenThisSegment
+              if closesSeenThisSegment >= S:
+                let nextSeg = seg.next.load(moAcquire)
+                if nextSeg != nil and forecloseSegmentForRetire[T, S](seg, mySlot + 1):
+                  if self.queue[].retireOnCAS(
+                    scope,
+                    self.queue.headSegment,
+                    seg,
+                    nextSeg,
+                    segmentDestructor[T, ccMulti, ccMulti, S],
+                  ):
+                    when ST != stManual:
+                      discard self.queue.segments.fetchSub(1, moRelaxed)
+                    seg = nextSeg
+                    closesSeenThisSegment = 0
+                    spins = InitialSpin
+              backoffOnRetry(spins)
+              continue
+            var waitSpins = 0
+            var waitBackoff = InitialSpin
+            var published = false
+            while waitSpins < LockFreeQueuesMaxWaitForPublishSpins:
+              backoffOnRetry(waitBackoff)
+              let inner = load(seg.cells[mySlot], moAcquire)
+              if seqIsClosed(inner.first):
+                break
+              if inner.first != 0'u:
+                var c = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
+                if c.isSome:
+                  dest[totalPopped] = unwrapOrIdentity[T](move(c.get))
+                  discard self.queue.itemCount.fetchSub(1, moRelaxed)
+                  inc totalPopped
+                  published = true
+                  break
+              inc waitSpins
+            if not published:
+              discard tryCloseOnEmpty[SlotEncoding(T)](seg.cells[mySlot], 0'u)
+            continue
+          else:
+            backoffOnRetry(spins)
+            continue
+        else:
+          # k > 1: Amortized batch reservation!
+          let newPrevIdx = prevIdx + k
+          if seg.prevConsumerIdx.compareExchange(prevIdx, newPrevIdx, moAcquire, moRelaxed):
+            for slot in mySlot .. newPrevIdx:
+              var claimed = tryClaim[SlotEncoding(T)](seg.cells[slot], 0'u)
+              if claimed.isSome:
+                dest[totalPopped] = unwrapOrIdentity[T](move(claimed.get))
+                discard self.queue.itemCount.fetchSub(1, moRelaxed)
+                inc totalPopped
+              else:
+                let recheck = load(seg.cells[slot], moAcquire)
+                if not seqIsClosed(recheck.first):
+                  var waitSpins = 0
+                  var waitBackoff = InitialSpin
+                  var published = false
+                  while waitSpins < LockFreeQueuesMaxWaitForPublishSpins:
+                    backoffOnRetry(waitBackoff)
+                    let inner = load(seg.cells[slot], moAcquire)
+                    if seqIsClosed(inner.first):
+                      break
+                    if inner.first != 0'u:
+                      var c = tryClaim[SlotEncoding(T)](seg.cells[slot], 0'u)
+                      if c.isSome:
+                        dest[totalPopped] = unwrapOrIdentity[T](move(c.get))
+                        discard self.queue.itemCount.fetchSub(1, moRelaxed)
+                        inc totalPopped
+                        published = true
+                        break
+                    inc waitSpins
+                  if not published:
+                    discard tryCloseOnEmpty[SlotEncoding(T)](seg.cells[slot], 0'u)
+            continue
+          else:
+            backoffOnRetry(spins)
+            continue
+
+    when ST == stEager:
+      if h.advanceEvery(LockFreeQueuesAdvanceEvery):
+        discard reclaimNow(h)
+
+    return totalPopped
+
+proc popBatch*[
+    T;
+    Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag;
+    ccProd, ccCons: static PinScopeCardinality;
+    ST: static DeallocationStrategy;
+    S, MaxThreads: static int
+](
+    self: Bound[T, Tag, Queue[T, ccProd, ccCons, ST, S, MaxThreads]],
+    dest: var openArray[T],
+    maxCount: int = -1
+): int {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  var s = self
+  return s.popBatch(dest, maxCount)
+
+proc popChunk*[
+    T;
+    Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag;
+    ccProd, ccCons: static PinScopeCardinality;
+    ST: static DeallocationStrategy;
+    S, MaxThreads: static int
+](
+    self: var Bound[T, Tag, Queue[T, ccProd, ccCons, ST, S, MaxThreads]],
+    chunkSize: int
+): seq[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  if chunkSize <= 0: return @[]
+  result = newSeq[T](chunkSize)
+  let n = self.popBatch(result, chunkSize)
+  result.setLen(n)
+
+proc popChunk*[
+    T;
+    Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag;
+    ccProd, ccCons: static PinScopeCardinality;
+    ST: static DeallocationStrategy;
+    S, MaxThreads: static int
+](
+    self: Bound[T, Tag, Queue[T, ccProd, ccCons, ST, S, MaxThreads]],
+    chunkSize: int
+): seq[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  var s = self
+  return s.popChunk(chunkSize)
+
 ## Same-thread shortcut helpers (`getProducerHere` / `getConsumerHere`)
 ## and `bindConsumer` live in `endpoint.nim` next to `getProducer` /
 ## `getConsumer` so the templates bind against the endpoint module's
