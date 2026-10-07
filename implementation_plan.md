@@ -134,9 +134,15 @@ All feature and refactoring tracks execute in isolated Rift / Git-worktree stran
 ---
 
 ### Phase 5: Concurrency Sanity & Production Release Gate
-- [ ] **Task 5.1: High-Volume Stress Suite Verification** (`auditor-pegasus`)
-  - *Action*: Run `nimble testStress` (100k messages under ORC and ARC).
-  - *Verification*: Clean pass with zero deadlocks or dropped items.
+- [x] **Task 5.1: High-Volume Stress Suite Verification & TSAN/ASAN Matrix** (`stress-lynx` / `auditor-pegasus`)
+  - *Strand*: `strand/stress-tsan-matrix`
+  - *Action*: Implemented comprehensive 100k unbounded stress test suite covering SPSC, MPSC, SPMC, and MPMC (Strict-LCRQ + NEBR epoch reclamation). Resolved Darwin consumer thread starvation under TSAN via `cpuPause()` and fixed Bound SPSC segment leak via `freeAligned(oldSeg)`.
+  - *Verification*:
+    - C (`-d:release`): 21/21 OK (0.39s)
+    - ThreadSanitizer (`-fsanitize=thread -d:release`): 21/21 OK (3.95s, zero data races)
+    - AddressSanitizer (`-fsanitize=address,undefined -d:release`): 21/21 OK (0.77s, zero memory errors)
+    - C++ (`cpp -d:release`): 21/21 OK (0.41s)
+  - *Weave*: Woven into `main` (`e3a1b79`).
 
 - [ ] **Task 5.2: Full Multi-Backend Matrix & Two-Key Clearance** (`orchestrator-whipbird`)
   - *Action*: Execute `nimble test` (C, C++, ARC, ORC, REFC), `nimble should_fail`, and `nimble benchtests`.
