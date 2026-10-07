@@ -3,12 +3,11 @@
 const
   DefaultMaxThreads* = 64 ## Default maximum number of threads that can be registered.
 
-  CacheLineBytes* {.intdefine.}: int = 64
+  DefaultCacheLineBytes* = when (defined(macosx) and defined(arm64)) or defined(powerpc): 128 else: 64
+  CacheLineBytes* {.intdefine.}: int = DefaultCacheLineBytes
     ## Cache line size for alignment to prevent false sharing. Defaults to
-    ## 64 (x86_64, AArch64). Override with `-d:CacheLineBytes=128` on
-    ## Apple Silicon, PowerPC, or any target where the L1 cache line is
-    ## wider, otherwise the per-slot padding in `ThreadState` will not
-    ## actually separate adjacent slots into distinct cache lines.
+    ## 128 on Apple Silicon (macOS ARM64) and PowerPC, and 64 on x86_64 and standard AArch64.
+    ## Override with `-d:CacheLineBytes=64` or `-d:CacheLineBytes=128`.
 
 when defined(windows):
   # Windows has no analog of SIGUSR1; the neutralization protocol uses

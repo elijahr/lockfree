@@ -23,6 +23,7 @@
 import ../managed_ref
 import ../managed_slice
 import ./slot_encoding
+import std/typetraits
 
 template wrapOrIdentity*[T](item: sink T): auto =
   ## Encode a user-facing ``T`` into its ``SlotEncoding(T)`` form.
@@ -143,5 +144,7 @@ template disposeSlotEncoded*[T](encoded: SlotEncoding(T)) =
     # string ``disposeSlot`` and run the StringBox destructor over a
     # SeqBox. See managed_slice.nim.
     disposeSeqSlot(encoded)
+  elif not supportsCopyMem(T):
+    reset(encoded)
   else:
     discard

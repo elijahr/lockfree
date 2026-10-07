@@ -1631,7 +1631,7 @@ when sizeof(pointer) == 8:
 
   proc store*[A, B](
       loc: var Atomic[Pair[A, B]],
-      desired: sink Pair[A, B],
+      desired: Pair[A, B],
       order: static MemoryOrder = moSequentiallyConsistent,
   ) {.inline.} =
     ## 16-byte atomic store via DWCAS substrate. Always seq_cst at the
@@ -1736,7 +1736,7 @@ when sizeof(pointer) == 8:
 
   proc exchange*[A, B](
       loc: var Atomic[Pair[A, B]],
-      desired: sink Pair[A, B],
+      desired: Pair[A, B],
       order: static MemoryOrder = moSequentiallyConsistent,
   ): Pair[A, B] {.inline.} =
     ## 16-byte atomic exchange via DWCAS substrate. Atomically replaces the
@@ -1832,7 +1832,7 @@ when sizeof(pointer) == 8:
   proc compareExchangeStrong*[A, B](
       loc: var Atomic[Pair[A, B]],
       expected: var Pair[A, B],
-      desired: sink Pair[A, B],
+      desired: Pair[A, B],
       success: static MemoryOrder,
       failure: static MemoryOrder,
   ): bool {.inline.} =
@@ -1868,7 +1868,7 @@ when sizeof(pointer) == 8:
   proc compareExchangeStrong*[A, B](
       loc: var Atomic[Pair[A, B]],
       expected: var Pair[A, B],
-      desired: sink Pair[A, B],
+      desired: Pair[A, B],
       order: static MemoryOrder,
   ): bool {.inline.} =
     ## Strong 16-byte CAS, single-order form. Failure order is derived
@@ -1887,7 +1887,7 @@ when sizeof(pointer) == 8:
     compareExchangeStrong(loc, expected, desired, order, casFailureFromSuccess(order))
 
   proc compareExchangeStrong*[A, B](
-      loc: var Atomic[Pair[A, B]], expected: var Pair[A, B], desired: sink Pair[A, B]
+      loc: var Atomic[Pair[A, B]], expected: var Pair[A, B], desired: Pair[A, B]
   ): bool {.inline.} =
     ## Strong 16-byte CAS, default-order form. Equivalent to passing
     ## `moSequentiallyConsistent` for both success and failure.
@@ -1990,7 +1990,7 @@ when sizeof(pointer) == 8:
   proc compareExchangeWeak*[A, B](
       loc: var Atomic[Pair[A, B]],
       expected: var Pair[A, B],
-      desired: sink Pair[A, B],
+      desired: Pair[A, B],
       success: static MemoryOrder,
       failure: static MemoryOrder,
   ): bool {.inline.} =
@@ -2029,7 +2029,7 @@ when sizeof(pointer) == 8:
   proc compareExchangeWeak*[A, B](
       loc: var Atomic[Pair[A, B]],
       expected: var Pair[A, B],
-      desired: sink Pair[A, B],
+      desired: Pair[A, B],
       order: static MemoryOrder,
   ): bool {.inline.} =
     ## Weak 16-byte CAS, single-order form. Failure order is derived
@@ -2048,7 +2048,7 @@ when sizeof(pointer) == 8:
     compareExchangeWeak(loc, expected, desired, order, casFailureFromSuccess(order))
 
   proc compareExchangeWeak*[A, B](
-      loc: var Atomic[Pair[A, B]], expected: var Pair[A, B], desired: sink Pair[A, B]
+      loc: var Atomic[Pair[A, B]], expected: var Pair[A, B], desired: Pair[A, B]
   ): bool {.inline.} =
     ## Weak 16-byte CAS, default-order form. Equivalent to passing
     ## `moSequentiallyConsistent` for both success and failure. Mirrors
