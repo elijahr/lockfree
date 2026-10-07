@@ -70,6 +70,13 @@ import ./composition/t_verify_pop_clears_mpmc_unbounded
 
 import ./t_wraparound
 
+import ./t_compat_lockfreequeues
+import ./compat/t_legacy_sipsic
+import ./compat/t_legacy_mupsic
+import ./compat/t_legacy_sipmuc
+import ./compat/t_legacy_mupmuc
+import ./compat/t_legacy_unbounded
+
 # chronos adapter tests gated on chronos availability
 # (chronos is NOT in lockfree.nimble requires). When chronos
 # is on the Nim search path, the suite participates in the aggregator;
@@ -107,7 +114,9 @@ export
   t_verify_pop_clears_mpmc_bounded, t_verify_pop_clears_spsc_unbounded,
   t_verify_pop_clears_mpsc_unbounded, t_verify_pop_clears_spmc_unbounded,
   t_verify_pop_clears_mpmc_unbounded, t_refcount_use_patterns,
-  t_seq_char_dispose
+  t_seq_char_dispose,
+  t_compat_lockfreequeues, t_legacy_sipsic, t_legacy_mupsic,
+  t_legacy_sipmuc, t_legacy_mupmuc, t_legacy_unbounded
 
 when (
   compiles do:
