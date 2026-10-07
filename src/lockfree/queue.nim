@@ -211,6 +211,9 @@ proc tryPublish*[T](
   # (queue.nim push/pop). Required for the degenerate-R encoding.
   dwcasOrderRelaxedCAS:
     result = compareExchangeStrong(cell, prev, desired, moRelease, moRelaxed)
+  when not supportsCopyMem(T):
+    wasMoved(desired.second)
+    wasMoved(prev.second)
 
 proc tryClaim*[T](cell: var LCRQCell[T], expectedSeq: uint): Option[T] {.inline.} =
   ## Consumer claim via DWCAS.
@@ -221,12 +224,19 @@ proc tryClaim*[T](cell: var LCRQCell[T], expectedSeq: uint): Option[T] {.inline.
   ## legitimate publish and MUST be returned via `some(observed.second)`.
   var prev = load(cell, moAcquire)
   if prev.first != expectedSeq + 1:
+    when not supportsCopyMem(T):
+      wasMoved(prev.second)
     return none(T)
   var desired: Pair[uint, T]
   desired.first = prev.first
   dwcasOrderRelaxedCAS:
     if compareExchangeStrong(cell, prev, desired, moAcquireRelease, moRelaxed):
+      when not supportsCopyMem(T):
+        wasMoved(desired.second)
       return some(move(prev.second))
+  when not supportsCopyMem(T):
+    wasMoved(prev.second)
+    wasMoved(desired.second)
   return none(T)
 
 proc tryCloseOnEmpty*[T](cell: var LCRQCell[T], expectedSeq: uint): bool {.inline.} =
@@ -242,6 +252,9 @@ proc tryCloseOnEmpty*[T](cell: var LCRQCell[T], expectedSeq: uint): bool {.inlin
   # (queue.nim push/pop). Required for the degenerate-R encoding.
   dwcasOrderRelaxedCAS:
     result = compareExchangeStrong(cell, prev, desired, moRelease, moRelaxed)
+  when not supportsCopyMem(T):
+    wasMoved(prev.second)
+    wasMoved(desired.second)
 
 ## ----------------------------------------------------------------------
 ## Middle-axis Lifecycle typestate.
@@ -642,15 +655,15 @@ proc segmentDestructor[T; ccProd, ccCons: static PinScopeCardinality, S: static 
       # cleanup path; pop is a pure transfer).
       # For POD T the outer `when not supportsCopyMem(T)` arm does not
       # fire, so this branch is reachable only for ref / string / seq.
-      when T is ref or T is string or T is seq:
+      when (T is ref or T is string or T is seq) or not supportsCopyMem(T):
         for i in 0 ..< S:
-          let cellPair = load(seg.cells[i], moRelaxed)
+          var cellPair = load(seg.cells[i], moRelaxed)
           # Disposing on a zero-bits slot (never published or already
           # claimed) is a no-op per disposeSlotEncoded contract.
           disposeSlotEncoded[T](cellPair.second)
     elif ccProd == ccMulti:
       # MPSC: legacy committed+data overlay; data holds SlotEncoding(T).
-      when T is ref or T is string or T is seq:
+      when (T is ref or T is string or T is seq) or not supportsCopyMem(T):
         for i in 0 ..< S:
           disposeSlotEncoded[T](seg.data[i])
       else:
@@ -658,7 +671,7 @@ proc segmentDestructor[T; ccProd, ccCons: static PinScopeCardinality, S: static 
           reset(seg.data[i])
     else:
       # SPSC + SPMC: data holds SlotEncoding(T).
-      when T is ref or T is string or T is seq:
+      when (T is ref or T is string or T is seq) or not supportsCopyMem(T):
         for i in 0 ..< S:
           disposeSlotEncoded[T](seg.data[i])
       else:
@@ -914,6 +927,31 @@ proc segmentCount*[
   ## Number of segments currently allocated (atomic snapshot).
   result = self.segments.load(moRelaxed)
 
+proc isEmpty*[
+    T;
+    ccProd, ccCons: static PinScopeCardinality,
+    ST: static DeallocationStrategy,
+    S, MaxThreads: static int,
+](self: var Queue[T, ccProd, ccCons, ST, S, MaxThreads]): bool {.inline.} =
+  ## Returns true if the queue is empty (atomic snapshot).
+  ## Checks if headSegment == tailSegment (and unconsumed slots).
+  when defined(lockfreeTrackItemCount):
+    if self.itemCount.load(moRelaxed) != 0:
+      return false
+  let head = self.headSegment.load(moAcquire)
+  let tail = self.tailSegment.load(moAcquire)
+  if head != tail:
+    return false
+  if head == nil:
+    return true
+  when ccCons == ccSingle:
+    head.head >= head.tail.load(moAcquire)
+  else:
+    let t = head.tail.load(moAcquire)
+    let c = head.prevConsumerIdx.load(moAcquire)
+    (c + 1) >= t or t == 0
+
+
 ## ----------------------------------------------------------------------
 ## Push body — single-item.
 ##
@@ -957,7 +995,8 @@ proc pop*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
     if head < tail:
       let value = move(seg.data[head])
       seg.head = head + 1
-      discard self.itemCount.fetchSub(1, moRelaxed)
+      when defined(lockfreeTrackItemCount):
+        discard self.itemCount.fetchSub(1, moRelaxed)
       # seg.data holds SlotEncoding(T).
       # Decode at the boundary so the returned Option[T] matches the
       # user-facing type. Legacy body returned `some(value)` directly,
@@ -1106,14 +1145,14 @@ proc `=destroy`*[
         # destroy-walk is the ONLY library-managed cleanup
         # path (pop is a pure transfer; abandoned items are caught
         # here).
-        when T is ref or T is string or T is seq:
+        when (T is ref or T is string or T is seq) or not supportsCopyMem(T):
           for i in 0 ..< S:
-            let cellPair = load(seg.cells[i], moRelaxed)
+            var cellPair = load(seg.cells[i], moRelaxed)
             disposeSlotEncoded[T](cellPair.second)
       elif ccProd == ccMulti:
         # MPSC: legacy committed+data overlay; data holds
         # SlotEncoding(T).
-        when T is ref or T is string or T is seq:
+        when (T is ref or T is string or T is seq) or not supportsCopyMem(T):
           for i in 0 ..< S:
             disposeSlotEncoded[T](seg.data[i])
         else:
@@ -1121,7 +1160,7 @@ proc `=destroy`*[
             reset(seg.data[i])
       else:
         # SPSC + SPMC: data holds SlotEncoding(T).
-        when T is ref or T is string or T is seq:
+        when (T is ref or T is string or T is seq) or not supportsCopyMem(T):
           for i in 0 ..< S:
             disposeSlotEncoded[T](seg.data[i])
         else:
@@ -1303,7 +1342,8 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
     # data[] holds SlotEncoding(T); encode at the boundary.
     seg.data[tail] = wrapOrIdentity[T](item)
     seg.tail.store(tail + 1, moRelease)
-    discard self.queue.itemCount.fetchAdd(1, moRelaxed)
+    when defined(lockfreeTrackItemCount):
+      discard self.queue.itemCount.fetchAdd(1, moRelaxed)
   elif ccProd == ccSingle and ccCons == ccMulti:
     # spmc-equiv — single producer, no pin.
     var seg = self.queue.tailSegment.load(moRelaxed)
@@ -1318,7 +1358,8 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
     # data[] holds SlotEncoding(T); encode at the boundary.
     seg.data[tail] = wrapOrIdentity[T](item)
     seg.tail.store(tail + 1, moRelease)
-    discard self.queue.itemCount.fetchAdd(1, moRelaxed)
+    when defined(lockfreeTrackItemCount):
+      discard self.queue.itemCount.fetchAdd(1, moRelaxed)
   else:
     # ccProd == ccMulti — mpsc/mpmc-equiv: pin claim required.
     type MgrT = typeof(self.queue.manager[])
@@ -1431,6 +1472,9 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
               # transition). Defensive fall-through: retry outer
               # loop.
               continue
+            else:
+              when not supportsCopyMem(SlotEncoding(T)):
+                wasMoved(encoded)
           else:
             # MPSC: committed+data publish. data holds
             # SlotEncoding(T); store the encoded form. The MPSC retry
@@ -1439,9 +1483,13 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
             # publish path and runs exactly once per push call. (The
             # MPSC retry happens at the `continue` near the tail-CAS,
             # not after publish.)
-            seg.data[tail] = encoded
+            when not supportsCopyMem(SlotEncoding(T)):
+              seg.data[tail] = move(encoded)
+            else:
+              seg.data[tail] = encoded
             seg.committed[tail].store(true, moRelease)
-          discard self.queue.itemCount.fetchAdd(1, moRelaxed)
+          when defined(lockfreeTrackItemCount):
+            discard self.queue.itemCount.fetchAdd(1, moRelaxed)
           break
 
 proc push*[
@@ -1489,7 +1537,8 @@ proc pop*[
         # data[] holds SlotEncoding(T); move out and decode.
         let encoded = move(seg.data[head])
         seg.head = head + 1
-        discard self.queue.itemCount.fetchSub(1, moRelaxed)
+        when defined(lockfreeTrackItemCount):
+          discard self.queue.itemCount.fetchSub(1, moRelaxed)
         return some(unwrapOrIdentity[T](encoded))
       let nextSeg = seg.next.load(moAcquire)
       if nextSeg == nil:
@@ -1518,7 +1567,8 @@ proc pop*[
             # data[] holds SlotEncoding(T); decode on the way out.
             result = some(unwrapOrIdentity[T](move(seg.data[seg.head])))
             inc seg.head
-            discard self.queue.itemCount.fetchSub(1, moRelaxed)
+            when defined(lockfreeTrackItemCount):
+              discard self.queue.itemCount.fetchSub(1, moRelaxed)
           # Deliberate transient-empty return: when `head < tail` but the
           # committed flag at `head` is not yet visible, a producer has
           # reserved the slot via tail-bump but has not finished
@@ -1665,7 +1715,8 @@ proc pop*[
       if seg.prevConsumerIdx.compareExchange(prevIdx, mySlot, moAcquire, moRelaxed):
         # data[] holds SlotEncoding(T); decode on the way out.
         result = some(unwrapOrIdentity[T](move(seg.data[mySlot])))
-        discard self.queue.itemCount.fetchSub(1, moRelaxed)
+        when defined(lockfreeTrackItemCount):
+          discard self.queue.itemCount.fetchSub(1, moRelaxed)
         break
 
   when ST == stEager:
@@ -1886,7 +1937,8 @@ proc pop*[
         var claimed = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
         if claimed.isSome:
           result = some(unwrapOrIdentity[T](move(claimed.get)))
-          discard self.queue.itemCount.fetchSub(1, moRelaxed)
+          when defined(lockfreeTrackItemCount):
+            discard self.queue.itemCount.fetchSub(1, moRelaxed)
           break
         # tryClaim returned none. Distinguish via fresh acquire-load:
         #   (a) CLOSED_BIT set — a peer consumer drove close-on-empty
@@ -1996,7 +2048,8 @@ proc pop*[
               var claimed = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
               if claimed.isSome:
                 result = some(unwrapOrIdentity[T](move(claimed.get)))
-                discard self.queue.itemCount.fetchSub(1, moRelaxed)
+                when defined(lockfreeTrackItemCount):
+                  discard self.queue.itemCount.fetchSub(1, moRelaxed)
                 when ST == stEager:
                   if h.advanceEvery(LockFreeQueuesAdvanceEvery):
                     discard reclaimNow(h)

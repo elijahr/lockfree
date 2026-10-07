@@ -76,6 +76,7 @@ import ./compat/t_legacy_mupsic
 import ./compat/t_legacy_sipmuc
 import ./compat/t_legacy_mupmuc
 import ./compat/t_legacy_unbounded
+import ./t_systems_opt
 
 # chronos adapter tests gated on chronos availability
 # (chronos is NOT in lockfree.nimble requires). When chronos
@@ -116,7 +117,8 @@ export
   t_verify_pop_clears_mpmc_unbounded, t_refcount_use_patterns,
   t_seq_char_dispose,
   t_compat_lockfreequeues, t_legacy_sipsic, t_legacy_mupsic,
-  t_legacy_sipmuc, t_legacy_mupmuc, t_legacy_unbounded
+  t_legacy_sipmuc, t_legacy_mupmuc, t_legacy_unbounded,
+  t_systems_opt
 
 when (
   compiles do:

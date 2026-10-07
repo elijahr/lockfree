@@ -60,6 +60,7 @@ import ./internal/path_c_admit
 import ./internal/slot_encoding
 import ./internal/path_c_wrap
 import options
+import std/typetraits
 
 import ./exceptions
 import ./typestates
@@ -718,7 +719,7 @@ proc `=destroy`*[T; ccProd, ccCons: static PinScopeCardinality, N, P, C: static 
   ## ManagedSlice — ``distinct uint``, no auto-=destroy), so abandoned
   ## items must be explicitly disposed here. This is the ONLY
   ## library-managed cleanup path (push and pop are pure transfers).
-  when T is ref or T is string or T is seq:
+  when (T is ref or T is string or T is seq) or not supportsCopyMem(T):
     when ccProd == ccSingle and ccCons == ccSingle:
       # SPSC: storage is StorageN1[N, SlotEncoding(T)] (N+1 slots).
       # Walk only the filled range [head, tail). For ref/string/seq T,

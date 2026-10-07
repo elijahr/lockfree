@@ -54,8 +54,8 @@ typestate SPSCPushOp[N: static int]:
 
 # Forward declaration for Spsc (avoid circular import)
 type SpscBase*[N: static int, T] = object
-  head* {.align: 64.}: Atomic[int]
-  tail* {.align: 64.}: Atomic[int]
+  head* {.align: CacheLineBytes.}: Atomic[int]
+  tail* {.align: CacheLineBytes.}: Atomic[int]
   storage*: StorageN1[N, T]
 
 proc start*[N: static int](): SPSCPushStart[N] {.inline.} =

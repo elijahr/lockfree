@@ -22,6 +22,6 @@ proc `[]`*[N: static int, T](
   s.data[idx.slotValue]
 
 proc `[]=`*[N: static int, T](
-    s: var StorageN1[N, T], idx: PhysicalSlotN1[N], val: T
+    s: var StorageN1[N, T], idx: PhysicalSlotN1[N], val: sink T
 ) {.inline, notATransition.} =
-  s.data[idx.slotValue] = val
+  s.data[idx.slotValue] = move(val)
