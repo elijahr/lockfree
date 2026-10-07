@@ -70,6 +70,7 @@ import ./composition/t_verify_pop_clears_spmc_unbounded
 import ./composition/t_verify_pop_clears_mpmc_unbounded
 
 import ./t_wraparound
+import ./t_compat_lockfreequeues
 
 # chronos adapter tests gated on chronos availability
 # (chronos is NOT in lockfree.nimble requires). When chronos
@@ -108,7 +109,7 @@ export
   t_verify_pop_clears_mpmc_bounded, t_verify_pop_clears_spsc_unbounded,
   t_verify_pop_clears_mpsc_unbounded, t_verify_pop_clears_spmc_unbounded,
   t_verify_pop_clears_mpmc_unbounded, t_refcount_use_patterns,
-  t_seq_char_dispose
+  t_seq_char_dispose, t_compat_lockfreequeues
 
 when (
   compiles do:
