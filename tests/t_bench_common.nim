@@ -385,35 +385,35 @@ proc roundTripUint64Set[A](adapter: var A, count: int): tuple[popped: int, ok: b
 
 suite "bench_common adapters: lockfree smoke":
   test "Spmc 1024-cap, 1p1c, 100 sequential round-trip":
-    var a = makeLockfreequeuesSpmcAdapter[1024, 1, uint64](1024)
+    var a = makeLockfreeSpmcAdapter[1024, 1, uint64](1024)
     let r = roundTripUint64Set(a, SmokeMessageCount)
     a.cleanup()
     check r.popped == SmokeMessageCount
     check r.ok
 
   test "Mpsc 1024-cap, 1p1c, 100 sequential round-trip":
-    var a = makeLockfreequeuesMpscAdapter[1024, 1, uint64](1024)
+    var a = makeLockfreeMpscAdapter[1024, 1, uint64](1024)
     let r = roundTripUint64Set(a, SmokeMessageCount)
     a.cleanup()
     check r.popped == SmokeMessageCount
     check r.ok
 
   test "UnboundedSpsc seg=64, 100 sequential round-trip":
-    var a = makeLockfreequeuesUnboundedSpscAdapter[64, uint64](0)
+    var a = makeLockfreeUnboundedSpscAdapter[64, uint64](0)
     let r = roundTripUint64Set(a, SmokeMessageCount)
     a.cleanup()
     check r.popped == SmokeMessageCount
     check r.ok
 
   test "UnboundedSpmc seg=64, MaxThreads=4, 100 sequential round-trip":
-    var a = makeLockfreequeuesUnboundedSpmcAdapter[64, uint64, 4](0)
+    var a = makeLockfreeUnboundedSpmcAdapter[64, uint64, 4](0)
     let r = roundTripUint64Set(a, SmokeMessageCount)
     a.cleanup()
     check r.popped == SmokeMessageCount
     check r.ok
 
   test "UnboundedMpmc seg=64, MaxThreads=4, 100 sequential round-trip":
-    var a = makeLockfreequeuesUnboundedMpmcAdapter[64, uint64, 4](0)
+    var a = makeLockfreeUnboundedMpmcAdapter[64, uint64, 4](0)
     let r = roundTripUint64Set(a, SmokeMessageCount)
     a.cleanup()
     check r.popped == SmokeMessageCount
