@@ -1475,20 +1475,23 @@ proc pop*[
   var seg = self.queue.headSegment.load(moAcquire)
   when ccProd == ccSingle:
     # SPSC-absorbed: head advances on the consumer side; no committed flag.
-    let head = seg.head
-    let tail = seg.tail.load(moAcquire)
-    if head >= tail:
+    while true:
+      let head = seg.head
+      let tail = seg.tail.load(moAcquire)
+      if head < tail:
+        # data[] holds SlotEncoding(T); move out and decode.
+        let encoded = move(seg.data[head])
+        seg.head = head + 1
+        discard self.queue.itemCount.fetchSub(1, moRelaxed)
+        return some(unwrapOrIdentity[T](encoded))
       let nextSeg = seg.next.load(moAcquire)
       if nextSeg == nil:
         return none(T)
+      let oldSeg = seg
       self.queue.headSegment.store(nextSeg, moRelease)
+      seg = nextSeg
       discard self.queue.segments.fetchSub(1, moRelaxed)
-      return self.pop()
-    # data[] holds SlotEncoding(T); move out and decode.
-    let encoded = move(seg.data[head])
-    seg.head = head + 1
-    discard self.queue.itemCount.fetchSub(1, moRelaxed)
-    return some(unwrapOrIdentity[T](encoded))
+      freeAligned(oldSeg)
   else:
     # MPSC: ccMulti producer × ccSingle consumer. The single consumer
     # owns the head walk but still pins the epoch via debra so

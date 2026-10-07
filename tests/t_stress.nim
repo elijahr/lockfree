@@ -11,6 +11,7 @@ import lockfree/endpoint
 import lockfree/role_tags
 import lockfree/atomics
 import lockfree/atomics/dsl
+import lockfree/atomics/backoff
 
 const
   SmallBuffer = 16
@@ -282,6 +283,144 @@ suite "Stress - Mpmc (MPMC)":
     check sent.load(moRelaxed) == Count10k
     check received.load(moRelaxed) == Count10k
 
+  test "Mpmc 1P/1C 100k int":
+    var queue = newMpmcQueue[int, StandardBuffer, 1, 1]()
+    var sent, received: Atomic[int]
+    sent.store(0, moRelaxed)
+    received.store(0, moRelaxed)
+
+    var pctx = MpmcPCtx[StandardBuffer, 1, 1, int](
+      queue: addr queue, count: Count100k, producerIdx: 0, sent: addr sent
+    )
+    var cctx = MpmcCCtx[StandardBuffer, 1, 1, int](
+      queue: addr queue, count: Count100k, consumerIdx: 0, received: addr received
+    )
+
+    var pThread: Thread[ptr MpmcPCtx[StandardBuffer, 1, 1, int]]
+    var cThread: Thread[ptr MpmcCCtx[StandardBuffer, 1, 1, int]]
+
+    createThread(pThread, mpmcProducer[StandardBuffer, 1, 1], addr pctx)
+    createThread(cThread, mpmcConsumer[StandardBuffer, 1, 1], addr cctx)
+
+    joinThread(pThread)
+    joinThread(cThread)
+
+    check sent.load(moRelaxed) == Count100k
+    check received.load(moRelaxed) == Count100k
+
+type
+  MpmcStressPCtx[N: static int] = object
+    queue: ptr BQueue[int, ccMulti, ccMulti, N, 4, 4]
+    count: int
+    producerIdx: int
+    sent: ptr Atomic[int]
+    producersDone: ptr Atomic[int]
+
+  MpmcStressCCtx[N: static int] = object
+    queue: ptr BQueue[int, ccMulti, ccMulti, N, 4, 4]
+    consumerIdx: int
+    totalExpected: int
+    totalProducers: int
+    received: ptr Atomic[int]
+    totalConsumed: ptr Atomic[int]
+    producersDone: ptr Atomic[int]
+
+proc mpmcStressProducer[N: static int](ctx: ptr MpmcStressPCtx[N]) {.thread.} =
+  var p = ctx.queue[].getProducerHere(idx = ctx.producerIdx)
+  for i in 0 ..< ctx.count:
+    while not p.push(i):
+      cpuPause()
+    discard ctx.sent[].fetchAdd(1, moRelaxed)
+  discard ctx.producersDone[].fetchAdd(1, moRelease)
+
+proc mpmcStressConsumer[N: static int](ctx: ptr MpmcStressCCtx[N]) {.thread.} =
+  var c = ctx.queue[].getConsumerHere(idx = ctx.consumerIdx)
+  while true:
+    let item = c.pop()
+    if item.isSome:
+      discard ctx.received[].fetchAdd(1, moRelaxed)
+      if ctx.totalConsumed[].fetchAdd(1, moRelaxed) + 1 >= ctx.totalExpected:
+        break
+    elif ctx.producersDone[].load(moAcquire) >= ctx.totalProducers:
+      if ctx.totalConsumed[].load(moRelaxed) >= ctx.totalExpected:
+        break
+      cpuPause()
+    else:
+      cpuPause()
+
+suite "Stress - Mpmc (MPMC) - 4P:4C High Contention":
+  test "Mpmc 4P/4C 100k int (StandardBuffer=1024)":
+    var queue = newMpmcQueue[int, StandardBuffer, 4, 4]()
+    var sent, received, totalConsumed, producersDone: Atomic[int]
+    sent.store(0, moRelaxed)
+    received.store(0, moRelaxed)
+    totalConsumed.store(0, moRelaxed)
+    producersDone.store(0, moRelaxed)
+
+    const PerProducer = Count100k div 4
+
+    var pctxs: array[4, MpmcStressPCtx[StandardBuffer]]
+    var cctxs: array[4, MpmcStressCCtx[StandardBuffer]]
+    var pThreads: array[4, Thread[ptr MpmcStressPCtx[StandardBuffer]]]
+    var cThreads: array[4, Thread[ptr MpmcStressCCtx[StandardBuffer]]]
+
+    for i in 0 ..< 4:
+      pctxs[i] = MpmcStressPCtx[StandardBuffer](
+        queue: addr queue, count: PerProducer, producerIdx: i,
+        sent: addr sent, producersDone: addr producersDone
+      )
+      cctxs[i] = MpmcStressCCtx[StandardBuffer](
+        queue: addr queue, consumerIdx: i, totalExpected: Count100k, totalProducers: 4,
+        received: addr received, totalConsumed: addr totalConsumed, producersDone: addr producersDone
+      )
+
+    for i in 0 ..< 4:
+      createThread(pThreads[i], mpmcStressProducer[StandardBuffer], addr pctxs[i])
+      createThread(cThreads[i], mpmcStressConsumer[StandardBuffer], addr cctxs[i])
+
+    for i in 0 ..< 4:
+      joinThread(pThreads[i])
+      joinThread(cThreads[i])
+
+    check sent.load(moRelaxed) == Count100k
+    check received.load(moRelaxed) == Count100k
+
+  test "Mpmc 4P/4C 100k int (SmallBuffer=16 wraparound)":
+    var queue = newMpmcQueue[int, SmallBuffer, 4, 4]()
+    var sent, received, totalConsumed, producersDone: Atomic[int]
+    sent.store(0, moRelaxed)
+    received.store(0, moRelaxed)
+    totalConsumed.store(0, moRelaxed)
+    producersDone.store(0, moRelaxed)
+
+    const PerProducer = Count100k div 4
+
+    var pctxs: array[4, MpmcStressPCtx[SmallBuffer]]
+    var cctxs: array[4, MpmcStressCCtx[SmallBuffer]]
+    var pThreads: array[4, Thread[ptr MpmcStressPCtx[SmallBuffer]]]
+    var cThreads: array[4, Thread[ptr MpmcStressCCtx[SmallBuffer]]]
+
+    for i in 0 ..< 4:
+      pctxs[i] = MpmcStressPCtx[SmallBuffer](
+        queue: addr queue, count: PerProducer, producerIdx: i,
+        sent: addr sent, producersDone: addr producersDone
+      )
+      cctxs[i] = MpmcStressCCtx[SmallBuffer](
+        queue: addr queue, consumerIdx: i, totalExpected: Count100k, totalProducers: 4,
+        received: addr received, totalConsumed: addr totalConsumed, producersDone: addr producersDone
+      )
+
+    for i in 0 ..< 4:
+      createThread(pThreads[i], mpmcStressProducer[SmallBuffer], addr pctxs[i])
+      createThread(cThreads[i], mpmcStressConsumer[SmallBuffer], addr cctxs[i])
+
+    for i in 0 ..< 4:
+      joinThread(pThreads[i])
+      joinThread(cThreads[i])
+
+    check sent.load(moRelaxed) == Count100k
+    check received.load(moRelaxed) == Count100k
+
 # =============================================================================
 # Spmc (SPMC) Stress Tests
 # =============================================================================
@@ -300,6 +439,30 @@ proc spmcConsumer[N, C: static int](ctx: ptr SpmcCCtx[N, C, int]) {.thread.} =
     if item.isSome:
       inc localReceived
       discard ctx.received[].fetchAdd(1, moRelaxed)
+
+type
+  SpmcStressCCtx[N: static int] = object
+    queue: ptr BQueue[int, ccSingle, ccMulti, N, 0, 4]
+    consumerIdx: int
+    totalExpected: int
+    received: ptr Atomic[int]
+    totalConsumed: ptr Atomic[int]
+    producerDone: ptr Atomic[bool]
+
+proc spmcStressConsumer[N: static int](ctx: ptr SpmcStressCCtx[N]) {.thread.} =
+  var c = ctx.queue[].getConsumerHere(idx = ctx.consumerIdx)
+  while true:
+    let item = c.pop()
+    if item.isSome:
+      discard ctx.received[].fetchAdd(1, moRelaxed)
+      if ctx.totalConsumed[].fetchAdd(1, moRelaxed) + 1 >= ctx.totalExpected:
+        break
+    elif ctx.producerDone[].load(moAcquire):
+      if ctx.totalConsumed[].load(moRelaxed) >= ctx.totalExpected:
+        break
+      cpuPause()
+    else:
+      cpuPause()
 
 suite "Stress - Spmc (SPMC)":
   test "Spmc 1P/2C 10k int":
@@ -324,12 +487,72 @@ suite "Stress - Spmc (SPMC)":
     # Producer runs in main thread
     for i in 0 ..< Count10k:
       while not queue.push(i):
-        discard
+        cpuPause()
 
     joinThread(cThreads[0])
     joinThread(cThreads[1])
 
     check received.load(moRelaxed) == Count10k
+
+  test "Spmc 1P/4C 100k int (StandardBuffer=1024)":
+    var queue = newSpmcQueue[int, StandardBuffer, 4]()
+    var received, totalConsumed: Atomic[int]
+    var producerDone: Atomic[bool]
+    received.store(0, moRelaxed)
+    totalConsumed.store(0, moRelaxed)
+    producerDone.store(false, moRelaxed)
+
+    var cctxs: array[4, SpmcStressCCtx[StandardBuffer]]
+    var cThreads: array[4, Thread[ptr SpmcStressCCtx[StandardBuffer]]]
+
+    for i in 0 ..< 4:
+      cctxs[i] = SpmcStressCCtx[StandardBuffer](
+        queue: addr queue, consumerIdx: i, totalExpected: Count100k,
+        received: addr received, totalConsumed: addr totalConsumed,
+        producerDone: addr producerDone
+      )
+      createThread(cThreads[i], spmcStressConsumer[StandardBuffer], addr cctxs[i])
+
+    # Producer runs in main thread
+    for i in 0 ..< Count100k:
+      while not queue.push(i):
+        cpuPause()
+    producerDone.store(true, moRelease)
+
+    for i in 0 ..< 4:
+      joinThread(cThreads[i])
+
+    check received.load(moRelaxed) == Count100k
+
+  test "Spmc 1P/4C 100k int (SmallBuffer=16 wraparound)":
+    var queue = newSpmcQueue[int, SmallBuffer, 4]()
+    var received, totalConsumed: Atomic[int]
+    var producerDone: Atomic[bool]
+    received.store(0, moRelaxed)
+    totalConsumed.store(0, moRelaxed)
+    producerDone.store(false, moRelaxed)
+
+    var cctxs: array[4, SpmcStressCCtx[SmallBuffer]]
+    var cThreads: array[4, Thread[ptr SpmcStressCCtx[SmallBuffer]]]
+
+    for i in 0 ..< 4:
+      cctxs[i] = SpmcStressCCtx[SmallBuffer](
+        queue: addr queue, consumerIdx: i, totalExpected: Count100k,
+        received: addr received, totalConsumed: addr totalConsumed,
+        producerDone: addr producerDone
+      )
+      createThread(cThreads[i], spmcStressConsumer[SmallBuffer], addr cctxs[i])
+
+    # Producer runs in main thread
+    for i in 0 ..< Count100k:
+      while not queue.push(i):
+        cpuPause()
+    producerDone.store(true, moRelease)
+
+    for i in 0 ..< 4:
+      joinThread(cThreads[i])
+
+    check received.load(moRelaxed) == Count100k
 
 # =============================================================================
 # Mpsc (MPSC) Stress Tests
@@ -346,6 +569,20 @@ proc mpscProducer[N, P: static int](ctx: ptr MpscPCtx[N, P, int]) {.thread.} =
   for i in 0 ..< ctx.count:
     while not p.push(i):
       discard
+    discard ctx.sent[].fetchAdd(1, moRelaxed)
+
+type
+  MpscStressPCtx[N: static int] = object
+    queue: ptr BQueue[int, ccMulti, ccSingle, N, 4, 0]
+    count: int
+    producerIdx: int
+    sent: ptr Atomic[int]
+
+proc mpscStressProducer[N: static int](ctx: ptr MpscStressPCtx[N]) {.thread.} =
+  var p = ctx.queue[].getProducerHere(idx = ctx.producerIdx)
+  for i in 0 ..< ctx.count:
+    while not p.push(i):
+      cpuPause()
     discard ctx.sent[].fetchAdd(1, moRelaxed)
 
 suite "Stress - Mpsc (MPSC)":
@@ -374,6 +611,8 @@ suite "Stress - Mpsc (MPSC)":
       let item = queue.pop()
       if item.isSome:
         inc received
+      else:
+        cpuPause()
 
     joinThread(pThreads[0])
     joinThread(pThreads[1])
@@ -406,9 +645,284 @@ suite "Stress - Mpsc (MPSC)":
       let item = queue.pop()
       if item.isSome:
         inc received
+      else:
+        cpuPause()
 
     joinThread(pThreads[0])
     joinThread(pThreads[1])
 
     check sent.load(moRelaxed) == Count10k
     check received == Count10k
+
+  test "Mpsc 4P/1C 100k int (StandardBuffer=1024)":
+    var queue = newMpscQueue[int, StandardBuffer, 4]()
+    var sent: Atomic[int]
+    sent.store(0, moRelaxed)
+
+    const PerProducer = Count100k div 4
+
+    var pctxs: array[4, MpscStressPCtx[StandardBuffer]]
+    var pThreads: array[4, Thread[ptr MpscStressPCtx[StandardBuffer]]]
+
+    for i in 0 ..< 4:
+      pctxs[i] = MpscStressPCtx[StandardBuffer](
+        queue: addr queue, count: PerProducer, producerIdx: i, sent: addr sent
+      )
+      createThread(pThreads[i], mpscStressProducer[StandardBuffer], addr pctxs[i])
+
+    # Consumer runs in main thread
+    var received = 0
+    while received < Count100k:
+      let item = queue.pop()
+      if item.isSome:
+        inc received
+      else:
+        cpuPause()
+
+    for i in 0 ..< 4:
+      joinThread(pThreads[i])
+
+    check sent.load(moRelaxed) == Count100k
+    check received == Count100k
+
+  test "Mpsc 4P/1C 100k int (SmallBuffer=16 wraparound)":
+    var queue = newMpscQueue[int, SmallBuffer, 4]()
+    var sent: Atomic[int]
+    sent.store(0, moRelaxed)
+
+    const PerProducer = Count100k div 4
+
+    var pctxs: array[4, MpscStressPCtx[SmallBuffer]]
+    var pThreads: array[4, Thread[ptr MpscStressPCtx[SmallBuffer]]]
+
+    for i in 0 ..< 4:
+      pctxs[i] = MpscStressPCtx[SmallBuffer](
+        queue: addr queue, count: PerProducer, producerIdx: i, sent: addr sent
+      )
+      createThread(pThreads[i], mpscStressProducer[SmallBuffer], addr pctxs[i])
+
+    # Consumer runs in main thread
+    var received = 0
+    while received < Count100k:
+      let item = queue.pop()
+      if item.isSome:
+        inc received
+      else:
+        cpuPause()
+
+    for i in 0 ..< 4:
+      joinThread(pThreads[i])
+
+    check sent.load(moRelaxed) == Count100k
+    check received == Count100k
+
+# =============================================================================
+# Unbounded Queue (Strict-LCRQ & NEBR Epoch Reclamation) Stress Tests
+# =============================================================================
+
+type
+  UnbSpscStressCtx = object
+    queue: ptr Queue[int, ccSingle, ccSingle, stEager, 64, 4]
+    count: int
+    sent: ptr Atomic[int]
+
+proc unbSpscProducerThread(ctx: ptr UnbSpscStressCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    var p = ctx.queue[].getProducerHere()
+    for i in 0 ..< ctx.count:
+      p.push(i)
+      discard ctx.sent[].fetchAdd(1, moRelaxed)
+
+type
+  UnbMpscStressPCtx = object
+    queue: ptr Queue[int, ccMulti, ccSingle, stEager, 64, 8]
+    count: int
+    sent: ptr Atomic[int]
+
+proc unbMpscProducerThread(ctx: ptr UnbMpscStressPCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    var p = ctx.queue[].getProducerHere()
+    for i in 0 ..< ctx.count:
+      p.push(i)
+      discard ctx.sent[].fetchAdd(1, moRelaxed)
+
+type
+  UnbSpmcStressCCtx = object
+    queue: ptr Queue[int, ccSingle, ccMulti, stEager, 64, 8]
+    totalExpected: int
+    received: ptr Atomic[int]
+    totalConsumed: ptr Atomic[int]
+    producerDone: ptr Atomic[bool]
+
+proc unbSpmcConsumerThread(ctx: ptr UnbSpmcStressCCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    var c = ctx.queue[].getConsumerHere()
+    while true:
+      let item = c.pop()
+      if item.isSome:
+        discard ctx.received[].fetchAdd(1, moRelaxed)
+        if ctx.totalConsumed[].fetchAdd(1, moRelaxed) + 1 >= ctx.totalExpected:
+          break
+      elif ctx.producerDone[].load(moAcquire):
+        if ctx.totalConsumed[].load(moRelaxed) >= ctx.totalExpected:
+          break
+      else:
+        cpuPause()
+
+type
+  UnbMpmcStressPCtx = object
+    queue: ptr Queue[int, ccMulti, ccMulti, stEager, 64, 16]
+    count: int
+    sent: ptr Atomic[int]
+    producersDone: ptr Atomic[int]
+
+  UnbMpmcStressCCtx = object
+    queue: ptr Queue[int, ccMulti, ccMulti, stEager, 64, 16]
+    totalExpected: int
+    totalProducers: int
+    received: ptr Atomic[int]
+    totalConsumed: ptr Atomic[int]
+    producersDone: ptr Atomic[int]
+
+proc unbMpmcProducerThread(ctx: ptr UnbMpmcStressPCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    var p = ctx.queue[].getProducerHere()
+    for i in 0 ..< ctx.count:
+      p.push(i)
+      discard ctx.sent[].fetchAdd(1, moRelaxed)
+    discard ctx.producersDone[].fetchAdd(1, moRelease)
+
+proc unbMpmcConsumerThread(ctx: ptr UnbMpmcStressCCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    var c = ctx.queue[].getConsumerHere()
+    while true:
+      let item = c.pop()
+      if item.isSome:
+        discard ctx.received[].fetchAdd(1, moRelaxed)
+        if ctx.totalConsumed[].fetchAdd(1, moRelaxed) + 1 >= ctx.totalExpected:
+          break
+      elif ctx.producersDone[].load(moAcquire) >= ctx.totalProducers:
+        if ctx.totalConsumed[].load(moRelaxed) >= ctx.totalExpected:
+          break
+      else:
+        cpuPause()
+
+suite "Stress - Unbounded Queue (Strict-LCRQ & NEBR)":
+  test "Unbounded Spsc 1P/1C 100k int":
+    var queue = newUnboundedSpscQueue[int, stEager, 64, 4]()
+    var sent: Atomic[int]
+    sent.store(0, moRelaxed)
+
+    var ctx = UnbSpscStressCtx(
+      queue: addr queue, count: Count100k, sent: addr sent
+    )
+    var pThread: Thread[ptr UnbSpscStressCtx]
+    createThread(pThread, unbSpscProducerThread, addr ctx)
+
+    var c = queue.getConsumerHere()
+    var received = 0
+    while received < Count100k:
+      let item = c.pop()
+      if item.isSome:
+        inc received
+      else:
+        cpuPause()
+
+    joinThread(pThread)
+    check sent.load(moRelaxed) == Count100k
+    check received == Count100k
+
+  test "Unbounded Mpsc 4P/1C 100k int":
+    var queue = newUnboundedMpscQueue[int, stEager, 64, 8]()
+    var sent: Atomic[int]
+    sent.store(0, moRelaxed)
+
+    const PerProducer = Count100k div 4
+    var pctxs: array[4, UnbMpscStressPCtx]
+    var pThreads: array[4, Thread[ptr UnbMpscStressPCtx]]
+
+    for i in 0 ..< 4:
+      pctxs[i] = UnbMpscStressPCtx(
+        queue: addr queue, count: PerProducer, sent: addr sent
+      )
+      createThread(pThreads[i], unbMpscProducerThread, addr pctxs[i])
+
+    var c = queue.bindConsumer()
+    var received = 0
+    while received < Count100k:
+      let item = c.pop()
+      if item.isSome:
+        inc received
+      else:
+        cpuPause()
+
+    for i in 0 ..< 4:
+      joinThread(pThreads[i])
+
+    check sent.load(moRelaxed) == Count100k
+    check received == Count100k
+
+  test "Unbounded Spmc 1P/4C 100k int":
+    var queue = newUnboundedSpmcQueue[int, stEager, 64, 8]()
+    var received, totalConsumed: Atomic[int]
+    var producerDone: Atomic[bool]
+    received.store(0, moRelaxed)
+    totalConsumed.store(0, moRelaxed)
+    producerDone.store(false, moRelaxed)
+
+    var cctx = UnbSpmcStressCCtx(
+      queue: addr queue, totalExpected: Count100k,
+      received: addr received, totalConsumed: addr totalConsumed,
+      producerDone: addr producerDone
+    )
+    var cThreads: array[4, Thread[ptr UnbSpmcStressCCtx]]
+
+    for i in 0 ..< 4:
+      createThread(cThreads[i], unbSpmcConsumerThread, addr cctx)
+
+    var p = queue.getProducerHere()
+    for i in 0 ..< Count100k:
+      p.push(i)
+    producerDone.store(true, moRelease)
+
+    for i in 0 ..< 4:
+      joinThread(cThreads[i])
+
+    check received.load(moRelaxed) == Count100k
+
+  test "Unbounded Mpmc 4P/4C 100k int (Strict-LCRQ & NEBR epoch reclamation)":
+    var queue = newUnboundedMpmcQueue[int, stEager, 64, 16]()
+    var sent, received, totalConsumed, producersDone: Atomic[int]
+    sent.store(0, moRelaxed)
+    received.store(0, moRelaxed)
+    totalConsumed.store(0, moRelaxed)
+    producersDone.store(0, moRelaxed)
+
+    const PerProducer = Count100k div 4
+    var pctxs: array[4, UnbMpmcStressPCtx]
+    var cctxs: array[4, UnbMpmcStressCCtx]
+    var pThreads: array[4, Thread[ptr UnbMpmcStressPCtx]]
+    var cThreads: array[4, Thread[ptr UnbMpmcStressCCtx]]
+
+    for i in 0 ..< 4:
+      pctxs[i] = UnbMpmcStressPCtx(
+        queue: addr queue, count: PerProducer,
+        sent: addr sent, producersDone: addr producersDone
+      )
+      cctxs[i] = UnbMpmcStressCCtx(
+        queue: addr queue, totalExpected: Count100k, totalProducers: 4,
+        received: addr received, totalConsumed: addr totalConsumed,
+        producersDone: addr producersDone
+      )
+
+    for i in 0 ..< 4:
+      createThread(pThreads[i], unbMpmcProducerThread, addr pctxs[i])
+      createThread(cThreads[i], unbMpmcConsumerThread, addr cctxs[i])
+
+    for i in 0 ..< 4:
+      joinThread(pThreads[i])
+      joinThread(cThreads[i])
+
+    check sent.load(moRelaxed) == Count100k
+    check received.load(moRelaxed) == Count100k
+
