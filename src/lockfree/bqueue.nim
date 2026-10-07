@@ -685,9 +685,7 @@ proc pop*[T; ccProd: static PinScopeCardinality, N, P, C: static int](
 ## static-stable across them and only the destructor moves the value
 ## to the terminal state.
 ##
-## **transitionError apparatus reinterpretation**: the master brief
-##  calls for "sibling-pragma transitionError at every
-## push/pop/etc. site." Per the B.4.1.5 probe, push/pop are NOT
+## **transitionError apparatus reinterpretation**: push/pop are NOT
 ## transitions (they declare no `{.transition.}`); `transitionError`
 ## attaches only to transition declarations. The destructor IS a
 ## transition, so its `transitionError` carries the user-visible

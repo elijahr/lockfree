@@ -26,18 +26,17 @@ API documentation: <https://elijahr.github.io/lockfree>
 
 **Item types.** Value types and `ptr T` are stored directly in the slot array. `ref T`, `string`, and `seq` are admitted through Path-C: each slot holds an 8-byte `ManagedRef` / `ManagedSlice` token (a `distinct uint`) rather than the payload itself, so no refcount or buffer mutation races against the concurrent slot read/write. This works under `orc` / `arc` / `atomicArc` / `refc`; bounded `BQueue[T, …]` additionally supports move-only and wide `T`. See [`docs/guide/managed-ref.md`](docs/guide/managed-ref.md) for the full story.
 
-**Atomics.** All atomics route through [`debra/atomics`](https://github.com/elijahr/nim-debra), which statically rejects any `Atomic[T]` instantiation that would dispatch to libatomic spinlock fallback. Enforcement is on by default; opt out with `-d:debraAllowNonLockFreeAtomics` (per-call-site warning fires).
+**Atomics.** All atomics route through [`lockfree/atomics`](docs/api/atomics.md), which statically rejects any `Atomic[T]` instantiation that would dispatch to libatomic spinlock fallback. Enforcement is on by default; opt out with `-d:lockfreeAllowNonLockFreeAtomics` (or `-d:debraAllowNonLockFreeAtomics`).
 
-> **v5.0.0 breaking change.**
-> v5.0.0 collapses the seven typestate queue families plus the standalone
-> `UnboundedSpsc` into two generic types: `BQueue[T, ccProd, ccCons, N, P, C]`
+> **Unified Architecture (v0.1.0).**
+> `lockfree` v0.1.0 unifies the seven typestate queue families from `lockfreequeues` (v5.0.0) plus
+> `nim-debra` into two generic types: `BQueue[T, ccProd, ccCons, N, P, C]`
 > (bounded) and `Queue[T, ccProd, ccCons, ST, S, MaxThreads]` (unbounded, with
 > the `(ccSingle, ccSingle)` arm absorbing the standalone `UnboundedSpsc`
-> body). Smart constructors collapse from 11 family-prefixed entry points to
-> two generics (`newBQueue`, `newQueue`) plus family-named thin wrappers
+> body). Smart constructors provide family-named thin wrappers
 > (`newSpscQueue`, `newMpscQueue`, `newUnboundedMpmcQueue`, …) for
-> ergonomic continuity. See [`CHANGELOG.md`](CHANGELOG.md) for the v5.0.0
-> reshape note with worked examples and the canonical surface reference.
+> ergonomic continuity. For legacy `lockfreequeues` v4.2.0 and `nim-debra` callers,
+> full backwards-compatibility shims are provided (`import lockfree/compat/lockfreequeues` or `import lockfreequeues`). See [`CHANGELOG.md`](CHANGELOG.md) for the migration overview.
 
 ## Why this library
 
@@ -68,7 +67,7 @@ nimble install lockfree
 
 ## Quick Start
 
-v5.0.0 exposes two generic types. `BQueue[T, ccProd, ccCons, N, P, C]` is the
+`lockfree` exposes two generic types. `BQueue[T, ccProd, ccCons, N, P, C]` is the
 bounded ring buffer; `Queue[T, ccProd, ccCons, ST, S, MaxThreads]` is the
 unbounded linked-segment queue. The `ccProd` / `ccCons` parameters
 (`ccSingle` / `ccMulti`) select the producer and consumer cardinality. For

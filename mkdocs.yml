@@ -108,13 +108,12 @@ nav:
       - Bounded vs unbounded (legacy): guide/bounded-vs-unbounded.md
       - Slot ownership typestates (legacy): guide/slot-ownership-typestates.md
       - Safety model (legacy): guide/safety-model.md
-      # (legacy guide/memory-management.md deleted per Phase 4.6.4 fact-check
-      # —  guide/concepts/memory-management.md is the canonical version.)
       - Performance tuning: guide/performance-tuning.md
       - Examples (legacy): guide/examples.md
   - API Reference:
     - Overview: api/index.md
     - lockfree (umbrella): api/lockfree.md
+    - Compatibility (lockfreequeues): api/compat.md
     - Bounded Queue (BQueue): api/bqueue.md
     - Unbounded Queue (Queue): api/queue.md
     - ManagedRef: api/managed_ref.md
@@ -139,7 +138,7 @@ nav:
     - From lockfreequeues v5: migrations/from-lockfreequeues-v5.md
     - From nim-debra: migrations/from-nim-debra.md
   - Legacy:
-    - nim-debra docs (T0):
+    - nim-debra docs:
       - Provenance: legacy/nim-debra/PROVENANCE.md
       - Index: legacy/nim-debra/index.md
       - API: legacy/nim-debra/api.md

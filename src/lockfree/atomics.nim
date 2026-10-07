@@ -478,7 +478,7 @@ template enforceDwcasConstraints*(A, B: typedesc) =
     doAssert supportsCopyMem(B) or (sizeof(B) <= 8 and not hasManagedFields(B)),
       "Pair half-type must be supportsCopyMem; " & $B & " is not"
   # Gate 4 (lock-free) is enforced inside the concrete dwcas* op
-  # specializations (tasks 7-11) via the `_Static_assert` /
+  # specializations via the `_Static_assert` /
   # `static_assert` emit. Calling `assertLockFree(Pair[A, B])` here
   # from inside a generic template body triggers a Nim 2.2.10
   # `expr(nkBracketExpr, tyGenericBody)` internal compiler error.

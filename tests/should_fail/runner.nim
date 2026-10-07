@@ -49,7 +49,7 @@ const cases = @[
       "t_queue_cardinality_mismatch §6.3 (2) — ccCons=ccSingle queue rejects ccMulti handle",
     file: "tests/should_fail/cc_consumer_single_rejects_multi.nim",
     outcome: eoCompileFails,
-    # Tightened (T2-010): pin the EXPECTED manager-cardinality signature
+    # Tightened: pin the EXPECTED manager-cardinality signature
     # the guard enforces (ccSingle), not the bare constructor name the
     # compiler echoes from the call line. A different error on the same
     # construction line can no longer false-match.
@@ -60,7 +60,7 @@ const cases = @[
       "t_queue_cardinality_mismatch §6.3 (3) — ccCons=ccMulti queue rejects ccSingle manager",
     file: "tests/should_fail/cc_consumer_multi_rejects_single.nim",
     outcome: eoCompileFails,
-    # Tightened (T2-010): pin the EXPECTED manager-cardinality signature
+    # Tightened: pin the EXPECTED manager-cardinality signature
     # the guard enforces (ccMulti), not the bare constructor name.
     substring: "DebraManager[MaxThreads, ccMulti]",
   ),

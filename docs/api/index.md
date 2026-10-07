@@ -1,10 +1,10 @@
 # API Reference
 
-`lockfree` v0.1.0 exposes two unified, cardinality-parameterized queue types. Each
+`lockfree` v0.1.0 exposes two unified, cardinality-parameterized queue types (`BQueue` and `Queue`). Each
 covers all four producer/consumer combinations (SPSC, MPSC, SPMC, MPMC),
-selected at compile time via the `ccProd` and `ccCons` parameters. They
-replace the v4.x family-prefixed types (`Sipsic` / `Sipmuc` / `Mupsic` /
-`Mupmuc` and their `Unbounded*` counterparts).
+selected at compile time via the `ccProd` and `ccCons` parameters. For callers migrating
+from `lockfreequeues` (v4.2.0 / v5.0.0), a full backwards-compatibility layer
+is provided in `lockfree/compat/lockfreequeues` and `lockfreequeues.nim`.
 
 ## Bounded Queue
 
@@ -19,9 +19,8 @@ memory-reclamation manager.
 ## Unbounded Queue
 
 Dynamic-capacity linked-segment buffer; grows as needed. The SPSC shape
-frees retired segments inline (no manager); the MP/MC shapes use DEBRA+
-epoch-based memory reclamation supplied by
-[nim-debra](https://github.com/elijahr/nim-debra), with attach-time
+frees retired segments inline (no manager); the MP/MC shapes use in-tree
+nebr epoch-based memory reclamation (`lockfree/smr/nebr`), with attach-time
 thread registration.
 
 - **[Queue](queue.md)** — `Queue[T, ccProd, ccCons, ST, S, MaxThreads]`.

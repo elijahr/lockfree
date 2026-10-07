@@ -58,9 +58,8 @@ This means:
   MM-specific refcount or seq-destroy invocation underneath.
 
 See [ManagedRef](../managed-ref.md) and
-[ManagedSlice](../managed-slice.md) for the user-facing API. The
-internal box and the cell-layout details are in the
-[design doc §4.4](https://github.com/elijahr/lockfree/blob/devel/docs/internal/design-sections/04-mm-compat-shim-and-cell-layouts.md).
+[ManagedSlice](../managed-slice.md) for the user-facing API, and
+[Slot ownership typestates](../slot-ownership-typestates.md) for cell lifecycle details.
 
 ## Per-manager notes
 
@@ -177,5 +176,4 @@ message pointing to this page when triggered.
 - [ManagedRef](../managed-ref.md) — `ref T` payloads, end-to-end.
 - [ManagedSlice](../managed-slice.md) — `string` / `seq[T]` payloads.
 - [SMR / nebr](../smr/nebr.md) — how reclamation interacts with refcount cleanup.
-- Internal: [design-sections/04-mm-compat-shim-and-cell-layouts.md](https://github.com/elijahr/lockfree/blob/devel/docs/internal/design-sections/04-mm-compat-shim-and-cell-layouts.md)
-  for the per-MM cell layout matrix.
+- [Slot ownership typestates](../slot-ownership-typestates.md) — per-cell ownership and layout details.

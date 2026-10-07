@@ -434,8 +434,7 @@ proc validateQueueParams*[
   discard
 
 ## ----------------------------------------------------------------------
-## Unbounded-queue body — absorbed spsc
-## from `unbounded_spsc.nim` (B.2.5).
+## Unbounded-queue body — SPSC implementation
 ## ----------------------------------------------------------------------
 
 proc newSegment[T; ccProd, ccCons: static PinScopeCardinality, S: static int](): ptr Segment[
@@ -974,15 +973,7 @@ proc pop*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
     discard self.segments.fetchSub(1, moRelaxed)
     freeAligned(oldSeg)
 
-# --- mpsc-equiv pop: REMOVED in v5.0.0 ----------------------------------
-# The pre-v5.0.0 direct-on-Queue MPSC pop required `attachConsumer()`
-# ceremony + carried `self.handle` / `self.consumerAttached` fields on
-# Queue that were tied to the deleted QueueConsumer claim-state model.
-# v5.0.0 routes MPSC pop through `Bound[T, Tag, Queue[..., ccSingle, ...]]`
-# (see endpoint.nim's `getConsumer` factory + bqueue/queue's pop on
-# Bound). Users go through `q.bindConsumer()` (or
-# `q.getConsumer().bindToThread()`) to get a Bound endpoint, then call
-# pop on it.
+
 
 # --- batch pop (ccCons == ccSingle, direct on Queue) ----------------------
 proc pop*[
@@ -1148,9 +1139,9 @@ proc newUnboundedSpscQueue*[
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S, MaxThreads: static int,
 ](): Queue[T, ccSingle, ccSingle, ST, S, MaxThreads] {.inline.} =
-  ## Unbounded spsc-absorbed (`ccSingle × ccSingle`) auto-create
-  ## smart-constructor. Skips manager allocation (spsc-absorbed has
-  ## no debra integration). Added in B.2.5 alongside the absorption.
+  ## Unbounded SPSC (`ccSingle × ccSingle`) auto-create
+  ## smart-constructor. Skips manager allocation (SPSC has
+  ## no debra integration).
   newQueue(Queue[T, ccSingle, ccSingle, ST, S, MaxThreads])
 
 proc newUnboundedMpscQueue*[
@@ -1160,15 +1151,12 @@ proc newUnboundedMpscQueue*[
 ](
     manager: ptr DebraManager[MaxThreads, nebr.ccSingle]
 ): Queue[T, ccMulti, ccSingle, ST, S, MaxThreads] {.inline.} =
-  ## Unbounded mpsc-equivalent (`ccMulti × ccSingle`) borrow
+  ## Unbounded MPSC (`ccMulti × ccSingle`) borrow
   ## smart-constructor — manager-only form. The consumer thread calls
   ## `q.bindConsumer()` on its own thread to register and obtain its
   ## `Bound` endpoint.
   ##
-  ## The pre-v5.0.0 `(manager, consumerHandle)` borrow-with-handle
-  ## overload was removed: in v5.0.0 the consumer's debra handle is
-  ## owned by `Bound` (opaque storage), so pre-registering and passing
-  ## a handle at construction is no longer the right ceremony.
+  ## The consumer's debra handle is owned by `Bound` (opaque storage).
   ## `bindConsumer` wraps registration + binding in one call.
   newQueue(Queue[T, ccMulti, ccSingle, ST, S, MaxThreads], manager)
 
@@ -2136,8 +2124,7 @@ iterator drain*[
     yield opt.get()
 
 # --- drain iterator: MPSC / SPMC / MPMC via Bound consumer endpoint ------
-# MPSC + SPMC + MPMC all route through `Bound[T, Tag, Queue[..., ccCons, ...]]`
-# (per v5.0.0 pop refactor — direct pop on multi-side Queue is `{.error.}`).
+# MPSC, SPMC, and MPMC route through `Bound[T, Tag, Queue[..., ccCons, ...]]`.
 iterator drain*[
     T;
     Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag,

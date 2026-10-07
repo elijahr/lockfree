@@ -32,8 +32,8 @@ Body layout splits on `(ccProd, ccCons) is (ccSingle, ccSingle)`:
   segments are freed inline by the consumer-side advance.
 - **MPSC / SPMC / MPMC**: DEBRA+ epoch-based memory reclamation
   ([Brown 2015](https://www.cs.utoronto.ca/~tabrown/debra/)) via
-  [nim-debra](https://github.com/elijahr/nim-debra). The queue owns or
-  borrows a `DebraManager`, and each operating thread holds a
+  the in-tree [nebr SMR engine](smr/nebr.md) (`lockfree/smr/nebr`). The queue owns or
+  borrows a `DebraManager` (`nebr.Manager`), and each operating thread holds a
   per-thread handle for the pin/retire cycle.
 
 ## Supported `T`

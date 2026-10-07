@@ -100,8 +100,8 @@ the cost of a full heap traversal.
 
 ## Composition matrix (informational)
 
-The full `ref T` composition matrix lives in the internal design doc
-([§2.5](https://github.com/elijahr/lockfree/blob/devel/docs/internal/design-sections/02-type-system-and-payload-types.md)).
+The full `ref T` composition matrix is enforced by `src/lockfree/internal/path_c_admit.nim`
+and documented in [Memory management](concepts/memory-management.md).
 It is a 25-row enumeration of `ref of X` shapes (`ref int`,
 `ref Object`, `ref ref T`, `ref array[N, T]`, `ref tuple`, `ref proc`,
 `ref UncheckedArray`, closure environments, etc.) with an ACCEPT or

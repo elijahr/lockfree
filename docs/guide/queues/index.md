@@ -75,5 +75,5 @@ both bounded and unbounded technically work. Three rules of thumb:
   The unbounded multi-cardinality arms require nebr, which requires
   heap allocation.
 
-For the implementation-level rationale, see the design doc's
-[Architecture](https://github.com/elijahr/lockfree/blob/devel/docs/internal/design-sections/01-architecture-and-module-layout.md).
+For the implementation-level rationale, see
+[Core Concepts](../core-concepts.md) and [Bounded vs Unbounded](../bounded-vs-unbounded.md).

@@ -38,7 +38,7 @@ when nimony is detected (via `when defined(nimony)`):
 - `arcInc`, `arcDec` — atomic refcount intrinsics. Used by the Path-C
   refcount wrappers for `ref T` payloads. The symbol names are
   pinned against nimony's `aufbruch` branch; see
-  [internal: OQ4.2](https://github.com/elijahr/lockfree/blob/devel/docs/internal/design-sections/04-mm-compat-shim-and-cell-layouts.md)
+  [Memory management](concepts/memory-management.md)
   for the verification trail.
 - (Additional flags get added as nimony stabilizes; the umbrella
   errs on the side of opt-in until the flag becomes stable.)
@@ -111,5 +111,5 @@ identical across compilers where both compile.
 ## Further reading
 
 - [Nimony repository](https://github.com/nim-lang/nimony).
-- Internal: [design-sections/06-ci-matrix-and-nimony-plan.md](https://github.com/elijahr/lockfree/blob/devel/docs/internal/design-sections/06-ci-matrix-and-nimony-plan.md) — the full nimony portability plan.
+- [Memory management](concepts/memory-management.md) — runtime memory management guide.
 - [`AGENTS.md`](https://github.com/elijahr/lockfree/blob/devel/AGENTS.md) — the watch-policy gotchas section.
