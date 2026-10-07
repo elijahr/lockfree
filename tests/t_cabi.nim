@@ -54,6 +54,44 @@ proc threadConsumerWorker(arg: ptr ThreadConsumerArg) {.thread.} =
         cpuPause()
     discard lfq_consumer_release(cons)
 
+type
+  UniqueProducerArg = object
+    queue: ptr lfq_queue_t
+    startVal: int
+    count: int
+
+  UniqueConsumerArg = object
+    queue: ptr lfq_queue_t
+    targetTotal: int
+    totalPopped: ptr Atomic[int]
+    checksum: ptr Atomic[uint64]
+    seenArray: ptr UncheckedArray[Atomic[uint8]]
+
+proc uniqueProducerWorker(arg: ptr UniqueProducerArg) {.thread.} =
+  var prod: ptr lfq_producer_t = nil
+  if lfq_producer_acquire(arg.queue, addr prod) == LFQ_OK:
+    for i in 0 ..< arg.count:
+      let itemVal = arg.startVal + i
+      while lfq_push(prod, cast[pointer](itemVal)) == LFQ_ERR_FULL:
+        cpuPause()
+    discard lfq_producer_release(prod)
+
+proc uniqueConsumerWorker(arg: ptr UniqueConsumerArg) {.thread.} =
+  var cons: ptr lfq_consumer_t = nil
+  if lfq_consumer_acquire(arg.queue, addr cons) == LFQ_OK:
+    var item: pointer = nil
+    while arg.totalPopped[].load(moRelaxed) < arg.targetTotal:
+      if lfq_pop(cons, addr item) == LFQ_OK:
+        let val = cast[int](item)
+        discard arg.totalPopped[].fetchAdd(1, moRelaxed)
+        discard arg.checksum[].fetchAdd(uint64(val), moRelaxed)
+        if arg.seenArray != nil:
+          let prev = arg.seenArray[val].exchange(1'u8, moRelaxed)
+          doAssert prev == 0'u8, "Duplicate item detected in C ABI consumer pop: " & $val
+      else:
+        cpuPause()
+    discard lfq_consumer_release(cons)
+
 suite "lockfree C ABI Specification & Cross-Language Interop":
 
   test "Bounded MPMC lifecycle & FIFO ordering":
@@ -354,6 +392,150 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     joinThreads(consumerThreads)
 
     check totalPopped.load(moRelaxed) == (NumProducers * ItemsPerProducer)
+    check lfq_queue_destroy(queue) == LFQ_OK
+
+  test "AUDIT-CABI-01: Multiple queue handles on single thread without NEBR panic":
+    var q1, q2: ptr lfq_queue_t = nil
+    check lfq_unbounded_mpmc_create(16, 4, nil, nil, addr q1) == LFQ_OK
+    check lfq_unbounded_mpmc_create(16, 4, nil, nil, addr q2) == LFQ_OK
+
+    var p1, p2: ptr lfq_producer_t = nil
+    var c1, c2: ptr lfq_consumer_t = nil
+
+    check lfq_producer_acquire(q1, addr p1) == LFQ_OK
+    check lfq_producer_acquire(q2, addr p2) == LFQ_OK
+    check lfq_consumer_acquire(q1, addr c1) == LFQ_OK
+    check lfq_consumer_acquire(q2, addr c2) == LFQ_OK
+
+    check lfq_push(p1, cast[pointer](111)) == LFQ_OK
+    check lfq_push(p2, cast[pointer](222)) == LFQ_OK
+
+    var item: pointer = nil
+    check lfq_pop(c1, addr item) == LFQ_OK
+    check cast[int](item) == 111
+    check lfq_pop(c2, addr item) == LFQ_OK
+    check cast[int](item) == 222
+
+    # Release across different queues without NEBR threadvar assertion panic
+    check lfq_producer_release(p1) == LFQ_OK
+    check lfq_consumer_release(c1) == LFQ_OK
+    check lfq_producer_release(p2) == LFQ_OK
+    check lfq_consumer_release(c2) == LFQ_OK
+
+    check lfq_queue_destroy(q1) == LFQ_OK
+    check lfq_queue_destroy(q2) == LFQ_OK
+
+  test "HIGH-CABI-02: Queue destruction rejected when endpoints active":
+    var queue: ptr lfq_queue_t = nil
+    check lfq_bounded_mpmc_create(8, 2, 2, nil, nil, addr queue) == LFQ_OK
+
+    var prod: ptr lfq_producer_t = nil
+    check lfq_producer_acquire(queue, addr prod) == LFQ_OK
+
+    # Cannot destroy while producer is active
+    check lfq_queue_destroy(queue) == LFQ_ERR_FAILURE
+
+    check lfq_producer_release(prod) == LFQ_OK
+
+    var cons: ptr lfq_consumer_t = nil
+    check lfq_consumer_acquire(queue, addr cons) == LFQ_OK
+
+    # Cannot destroy while consumer is active
+    check lfq_queue_destroy(queue) == LFQ_ERR_FAILURE
+
+    check lfq_consumer_release(cons) == LFQ_OK
+
+    # Now destruction succeeds
+    check lfq_queue_destroy(queue) == LFQ_OK
+
+  test "AUDIT-CABI-03: Queue close semantics and drain":
+    var queue: ptr lfq_queue_t = nil
+    check lfq_bounded_mpmc_create(8, 2, 2, nil, nil, addr queue) == LFQ_OK
+    check lfq_queue_is_closed(queue) == false
+
+    var prod: ptr lfq_producer_t = nil
+    var cons: ptr lfq_consumer_t = nil
+    check lfq_producer_acquire(queue, addr prod) == LFQ_OK
+    check lfq_consumer_acquire(queue, addr cons) == LFQ_OK
+
+    check lfq_push(prod, cast[pointer](10)) == LFQ_OK
+    check lfq_push(prod, cast[pointer](20)) == LFQ_OK
+    check lfq_push(prod, cast[pointer](30)) == LFQ_OK
+
+    # Close queue
+    check lfq_queue_close(queue) == LFQ_OK
+    check lfq_queue_is_closed(queue) == true
+
+    # Subsequent push must fail with LFQ_ERR_CLOSED
+    check lfq_push(prod, cast[pointer](40)) == LFQ_ERR_CLOSED
+
+    # Acquiring new producer must fail with LFQ_ERR_CLOSED
+    var p2: ptr lfq_producer_t = nil
+    check lfq_producer_acquire(queue, addr p2) == LFQ_ERR_CLOSED
+    check p2 == nil
+
+    # Consumer drains remaining items
+    var item: pointer = nil
+    check lfq_pop(cons, addr item) == LFQ_OK
+    check cast[int](item) == 10
+    check lfq_pop(cons, addr item) == LFQ_OK
+    check cast[int](item) == 20
+    check lfq_pop(cons, addr item) == LFQ_OK
+    check cast[int](item) == 30
+
+    # Once drained, pop returns LFQ_ERR_EMPTY
+    check lfq_pop(cons, addr item) == LFQ_ERR_EMPTY
+
+    check lfq_producer_release(prod) == LFQ_OK
+    check lfq_consumer_release(cons) == LFQ_OK
+    check lfq_queue_destroy(queue) == LFQ_OK
+
+  test "AUDIT-CABI-03: Multithreaded concurrent with payload uniqueness & checksum":
+    var queue: ptr lfq_queue_t = nil
+    check lfq_unbounded_mpmc_create(64, 16, nil, nil, addr queue) == LFQ_OK
+
+    const NumProds = 4
+    const NumCons = 4
+    const ItemsPerProd = 5000
+    const TotalItems = NumProds * ItemsPerProd
+    const ExpectedSum = uint64(TotalItems) * uint64(TotalItems + 1) div 2'u64
+
+    var seen = newSeq[Atomic[uint8]](TotalItems + 1)
+    var prodThreads: array[NumProds, Thread[ptr UniqueProducerArg]]
+    var consThreads: array[NumCons, Thread[ptr UniqueConsumerArg]]
+    var pArgs: array[NumProds, UniqueProducerArg]
+    var cArgs: array[NumCons, UniqueConsumerArg]
+    var totalPopped: Atomic[int]
+    var sumChecksum: Atomic[uint64]
+    totalPopped.store(0, moRelaxed)
+    sumChecksum.store(0, moRelaxed)
+
+    for i in 0 ..< NumCons:
+      cArgs[i] = UniqueConsumerArg(
+        queue: queue,
+        targetTotal: TotalItems,
+        totalPopped: addr totalPopped,
+        checksum: addr sumChecksum,
+        seenArray: cast[ptr UncheckedArray[Atomic[uint8]]](addr seen[0])
+      )
+      createThread(consThreads[i], uniqueConsumerWorker, addr cArgs[i])
+
+    for i in 0 ..< NumProds:
+      pArgs[i] = UniqueProducerArg(
+        queue: queue,
+        startVal: i * ItemsPerProd + 1,
+        count: ItemsPerProd
+      )
+      createThread(prodThreads[i], uniqueProducerWorker, addr pArgs[i])
+
+    joinThreads(prodThreads)
+    joinThreads(consThreads)
+
+    check totalPopped.load(moRelaxed) == TotalItems
+    check sumChecksum.load(moRelaxed) == ExpectedSum
+    for i in 1 .. TotalItems:
+      check seen[i].load(moRelaxed) == 1'u8
+
     check lfq_queue_destroy(queue) == LFQ_OK
 
   test "Direct C99 Header Interoperability":

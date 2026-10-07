@@ -19,6 +19,7 @@ import lockfree/strategy
 import lockfree/endpoint
 import lockfree/exceptions
 from lockfree/smr/nebr import registerThread, unregisterThread, ThreadHandle, DebraRegistrationError, reclaimNow
+import lockfree/smr/nebr/signal
 import std/options
 
 # ------------------------------------------------------------------------------
@@ -73,6 +74,7 @@ type
     maxConsumers*: int
     activeProducers*: Atomic[int]
     activeConsumers*: Atomic[int]
+    isClosed*: Atomic[bool]
     destroyFn*: proc(q: ptr lfq_queue_t): lfq_status_t {.nimcall, gcsafe, raises: [].}
     producerAcquireFn*: proc(q: ptr lfq_queue_t, outProd: ptr ptr lfq_producer_t): lfq_status_t {.nimcall, gcsafe, raises: [].}
     consumerAcquireFn*: proc(q: ptr lfq_queue_t, outCons: ptr ptr lfq_consumer_t): lfq_status_t {.nimcall, gcsafe, raises: [].}
@@ -85,6 +87,8 @@ type
     queue*: ptr lfq_queue_t
     pushFn*: proc(prod: ptr lfq_producer_t, item: pointer): lfq_status_t {.nimcall, gcsafe, raises: [].}
     releaseFn*: proc(prod: ptr lfq_producer_t): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    handleManager*: pointer
+    handleIdx*: int
 
   lfq_producer_t* = lfq_producer
 
@@ -93,6 +97,8 @@ type
     popFn*: proc(cons: ptr lfq_consumer_t, outItem: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].}
     popBatchFn*: proc(cons: ptr lfq_consumer_t, outItems: ptr pointer, maxCount: csize_t): csize_t {.nimcall, gcsafe, raises: [].}
     releaseFn*: proc(cons: ptr lfq_consumer_t): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    handleManager*: pointer
+    handleIdx*: int
 
   lfq_consumer_t* = lfq_consumer
 
@@ -135,20 +141,15 @@ proc boundedPop[N, P, C: static int](cons: ptr lfq_consumer_t, outItem: ptr poin
 proc boundedPopBatch[N, P, C: static int](
     cons: ptr lfq_consumer_t, outItems: ptr pointer, maxCount: csize_t
 ): csize_t {.nimcall, gcsafe, raises: [].} =
+  if unlikely(cons == nil or outItems == nil or maxCount == 0):
+    return 0
   let c = cast[ptr BoundedConsumerImpl[N, P, C]](cons)
-  var count: csize_t = 0
   let arr = cast[ptr UncheckedArray[pointer]](outItems)
   try:
-    while count < maxCount:
-      let opt = c.bound.pop()
-      if opt.isSome:
-        arr[count] = opt.get
-        inc count
-      else:
-        break
+    let n = c.bound.popBatch(toOpenArray(arr, 0, int(maxCount) - 1), int(maxCount))
+    return csize_t(n)
   except:
-    discard
-  return count
+    return 0
 
 proc boundedProducerRelease[N, P, C: static int](prod: ptr lfq_producer_t): lfq_status_t {.nimcall, gcsafe, raises: [].} =
   let p = cast[ptr BoundedProducerImpl[N, P, C]](prod)
@@ -159,7 +160,7 @@ proc boundedProducerRelease[N, P, C: static int](prod: ptr lfq_producer_t): lfq_
     if idx >= 0 and idx < P:
       q.rawQueue.producerThreadIds[idx].store(0, moRelease)
     discard q.base.activeProducers.fetchSub(1, moRelaxed)
-    dealloc(p)
+    deallocShared(p)
     LFQ_OK
 
 proc boundedConsumerRelease[N, P, C: static int](cons: ptr lfq_consumer_t): lfq_status_t {.nimcall, gcsafe, raises: [].} =
@@ -171,7 +172,7 @@ proc boundedConsumerRelease[N, P, C: static int](cons: ptr lfq_consumer_t): lfq_
     if idx >= 0 and idx < C:
       q.rawQueue.consumerThreadIds[idx].store(0, moRelease)
     discard q.base.activeConsumers.fetchSub(1, moRelaxed)
-    dealloc(c)
+    deallocShared(c)
     LFQ_OK
 
 proc boundedProducerAcquire[N, P, C: static int](
@@ -183,10 +184,12 @@ proc boundedProducerAcquire[N, P, C: static int](
   cAbiBoundary:
     var u = q.rawQueue[].getProducer()
     var b = u.bindToThread()
-    let p = cast[ptr BoundedProducerImpl[N, P, C]](alloc0(sizeof(BoundedProducerImpl[N, P, C])))
+    let p = cast[ptr BoundedProducerImpl[N, P, C]](allocShared0(sizeof(BoundedProducerImpl[N, P, C])))
     p.base.queue = qBase
     p.base.pushFn = boundedPush[N, P, C]
     p.base.releaseFn = boundedProducerRelease[N, P, C]
+    p.base.handleManager = nil
+    p.base.handleIdx = b.idx
     p.bound = b
     discard q.base.activeProducers.fetchAdd(1, moRelaxed)
     outProd[] = cast[ptr lfq_producer_t](p)
@@ -201,11 +204,13 @@ proc boundedConsumerAcquire[N, P, C: static int](
   cAbiBoundary:
     var u = q.rawQueue[].getConsumer()
     var b = u.bindToThread()
-    let c = cast[ptr BoundedConsumerImpl[N, P, C]](alloc0(sizeof(BoundedConsumerImpl[N, P, C])))
+    let c = cast[ptr BoundedConsumerImpl[N, P, C]](allocShared0(sizeof(BoundedConsumerImpl[N, P, C])))
     c.base.queue = qBase
     c.base.popFn = boundedPop[N, P, C]
     c.base.popBatchFn = boundedPopBatch[N, P, C]
     c.base.releaseFn = boundedConsumerRelease[N, P, C]
+    c.base.handleManager = nil
+    c.base.handleIdx = b.idx
     c.bound = b
     discard q.base.activeConsumers.fetchAdd(1, moRelaxed)
     outCons[] = cast[ptr lfq_consumer_t](c)
@@ -234,6 +239,8 @@ proc boundedQueueIsEmpty[N, P, C: static int](qBase: ptr lfq_queue_t): bool {.ni
     true
 
 proc boundedQueueDestroy[N, P, C: static int](qBase: ptr lfq_queue_t): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  if qBase.activeProducers.load(moAcquire) > 0 or qBase.activeConsumers.load(moAcquire) > 0:
+    return LFQ_ERR_FAILURE
   let q = cast[ptr BoundedQueueImpl[N, P, C]](qBase)
   cAbiBoundary:
     if q.base.destructor != nil:
@@ -250,8 +257,8 @@ proc boundedQueueDestroy[N, P, C: static int](qBase: ptr lfq_queue_t): lfq_statu
       except:
         discard
     `=destroy`(q.rawQueue[])
-    dealloc(q.rawQueue)
-    dealloc(q)
+    deallocShared(q.rawQueue)
+    deallocShared(q)
     LFQ_OK
 
 proc createBoundedInstance[N, P, C: static int](
@@ -260,8 +267,8 @@ proc createBoundedInstance[N, P, C: static int](
     maxProducers: int,
     maxConsumers: int
 ): ptr lfq_queue_t =
-  let q = cast[ptr BoundedQueueImpl[N, P, C]](alloc0(sizeof(BoundedQueueImpl[N, P, C])))
-  let raw = cast[ptr BQueue[pointer, ccMulti, ccMulti, N, P, C]](alloc0(sizeof(BQueue[pointer, ccMulti, ccMulti, N, P, C])))
+  let q = cast[ptr BoundedQueueImpl[N, P, C]](allocShared0(sizeof(BoundedQueueImpl[N, P, C])))
+  let raw = cast[ptr BQueue[pointer, ccMulti, ccMulti, N, P, C]](allocShared0(sizeof(BQueue[pointer, ccMulti, ccMulti, N, P, C])))
   raw[] = newBQueue[pointer, ccMulti, ccMulti, N, P, C]()
   q.rawQueue = raw
   q.base.destructor = destructor
@@ -270,6 +277,7 @@ proc createBoundedInstance[N, P, C: static int](
   q.base.maxConsumers = maxConsumers
   q.base.activeProducers.store(0, moRelaxed)
   q.base.activeConsumers.store(0, moRelaxed)
+  q.base.isClosed.store(false, moRelaxed)
   q.base.destroyFn = boundedQueueDestroy[N, P, C]
   q.base.producerAcquireFn = boundedProducerAcquire[N, P, C]
   q.base.consumerAcquireFn = boundedConsumerAcquire[N, P, C]
@@ -315,44 +323,49 @@ proc unboundedPop[S, MaxThreads: static int](cons: ptr lfq_consumer_t, outItem: 
 proc unboundedPopBatch[S, MaxThreads: static int](
     cons: ptr lfq_consumer_t, outItems: ptr pointer, maxCount: csize_t
 ): csize_t {.nimcall, gcsafe, raises: [].} =
+  if unlikely(cons == nil or outItems == nil or maxCount == 0):
+    return 0
   let c = cast[ptr UnboundedConsumerImpl[S, MaxThreads]](cons)
-  var count: csize_t = 0
   let arr = cast[ptr UncheckedArray[pointer]](outItems)
   try:
     {.cast(gcsafe).}:
-      while count < maxCount:
-        let opt = c.bound.pop()
-        if opt.isSome:
-          arr[count] = opt.get
-          inc count
-        else:
-          break
+      let n = c.bound.popBatch(toOpenArray(arr, 0, int(maxCount) - 1), int(maxCount))
+      return csize_t(n)
   except:
-    discard
-  return count
+    return 0
 
 proc unboundedProducerRelease[S, MaxThreads: static int](prod: ptr lfq_producer_t): lfq_status_t {.nimcall, gcsafe, raises: [].} =
   let p = cast[ptr UnboundedProducerImpl[S, MaxThreads]](prod)
   let q = cast[ptr UnboundedQueueImpl[S, MaxThreads]](p.base.queue)
   cAbiBoundary:
     {.cast(gcsafe).}:
-      let mgrPtr = cast[pointer](q.rawQueue[].manager)
+      let mgrPtr = p.base.handleManager
+      let hIdx = p.base.handleIdx
       for i in 0 ..< tlsThreadRegistrations.len:
         if tlsThreadRegistrations[i].mgr == mgrPtr:
           dec tlsThreadRegistrations[i].count
           if tlsThreadRegistrations[i].count <= 0:
-            let hIdx = tlsThreadRegistrations[i].handleIdx
             tlsThreadRegistrations.delete(i)
+            # Restore NEBR threadvars for this manager so unregisterThread doAssert passes
+            threadLocalManager = mgrPtr
+            threadLocalIdx = hIdx
+            threadLocalRegistered = true
+
             type Handle = typeof(registerThread(q.rawQueue[].manager[]))
             let h = Handle(idx: hIdx, manager: q.rawQueue[].manager)
             for _ in 0 .. 3:
               discard q.rawQueue[].manager.globalEpoch.fetchAdd(1'u64, moRelease)
               discard reclaimNow(h)
             unregisterThread(q.rawQueue[].manager[], h)
+
+            if tlsThreadRegistrations.len > 0:
+              threadLocalManager = tlsThreadRegistrations[^1].mgr
+              threadLocalIdx = tlsThreadRegistrations[^1].handleIdx
+              threadLocalRegistered = true
           break
 
       discard q.base.activeProducers.fetchSub(1, moRelaxed)
-      dealloc(p)
+      deallocShared(p)
       LFQ_OK
 
 proc unboundedConsumerRelease[S, MaxThreads: static int](cons: ptr lfq_consumer_t): lfq_status_t {.nimcall, gcsafe, raises: [].} =
@@ -360,23 +373,33 @@ proc unboundedConsumerRelease[S, MaxThreads: static int](cons: ptr lfq_consumer_
   let q = cast[ptr UnboundedQueueImpl[S, MaxThreads]](c.base.queue)
   cAbiBoundary:
     {.cast(gcsafe).}:
-      let mgrPtr = cast[pointer](q.rawQueue[].manager)
+      let mgrPtr = c.base.handleManager
+      let hIdx = c.base.handleIdx
       for i in 0 ..< tlsThreadRegistrations.len:
         if tlsThreadRegistrations[i].mgr == mgrPtr:
           dec tlsThreadRegistrations[i].count
           if tlsThreadRegistrations[i].count <= 0:
-            let hIdx = tlsThreadRegistrations[i].handleIdx
             tlsThreadRegistrations.delete(i)
+            # Restore NEBR threadvars for this manager so unregisterThread doAssert passes
+            threadLocalManager = mgrPtr
+            threadLocalIdx = hIdx
+            threadLocalRegistered = true
+
             type Handle = typeof(registerThread(q.rawQueue[].manager[]))
             let h = Handle(idx: hIdx, manager: q.rawQueue[].manager)
             for _ in 0 .. 3:
               discard q.rawQueue[].manager.globalEpoch.fetchAdd(1'u64, moRelease)
               discard reclaimNow(h)
             unregisterThread(q.rawQueue[].manager[], h)
+
+            if tlsThreadRegistrations.len > 0:
+              threadLocalManager = tlsThreadRegistrations[^1].mgr
+              threadLocalIdx = tlsThreadRegistrations[^1].handleIdx
+              threadLocalRegistered = true
           break
 
       discard q.base.activeConsumers.fetchSub(1, moRelaxed)
-      dealloc(c)
+      deallocShared(c)
       LFQ_OK
 
 proc unboundedProducerAcquire[S, MaxThreads: static int](
@@ -413,10 +436,12 @@ proc unboundedProducerAcquire[S, MaxThreads: static int](
       when defined(debug):
         b.attachedTid = getThreadId()
 
-      let p = cast[ptr UnboundedProducerImpl[S, MaxThreads]](alloc0(sizeof(UnboundedProducerImpl[S, MaxThreads])))
+      let p = cast[ptr UnboundedProducerImpl[S, MaxThreads]](allocShared0(sizeof(UnboundedProducerImpl[S, MaxThreads])))
       p.base.queue = qBase
       p.base.pushFn = unboundedPush[S, MaxThreads]
       p.base.releaseFn = unboundedProducerRelease[S, MaxThreads]
+      p.base.handleManager = mgrPtr
+      p.base.handleIdx = handleIdx
       p.bound = b
       discard q.base.activeProducers.fetchAdd(1, moRelaxed)
       outProd[] = cast[ptr lfq_producer_t](p)
@@ -456,11 +481,13 @@ proc unboundedConsumerAcquire[S, MaxThreads: static int](
       when defined(debug):
         b.attachedTid = getThreadId()
 
-      let c = cast[ptr UnboundedConsumerImpl[S, MaxThreads]](alloc0(sizeof(UnboundedConsumerImpl[S, MaxThreads])))
+      let c = cast[ptr UnboundedConsumerImpl[S, MaxThreads]](allocShared0(sizeof(UnboundedConsumerImpl[S, MaxThreads])))
       c.base.queue = qBase
       c.base.popFn = unboundedPop[S, MaxThreads]
       c.base.popBatchFn = unboundedPopBatch[S, MaxThreads]
       c.base.releaseFn = unboundedConsumerRelease[S, MaxThreads]
+      c.base.handleManager = mgrPtr
+      c.base.handleIdx = handleIdx
       c.bound = b
       discard q.base.activeConsumers.fetchAdd(1, moRelaxed)
       outCons[] = cast[ptr lfq_consumer_t](c)
@@ -484,6 +511,8 @@ proc unboundedQueueIsEmpty[S, MaxThreads: static int](qBase: ptr lfq_queue_t): b
     true
 
 proc unboundedQueueDestroy[S, MaxThreads: static int](qBase: ptr lfq_queue_t): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  if qBase.activeProducers.load(moAcquire) > 0 or qBase.activeConsumers.load(moAcquire) > 0:
+    return LFQ_ERR_FAILURE
   let q = cast[ptr UnboundedQueueImpl[S, MaxThreads]](qBase)
   cAbiBoundary:
     {.cast(gcsafe).}:
@@ -512,11 +541,15 @@ proc unboundedQueueDestroy[S, MaxThreads: static int](qBase: ptr lfq_queue_t): l
               discard q.rawQueue[].manager.globalEpoch.fetchAdd(1'u64, moRelease)
               discard reclaimNow(h)
             unregisterThread(q.rawQueue[].manager[], h)
+            if tlsThreadRegistrations.len > 0:
+              threadLocalManager = tlsThreadRegistrations[^1].mgr
+              threadLocalIdx = tlsThreadRegistrations[^1].handleIdx
+              threadLocalRegistered = true
         except:
           discard
       `=destroy`(q.rawQueue[])
-      dealloc(q.rawQueue)
-      dealloc(q)
+      deallocShared(q.rawQueue)
+      deallocShared(q)
       LFQ_OK
 
 
@@ -526,8 +559,8 @@ proc createUnboundedInstance[S, MaxThreads: static int](
     maxProducers: int,
     maxConsumers: int
 ): ptr lfq_queue_t =
-  let q = cast[ptr UnboundedQueueImpl[S, MaxThreads]](alloc0(sizeof(UnboundedQueueImpl[S, MaxThreads])))
-  let raw = cast[ptr Queue[pointer, ccMulti, ccMulti, stEager, S, MaxThreads]](alloc0(sizeof(Queue[pointer, ccMulti, ccMulti, stEager, S, MaxThreads])))
+  let q = cast[ptr UnboundedQueueImpl[S, MaxThreads]](allocShared0(sizeof(UnboundedQueueImpl[S, MaxThreads])))
+  let raw = cast[ptr Queue[pointer, ccMulti, ccMulti, stEager, S, MaxThreads]](allocShared0(sizeof(Queue[pointer, ccMulti, ccMulti, stEager, S, MaxThreads])))
   raw[] = newUnboundedMpmcQueue[pointer, stEager, S, MaxThreads]()
   q.rawQueue = raw
   q.base.destructor = destructor
@@ -536,6 +569,7 @@ proc createUnboundedInstance[S, MaxThreads: static int](
   q.base.maxConsumers = maxConsumers
   q.base.activeProducers.store(0, moRelaxed)
   q.base.activeConsumers.store(0, moRelaxed)
+  q.base.isClosed.store(false, moRelaxed)
   q.base.destroyFn = unboundedQueueDestroy[S, MaxThreads]
   q.base.producerAcquireFn = unboundedProducerAcquire[S, MaxThreads]
   q.base.consumerAcquireFn = unboundedConsumerAcquire[S, MaxThreads]
@@ -667,9 +701,17 @@ proc lfq_bounded_mpmc_create*(
     out_queue[] = q
     LFQ_OK
 
+proc lfq_queue_close*(queue: ptr lfq_queue_t): lfq_status_t {.exportc: "lfq_queue_close", cdecl, gcsafe, raises: [].} =
+  if unlikely(queue == nil):
+    return LFQ_ERR_INVALID_ARG
+  queue.isClosed.store(true, moRelease)
+  return LFQ_OK
+
 proc lfq_queue_destroy*(queue: ptr lfq_queue_t): lfq_status_t {.exportc: "lfq_queue_destroy", cdecl, gcsafe, raises: [].} =
   if unlikely(queue == nil):
     return LFQ_ERR_INVALID_ARG
+  if queue.activeProducers.load(moAcquire) > 0 or queue.activeConsumers.load(moAcquire) > 0:
+    return LFQ_ERR_FAILURE
   cAbiBoundary:
     queue.destroyFn(queue)
 
@@ -679,6 +721,8 @@ proc lfq_producer_acquire*(
 ): lfq_status_t {.exportc: "lfq_producer_acquire", cdecl, gcsafe, raises: [].} =
   if unlikely(queue == nil or out_prod == nil):
     return LFQ_ERR_INVALID_ARG
+  if unlikely(queue.isClosed.load(moAcquire)):
+    return LFQ_ERR_CLOSED
   cAbiBoundary:
     queue.producerAcquireFn(queue, out_prod)
 
@@ -704,8 +748,10 @@ proc lfq_consumer_release*(cons: ptr lfq_consumer_t): lfq_status_t {.exportc: "l
     cons.releaseFn(cons)
 
 proc lfq_push*(prod: ptr lfq_producer_t, item: pointer): lfq_status_t {.exportc: "lfq_push", cdecl, gcsafe, raises: [].} =
-  if unlikely(prod == nil):
+  if unlikely(prod == nil or prod.queue == nil):
     return LFQ_ERR_INVALID_ARG
+  if unlikely(prod.queue.isClosed.load(moAcquire)):
+    return LFQ_ERR_CLOSED
   cAbiBoundary:
     prod.pushFn(prod, item)
 
@@ -742,3 +788,8 @@ proc lfq_queue_is_empty*(queue: ptr lfq_queue_t): bool {.exportc: "lfq_queue_is_
     return queue.isEmptyFn(queue)
   except:
     return true
+
+proc lfq_queue_is_closed*(queue: ptr lfq_queue_t): bool {.exportc: "lfq_queue_is_closed", cdecl, gcsafe, raises: [].} =
+  if unlikely(queue == nil):
+    return true
+  return queue.isClosed.load(moAcquire)

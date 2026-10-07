@@ -44,6 +44,7 @@ lfq_status_t lfq_bounded_mpmc_create(
     lfq_queue_t** out_queue
 );
 
+lfq_status_t lfq_queue_close(lfq_queue_t* queue);
 lfq_status_t lfq_queue_destroy(lfq_queue_t* queue);
 
 /* Thread Registration */
@@ -63,6 +64,7 @@ size_t lfq_pop_batch(lfq_consumer_t* cons, void** out_items, size_t max_count);
 /* Introspection */
 size_t lfq_queue_len(const lfq_queue_t* queue);
 bool lfq_queue_is_empty(const lfq_queue_t* queue);
+bool lfq_queue_is_closed(const lfq_queue_t* queue);
 
 #ifdef __cplusplus
 }
