@@ -93,15 +93,15 @@ types:
 The `ccProd` / `ccCons` parameters (`ccSingle` / `ccMulti`) select the
 producer and consumer cardinality.
 
-**No type aliases are provided.** Every typed call site (`var q: Mupsic[...]`,
-`var u: UnboundedMupmuc[...]`, etc.) must migrate to the `BQueue[T, ...]`
-or `Queue[T, ...]` form. The migration is mechanical but pervasive: a
-typical 4.1.x adopter touches every `import lockfreequeues` call site.
-For ergonomic continuity, each cell of the SPSC/SPMC/MPSC/MPMC grid keeps
-a **family-named smart constructor** (`newSpscQueue`, `newMpmcQueue`,
-`newUnboundedMpmcQueue`, …) — these are thin wrappers over the two
-generic constructors `newBQueue` / `newQueue`, so most call-site churn is
-the constructor name and the parameter order, not a hand-rolled generic.
+**Zero-Breaking Compatibility Layer.** To ensure zero friction for existing applications, `lockfree` provides a comprehensive backwards-compatibility shim layer. Existing code using `import lockfreequeues` or `import debra` continues to work with zero code modifications!
+
+The compatibility layer (`src/lockfreequeues.nim`, `src/debra.nim`, `src/lockfreequeues/*.nim`, `src/lockfree/compat/lockfreequeues.nim`) exposes:
+- Bounded aliases: `Sipsic`, `Mupsic`, `Sipmuc`, `Mupmuc` mapped to `BQueue`.
+- Unbounded aliases: `UnboundedSipsic`, `UnboundedMupsic`, `UnboundedSipmuc`, `UnboundedMupmuc` mapped to `Queue`.
+- Legacy smart constructors: `newSipsicQueue`, `newMupsicQueue`, `newSipmucQueue`, `newMupmucQueue`, etc.
+- Automatic thread-affinity attachment on `getProducer` / `getConsumer`.
+
+For new code, direct usage of `BQueue` and `Queue` with explicit cardinalities (`ccSingle` / `ccMulti`) or the family-named constructors (`newSpscQueue`, `newMpmcQueue`, `newUnboundedMpmcQueue`, …) is recommended.
 
 > **Unbounded path dependency.** The unbounded `Queue` cardinalities
 > other than `(ccSingle, ccSingle)` integrate `nim-debra` for

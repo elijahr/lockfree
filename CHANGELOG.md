@@ -24,6 +24,21 @@ umbrella, not separate releases of the umbrella package itself.
 
 ### Added
 
+- **Full backwards-compatibility drop-in shims (`lockfreequeues` and `debra`).**
+  `src/lockfreequeues.nim`, `src/debra.nim`, `src/lockfreequeues/*.nim`, and
+  `src/lockfree/compat/lockfreequeues.nim` provide 100% API parity for existing
+  `lockfreequeues` v4.2.0 and `nim-debra` callers. Legacy type aliases (`Sipsic`,
+  `Mupsic`, `Sipmuc`, `Mupmuc`, `Unbounded*`), smart constructors, and modular
+  import paths resolve transparently with zero breaking changes.
+- **Move-only POD type admission on Strict-LCRQ.** Types with
+  `=copy {.error.}` but no managed heap fields (`hasManagedFields` is false)
+  are admitted through Path-C double-word CAS (128-bit DWCAS) without false
+  positives from `supportsCopyMem`.
+- **High-volume stress test suite & TSAN/ASAN matrix.** Comprehensive 100k
+  message test suite (`tests/t_stress.nim`) covering all 8 bounded and
+  unbounded cardinality combinations. Verified with zero data races under
+  ThreadSanitizer (`-fsanitize=thread`) and zero memory errors under
+  AddressSanitizer (`-fsanitize=address,undefined`).
 - **Lifted lock-free queues (8 cardinality arms × bounded/unbounded).**
   `BQueue[T, ccProd, ccCons, N, P, C]` and
   `Queue[T, ccProd, ccCons, ST, S, MaxThreads]` cover SPSC, SPMC, MPSC,
