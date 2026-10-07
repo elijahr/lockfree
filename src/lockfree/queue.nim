@@ -1574,6 +1574,36 @@ proc pop*[
 ): Option[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
   ## SPMC pop — retire-bearing site. Pin claim via reconstructed
   ## ThreadHandle from opaque Bound storage.
+  ##
+  ## DEBRA Pin–Claim Ordering Invariant (both topologies):
+  ##
+  ## 1. Pin opens BEFORE headSegment.load (this `pinScope` scope).
+  ## 2. Pin covers slot reservation through readItem/extract window
+  ##    (`prevConsumerIdx.compareExchange` -> `move(seg.data[mySlot])` in SPMC;
+  ##    `prevConsumerIdx.compareExchange` -> `tryClaim` DWCAS in MPMC).
+  ## 3. Segment under pin == segment under claim (pointer linearity).
+  ## 4. headSegment advance (`retireOnCAS`) retires oldSeg via DEBRA; oldSeg is
+  ##    not freed until all pins in its retire-epoch rotate.
+  ## 5. Bulk variant acquires per-call pin satisfying (1)–(4).
+  ## 6. Pin coverage (topology-conditional):
+  ##
+  ##    a. Consumer (both SPMC and MPMC): pin opens BEFORE the consumer's slot
+  ##       claim / close-CAS in `pop`, and remains open THROUGH the claim/close
+  ##       completion AND the subsequent item extraction or segment transition.
+  ##       Same `pinScope` as the `headSegment.load` that produced the segment
+  ##       pointer.
+  ##
+  ##    b. MPMC producer: push publish-CAS occurs within the same `pinScope`
+  ##       as the `tailSegment.load` that produced the segment pointer.
+  ##       Required because peer producers can retire the segment under us
+  ##       via headSegment-advance (peer-producer retire race).
+  ##       Implementation: MPMC push wraps the retry loop in `pinScope`.
+  ##
+  ##    c. SPMC producer: push does NOT require `pinScope`. Single-producer
+  ##       immunity: no peer producer can retire the segment under us.
+  ##       Implementation: SPMC push explicitly opts out of `pinScope`.
+  ##
+  ## DO NOT alter pinScope without re-establishing this invariant.
   # Path-C admission gate (25-row composition matrix + reject chain).
   # Rejects: distinct ref alias (row 7), nested ref (row 8), value types
   # with managed fields, unsupported T. Accepts: ref T, string, seq[U]
@@ -1592,6 +1622,9 @@ proc pop*[
     var seg = self.queue.headSegment.load(moAcquire)
     var spins = InitialSpin
     while true:
+      # Producer payload publication HB rides on tail: producer stores
+      # seg.data[tail] before tail.store(tail+1, moRelease). Acquire load
+      # here establishes happens-before for all slots < tail.
       let tail = seg.tail.load(moAcquire)
       var prevIdx = seg.prevConsumerIdx.load(moAcquire)
       let mySlot = prevIdx + 1
@@ -1614,6 +1647,11 @@ proc pop*[
         backoffOnRetry(spins)
         continue
 
+      # Multi-consumer slot reservation. Acquire ordering on prevConsumerIdx-CAS
+      # synchronizes among peer consumers so each slot is claimed at most once.
+      # Note: payload publication HB does NOT ride on prevConsumerIdx; it rides
+      # on the single producer's tail.store(moRelease) paired with tail.load(moAcquire)
+      # above (mySlot < tail ensures seg.data[mySlot] is already published and visible).
       if seg.prevConsumerIdx.compareExchange(prevIdx, mySlot, moAcquire, moRelaxed):
         # data[] holds SlotEncoding(T); decode on the way out.
         result = some(unwrapOrIdentity[T](move(seg.data[mySlot])))
@@ -1634,6 +1672,36 @@ proc pop*[
     self: Bound[T, Tag, Queue[T, ccMulti, ccMulti, ST, S, MaxThreads]]
 ): Option[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
   ## MPMC pop — retire-bearing site.
+  ##
+  ## DEBRA Pin–Claim Ordering Invariant (both topologies):
+  ##
+  ## 1. Pin opens BEFORE headSegment.load (this `pinScope` scope).
+  ## 2. Pin covers slot reservation through readItem/extract window
+  ##    (`prevConsumerIdx.compareExchange` -> `move(seg.data[mySlot])` in SPMC;
+  ##    `prevConsumerIdx.compareExchange` -> `tryClaim` DWCAS in MPMC).
+  ## 3. Segment under pin == segment under claim (pointer linearity).
+  ## 4. headSegment advance (`retireOnCAS`) retires oldSeg via DEBRA; oldSeg is
+  ##    not freed until all pins in its retire-epoch rotate.
+  ## 5. Bulk variant acquires per-call pin satisfying (1)–(4).
+  ## 6. Pin coverage (topology-conditional):
+  ##
+  ##    a. Consumer (both SPMC and MPMC): pin opens BEFORE the consumer's slot
+  ##       claim / close-CAS in `pop`, and remains open THROUGH the claim/close
+  ##       completion AND the subsequent item extraction or segment transition.
+  ##       Same `pinScope` as the `headSegment.load` that produced the segment
+  ##       pointer.
+  ##
+  ##    b. MPMC producer: push publish-CAS occurs within the same `pinScope`
+  ##       as the `tailSegment.load` that produced the segment pointer.
+  ##       Required because peer producers can retire the segment under us
+  ##       via headSegment-advance (peer-producer retire race).
+  ##       Implementation: MPMC push wraps the retry loop in `pinScope`.
+  ##
+  ##    c. SPMC producer: push does NOT require `pinScope`. Single-producer
+  ##       immunity: no peer producer can retire the segment under us.
+  ##       Implementation: SPMC push explicitly opts out of `pinScope`.
+  ##
+  ## DO NOT alter pinScope without re-establishing this invariant.
   # Path-C admission gate (25-row composition matrix + reject chain).
   # Rejects: distinct ref alias (row 7), nested ref (row 8), value types
   # with managed fields, unsupported T. Accepts: ref T, string, seq[U]
@@ -1793,6 +1861,15 @@ proc pop*[
       # Both layers are required: the cell DWCAS extracts the value
       # but does not coordinate ownership; the prevConsumerIdx CAS
       # coordinates ownership but does not extract the value.
+      #
+      # Happens-Before (HB) Rationale:
+      # Payload publication HB rides on the cell DWCAS transaction:
+      # producer's tryPublish uses moRelease on compareExchangeStrong,
+      # which synchronizes-with consumer's tryClaim using moAcquire on
+      # load and moAcquireRelease on compareExchangeStrong.
+      # prevConsumerIdx CAS coordinates slot reservation among peer
+      # consumers (preventing duplicate claims), but does NOT carry
+      # payload HB from producer to consumer.
       if seg.prevConsumerIdx.compareExchange(prevIdx, mySlot, moAcquire, moRelaxed):
         # cells hold LCRQCell[SlotEncoding(T)]; DWCAS extracts
         # the encoded form, which is decoded back to user-facing T.
