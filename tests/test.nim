@@ -21,6 +21,7 @@ import ./t_queue_bounded_mpmc_threaded
 import ./t_queue_bounded_spmc_threaded
 import ./t_unbounded_mpmc
 import ./t_unbounded_mpmc_threaded
+import ./t_unbounded_mpmc_move_analyzer
 import ./t_unbounded_mpsc
 import ./t_unbounded_mpsc_threaded
 import ./t_unbounded_padding
@@ -69,6 +70,12 @@ import ./composition/t_verify_pop_clears_spmc_unbounded
 import ./composition/t_verify_pop_clears_mpmc_unbounded
 
 import ./t_wraparound
+import ./t_compat_lockfreequeues
+import ./compat/t_legacy_sipsic
+import ./compat/t_legacy_mupsic
+import ./compat/t_legacy_sipmuc
+import ./compat/t_legacy_mupmuc
+import ./compat/t_legacy_unbounded
 
 # chronos adapter tests gated on chronos availability
 # (chronos is NOT in lockfree.nimble requires). When chronos
@@ -94,7 +101,7 @@ export
   t_queue_bounded_spmc, t_queue_bounded_mpmc, t_queue_bounded_spsc,
   t_queue_bounded_mpsc_threaded, t_queue_bounded_spsc_threaded,
   t_queue_bounded_mpmc_threaded, t_queue_bounded_spmc_threaded, t_unbounded_mpmc,
-  t_unbounded_mpmc_threaded, t_unbounded_mpsc, t_unbounded_mpsc_threaded,
+  t_unbounded_mpmc_threaded, t_unbounded_mpmc_move_analyzer, t_unbounded_mpsc, t_unbounded_mpsc_threaded,
   t_unbounded_padding, t_unbounded_spmc, t_unbounded_spmc_threaded, t_unbounded_spsc,
   t_unbounded_spsc_threaded, t_unbounded_auto_create, t_queue_strategy_phantom,
   t_lcrq_cell_alias, t_lcrq_cell_primitives, t_lcrq_init, t_lcrq_push_single,
@@ -107,7 +114,9 @@ export
   t_verify_pop_clears_mpmc_bounded, t_verify_pop_clears_spsc_unbounded,
   t_verify_pop_clears_mpsc_unbounded, t_verify_pop_clears_spmc_unbounded,
   t_verify_pop_clears_mpmc_unbounded, t_refcount_use_patterns,
-  t_seq_char_dispose
+  t_seq_char_dispose,
+  t_compat_lockfreequeues, t_legacy_sipsic, t_legacy_mupsic,
+  t_legacy_sipmuc, t_legacy_mupmuc, t_legacy_unbounded
 
 when (
   compiles do:
