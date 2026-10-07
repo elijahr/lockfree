@@ -103,24 +103,23 @@ All feature and refactoring tracks execute in isolated Rift / Git-worktree stran
 ---
 
 ### Phase 4: `lockfreequeues` Backwards-Compatibility Shim Layer
-- [ ] **Task 4.1: Design and Implement Legacy Compatibility Module** (`implementer-kite`)
-  - *Strand*: `strand/compat-lockfreequeues`
-  - *Lock*: `rhizo lock lock:file:compat:lockfreequeues 300 --fencing`
-  - *Action*: Implement `src/lockfree/compat/lockfreequeues.nim` (and top-level re-exports):
-    - Export legacy bounded type aliases:
+- [x] **Task 4.1: Design and Implement Legacy Compatibility Module** (`architect-horsetail`)
+  - *Strand*: `strand/task-compat-lockfreequeues`
+  - *Action*: Implemented `src/lockfree/compat/lockfreequeues.nim` and `src/lockfreequeues.nim`:
+    - Exported legacy bounded type aliases:
       - `Sipsic[N, P, C, T] = BQueue[T, ccSingle, ccSingle, N, P, C]`
       - `Mupsic[N, P, C, T] = BQueue[T, ccMulti, ccSingle, N, P, C]`
       - `Sipmuc[N, P, C, T] = BQueue[T, ccSingle, ccMulti, N, P, C]`
       - `Mupmuc[N, P, C, T] = BQueue[T, ccMulti, ccMulti, N, P, C]`
-    - Export legacy unbounded type aliases:
+    - Exported legacy unbounded type aliases:
       - `UnboundedSipsic[T, ST, S] = Queue[T, ccSingle, ccSingle, ST, S]`
       - `UnboundedMupsic[T, ST, S, MaxThreads] = Queue[T, ccMulti, ccSingle, ST, S, MaxThreads]`
       - `UnboundedSipmuc[T, ST, S, MaxThreads] = Queue[T, ccSingle, ccMulti, ST, S, MaxThreads]`
       - `UnboundedMupmuc[T, ST, S, MaxThreads] = Queue[T, ccMulti, ccMulti, ST, S, MaxThreads]`
-    - Re-export legacy constructors: `newSipsicQueue`, `newMupsicQueue`, `newSipmucQueue`, `newMupmucQueue`, etc.
-    - Re-export legacy exceptions and procs (`empty`, `full`, `getProducer`, `getConsumer`).
-  - *Verification*: Compile and run existing examples and tests from the v4.2.0 suite against the shim!
-  - *Weave*: `vine gate && vine weave && rhizo unlock lock:file:compat:lockfreequeues`
+    - Re-exported legacy constructors: `newSipsicQueue`, `newMupsicQueue`, `newSipmucQueue`, `newMupmucQueue`, etc.
+    - Implemented `DEFECT-CRIT-01` (constructor arity overloads) and `DEFECT-WARN-01` (unbounded auto-attachment on `getProducer`/`getConsumer`).
+  - *Verification*: `tests/t_compat_lockfreequeues.nim` 7/7 PASS.
+  - *Weave*: Woven into `main` (`5cb21cc` / merge commit).
 
 - [ ] **Task 4.2: Audit Backwards-Compatibility Parity** (`auditor-pegasus`)
   - *Strand*: `strand/compat-audit`
