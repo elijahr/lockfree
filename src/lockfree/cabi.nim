@@ -22,6 +22,8 @@ from lockfree/smr/nebr import registerThread, unregisterThread, ThreadHandle, De
 import lockfree/smr/nebr/signal
 import lockfree/stack
 import lockfree/deque
+import lockfree/skiplist
+import lockfree/set
 import std/options
 
 # ------------------------------------------------------------------------------
@@ -41,6 +43,7 @@ type
     LFQ_ERR_UNSUPPORTED   =  6
 
   lfq_item_destructor_fn* = proc(item: pointer, userData: pointer) {.cdecl, gcsafe.}
+  lfq_entry_destructor_fn* = proc(key: pointer, val: pointer, userData: pointer) {.cdecl, gcsafe.}
 
 # ------------------------------------------------------------------------------
 # Exception Firewall Template
@@ -1060,3 +1063,223 @@ proc lfq_deque_is_empty*(deque: ptr lfq_deque_t): bool {.exportc: "lfq_deque_is_
     return deque.raw[].isEmpty()
   except:
     return true
+
+# ------------------------------------------------------------------------------
+# 4. Table (MPMC Ordered Key-Value Map based on SkipListMap)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_table* {.exportc: "lfq_table_t".} = object
+    destructor*: lfq_entry_destructor_fn
+    userData*: pointer
+    raw*: ptr SkipListMap[pointer, pointer]
+
+  lfq_table_t* = lfq_table
+
+proc lfq_table_create*(
+    destructor: lfq_entry_destructor_fn,
+    user_data: pointer,
+    out_table: ptr ptr lfq_table_t
+): lfq_status_t {.exportc: "lfq_table_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_table == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let t = cast[ptr lfq_table_t](allocShared0(sizeof(lfq_table_t)))
+    let raw = cast[ptr SkipListMap[pointer, pointer]](allocShared0(sizeof(SkipListMap[pointer, pointer])))
+    raw[] = initSkipListMap[pointer, pointer]()
+    t.destructor = destructor
+    t.userData = user_data
+    t.raw = raw
+    out_table[] = t
+    LFQ_OK
+
+proc lfq_table_destroy*(table: ptr lfq_table_t): lfq_status_t {.exportc: "lfq_table_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    if table.destructor != nil:
+      try:
+        for k, v in table.raw[].pairs:
+          table.destructor(k, v, table.userData)
+      except:
+        discard
+    `=destroy`(table.raw[])
+    deallocShared(table.raw)
+    deallocShared(table)
+    LFQ_OK
+
+proc lfq_table_put*(
+    table: ptr lfq_table_t,
+    key: pointer,
+    val: pointer,
+    out_inserted: ptr bool
+): lfq_status_t {.exportc: "lfq_table_put", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let inserted = table.raw[].put(key, val)
+    if out_inserted != nil:
+      out_inserted[] = inserted
+    LFQ_OK
+
+proc lfq_table_get*(
+    table: ptr lfq_table_t,
+    key: pointer,
+    out_val: ptr pointer
+): lfq_status_t {.exportc: "lfq_table_get", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.raw == nil or out_val == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let opt = table.raw[].get(key)
+    if opt.isSome:
+      out_val[] = opt.get
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_table_delete*(
+    table: ptr lfq_table_t,
+    key: pointer,
+    out_deleted: ptr bool
+): lfq_status_t {.exportc: "lfq_table_delete", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let deleted = table.raw[].delete(key)
+    if out_deleted != nil:
+      out_deleted[] = deleted
+    if deleted:
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_table_remove*(
+    table: ptr lfq_table_t,
+    key: pointer,
+    out_removed: ptr bool
+): lfq_status_t {.exportc: "lfq_table_remove", cdecl, gcsafe, raises: [].} =
+  lfq_table_delete(table, key, out_removed)
+
+proc lfq_table_contains*(table: ptr lfq_table_t, key: pointer): bool {.exportc: "lfq_table_contains", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.raw == nil):
+    return false
+  try:
+    return table.raw[].contains(key)
+  except:
+    return false
+
+proc lfq_table_len*(table: ptr lfq_table_t): csize_t {.exportc: "lfq_table_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.raw == nil):
+    return 0
+  try:
+    let count = table.raw[].len
+    if count < 0: 0.csize_t else: csize_t(count)
+  except:
+    0
+
+proc lfq_table_is_empty*(table: ptr lfq_table_t): bool {.exportc: "lfq_table_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.raw == nil):
+    return true
+  try:
+    return table.raw[].len == 0
+  except:
+    return true
+
+# ------------------------------------------------------------------------------
+# 5. Set (MPMC Ordered Set based on SkipListSet)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_set* {.exportc: "lfq_set_t".} = object
+    destructor*: lfq_item_destructor_fn
+    userData*: pointer
+    raw*: ptr SkipListSet[pointer]
+
+  lfq_set_t* = lfq_set
+
+proc lfq_set_create*(
+    destructor: lfq_item_destructor_fn,
+    user_data: pointer,
+    out_set: ptr ptr lfq_set_t
+): lfq_status_t {.exportc: "lfq_set_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_set == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let s = cast[ptr lfq_set_t](allocShared0(sizeof(lfq_set_t)))
+    let raw = cast[ptr SkipListSet[pointer]](allocShared0(sizeof(SkipListSet[pointer])))
+    raw[] = initSkipListSet[pointer]()
+    s.destructor = destructor
+    s.userData = user_data
+    s.raw = raw
+    out_set[] = s
+    LFQ_OK
+
+proc lfq_set_destroy*(set: ptr lfq_set_t): lfq_status_t {.exportc: "lfq_set_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(set == nil or set.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    if set.destructor != nil:
+      try:
+        for item in set.raw[].items:
+          set.destructor(item, set.userData)
+      except:
+        discard
+    `=destroy`(set.raw[])
+    deallocShared(set.raw)
+    deallocShared(set)
+    LFQ_OK
+
+proc lfq_set_insert*(
+    set: ptr lfq_set_t,
+    item: pointer,
+    out_inserted: ptr bool
+): lfq_status_t {.exportc: "lfq_set_insert", cdecl, gcsafe, raises: [].} =
+  if unlikely(set == nil or set.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let inserted = set.raw[].insert(item)
+    if out_inserted != nil:
+      out_inserted[] = inserted
+    LFQ_OK
+
+proc lfq_set_remove*(
+    set: ptr lfq_set_t,
+    item: pointer,
+    out_removed: ptr bool
+): lfq_status_t {.exportc: "lfq_set_remove", cdecl, gcsafe, raises: [].} =
+  if unlikely(set == nil or set.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let removed = set.raw[].remove(item)
+    if out_removed != nil:
+      out_removed[] = removed
+    if removed:
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_set_contains*(set: ptr lfq_set_t, item: pointer): bool {.exportc: "lfq_set_contains", cdecl, gcsafe, raises: [].} =
+  if unlikely(set == nil or set.raw == nil):
+    return false
+  try:
+    return set.raw[].contains(item)
+  except:
+    return false
+
+proc lfq_set_len*(set: ptr lfq_set_t): csize_t {.exportc: "lfq_set_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(set == nil or set.raw == nil):
+    return 0
+  try:
+    let count = set.raw[].len
+    if count < 0: 0.csize_t else: csize_t(count)
+  except:
+    0
+
+proc lfq_set_is_empty*(set: ptr lfq_set_t): bool {.exportc: "lfq_set_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(set == nil or set.raw == nil):
+    return true
+  try:
+    return set.raw[].isEmpty()
+  except:
+    return true
+

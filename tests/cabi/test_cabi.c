@@ -44,6 +44,21 @@ static void test_destructor_fn(void* item, void* user_data) {
     }
 }
 
+typedef struct {
+    uintptr_t sum_keys;
+    uintptr_t sum_vals;
+    size_t count_destroyed;
+} destructor_entry_tracker_t;
+
+static void test_entry_destructor_fn(void* key, void* val, void* user_data) {
+    destructor_entry_tracker_t* tracker = (destructor_entry_tracker_t*)user_data;
+    if (tracker != NULL) {
+        tracker->sum_keys += (uintptr_t)key;
+        tracker->sum_vals += (uintptr_t)val;
+        tracker->count_destroyed++;
+    }
+}
+
 /* -------------------------------------------------------------------------
  * Test 1: Bounded Queue Lifecycle, Push/Pop & Aliases
  * ------------------------------------------------------------------------- */
@@ -276,7 +291,131 @@ static void test_cabi_deque(void) {
 }
 
 /* -------------------------------------------------------------------------
- * Test 5: Concurrent Multithreaded MPMC Queue Test via pthreads
+ * Test 5: Table (MPMC Ordered Key-Value Map) Lifecycle, Put, Get, Del, Contains
+ * ------------------------------------------------------------------------- */
+static void test_cabi_table(void) {
+    printf("Running test_cabi_table...\n");
+    destructor_entry_tracker_t tracker = {0, 0, 0};
+    lfq_table_t* table = NULL;
+    lfq_status_t status = lfq_table_create(test_entry_destructor_fn, &tracker, &table);
+    TEST_ASSERT(status == LFQ_OK && table != NULL, "lfq_table_create failed");
+    TEST_ASSERT(lfq_table_is_empty(table), "New table should be empty");
+    TEST_ASSERT(lfq_table_len(table) == 0, "New table len should be 0");
+
+    void* val = NULL;
+    status = lfq_table_get(table, (void*)(uintptr_t)1, &val);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY, "Get on empty table should return LFQ_ERR_EMPTY");
+    TEST_ASSERT(!lfq_table_contains(table, (void*)(uintptr_t)1), "Empty table should not contain key 1");
+
+    /* Put 3 items: (1 -> 100), (2 -> 200), (3 -> 300) */
+    bool inserted = false;
+    status = lfq_table_put(table, (void*)(uintptr_t)1, (void*)(uintptr_t)100, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_table_put 1 failed");
+    status = lfq_table_put(table, (void*)(uintptr_t)2, (void*)(uintptr_t)200, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_table_put 2 failed");
+    status = lfq_table_put(table, (void*)(uintptr_t)3, (void*)(uintptr_t)300, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_table_put 3 failed");
+
+    TEST_ASSERT(!lfq_table_is_empty(table), "Table should not be empty");
+    TEST_ASSERT(lfq_table_len(table) == 3, "Table len should be 3");
+    TEST_ASSERT(lfq_table_contains(table, (void*)(uintptr_t)1), "Table should contain key 1");
+    TEST_ASSERT(lfq_table_contains(table, (void*)(uintptr_t)2), "Table should contain key 2");
+    TEST_ASSERT(lfq_table_contains(table, (void*)(uintptr_t)3), "Table should contain key 3");
+
+    /* Get items */
+    status = lfq_table_get(table, (void*)(uintptr_t)1, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 100, "Get key 1 failed or wrong val");
+    status = lfq_table_get(table, (void*)(uintptr_t)2, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 200, "Get key 2 failed or wrong val");
+    status = lfq_table_get(table, (void*)(uintptr_t)3, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 300, "Get key 3 failed or wrong val");
+
+    /* Update existing key 2 -> 250 */
+    status = lfq_table_put(table, (void*)(uintptr_t)2, (void*)(uintptr_t)250, &inserted);
+    TEST_ASSERT(status == LFQ_OK && !inserted, "Update key 2 should return inserted == false");
+    TEST_ASSERT(lfq_table_len(table) == 3, "Table len should remain 3 after update");
+    status = lfq_table_get(table, (void*)(uintptr_t)2, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 250, "Get updated key 2 failed or wrong val");
+
+    /* Delete key 2 */
+    bool deleted = false;
+    status = lfq_table_delete(table, (void*)(uintptr_t)2, &deleted);
+    TEST_ASSERT(status == LFQ_OK && deleted, "lfq_table_delete 2 failed");
+    TEST_ASSERT(lfq_table_len(table) == 2, "Table len should be 2 after delete");
+    TEST_ASSERT(!lfq_table_contains(table, (void*)(uintptr_t)2), "Key 2 should no longer be present");
+
+    /* Delete non-existent key returns LFQ_ERR_EMPTY */
+    status = lfq_table_delete(table, (void*)(uintptr_t)999, &deleted);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY && !deleted, "Delete non-existent key should return LFQ_ERR_EMPTY");
+
+    /* Remove key 1 via alias lfq_table_remove */
+    bool removed = false;
+    status = lfq_table_remove(table, (void*)(uintptr_t)1, &removed);
+    TEST_ASSERT(status == LFQ_OK && removed, "lfq_table_remove 1 failed");
+    TEST_ASSERT(lfq_table_len(table) == 1, "Table len should be 1 after remove");
+
+    /* Destroy table with remaining entry (3 -> 300): destructor should be invoked! */
+    status = lfq_table_destroy(table);
+    TEST_ASSERT(status == LFQ_OK, "lfq_table_destroy failed");
+    TEST_ASSERT(tracker.count_destroyed == 1, "Table destructor count should be 1");
+    TEST_ASSERT(tracker.sum_keys == 3 && tracker.sum_vals == 300, "Table destructor key/val sum mismatch");
+    printf("test_cabi_table PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
+ * Test 6: Set (MPMC Ordered Set) Lifecycle, Insert, Remove, Contains
+ * ------------------------------------------------------------------------- */
+static void test_cabi_set(void) {
+    printf("Running test_cabi_set...\n");
+    destructor_tracker_t tracker = {0, 0};
+    lfq_set_t* set = NULL;
+    lfq_status_t status = lfq_set_create(test_destructor_fn, &tracker, &set);
+    TEST_ASSERT(status == LFQ_OK && set != NULL, "lfq_set_create failed");
+    TEST_ASSERT(lfq_set_is_empty(set), "New set should be empty");
+    TEST_ASSERT(lfq_set_len(set) == 0, "New set len should be 0");
+    TEST_ASSERT(!lfq_set_contains(set, (void*)(uintptr_t)42), "Empty set should not contain 42");
+
+    /* Insert 3 items: 10, 20, 30 */
+    bool inserted = false;
+    status = lfq_set_insert(set, (void*)(uintptr_t)10, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_set_insert 10 failed");
+    status = lfq_set_insert(set, (void*)(uintptr_t)20, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_set_insert 20 failed");
+    status = lfq_set_insert(set, (void*)(uintptr_t)30, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_set_insert 30 failed");
+
+    TEST_ASSERT(!lfq_set_is_empty(set), "Set should not be empty");
+    TEST_ASSERT(lfq_set_len(set) == 3, "Set len should be 3");
+    TEST_ASSERT(lfq_set_contains(set, (void*)(uintptr_t)10), "Set should contain 10");
+    TEST_ASSERT(lfq_set_contains(set, (void*)(uintptr_t)20), "Set should contain 20");
+    TEST_ASSERT(lfq_set_contains(set, (void*)(uintptr_t)30), "Set should contain 30");
+
+    /* Insert duplicate 20 */
+    status = lfq_set_insert(set, (void*)(uintptr_t)20, &inserted);
+    TEST_ASSERT(status == LFQ_OK && !inserted, "Duplicate insert should return inserted == false");
+    TEST_ASSERT(lfq_set_len(set) == 3, "Set len should remain 3 after duplicate insert");
+
+    /* Remove 20 */
+    bool removed = false;
+    status = lfq_set_remove(set, (void*)(uintptr_t)20, &removed);
+    TEST_ASSERT(status == LFQ_OK && removed, "lfq_set_remove 20 failed");
+    TEST_ASSERT(lfq_set_len(set) == 2, "Set len should be 2 after remove");
+    TEST_ASSERT(!lfq_set_contains(set, (void*)(uintptr_t)20), "Set should not contain 20 after remove");
+
+    /* Remove non-existent item returns LFQ_ERR_EMPTY */
+    status = lfq_set_remove(set, (void*)(uintptr_t)999, &removed);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY && !removed, "Remove non-existent item should return LFQ_ERR_EMPTY");
+
+    /* Destroy set with remaining items (10, 30): destructor should clean them up! */
+    status = lfq_set_destroy(set);
+    TEST_ASSERT(status == LFQ_OK, "lfq_set_destroy failed");
+    TEST_ASSERT(tracker.count_destroyed == 2, "Set destructor count should be 2");
+    TEST_ASSERT(tracker.sum_destroyed == (10 + 30), "Set destructor sum mismatch");
+    printf("test_cabi_set PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
+ * Test 7: Concurrent Multithreaded MPMC Queue Test via pthreads
  * ------------------------------------------------------------------------- */
 #define NUM_PRODUCERS 4
 #define NUM_CONSUMERS 4
@@ -401,6 +540,8 @@ int main(void) {
     test_cabi_unbounded_queue();
     test_cabi_stack();
     test_cabi_deque();
+    test_cabi_table();
+    test_cabi_set();
     test_cabi_concurrency();
 
     printf("\n>>> ALL C ABI TESTS COMPLETED SUCCESSFULLY! <<<\n");

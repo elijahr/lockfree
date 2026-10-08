@@ -146,7 +146,7 @@ proc destroyNodeCallback[T; MaxLevel: static int](p: pointer) {.nimcall, raises:
       discard
     deallocShared(n)
 
-proc freeNodeDirect[T; MaxLevel: static int](n: ptr SkipListNode[T, MaxLevel]) =
+proc freeNodeDirect[T; MaxLevel: static int](n: ptr SkipListNode[T, MaxLevel]) {.gcsafe.} =
   if n != nil:
     when not (T is SomeNumber or T is bool or T is char or T is pointer or T is ptr):
       `=destroy`(n.val)
@@ -304,7 +304,7 @@ proc initSkipListSet*[
 
 proc `=destroy`*[T; MaxThreads, MaxLevel: static int](
     self: var SkipListSet[T, MaxThreads, MaxLevel]
-) =
+) {.gcsafe.} =
   if self.core != nil:
     if self.core.rc.fetchSub(1, moRelease) == 1:
       threadFence(moAcquire)

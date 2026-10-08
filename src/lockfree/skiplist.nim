@@ -142,9 +142,10 @@ proc newVBox[V](val: sink V): ptr VBox[V] {.inline.} =
   wasMoved(result.val)
   result.val = val
 
-proc freeVBox[V](box: ptr VBox[V]) {.inline.} =
+proc freeVBox[V](box: ptr VBox[V]) {.inline, gcsafe.} =
   if box != nil:
-    `=destroy`(box.val)
+    when not (V is SomeNumber or V is bool or V is char or V is pointer or V is ptr):
+      `=destroy`(box.val)
     deallocShared(box)
 
 proc destroyVBoxCallback[V](p: pointer) {.nimcall, raises: [].} =
@@ -169,7 +170,7 @@ proc destroyNodeCallback[K, V; MaxLevel: static int](p: pointer) {.nimcall, rais
       discard
     deallocShared(n)
 
-proc freeNodeDirect[K, V; MaxLevel: static int](n: ptr SkipListNode[K, V, MaxLevel]) =
+proc freeNodeDirect[K, V; MaxLevel: static int](n: ptr SkipListNode[K, V, MaxLevel]) {.gcsafe.} =
   if n != nil:
     let box = n.valPtr.load(moRelaxed)
     if box != nil:
@@ -330,7 +331,7 @@ proc initSkipListMap*[
 
 proc `=destroy`*[K, V; MaxThreads, MaxLevel: static int](
     self: var SkipListMap[K, V, MaxThreads, MaxLevel]
-) =
+) {.gcsafe.} =
   if self.core != nil:
     if self.core.rc.fetchSub(1, moRelease) == 1:
       threadFence(moAcquire)
@@ -557,7 +558,8 @@ proc put*[K, V; MaxThreads, MaxLevel: static int](
       let desired0 = toEntry(newNode, false)
       if not pred0.next[0].compareExchange(expected0, desired0, moAcquireRelease, moAcquire):
         freeVBox(newNode.valPtr.load(moRelaxed))
-        `=destroy`(newNode.key)
+        when not (K is SomeNumber or K is bool or K is char or K is pointer or K is ptr):
+          `=destroy`(newNode.key)
         deallocShared(newNode)
         continue
 
@@ -704,7 +706,8 @@ proc computeIfAbsent*[K, V; MaxThreads, MaxLevel: static int](
       let desired0 = toEntry(newNode, false)
       if not pred0.next[0].compareExchange(expected0, desired0, moAcquireRelease, moAcquire):
         freeVBox(newNode.valPtr.load(moRelaxed))
-        `=destroy`(newNode.key)
+        when not (K is SomeNumber or K is bool or K is char or K is pointer or K is ptr):
+          `=destroy`(newNode.key)
         deallocShared(newNode)
         continue
 

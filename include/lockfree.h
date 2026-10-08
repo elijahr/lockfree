@@ -129,6 +129,56 @@ size_t lfq_deque_len(const lfq_deque_t* deque);
 size_t lfq_deque_capacity(const lfq_deque_t* deque);
 bool lfq_deque_is_empty(const lfq_deque_t* deque);
 
+/* -------------------------------------------------------------------------
+ * 4. Table (MPMC Ordered Key-Value Map based on SkipListMap)
+ * ------------------------------------------------------------------------- */
+
+typedef struct lfq_table lfq_table_t;
+
+typedef void (*lfq_entry_destructor_fn)(void* key, void* val, void* user_data);
+
+/* Table Lifecycle */
+lfq_status_t lfq_table_create(
+    lfq_entry_destructor_fn destructor,
+    void* user_data,
+    lfq_table_t** out_table
+);
+lfq_status_t lfq_table_destroy(lfq_table_t* table);
+
+/* Table Operations */
+lfq_status_t lfq_table_put(lfq_table_t* table, void* key, void* val, bool* out_inserted);
+lfq_status_t lfq_table_get(const lfq_table_t* table, void* key, void** out_val);
+lfq_status_t lfq_table_delete(lfq_table_t* table, void* key, bool* out_deleted);
+lfq_status_t lfq_table_remove(lfq_table_t* table, void* key, bool* out_removed);
+bool lfq_table_contains(const lfq_table_t* table, void* key);
+
+/* Table Introspection */
+size_t lfq_table_len(const lfq_table_t* table);
+bool lfq_table_is_empty(const lfq_table_t* table);
+
+/* -------------------------------------------------------------------------
+ * 5. Set (MPMC Ordered Set based on SkipListSet)
+ * ------------------------------------------------------------------------- */
+
+typedef struct lfq_set lfq_set_t;
+
+/* Set Lifecycle */
+lfq_status_t lfq_set_create(
+    lfq_item_destructor_fn destructor,
+    void* user_data,
+    lfq_set_t** out_set
+);
+lfq_status_t lfq_set_destroy(lfq_set_t* set);
+
+/* Set Operations */
+lfq_status_t lfq_set_insert(lfq_set_t* set, void* item, bool* out_inserted);
+lfq_status_t lfq_set_remove(lfq_set_t* set, void* item, bool* out_removed);
+bool lfq_set_contains(const lfq_set_t* set, void* item);
+
+/* Set Introspection */
+size_t lfq_set_len(const lfq_set_t* set);
+bool lfq_set_is_empty(const lfq_set_t* set);
+
 #ifdef __cplusplus
 }
 #endif

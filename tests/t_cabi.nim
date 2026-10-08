@@ -691,6 +691,161 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check tracker.count == 3
     check tracker.sum == (7 + 14 + 21)
 
+  test "SkipListMap Table lifecycle, put, get, update, delete & contains":
+    var table: ptr lfq_table_t = nil
+    check lfq_table_create(nil, nil, addr table) == LFQ_OK
+    check table != nil
+    check lfq_table_is_empty(table) == true
+    check lfq_table_len(table) == 0
+
+    var val: pointer = nil
+    check lfq_table_get(table, cast[pointer](1), addr val) == LFQ_ERR_EMPTY
+    check lfq_table_contains(table, cast[pointer](1)) == false
+
+    # Put 3 entries
+    var inserted: bool = false
+    check lfq_table_put(table, cast[pointer](1), cast[pointer](10), addr inserted) == LFQ_OK
+    check inserted == true
+    check lfq_table_put(table, cast[pointer](2), cast[pointer](20), addr inserted) == LFQ_OK
+    check inserted == true
+    check lfq_table_put(table, cast[pointer](3), cast[pointer](30), addr inserted) == LFQ_OK
+    check inserted == true
+
+    check lfq_table_is_empty(table) == false
+    check lfq_table_len(table) == 3
+    check lfq_table_contains(table, cast[pointer](1)) == true
+    check lfq_table_contains(table, cast[pointer](2)) == true
+    check lfq_table_contains(table, cast[pointer](3)) == true
+
+    # Get items
+    check lfq_table_get(table, cast[pointer](1), addr val) == LFQ_OK
+    check cast[int](val) == 10
+    check lfq_table_get(table, cast[pointer](2), addr val) == LFQ_OK
+    check cast[int](val) == 20
+    check lfq_table_get(table, cast[pointer](3), addr val) == LFQ_OK
+    check cast[int](val) == 30
+
+    # Update key 2 -> 222
+    check lfq_table_put(table, cast[pointer](2), cast[pointer](222), addr inserted) == LFQ_OK
+    check inserted == false
+    check lfq_table_len(table) == 3
+    check lfq_table_get(table, cast[pointer](2), addr val) == LFQ_OK
+    check cast[int](val) == 222
+
+    # Delete key 2
+    var deleted: bool = false
+    check lfq_table_delete(table, cast[pointer](2), addr deleted) == LFQ_OK
+    check deleted == true
+    check lfq_table_len(table) == 2
+    check lfq_table_contains(table, cast[pointer](2)) == false
+    check lfq_table_get(table, cast[pointer](2), addr val) == LFQ_ERR_EMPTY
+
+    # Delete non-existent key returns LFQ_ERR_EMPTY
+    check lfq_table_delete(table, cast[pointer](999), addr deleted) == LFQ_ERR_EMPTY
+    check deleted == false
+
+    # Remove key 1 via alias lfq_table_remove
+    var removed: bool = false
+    check lfq_table_remove(table, cast[pointer](1), addr removed) == LFQ_OK
+    check removed == true
+    check lfq_table_len(table) == 1
+
+    check lfq_table_destroy(table) == LFQ_OK
+
+  test "SkipListMap Table destructor callback on destroy":
+    type EntryTracker = object
+      count: int
+      sumKeys: int
+      sumVals: int
+
+    proc tableDestructor(key: pointer, val: pointer, userData: pointer) {.cdecl.} =
+      let tracker = cast[ptr EntryTracker](userData)
+      if tracker != nil:
+        inc tracker.count
+        tracker.sumKeys += cast[int](key)
+        tracker.sumVals += cast[int](val)
+
+    var tracker = EntryTracker(count: 0, sumKeys: 0, sumVals: 0)
+    var table: ptr lfq_table_t = nil
+    check lfq_table_create(tableDestructor, addr tracker, addr table) == LFQ_OK
+
+    var inserted: bool = false
+    check lfq_table_put(table, cast[pointer](10), cast[pointer](100), addr inserted) == LFQ_OK
+    check lfq_table_put(table, cast[pointer](20), cast[pointer](200), addr inserted) == LFQ_OK
+
+    var deleted: bool = false
+    check lfq_table_delete(table, cast[pointer](10), addr deleted) == LFQ_OK
+
+    check lfq_table_destroy(table) == LFQ_OK
+    check tracker.count == 1
+    check tracker.sumKeys == 20
+    check tracker.sumVals == 200
+
+  test "SkipListSet lifecycle, insert, remove, contains & duplicates":
+    var set: ptr lfq_set_t = nil
+    check lfq_set_create(nil, nil, addr set) == LFQ_OK
+    check set != nil
+    check lfq_set_is_empty(set) == true
+    check lfq_set_len(set) == 0
+    check lfq_set_contains(set, cast[pointer](42)) == false
+
+    # Insert 3 items
+    var inserted: bool = false
+    check lfq_set_insert(set, cast[pointer](100), addr inserted) == LFQ_OK
+    check inserted == true
+    check lfq_set_insert(set, cast[pointer](200), addr inserted) == LFQ_OK
+    check inserted == true
+    check lfq_set_insert(set, cast[pointer](300), addr inserted) == LFQ_OK
+    check inserted == true
+
+    check lfq_set_is_empty(set) == false
+    check lfq_set_len(set) == 3
+    check lfq_set_contains(set, cast[pointer](100)) == true
+    check lfq_set_contains(set, cast[pointer](200)) == true
+    check lfq_set_contains(set, cast[pointer](300)) == true
+
+    # Insert duplicate 200
+    check lfq_set_insert(set, cast[pointer](200), addr inserted) == LFQ_OK
+    check inserted == false
+    check lfq_set_len(set) == 3
+
+    # Remove 200
+    var removed: bool = false
+    check lfq_set_remove(set, cast[pointer](200), addr removed) == LFQ_OK
+    check removed == true
+    check lfq_set_len(set) == 2
+    check lfq_set_contains(set, cast[pointer](200)) == false
+
+    # Remove non-existent returns LFQ_ERR_EMPTY
+    check lfq_set_remove(set, cast[pointer](999), addr removed) == LFQ_ERR_EMPTY
+    check removed == false
+
+    check lfq_set_destroy(set) == LFQ_OK
+
+  test "SkipListSet destructor callback on destroy":
+    type ItemTracker = object
+      count: int
+      sum: int
+
+    proc setDestructor(item: pointer, userData: pointer) {.cdecl.} =
+      let tracker = cast[ptr ItemTracker](userData)
+      if tracker != nil:
+        inc tracker.count
+        tracker.sum += cast[int](item)
+
+    var tracker = ItemTracker(count: 0, sum: 0)
+    var set: ptr lfq_set_t = nil
+    check lfq_set_create(setDestructor, addr tracker, addr set) == LFQ_OK
+
+    var inserted: bool = false
+    check lfq_set_insert(set, cast[pointer](11), addr inserted) == LFQ_OK
+    check lfq_set_insert(set, cast[pointer](22), addr inserted) == LFQ_OK
+    check lfq_set_insert(set, cast[pointer](33), addr inserted) == LFQ_OK
+
+    check lfq_set_destroy(set) == LFQ_OK
+    check tracker.count == 3
+    check tracker.sum == (11 + 22 + 33)
+
   test "Direct C99 Header Interoperability":
     let code = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -I" & includeDir & " " & (includeDir / "lockfree.h"))
     check code == 0
