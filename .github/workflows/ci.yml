@@ -369,13 +369,25 @@ jobs:
             nimble-${{ runner.os }}-multinim-
             nimble-${{ runner.os }}-stable-
 
-      - name: Cache vfox Nim toolchains
+      - name: Cache choosenim and nimble toolchains
         uses: actions/cache@v4
         with:
-          path: /opt/vfox/cache/nim
-          key: vfox-nim-${{ runner.os }}-2.2.10-2.2.12-devel
+          path: |
+            ~/.choosenim
+            ~/.nimble
+            /opt/vfox/cache/nim
+          key: choosenim-${{ runner.os }}-multinim-2.2.10-2.2.12-devel-${{ hashFiles('lockfree.nimble') }}
           restore-keys: |
-            vfox-nim-${{ runner.os }}-
+            choosenim-${{ runner.os }}-multinim-
+            choosenim-${{ runner.os }}-
+
+      - name: Setup choosenim
+        shell: bash
+        run: |
+          if ! command -v choosenim &>/dev/null && [ ! -x "$HOME/.nimble/bin/choosenim" ]; then
+            curl https://nim-lang.org/choosenim/init.sh -sSf | sh -s -- -y
+          fi
+          echo "$HOME/.nimble/bin" >> "$GITHUB_PATH"
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -387,7 +399,9 @@ jobs:
             nimcache-${{ runner.os }}-multinim-
 
       - name: Install dependencies from nimble registry
+        shell: bash
         run: |
+          export PATH="$HOME/.nimble/bin:$PATH"
           nimble install -dy
           nimble setup
           for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
@@ -397,8 +411,11 @@ jobs:
       - name: Test across multiple Nim versions (2.2.10, 2.2.12, devel)
         env:
           LFQ_TEST_VARIANT: orc
+        shell: bash
         run: |
           set -o pipefail
+          export PATH="$HOME/.nimble/bin:$PATH"
+
           nimble_run() {
             local logfile
             logfile="$(mktemp)"
@@ -416,20 +433,22 @@ jobs:
           switch_toolchain() {
             local ver="$1"
             echo "::group::Switching toolchain to Nim ${ver}"
-            if [[ "$ver" == "2.2.10" ]]; then
+            export PATH="$HOME/.nimble/bin:$PATH"
+            if command -v choosenim &>/dev/null || [ -x "$HOME/.nimble/bin/choosenim" ]; then
+              if [[ "$ver" == "devel" ]]; then
+                choosenim --yes '#devel' || choosenim --yes devel
+              else
+                choosenim --yes "$ver"
+              fi
+              ln -sf "$HOME/.nimble/bin/nim" /usr/local/bin/nim 2>/dev/null || true
+              ln -sf "$HOME/.nimble/bin/nimble" /usr/local/bin/nimble 2>/dev/null || true
+              ln -sf "$HOME/.nimble/bin/nim" /usr/bin/nim 2>/dev/null || true
+              ln -sf "$HOME/.nimble/bin/nimble" /usr/bin/nimble 2>/dev/null || true
+            elif [[ "$ver" == "2.2.10" ]]; then
               ln -sf /opt/vfox/cache/nim/v-2.2.10/nim-2.2.10/bin/nim /usr/local/bin/nim
               ln -sf /opt/vfox/cache/nim/v-2.2.10/nim-2.2.10/bin/nimble /usr/local/bin/nimble
               ln -sf /opt/vfox/cache/nim/v-2.2.10/nim-2.2.10/bin/nim /usr/bin/nim
               ln -sf /opt/vfox/cache/nim/v-2.2.10/nim-2.2.10/bin/nimble /usr/bin/nimble
-            elif [[ "$ver" == "devel" ]]; then
-              if [[ ! -d /opt/vfox/cache/nim/v-devel/nim-devel/bin ]]; then
-                echo "Installing Nim devel via vfox..."
-                vfox install nim@ref:devel
-              fi
-              ln -sf /opt/vfox/cache/nim/v-devel/nim-devel/bin/nim /usr/local/bin/nim
-              ln -sf /opt/vfox/cache/nim/v-devel/nim-devel/bin/nimble /usr/local/bin/nimble
-              ln -sf /opt/vfox/cache/nim/v-devel/nim-devel/bin/nim /usr/bin/nim
-              ln -sf /opt/vfox/cache/nim/v-devel/nim-devel/bin/nimble /usr/bin/nimble
             else
               if [[ ! -d "/opt/vfox/cache/nim/v-${ver}/nim-${ver}/bin" ]]; then
                 echo "Installing Nim ${ver} via vfox..."
@@ -452,6 +471,7 @@ jobs:
           for ver in "${VERSIONS[@]}"; do
             switch_toolchain "$ver"
             echo "::group::Running test suite under Nim ${ver}"
+            rm -rf ~/.cache/nim
             nimble setup
             for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
               [ -e "$d/src" ] || ln -s . "$d/src"
@@ -663,7 +683,7 @@ jobs:
           git clone https://github.com/nim-lang/nimony.git /tmp/nimony
           cd /tmp/nimony
           git checkout "${NIMONY_SHA}"
-          nim c -r src/hastur/hastur build nimony
+          nim c -r src/hastur.nim build nimony
           mkdir -p "$HOME/.nimble/bin" /root/.nimble/bin 2>/dev/null || true
           if [ -f bin/nimony ]; then
             cp bin/nimony "$HOME/.nimble/bin/nimony"
