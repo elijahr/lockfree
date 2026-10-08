@@ -1,0 +1,199 @@
+# yamllint disable rule:line-length
+#
+# downstream-compat.yml — downstream integration test safety net (Option B).
+#
+# Runs on push and pull_request against main and devel (plus workflow_dispatch)
+# to verify that changes to lockfree do not regress downstream dependents:
+#   1. elijahr/lockfreequeues (legacy API consumer & compatibility target)
+#   2. elijahr/nim-debra (DEBRA+ safe memory reclamation layer)
+#
+# Both downstream jobs check out lockfree under test, link it locally via
+# `nimble develop`, install dependencies, and execute the downstream test suite
+# with strict exit-code and error-output enforcement.
+
+name: downstream-compat
+
+# yamllint disable rule:truthy
+on:
+  push:
+    branches:
+      - main
+      - devel
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+  pull_request:
+    branches:
+      - main
+      - devel
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+  workflow_dispatch:
+# yamllint enable rule:truthy
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+
+  # ===========================================================================
+  # Job 1: downstream-lockfreequeues
+  # ===========================================================================
+  downstream-lockfreequeues:
+    name: 'Downstream: lockfreequeues'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/elijahr/lockfree-ci:latest
+    env:
+      LOCKFREE_NIM_FROM_IMAGE: 'true'
+    timeout-minutes: 20
+
+    steps:
+      - name: Configure git safe directory
+        run: git config --global --add safe.directory '*'
+
+      - name: Checkout lockfree (under test)
+        uses: actions/checkout@v4
+        with:
+          path: lockfree
+
+      - name: Checkout downstream lockfreequeues
+        uses: actions/checkout@v4
+        with:
+          repository: elijahr/lockfreequeues
+          path: lockfreequeues
+
+      - name: Cache nimble packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nimble/pkgs2
+            ~/.nimble/bin
+          key: nimble-downstream-lockfreequeues-${{ hashFiles('lockfree/lockfree.nimble', 'lockfreequeues/lockfreequeues.nimble') }}
+          restore-keys: |
+            nimble-downstream-lockfreequeues-
+
+      - name: Link local lockfree via nimble develop
+        run: |
+          cd lockfree
+          nimble install -dy
+          nimble setup
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+            [ -e "$d/src" ] || ln -s . "$d/src"
+          done
+          nimble develop -y
+
+      - name: Install lockfreequeues dependencies
+        run: |
+          cd lockfreequeues
+          nimble install -dy
+          nimble setup
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+            [ -e "$d/src" ] || ln -s . "$d/src"
+          done
+
+      - name: Run lockfreequeues test suite
+        run: |
+          set -o pipefail
+          export SANITIZE_THREADS=no
+          export SANITIZE_ADDRESS=no
+          nimble_run() {
+            local logfile
+            logfile="$(mktemp)"
+            "$@" 2>&1 | tee "$logfile"
+            local rc=${PIPESTATUS[0]}
+            if [[ $rc -ne 0 ]]; then
+              return $rc
+            fi
+            if grep -Eq '^[[:space:]]*Error:' "$logfile"; then
+              echo "::error::nimble reported an error but exited 0; failing the step."
+              return 1
+            fi
+          }
+          cd lockfreequeues
+          echo "::group::Run lockfreequeues tests via nimble test"
+          nimble_run nimble test
+          echo "::endgroup::"
+
+  # ===========================================================================
+  # Job 2: downstream-debra
+  # ===========================================================================
+  downstream-debra:
+    name: 'Downstream: nim-debra'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/elijahr/lockfree-ci:latest
+    env:
+      LOCKFREE_NIM_FROM_IMAGE: 'true'
+    timeout-minutes: 20
+
+    steps:
+      - name: Configure git safe directory
+        run: git config --global --add safe.directory '*'
+
+      - name: Checkout lockfree (under test)
+        uses: actions/checkout@v4
+        with:
+          path: lockfree
+
+      - name: Checkout downstream nim-debra
+        uses: actions/checkout@v4
+        with:
+          repository: elijahr/nim-debra
+          path: nim-debra
+
+      - name: Cache nimble packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nimble/pkgs2
+            ~/.nimble/bin
+          key: nimble-downstream-debra-${{ hashFiles('lockfree/lockfree.nimble', 'nim-debra/debra.nimble') }}
+          restore-keys: |
+            nimble-downstream-debra-
+
+      - name: Link local lockfree via nimble develop
+        run: |
+          cd lockfree
+          nimble install -dy
+          nimble setup
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+            [ -e "$d/src" ] || ln -s . "$d/src"
+          done
+          nimble develop -y
+
+      - name: Install nim-debra dependencies
+        run: |
+          cd nim-debra
+          nimble install -dy
+          nimble setup
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+            [ -e "$d/src" ] || ln -s . "$d/src"
+          done
+
+      - name: Run nim-debra test suite
+        run: |
+          set -o pipefail
+          nimble_run() {
+            local logfile
+            logfile="$(mktemp)"
+            "$@" 2>&1 | tee "$logfile"
+            local rc=${PIPESTATUS[0]}
+            if [[ $rc -ne 0 ]]; then
+              return $rc
+            fi
+            if grep -Eq '^[[:space:]]*Error:' "$logfile"; then
+              echo "::error::nimble reported an error but exited 0; failing the step."
+              return 1
+            fi
+          }
+          cd nim-debra
+          echo "::group::Run nim-debra tests via nimble test"
+          nimble_run nimble test
+          echo "::endgroup::"
