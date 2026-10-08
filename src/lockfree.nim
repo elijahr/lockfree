@@ -37,12 +37,12 @@ const LockfreeVersion* {.strdefine.} = "0.1.0"
 
 when compileOption("threads"):
   import lockfree/atomics
-  import ./lockfree/[bqueue, cardinality, channel, deque, endpoint, exceptions, queue, reclamation, skiplist, stack, strategy]
+  import ./lockfree/[bqueue, cardinality, channel, deque, endpoint, exceptions, queue, reclamation, set, skiplist, stack, strategy]
   import ./lockfree/internal/pinscope_stub
   import ./lockfree/typestates/with_bound
 
   export atomics, dsl
-  export bqueue, cardinality, channel, deque, endpoint, exceptions, queue, reclamation, skiplist, stack, strategy
+  export bqueue, cardinality, channel, deque, endpoint, exceptions, queue, reclamation, set, skiplist, stack, strategy
   export pinscope_stub
   export with_bound
 else:
