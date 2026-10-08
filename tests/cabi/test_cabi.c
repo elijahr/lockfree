@@ -30,6 +30,22 @@ extern void NimMain(void);
         } \
     } while (0)
 
+/* Atomic primitives compatible with C99 builtins and C11 stdatomic */
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_ATOMICS__)
+#include <stdatomic.h>
+typedef atomic_size_t test_atomic_size_t;
+typedef atomic_uint_least64_t test_atomic_uint64_t;
+#define ATOMIC_INC(p) atomic_fetch_add(p, 1)
+#define ATOMIC_ADD(p, v) atomic_fetch_add(p, (v))
+#define ATOMIC_LOAD(p) atomic_load(p)
+#else
+typedef size_t test_atomic_size_t;
+typedef uint64_t test_atomic_uint64_t;
+#define ATOMIC_INC(p) __sync_fetch_and_add((p), 1)
+#define ATOMIC_ADD(p, v) __sync_fetch_and_add((p), (v))
+#define ATOMIC_LOAD(p) __sync_fetch_and_add((p), 0)
+#endif
+
 /* Destructor tracking struct */
 typedef struct {
     uintptr_t sum_destroyed;
@@ -431,8 +447,8 @@ typedef struct {
 typedef struct {
     lfq_queue_t* queue;
     size_t target_count;
-    _Atomic size_t* total_popped;
-    _Atomic uint64_t* checksum;
+    test_atomic_size_t* total_popped;
+    test_atomic_uint64_t* checksum;
 } thread_cons_arg_t;
 
 static void* thread_prod_worker(void* raw_arg) {
@@ -462,11 +478,11 @@ static void* thread_cons_worker(void* raw_arg) {
     TEST_ASSERT(s == LFQ_OK && cons != NULL, "Thread consumer acquire failed");
 
     void* item = NULL;
-    while (*arg->total_popped < arg->target_count) {
+    while (ATOMIC_LOAD(arg->total_popped) < arg->target_count) {
         if (lfq_pop(cons, &item) == LFQ_OK) {
             uintptr_t val = (uintptr_t)item;
-            (*arg->total_popped)++;
-            *arg->checksum += val;
+            ATOMIC_INC(arg->total_popped);
+            ATOMIC_ADD(arg->checksum, (uint64_t)val);
         } else {
             #if defined(__x86_64__) || defined(_M_X64)
             __asm__ volatile("pause");
@@ -490,8 +506,8 @@ static void test_cabi_concurrency(void) {
     thread_prod_arg_t prod_args[NUM_PRODUCERS];
     thread_cons_arg_t cons_args[NUM_CONSUMERS];
 
-    _Atomic size_t total_popped = 0;
-    _Atomic uint64_t checksum = 0;
+    test_atomic_size_t total_popped = 0;
+    test_atomic_uint64_t checksum = 0;
     uint64_t expected_checksum = 0;
 
     for (size_t i = 1; i <= TOTAL_ITEMS; i++) {
@@ -520,8 +536,8 @@ static void test_cabi_concurrency(void) {
         pthread_join(cons_threads[i], NULL);
     }
 
-    TEST_ASSERT(total_popped == TOTAL_ITEMS, "Total popped count mismatch");
-    TEST_ASSERT(checksum == expected_checksum, "Checksum mismatch");
+    TEST_ASSERT(ATOMIC_LOAD(&total_popped) == TOTAL_ITEMS, "Total popped count mismatch");
+    TEST_ASSERT(ATOMIC_LOAD(&checksum) == expected_checksum, "Checksum mismatch");
 
     s = lfq_queue_destroy(queue);
     TEST_ASSERT(s == LFQ_OK, "lfq_queue_destroy failed");
