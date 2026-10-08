@@ -20,6 +20,8 @@ import lockfree/endpoint
 import lockfree/exceptions
 from lockfree/smr/nebr import registerThread, unregisterThread, ThreadHandle, DebraRegistrationError, reclaimNow
 import lockfree/smr/nebr/signal
+import lockfree/stack
+import lockfree/deque
 import std/options
 
 # ------------------------------------------------------------------------------
@@ -51,7 +53,7 @@ template cAbiBoundary(body: untyped): lfq_status_t =
     LFQ_ERR_REGISTRY_FULL
   except Defect:
     LFQ_ERR_PANIC
-  except CatchableError:
+  except Exception:
     LFQ_ERR_FAILURE
 
 type
@@ -817,3 +819,244 @@ proc lfq_queue_is_closed*(queue: ptr lfq_queue_t): bool {.exportc: "lfq_queue_is
   if unlikely(queue == nil):
     return true
   return queue.isClosed.load(moAcquire)
+
+proc lfq_queue_push*(prod: ptr lfq_producer_t, item: pointer): lfq_status_t {.exportc: "lfq_queue_push", cdecl, gcsafe, raises: [].} =
+  lfq_push(prod, item)
+
+proc lfq_queue_pop*(cons: ptr lfq_consumer_t, out_item: ptr pointer): lfq_status_t {.exportc: "lfq_queue_pop", cdecl, gcsafe, raises: [].} =
+  lfq_pop(cons, out_item)
+
+# ------------------------------------------------------------------------------
+# 2. Stack (MPMC LIFO Stack with Elimination-Backoff)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_stack* {.exportc: "lfq_stack_t".} = object
+    destructor*: lfq_item_destructor_fn
+    userData*: pointer
+    raw*: ptr TreiberStack[pointer]
+
+  lfq_stack_t* = lfq_stack
+
+proc lfq_stack_create*(
+    destructor: lfq_item_destructor_fn,
+    user_data: pointer,
+    out_stack: ptr ptr lfq_stack_t
+): lfq_status_t {.exportc: "lfq_stack_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_stack == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let s = cast[ptr lfq_stack_t](allocShared0(sizeof(lfq_stack_t)))
+    let raw = cast[ptr TreiberStack[pointer]](allocShared0(sizeof(TreiberStack[pointer])))
+    raw[] = initTreiberStack[pointer]()
+    s.destructor = destructor
+    s.userData = user_data
+    s.raw = raw
+    out_stack[] = s
+    LFQ_OK
+
+proc lfq_stack_destroy*(stack: ptr lfq_stack_t): lfq_status_t {.exportc: "lfq_stack_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    if stack.destructor != nil:
+      try:
+        while true:
+          let opt = stack.raw[].pop()
+          if opt.isSome:
+            stack.destructor(opt.get, stack.userData)
+          else:
+            break
+      except:
+        discard
+    `=destroy`(stack.raw[])
+    deallocShared(stack.raw)
+    deallocShared(stack)
+    LFQ_OK
+
+proc lfq_stack_push*(stack: ptr lfq_stack_t, item: pointer): lfq_status_t {.exportc: "lfq_stack_push", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    stack.raw[].push(item)
+    LFQ_OK
+
+proc lfq_stack_pop*(stack: ptr lfq_stack_t, out_item: ptr pointer): lfq_status_t {.exportc: "lfq_stack_pop", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.raw == nil or out_item == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let opt = stack.raw[].pop()
+    if opt.isSome:
+      out_item[] = opt.get
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_stack_peek*(stack: ptr lfq_stack_t, out_item: ptr pointer): lfq_status_t {.exportc: "lfq_stack_peek", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.raw == nil or out_item == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let opt = stack.raw[].peek()
+    if opt.isSome:
+      out_item[] = opt.get
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_stack_drain*(
+    stack: ptr lfq_stack_t,
+    out_items: ptr pointer,
+    max_count: csize_t
+): csize_t {.exportc: "lfq_stack_drain", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.raw == nil or out_items == nil or max_count == 0):
+    return 0
+  let arr = cast[ptr UncheckedArray[pointer]](out_items)
+  var count: csize_t = 0
+  try:
+    while count < max_count:
+      let opt = stack.raw[].pop()
+      if opt.isSome:
+        arr[count] = opt.get
+        inc count
+      else:
+        break
+  except:
+    discard
+  return count
+
+proc lfq_stack_len*(stack: ptr lfq_stack_t): csize_t {.exportc: "lfq_stack_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.raw == nil):
+    return 0
+  try:
+    let count = stack.raw[].len
+    if count < 0: 0.csize_t else: csize_t(count)
+  except:
+    0
+
+proc lfq_stack_is_empty*(stack: ptr lfq_stack_t): bool {.exportc: "lfq_stack_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.raw == nil):
+    return true
+  try:
+    return stack.raw[].isEmpty()
+  except:
+    return true
+
+# ------------------------------------------------------------------------------
+# 3. Deque (Single-Worker / Multi-Thief Work-Stealing Deque)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_deque* {.exportc: "lfq_deque_t".} = object
+    destructor*: lfq_item_destructor_fn
+    userData*: pointer
+    raw*: ptr ChaseLevDeque[pointer]
+
+  lfq_deque_t* = lfq_deque
+
+proc lfq_deque_create*(
+    initial_capacity: csize_t,
+    destructor: lfq_item_destructor_fn,
+    user_data: pointer,
+    out_deque: ptr ptr lfq_deque_t
+): lfq_status_t {.exportc: "lfq_deque_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_deque == nil):
+    return LFQ_ERR_INVALID_ARG
+  var cap = int(initial_capacity)
+  if cap <= 0: cap = 64
+  cAbiBoundary:
+    let d = cast[ptr lfq_deque_t](allocShared0(sizeof(lfq_deque_t)))
+    let raw = cast[ptr ChaseLevDeque[pointer]](allocShared0(sizeof(ChaseLevDeque[pointer])))
+    raw[] = initChaseLevDeque[pointer](cap)
+    d.destructor = destructor
+    d.userData = user_data
+    d.raw = raw
+    out_deque[] = d
+    LFQ_OK
+
+proc lfq_deque_destroy*(deque: ptr lfq_deque_t): lfq_status_t {.exportc: "lfq_deque_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(deque == nil or deque.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    if deque.destructor != nil:
+      try:
+        while true:
+          let opt = deque.raw[].popBottom()
+          if opt.isSome:
+            deque.destructor(opt.get, deque.userData)
+          else:
+            break
+      except:
+        discard
+    `=destroy`(deque.raw[])
+    deallocShared(deque.raw)
+    deallocShared(deque)
+    LFQ_OK
+
+proc lfq_deque_push*(deque: ptr lfq_deque_t, item: pointer): lfq_status_t {.exportc: "lfq_deque_push", cdecl, gcsafe, raises: [].} =
+  if unlikely(deque == nil or deque.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    deque.raw[].pushBottom(item)
+    LFQ_OK
+
+proc lfq_deque_pop*(deque: ptr lfq_deque_t, out_item: ptr pointer): lfq_status_t {.exportc: "lfq_deque_pop", cdecl, gcsafe, raises: [].} =
+  if unlikely(deque == nil or deque.raw == nil or out_item == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let opt = deque.raw[].popBottom()
+    if opt.isSome:
+      out_item[] = opt.get
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_deque_steal*(deque: ptr lfq_deque_t, out_item: ptr pointer): lfq_status_t {.exportc: "lfq_deque_steal", cdecl, gcsafe, raises: [].} =
+  if unlikely(deque == nil or deque.raw == nil or out_item == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let opt = deque.raw[].steal()
+    if opt.isSome:
+      out_item[] = opt.get
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_deque_steal_batch*(
+    deque: ptr lfq_deque_t,
+    out_items: ptr pointer,
+    max_count: csize_t
+): csize_t {.exportc: "lfq_deque_steal_batch", cdecl, gcsafe, raises: [].} =
+  if unlikely(deque == nil or deque.raw == nil or out_items == nil or max_count == 0):
+    return 0
+  let arr = cast[ptr UncheckedArray[pointer]](out_items)
+  try:
+    let n = deque.raw[].stealBatch(toOpenArray(arr, 0, int(max_count) - 1), int(max_count))
+    return csize_t(n)
+  except:
+    return 0
+
+proc lfq_deque_len*(deque: ptr lfq_deque_t): csize_t {.exportc: "lfq_deque_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(deque == nil or deque.raw == nil):
+    return 0
+  try:
+    let count = deque.raw[].len
+    if count < 0: 0.csize_t else: csize_t(count)
+  except:
+    0
+
+proc lfq_deque_capacity*(deque: ptr lfq_deque_t): csize_t {.exportc: "lfq_deque_capacity", cdecl, gcsafe, raises: [].} =
+  if unlikely(deque == nil or deque.raw == nil):
+    return 0
+  try:
+    let cap = deque.raw[].capacity
+    if cap < 0: 0.csize_t else: csize_t(cap)
+  except:
+    0
+
+proc lfq_deque_is_empty*(deque: ptr lfq_deque_t): bool {.exportc: "lfq_deque_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(deque == nil or deque.raw == nil):
+    return true
+  try:
+    return deque.raw[].isEmpty()
+  except:
+    return true
