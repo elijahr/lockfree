@@ -50,17 +50,11 @@ Under heavy multi-producer multi-consumer contention, `lockfree` sustains **18,2
 nimble install lockfree
 ```
 
-For legacy code migrating from `lockfreequeues` or `nim-debra`, drop-in compatibility shims are provided out of the box:
-```nim
-import lockfreequeues  # 100% drop-in compatibility for lockfreequeues v4.2.0
-import debra           # 100% drop-in compatibility for nim-debra v0.10.0
-```
-
 ---
 
 ## Quick Start
 
-### 1. High-Level Channel Facade (Recommended for Application Code)
+### 1. High-Level Channel Facade
 
 The `Channel[T]` facade provides an ergonomic, Go/Rust-style communication channel built on top of the lock-free queue engines:
 
@@ -88,7 +82,7 @@ sender.close()
 assert receiver.isClosed()
 ```
 
-### 2. Bounded Queues (`BQueue`)
+### 2. Bounded Queues
 
 Bounded queues are pre-allocated ring buffers with compile-time capacity. Single-cardinality sides push/pop directly on the queue; multi-cardinality sides operate through endpoint handles:
 
@@ -232,7 +226,7 @@ Full architectural guides, typestate diagrams, and API references are hosted at:
 
 ---
 
-## References & Academic Grounding
+## References
 
 - **LCRQ (Linked Concurrent Ring Queue)**: Adam Morrison and Yehuda Afek, *"Fast Concurrent Queues for x86 Processors"*, PPoPP 2013 ([DOI 10.1145/2442516.2442527](https://doi.org/10.1145/2442516.2442527)).
 - **DEBRA+ (Epoch-Based Reclamation with Neutralization)**: Trevor Brown, *"Reclaiming Memory for Lock-Free Data Structures: There Has to Be a Better Way"*, PODC 2015 ([DOI 10.1145/2767386.2767436](https://doi.org/10.1145/2767386.2767436)).
@@ -243,4 +237,4 @@ Full architectural guides, typestate diagrams, and API references are hosted at:
 
 ## License
 
-MIT © Elijah Rivers and contributors. See [LICENSE](LICENSE) for details.
+MIT © Elijah Shaw-Rutschman and contributors. See [LICENSE](LICENSE) for details.
