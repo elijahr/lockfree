@@ -538,6 +538,173 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
 
     check lfq_queue_destroy(queue) == LFQ_OK
 
+  test "Treiber Stack lifecycle & LIFO ordering":
+    var stack: ptr lfq_stack_t = nil
+    check lfq_stack_create(nil, nil, addr stack) == LFQ_OK
+    check stack != nil
+    check lfq_stack_is_empty(stack) == true
+    check lfq_stack_len(stack) == 0
+
+    var item: pointer = nil
+    check lfq_stack_pop(stack, addr item) == LFQ_ERR_EMPTY
+    check lfq_stack_peek(stack, addr item) == LFQ_ERR_EMPTY
+
+    # Push 3 items: 10, 20, 30
+    check lfq_stack_push(stack, cast[pointer](10)) == LFQ_OK
+    check lfq_stack_push(stack, cast[pointer](20)) == LFQ_OK
+    check lfq_stack_push(stack, cast[pointer](30)) == LFQ_OK
+
+    check lfq_stack_is_empty(stack) == false
+    check lfq_stack_len(stack) == 3
+
+    # Peek top item -> 30
+    check lfq_stack_peek(stack, addr item) == LFQ_OK
+    check cast[int](item) == 30
+    check lfq_stack_len(stack) == 3
+
+    # Pop LIFO order: 30, 20, 10
+    check lfq_stack_pop(stack, addr item) == LFQ_OK
+    check cast[int](item) == 30
+
+    check lfq_stack_pop(stack, addr item) == LFQ_OK
+    check cast[int](item) == 20
+
+    check lfq_stack_pop(stack, addr item) == LFQ_OK
+    check cast[int](item) == 10
+
+    check lfq_stack_is_empty(stack) == true
+    check lfq_stack_pop(stack, addr item) == LFQ_ERR_EMPTY
+    check lfq_stack_destroy(stack) == LFQ_OK
+
+  test "Treiber Stack drain operations":
+    var stack: ptr lfq_stack_t = nil
+    check lfq_stack_create(nil, nil, addr stack) == LFQ_OK
+
+    for i in 1 .. 5:
+      check lfq_stack_push(stack, cast[pointer](i * 10)) == LFQ_OK
+
+    check lfq_stack_len(stack) == 5
+
+    var drained: array[8, pointer]
+    let count1 = lfq_stack_drain(stack, cast[ptr pointer](addr drained[0]), 3)
+    check count1 == 3
+    check cast[int](drained[0]) == 50
+    check cast[int](drained[1]) == 40
+    check cast[int](drained[2]) == 30
+
+    let count2 = lfq_stack_drain(stack, cast[ptr pointer](addr drained[0]), 5)
+    check count2 == 2
+    check cast[int](drained[0]) == 20
+    check cast[int](drained[1]) == 10
+
+    check lfq_stack_is_empty(stack) == true
+    check lfq_stack_destroy(stack) == LFQ_OK
+
+  test "Treiber Stack destructor callback on destroy":
+    type DestructorTracker = object
+      count: int
+      sum: int
+
+    proc stackDestructor(item: pointer, userData: pointer) {.cdecl.} =
+      let tracker = cast[ptr DestructorTracker](userData)
+      if tracker != nil:
+        inc tracker.count
+        tracker.sum += cast[int](item)
+
+    var tracker = DestructorTracker(count: 0, sum: 0)
+    var stack: ptr lfq_stack_t = nil
+    check lfq_stack_create(stackDestructor, addr tracker, addr stack) == LFQ_OK
+
+    check lfq_stack_push(stack, cast[pointer](11)) == LFQ_OK
+    check lfq_stack_push(stack, cast[pointer](22)) == LFQ_OK
+    check lfq_stack_push(stack, cast[pointer](33)) == LFQ_OK
+
+    var item: pointer = nil
+    check lfq_stack_pop(stack, addr item) == LFQ_OK
+    check cast[int](item) == 33
+
+    check lfq_stack_destroy(stack) == LFQ_OK
+    check tracker.count == 2
+    check tracker.sum == (11 + 22)
+
+  test "Chase-Lev Deque worker push/pop (LIFO) & thief steal (FIFO)":
+    var deque: ptr lfq_deque_t = nil
+    check lfq_deque_create(32, nil, nil, addr deque) == LFQ_OK
+    check deque != nil
+    check lfq_deque_is_empty(deque) == true
+    check lfq_deque_len(deque) == 0
+    check lfq_deque_capacity(deque) >= 32
+
+    var item: pointer = nil
+    check lfq_deque_pop(deque, addr item) == LFQ_ERR_EMPTY
+    check lfq_deque_steal(deque, addr item) == LFQ_ERR_EMPTY
+
+    # Worker pushes 4 items: 100, 200, 300, 400
+    check lfq_deque_push(deque, cast[pointer](100)) == LFQ_OK
+    check lfq_deque_push(deque, cast[pointer](200)) == LFQ_OK
+    check lfq_deque_push(deque, cast[pointer](300)) == LFQ_OK
+    check lfq_deque_push(deque, cast[pointer](400)) == LFQ_OK
+
+    check lfq_deque_is_empty(deque) == false
+    check lfq_deque_len(deque) == 4
+
+    # Thief steals 1 item -> FIFO top item: 100
+    check lfq_deque_steal(deque, addr item) == LFQ_OK
+    check cast[int](item) == 100
+    check lfq_deque_len(deque) == 3
+
+    # Worker pops 1 item -> LIFO bottom item: 400
+    check lfq_deque_pop(deque, addr item) == LFQ_OK
+    check cast[int](item) == 400
+    check lfq_deque_len(deque) == 2
+
+    # Thief steals batch of remaining 2 items (200, 300)
+    var batch: array[4, pointer]
+    let stolen = lfq_deque_steal_batch(deque, cast[ptr pointer](addr batch[0]), 4)
+    check stolen == 2
+    check cast[int](batch[0]) == 200
+    check cast[int](batch[1]) == 300
+
+    check lfq_deque_is_empty(deque) == true
+    check lfq_deque_destroy(deque) == LFQ_OK
+
+  test "Chase-Lev Deque destructor callback on destroy":
+    type DestructorTracker = object
+      count: int
+      sum: int
+
+    proc dequeDestructor(item: pointer, userData: pointer) {.cdecl.} =
+      let tracker = cast[ptr DestructorTracker](userData)
+      if tracker != nil:
+        inc tracker.count
+        tracker.sum += cast[int](item)
+
+    var tracker = DestructorTracker(count: 0, sum: 0)
+    var deque: ptr lfq_deque_t = nil
+    check lfq_deque_create(32, dequeDestructor, addr tracker, addr deque) == LFQ_OK
+
+    check lfq_deque_push(deque, cast[pointer](7)) == LFQ_OK
+    check lfq_deque_push(deque, cast[pointer](14)) == LFQ_OK
+    check lfq_deque_push(deque, cast[pointer](21)) == LFQ_OK
+
+    check lfq_deque_destroy(deque) == LFQ_OK
+    check tracker.count == 3
+    check tracker.sum == (7 + 14 + 21)
+
   test "Direct C99 Header Interoperability":
     let code = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -I" & includeDir & " " & (includeDir / "lockfree.h"))
     check code == 0
+
+  test "Compiled C99 test harness execution (clang + liblockfree.a)":
+    let rootDir = currentSourcePath().parentDir() / ".."
+    let staticLib = rootDir / ".tmp/liblockfree.a"
+    if not fileExists(staticLib):
+      let buildCode = execShellCmd("nim c --app:staticlib -d:danger --threads:on -o:" & staticLib & " " & (rootDir / "src/lockfree/cabi.nim"))
+      check buildCode == 0
+    let cTestSrc = rootDir / "tests/cabi/test_cabi.c"
+    let cTestBin = rootDir / ".tmp/test_cabi"
+    let compileCmd = "clang -std=c99 -Wall -Wextra -Werror -I" & includeDir & " " & cTestSrc & " -L" & (rootDir / ".tmp") & " -llockfree -o " & cTestBin
+    let compCode = execShellCmd(compileCmd)
+    check compCode == 0
+    let runCode = execShellCmd(cTestBin)
+    check runCode == 0
