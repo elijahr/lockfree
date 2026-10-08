@@ -248,3 +248,25 @@ suite "DEBRA Batched Retire/Reclaim API":
     let count = reclaimNow(manager)
     check count == N
     check destroyedCount == N
+
+  test "withEpoch block runs body and automatically unpins on exit":
+    check not manager.threads[handle.idx].pinned.load(moAcquire)
+    withEpoch(handle):
+      check manager.threads[handle.idx].pinned.load(moAcquire)
+    check not manager.threads[handle.idx].pinned.load(moAcquire)
+
+  test "withEpoch with scopeVar retires and automatically unpins":
+    let node = cast[Node](alloc0(sizeof(NodeObj)))
+    node.value = 123
+    withEpoch(handle, slot):
+      check manager.threads[handle.idx].pinned.load(moAcquire)
+      slot.retire(node, destroyNode)
+    check not manager.threads[handle.idx].pinned.load(moAcquire)
+
+    advance(manager)
+    advance(manager)
+    advance(manager)
+    let count = reclaimNow(manager)
+    check count == 1
+    check destroyedCount == 1
+

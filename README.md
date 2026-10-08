@@ -166,19 +166,40 @@ int main() {
 
 ---
 
-## Choosing the Right Queue
+## 128-Bit Hardware Atomics Engine
 
-| Topology | Bounded (`BQueue`) | Unbounded (`Queue`) | Channel Facade (`Channel`) | Push Progress | Pop Progress | Memory Reclamation |
-| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| **SPSC** | `newSpscQueue` | `newUnboundedSpscQueue` | `newBoundedChannel` | Wait-free | Wait-free | Inline segment free |
-| **SPMC** | `newSpmcQueue` | `newUnboundedSpmcQueue` | `newBoundedChannel` | Wait-free | Lock-free | NEBR Epoch SMR |
-| **MPSC** | `newMpscQueue` | `newUnboundedMpscQueue` | `newBoundedChannel` | Lock-free | Wait-free | NEBR Epoch SMR |
-| **MPMC** | `newMpmcQueue` | `newUnboundedMpmcQueue` | `newBoundedChannel` | Lock-free | Lock-free | NEBR Epoch SMR |
+At the core of `lockfree`'s Morrison-Afek LCRQ unbounded MPMC queue and NEBR reclaimer is a high-performance 128-bit (Double-Word CAS / DWCAS) hardware atomics engine (`lockfree/atomics`). Unlike naive implementations that downgrade to non-atomic spinlocks under contention, `lockfree` generates native, lock-free 16-byte CPU instructions across all primary compiler backends and architectures:
 
-- **Use Bounded (`BQueue`)** when latency and memory footprints must be strictly bounded (embedded, audio buffers, real-time engines).
-- **Use Unbounded (`Queue`)** when workloads are bursty and you cannot afford to drop or block producers.
-- **Use Channel Facade (`Channel`)** for idiomatic application actor pipelines, worker pools, and task dispatch.
-- **Use C ABI (`lfq_*`)** for embedding lock-free messaging inside C, C++, Rust, Zig, or Python modules.
+- **x86_64 (`cmpxchg16b`)**: Emits native `lock cmpxchg16b` with `-mcx16` via GCC/Clang builtins (`__sync_val_compare_and_swap` / `__atomic_compare_exchange_n`), providing hardware-level atomic verification on 16-byte pair cells (`Pair[uint, T]`).
+- **AArch64 / ARM64 (ARMv8.1-A+ LSE & Apple Silicon)**: Emits native hardware `casp` / `caspal` (Large System Extensions). Objdump-verified on Apple Silicon (M1/M2/M3/M4) to produce zero spurious failures, with automated fallback to `ldxp`/`stxp` exclusive pairs on legacy ARMv8.0 cores.
+- **Windows / MSVC (`vcc`)**: Leverages Microsoft `<intrin.h>` `_InterlockedCompareExchange128` intrinsics with sequentially-consistent hardware barrier semantics, synthesizing lock-free 128-bit load, store, exchange, and CAS primitives without external dependencies.
+- **Static Alignment Guarantee**: Statically enforces 16-byte alignment (`alignof >= 16`) across all 128-bit atomic cells, guaranteeing zero hardware bus faults or split-lock performance degradation.
+
+---
+
+## Concurrency Topology & Collections
+
+`lockfree` organizes collections across topologies, progress guarantees, and memory models. All collections share the Path-C zero-race memory model:
+
+| Topology | Collection Type | Constructor / Alias | Progress (Push / Pop) | Allocation | Memory Reclamation |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **SPSC** | `BQueue` | `newSpscQueue[T, N]()` / `BoundedSpscQueue` | Wait-free / Wait-free | Zero-alloc (Ring buffer) | None (Static slots) |
+| **SPSC** | `Queue` | `newUnboundedSpscQueue[T, S]()` | Wait-free / Wait-free | Linked Segments | Inline Segment Free |
+| **SPMC** | `BQueue` | `newSpmcQueue[T, N, C]()` / `BoundedSpmcQueue` | Wait-free / Lock-free | Zero-alloc (Ring buffer) | None (Static slots) |
+| **SPMC** | `Queue` | `newUnboundedSpmcQueue[T, Strategy, S, MaxT]()` | Wait-free / Lock-free | Linked Segments | NEBR Epoch SMR |
+| **MPSC** | `BQueue` | `newMpscQueue[T, N, P]()` / `BoundedMpscQueue` | Lock-free / Wait-free | Zero-alloc (Ring buffer) | None (Static slots) |
+| **MPSC** | `Queue` | `newUnboundedMpscQueue[T, Strategy, S, MaxT]()` | Lock-free / Wait-free | Linked Segments | NEBR Epoch SMR |
+| **MPMC** | `BQueue` | `newMpmcQueue[T, N, P, C]()` / `BoundedMpmcQueue` | Lock-free / Lock-free | Zero-alloc (Ring buffer) | None (Static slots) |
+| **MPMC** | `Queue` | `newUnboundedMpmcQueue[T, Strategy, S, MaxT]()` | Lock-free (LCRQ DWCAS) / Lock-free | Linked Segments | NEBR Epoch SMR |
+| **CSP** | `Channel` | `newBoundedChannel[T](cap)` / `newChannel[T]` | Lock-free / Lock-free | Dynamic Tiers (64, 1024, 65536) | None (BQueue-backed) |
+| **CSP** | `Channel` | `newUnboundedChannel[T](segSize)` | Lock-free / Lock-free | Linked Segments | NEBR Epoch SMR |
+| **C ABI** | `lfq_queue_t` | `lfq_queue_create(&config, &queue)` | Topology-dependent | C Heap | NEBR / Internal |
+
+### Sizing and Topology Guidance:
+- **`BQueue` (Bounded)**: Ring buffers with compile-time or tiered runtime capacity. Ideal for embedded, real-time audio, and zero-allocation high-frequency packet loops.
+- **`Queue` (Unbounded)**: Segmented queues that expand under burst loads without blocking producers. Multi-consumer variants employ Morrison-Afek LCRQ and NEBR epoch reclamation.
+- **`Channel` (Actor Facade)**: Ergonomic `Sender[T]` / `Receiver[T]` handles with split refcounting, automatic thread registration via thread-local storage (`{.threadvar.}`), and clean shutdown semantics.
+- **`lfq_*` (C ABI)**: Clean FFI surface (`include/lockfree.h`) exportable to C, C++, Rust, Zig, and Python.
 
 ---
 
@@ -220,6 +241,7 @@ Full architectural guides, typestate diagrams, and API references are hosted at:
 - [Getting Started & Core Concepts](https://elijahr.github.io/lockfree/guide/getting-started/)
 - [Safety Model & Path-C ManagedRef](https://elijahr.github.io/lockfree/guide/safety-model/)
 - [Typestate Slot-Ownership Machine](https://elijahr.github.io/lockfree/guide/slot-ownership-typestates/)
+- [SMR & NEBR Lifecycle Guide](docs/guides/smr_nebr_lifecycle.md)
 - [NEBR Safe Memory Reclamation](https://elijahr.github.io/lockfree/api/smr/nebr/)
 - [C ABI Specification & Header Guide](https://elijahr.github.io/lockfree/api/cabi/)
 - [Migration Guide from lockfreequeues & nim-debra](https://elijahr.github.io/lockfree/migration/)

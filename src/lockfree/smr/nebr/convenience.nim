@@ -233,6 +233,26 @@ template withPin*[MT: static int, CC: static PinScopeCardinality = ccSingle](
         Neutralized(nval):
           discard nval.acknowledge()
 
+template withEpoch*[MT: static int, CC: static PinScopeCardinality = ccSingle](
+    th: ThreadHandle[MT, CC], body: untyped
+) =
+  ## RAII convenience block for pinning an epoch during a critical section.
+  ## Enters pinScope, executes body, and automatically unpins on scope exit
+  ## via PinnedScope's RAII destructor (including on exceptions and returns).
+  block:
+    var debraScope {.used.} = pinScope(unpinned(th))
+    body
+
+template withEpoch*[MT: static int, CC: static PinScopeCardinality = ccSingle](
+    th: ThreadHandle[MT, CC], scopeVar, body: untyped
+) =
+  ## RAII convenience block binding `scopeVar` as `var RetireReady[MT, CC]`
+  ## for retiring objects inside the critical section. Automatically unpins on exit.
+  block:
+    var debraScope = pinScope(unpinned(th))
+    var scopeVar {.inject.} = retireReady(debraScope.state)
+    body
+
 proc advanceEvery*[MT: static int, CC: static PinScopeCardinality = ccSingle](
     handle: ThreadHandle[MT, CC], n: static int
 ): bool {.discardable.} =
