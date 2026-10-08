@@ -639,6 +639,7 @@ jobs:
         with:
           path: |
             /tmp/nimony
+            /root/.nimble/bin/nimony
             ~/.nimble/bin/nimony
           key: nimony-${{ runner.os }}-${{ env.NIMONY_SHA }}
 
@@ -658,6 +659,7 @@ jobs:
           cd /tmp/nimony
           git checkout "${NIMONY_SHA}"
           nimble install -y
+          nimble build -y || nim c -o:bin/nimony src/nimony.nim
 
       - name: Run non-nimony ARC baseline under standard Nim
         run: |
@@ -675,12 +677,19 @@ jobs:
         run: |
           set -o pipefail
           echo "::group::nimony aufbruch baseline"
-          export PATH="$HOME/.nimble/bin:/tmp/nimony/bin:/tmp/nimony:$PATH"
-          NIMONY_BIN="$(command -v nimony || echo /tmp/nimony/bin/nimony)"
-          if [ -x "$NIMONY_BIN" ]; then
+          export PATH="/root/.nimble/bin:$HOME/.nimble/bin:/tmp/nimony/bin:/tmp/nimony:$PATH"
+          NIMONY_BIN=""
+          for candidate in /tmp/nimony/bin/nimony /root/.nimble/bin/nimony "$HOME/.nimble/bin/nimony" "$(command -v nimony 2>/dev/null)"; do
+            if [ -n "$candidate" ] && [ -x "$candidate" ]; then
+              NIMONY_BIN="$candidate"
+              break
+            fi
+          done
+          if [ -n "$NIMONY_BIN" ]; then
+            echo "Using nimony binary at: $NIMONY_BIN"
             "$NIMONY_BIN" c -r tests/nimony/t_nimony_arc_baseline.nim
           else
-            echo "::error::nimony binary not found or not executable at $NIMONY_BIN"
+            echo "::error::nimony binary not found or not executable"
             exit 1
           fi
           echo "::endgroup::"
