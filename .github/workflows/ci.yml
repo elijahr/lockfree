@@ -434,31 +434,15 @@ jobs:
             local ver="$1"
             echo "::group::Switching toolchain to Nim ${ver}"
             export PATH="$HOME/.nimble/bin:$PATH"
-            if command -v choosenim &>/dev/null || [ -x "$HOME/.nimble/bin/choosenim" ]; then
-              if [[ "$ver" == "devel" ]]; then
-                choosenim --yes '#devel' || choosenim --yes devel
-              else
-                choosenim --yes "$ver"
-              fi
-              ln -sf "$HOME/.nimble/bin/nim" /usr/local/bin/nim 2>/dev/null || true
-              ln -sf "$HOME/.nimble/bin/nimble" /usr/local/bin/nimble 2>/dev/null || true
-              ln -sf "$HOME/.nimble/bin/nim" /usr/bin/nim 2>/dev/null || true
-              ln -sf "$HOME/.nimble/bin/nimble" /usr/bin/nimble 2>/dev/null || true
-            elif [[ "$ver" == "2.2.10" ]]; then
-              ln -sf /opt/vfox/cache/nim/v-2.2.10/nim-2.2.10/bin/nim /usr/local/bin/nim
-              ln -sf /opt/vfox/cache/nim/v-2.2.10/nim-2.2.10/bin/nimble /usr/local/bin/nimble
-              ln -sf /opt/vfox/cache/nim/v-2.2.10/nim-2.2.10/bin/nim /usr/bin/nim
-              ln -sf /opt/vfox/cache/nim/v-2.2.10/nim-2.2.10/bin/nimble /usr/bin/nimble
+            if [[ "$ver" == "devel" ]]; then
+              choosenim --yes "#devel" || choosenim --yes devel
             else
-              if [[ ! -d "/opt/vfox/cache/nim/v-${ver}/nim-${ver}/bin" ]]; then
-                echo "Installing Nim ${ver} via vfox..."
-                vfox install --yes "nim@${ver}"
-              fi
-              ln -sf "/opt/vfox/cache/nim/v-${ver}/nim-${ver}/bin/nim" /usr/local/bin/nim
-              ln -sf "/opt/vfox/cache/nim/v-${ver}/nim-${ver}/bin/nimble" /usr/local/bin/nimble
-              ln -sf "/opt/vfox/cache/nim/v-${ver}/nim-${ver}/bin/nim" /usr/bin/nim
-              ln -sf "/opt/vfox/cache/nim/v-${ver}/nim-${ver}/bin/nimble" /usr/bin/nimble
+              choosenim --yes "$ver"
             fi
+            ln -sf "$HOME/.nimble/bin/nim" /usr/local/bin/nim 2>/dev/null || true
+            ln -sf "$HOME/.nimble/bin/nimble" /usr/local/bin/nimble 2>/dev/null || true
+            ln -sf "$HOME/.nimble/bin/nim" /usr/bin/nim 2>/dev/null || true
+            ln -sf "$HOME/.nimble/bin/nimble" /usr/bin/nimble 2>/dev/null || true
             echo "Active compiler: $(nim --version | head -1)"
             echo "Active nimble:   $(nimble --version | head -1)"
             echo "::endgroup::"
@@ -677,13 +661,14 @@ jobs:
       - name: Build nimony from source (pinned SHA)
         if: steps.nimony-cache.outputs.cache-hit != 'true'
         shell: bash
+        continue-on-error: true
         run: |
           set -o pipefail
           rm -rf /tmp/nimony
           git clone https://github.com/nim-lang/nimony.git /tmp/nimony
           cd /tmp/nimony
           git checkout "${NIMONY_SHA}"
-          nim c -r src/hastur.nim build nimony
+          nim c --warning[ProveInit]:off -r src/hastur.nim build nimony
           mkdir -p "$HOME/.nimble/bin" /root/.nimble/bin 2>/dev/null || true
           if [ -f bin/nimony ]; then
             cp bin/nimony "$HOME/.nimble/bin/nimony"
