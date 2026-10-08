@@ -103,10 +103,10 @@ proc submitterThread(ctx: ptr SubmitterContext) {.thread.} =
           rand(10 .. 30)
 
       # Allocate Job on the heap; the consumer frees after work completes.
-      # `create` returns a non-nil `ptr Job`; `Option[ptr Job]` cannot
+      # `createShared` returns a non-nil `ptr Job`; `Option[ptr Job]` cannot
       # transport nil through pop (design §11.2 guard), so we never push
       # a nil pointer here.
-      let job = create(Job)
+      let job = createShared(Job)
       job[] =
         Job(id: jobId, submitterId: ctx.submitterId, priority: priority, workMs: workMs)
 
@@ -139,8 +139,9 @@ proc workerThread(ctx: ptr WorkerContext) {.thread.} =
         workTime += (getMonoTime() - start).inMilliseconds
 
         # Free the producer-allocated Job now that work is done.
-        dealloc(jp)
+        deallocShared(jp)
         inc completed
+        jobsCompleted[ctx.workerId].store(completed, moRelease)
       else:
         sleep(1)
 
@@ -194,8 +195,20 @@ when isMainModule:
   echo "All jobs submitted, waiting for workers..."
   echo ""
 
+  var totalSubmitted = 0
+  for i in 0 ..< NumSubmitters:
+    totalSubmitted += jobsSubmitted[i].load(moAcquire)
+
+  proc totalDone(): int =
+    result = 0
+    for i in 0 ..< NumWorkers:
+      result += jobsCompleted[i].load(moAcquire)
+
+  # Wait for all submitted jobs to be completed by workers
+  while totalDone() < totalSubmitted:
+    sleep(10)
+
   # Signal shutdown and wait for workers
-  sleep(100) # Let workers drain
   running.store(false, moRelease)
 
   for i in 0 ..< NumWorkers:
@@ -206,11 +219,9 @@ when isMainModule:
   # Report results
   echo ""
   echo "Submission summary:"
-  var totalSubmitted = 0
   for i in 0 ..< NumSubmitters:
     let submitted = jobsSubmitted[i].load(moAcquire)
     echo "  Submitter ", i, ": ", submitted, " jobs"
-    totalSubmitted += submitted
 
   echo ""
   echo "Completion summary:"
