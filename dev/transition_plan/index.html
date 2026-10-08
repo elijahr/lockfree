@@ -7,27 +7,31 @@
       
       
       
-        <link rel="canonical" href="https://elijahr.github.io/lockfree/latest/design/v5-port-candidates-from-v4.3/">
+        <link rel="canonical" href="https://elijahr.github.io/lockfree/latest/transition_plan/">
       
       
+        <link rel="prev" href="../migration/">
+      
+      
+        <link rel="next" href="../migrations/from-lockfreequeues-v5/">
       
       
         
       
       
-      <link rel="icon" href="../../assets/images/favicon.png">
+      <link rel="icon" href="../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>LCRQ + CAS2 analysis - lockfree</title>
+        <title>Transition Plan - lockfree</title>
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -46,21 +50,21 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../css/timeago.css">
+      <link rel="stylesheet" href="../css/timeago.css">
     
-      <link rel="stylesheet" href="../../css/custom.css">
+      <link rel="stylesheet" href="../css/custom.css">
     
-      <link rel="stylesheet" href="../../assets/bench-charts.css">
+      <link rel="stylesheet" href="../assets/bench-charts.css">
     
-    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
     
     
-  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+  <link href="../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
             html.glightbox-open { overflow: initial; height: 100%; }
             .gslide-title { margin-top: 0px; user-select: text; }
             .gslide-desc { color: #666; user-select: text; }
@@ -89,7 +93,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#lcrq-cas2-analysis" class="md-skip">
+        <a href="#ecosystem-transition-plan-lockfreequeues-nim-debra-lockfree" class="md-skip">
           Skip to content
         </a>
       
@@ -109,7 +113,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../.." title="lockfree" class="md-header__button md-logo" aria-label="lockfree" data-md-component="logo">
+    <a href=".." title="lockfree" class="md-header__button md-logo" aria-label="lockfree" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -129,7 +133,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              LCRQ + CAS2 analysis
+              Transition Plan
             
           </span>
         </div>
@@ -245,7 +249,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../.." title="lockfree" class="md-nav__button md-logo" aria-label="lockfree" data-md-component="logo">
+    <a href=".." title="lockfree" class="md-nav__button md-logo" aria-label="lockfree" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -275,7 +279,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../.." class="md-nav__link">
+      <a href=".." class="md-nav__link">
         
   
   
@@ -356,7 +360,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/" class="md-nav__link">
+      <a href="../guide/" class="md-nav__link">
         
   
   
@@ -384,7 +388,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/getting-started/" class="md-nav__link">
+      <a href="../guide/getting-started/" class="md-nav__link">
         
   
   
@@ -463,7 +467,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/concepts/lock-freedom/" class="md-nav__link">
+      <a href="../guide/concepts/lock-freedom/" class="md-nav__link">
         
   
   
@@ -491,7 +495,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/concepts/smr/" class="md-nav__link">
+      <a href="../guide/concepts/smr/" class="md-nav__link">
         
   
   
@@ -519,7 +523,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/concepts/memory-management/" class="md-nav__link">
+      <a href="../guide/concepts/memory-management/" class="md-nav__link">
         
   
   
@@ -606,7 +610,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/queues/" class="md-nav__link">
+      <a href="../guide/queues/" class="md-nav__link">
         
   
   
@@ -634,7 +638,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/queues/bounded-vyukov/" class="md-nav__link">
+      <a href="../guide/queues/bounded-vyukov/" class="md-nav__link">
         
   
   
@@ -662,7 +666,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/queues/strict-lcrq-mpmc/" class="md-nav__link">
+      <a href="../guide/queues/strict-lcrq-mpmc/" class="md-nav__link">
         
   
   
@@ -690,7 +694,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/queues/legacy/" class="md-nav__link">
+      <a href="../guide/queues/legacy/" class="md-nav__link">
         
   
   
@@ -777,7 +781,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/smr/nebr/" class="md-nav__link">
+      <a href="../guide/smr/nebr/" class="md-nav__link">
         
   
   
@@ -813,7 +817,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/managed-ref/" class="md-nav__link">
+      <a href="../guide/managed-ref/" class="md-nav__link">
         
   
   
@@ -841,7 +845,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/managed-slice/" class="md-nav__link">
+      <a href="../guide/managed-slice/" class="md-nav__link">
         
   
   
@@ -869,7 +873,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/typestates/" class="md-nav__link">
+      <a href="../guide/typestates/" class="md-nav__link">
         
   
   
@@ -897,7 +901,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/nimony/" class="md-nav__link">
+      <a href="../guide/nimony/" class="md-nav__link">
         
   
   
@@ -976,7 +980,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/core-concepts/" class="md-nav__link">
+      <a href="../guide/core-concepts/" class="md-nav__link">
         
   
   
@@ -1004,7 +1008,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/bounded-vs-unbounded/" class="md-nav__link">
+      <a href="../guide/bounded-vs-unbounded/" class="md-nav__link">
         
   
   
@@ -1032,7 +1036,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/slot-ownership-typestates/" class="md-nav__link">
+      <a href="../guide/slot-ownership-typestates/" class="md-nav__link">
         
   
   
@@ -1060,7 +1064,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/safety-model/" class="md-nav__link">
+      <a href="../guide/safety-model/" class="md-nav__link">
         
   
   
@@ -1088,7 +1092,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/performance-tuning/" class="md-nav__link">
+      <a href="../guide/performance-tuning/" class="md-nav__link">
         
   
   
@@ -1116,7 +1120,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/examples/" class="md-nav__link">
+      <a href="../guide/examples/" class="md-nav__link">
         
   
   
@@ -1213,7 +1217,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/" class="md-nav__link">
+      <a href="../api/" class="md-nav__link">
         
   
   
@@ -1241,7 +1245,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/lockfree/" class="md-nav__link">
+      <a href="../api/lockfree/" class="md-nav__link">
         
   
   
@@ -1269,7 +1273,35 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/bqueue/" class="md-nav__link">
+      <a href="../api/compat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility (lockfreequeues)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/bqueue/" class="md-nav__link">
         
   
   
@@ -1297,7 +1329,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/queue/" class="md-nav__link">
+      <a href="../api/queue/" class="md-nav__link">
         
   
   
@@ -1325,7 +1357,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/managed_ref/" class="md-nav__link">
+      <a href="../api/managed_ref/" class="md-nav__link">
         
   
   
@@ -1353,7 +1385,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/managed_slice/" class="md-nav__link">
+      <a href="../api/managed_slice/" class="md-nav__link">
         
   
   
@@ -1381,7 +1413,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/chronos/" class="md-nav__link">
+      <a href="../api/chronos/" class="md-nav__link">
         
   
   
@@ -1409,7 +1441,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/atomics/" class="md-nav__link">
+      <a href="../api/atomics/" class="md-nav__link">
         
   
   
@@ -1449,93 +1481,6 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_9">
-        
-          
-          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    SMR
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_9">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    SMR
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix="">
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/smr/nebr/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    nebr
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-    
-    
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
         <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_10">
         
           
@@ -1546,7 +1491,7 @@
   <span class="md-ellipsis">
     
   
-    Typestates
+    SMR
   
 
     
@@ -1562,7 +1507,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Typestates
+    SMR
   
 
           </label>
@@ -1575,98 +1520,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/typestates/" class="md-nav__link">
+      <a href="../api/smr/nebr/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Facade
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/typestates/with_bound/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    with_bound
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/typestates/slot_state/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    slot_state
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/typestates/segment_state/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    segment_state
+    nebr
   
 
     
@@ -1717,7 +1578,7 @@
   <span class="md-ellipsis">
     
   
-    Internal
+    Typestates
   
 
     
@@ -1730,6 +1591,177 @@
         
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_11_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Typestates
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/typestates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Facade
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/typestates/with_bound/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    with_bound
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/typestates/slot_state/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    slot_state
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/typestates/segment_state/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    segment_state
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_12">
+        
+          
+          <label class="md-nav__link" for="__nav_3_12" id="__nav_3_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Internal
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_12">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1746,7 +1778,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/internal/slot_encoding/" class="md-nav__link">
+      <a href="../api/internal/slot_encoding/" class="md-nav__link">
         
   
   
@@ -1774,7 +1806,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/internal/path_c_admit/" class="md-nav__link">
+      <a href="../api/internal/path_c_admit/" class="md-nav__link">
         
   
   
@@ -1802,7 +1834,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../api/internal/path_c_wrap/" class="md-nav__link">
+      <a href="../api/internal/path_c_wrap/" class="md-nav__link">
         
   
   
@@ -1899,7 +1931,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../examples/" class="md-nav__link">
+      <a href="../examples/" class="md-nav__link">
         
   
   
@@ -1931,8 +1963,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -1943,13 +1977,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked="">
         
           
           <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
@@ -1970,7 +2002,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1988,7 +2020,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../migration/" class="md-nav__link">
+      <a href="../migration/" class="md-nav__link">
         
   
   
@@ -2013,10 +2045,224 @@
                 
   
   
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transition Plan
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transition Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#1-executive-summary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Executive Summary
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-package-architecture-release-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Package Architecture &amp; Release Strategy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Package Architecture &amp; Release Strategy">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-lockfreequeues-v510-v600-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. lockfreequeues (v5.1.0 / v6.0.0 Release)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-nim-debra-v0110-v100-release" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. nim-debra (v0.11.0 / v1.0.0 Release)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-documentation-strategy-why-not-blind-hard-redirects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Documentation Strategy: Why NOT Blind Hard Redirects?
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Documentation Strategy: Why NOT Blind Hard Redirects?">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-blind-redirects-fail-users" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why Blind Redirects Fail Users:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-recommended-3-tier-transition-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Recommended 3-Tier Transition Pattern:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-facade-api-mapping-dictionary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Facade API Mapping Dictionary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Facade API Mapping Dictionary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-lockfreequeues-facade-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. lockfreequeues Facade Surface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-nim-debra-facade-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. nim-debra Facade Surface
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-execution-checklist-for-legacy-repositories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Execution Checklist for Legacy Repositories
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
   
   
     <li class="md-nav__item">
-      <a href="../../migrations/from-lockfreequeues-v5/" class="md-nav__link">
+      <a href="../migrations/from-lockfreequeues-v5/" class="md-nav__link">
         
   
   
@@ -2044,7 +2290,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../migrations/from-nim-debra/" class="md-nav__link">
+      <a href="../migrations/from-nim-debra/" class="md-nav__link">
         
   
   
@@ -2155,7 +2401,7 @@
   <span class="md-ellipsis">
     
   
-    nim-debra docs (T0)
+    nim-debra docs
   
 
     
@@ -2171,7 +2417,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    nim-debra docs (T0)
+    nim-debra docs
   
 
           </label>
@@ -2184,7 +2430,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/PROVENANCE/" class="md-nav__link">
+      <a href="../legacy/nim-debra/PROVENANCE/" class="md-nav__link">
         
   
   
@@ -2212,7 +2458,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/" class="md-nav__link">
+      <a href="../legacy/nim-debra/" class="md-nav__link">
         
   
   
@@ -2240,7 +2486,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/api/" class="md-nav__link">
+      <a href="../legacy/nim-debra/api/" class="md-nav__link">
         
   
   
@@ -2268,7 +2514,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/safety-model/" class="md-nav__link">
+      <a href="../legacy/nim-debra/safety-model/" class="md-nav__link">
         
   
   
@@ -2296,7 +2542,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/contributing/" class="md-nav__link">
+      <a href="../legacy/nim-debra/contributing/" class="md-nav__link">
         
   
   
@@ -2324,7 +2570,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/MIGRATION_v0.8.0/" class="md-nav__link">
+      <a href="../legacy/nim-debra/MIGRATION_v0.8.0/" class="md-nav__link">
         
   
   
@@ -2403,7 +2649,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/guide/getting-started/" class="md-nav__link">
+      <a href="../legacy/nim-debra/guide/getting-started/" class="md-nav__link">
         
   
   
@@ -2431,7 +2677,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/guide/concepts/" class="md-nav__link">
+      <a href="../legacy/nim-debra/guide/concepts/" class="md-nav__link">
         
   
   
@@ -2459,7 +2705,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/guide/atomics/" class="md-nav__link">
+      <a href="../legacy/nim-debra/guide/atomics/" class="md-nav__link">
         
   
   
@@ -2487,7 +2733,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/guide/thread-registration/" class="md-nav__link">
+      <a href="../legacy/nim-debra/guide/thread-registration/" class="md-nav__link">
         
   
   
@@ -2515,7 +2761,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/guide/pin-unpin/" class="md-nav__link">
+      <a href="../legacy/nim-debra/guide/pin-unpin/" class="md-nav__link">
         
   
   
@@ -2543,7 +2789,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/guide/retiring-objects/" class="md-nav__link">
+      <a href="../legacy/nim-debra/guide/retiring-objects/" class="md-nav__link">
         
   
   
@@ -2571,7 +2817,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/guide/reclamation/" class="md-nav__link">
+      <a href="../legacy/nim-debra/guide/reclamation/" class="md-nav__link">
         
   
   
@@ -2599,7 +2845,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/guide/epoch-advancement/" class="md-nav__link">
+      <a href="../legacy/nim-debra/guide/epoch-advancement/" class="md-nav__link">
         
   
   
@@ -2627,7 +2873,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/guide/neutralization/" class="md-nav__link">
+      <a href="../legacy/nim-debra/guide/neutralization/" class="md-nav__link">
         
   
   
@@ -2655,7 +2901,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/guide/integration/" class="md-nav__link">
+      <a href="../legacy/nim-debra/guide/integration/" class="md-nav__link">
         
   
   
@@ -2742,7 +2988,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/design/2026-04-25-batched-retire-reclaim/" class="md-nav__link">
+      <a href="../legacy/nim-debra/design/2026-04-25-batched-retire-reclaim/" class="md-nav__link">
         
   
   
@@ -2770,7 +3016,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../legacy/nim-debra/design/2026-04-25-custom-atomics/" class="md-nav__link">
+      <a href="../legacy/nim-debra/design/2026-04-25-custom-atomics/" class="md-nav__link">
         
   
   
@@ -2821,7 +3067,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../benchmarks/" class="md-nav__link">
+      <a href="../benchmarks/" class="md-nav__link">
         
   
   
@@ -2848,7 +3094,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../contributing/" class="md-nav__link">
+      <a href="../contributing/" class="md-nav__link">
         
   
   
@@ -2895,22 +3141,33 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#what-queuenim-actually-implements" class="md-nav__link">
+  <a href="#1-executive-summary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        What queue.nim actually implements
+        1. Executive Summary
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="What queue.nim actually implements">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-package-architecture-release-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Package Architecture &amp; Release Strategy
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Package Architecture &amp; Release Strategy">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#structural-evidence-segmented-linked-faa-claimed" class="md-nav__link">
+  <a href="#a-lockfreequeues-v510-v600-release" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Structural evidence (segmented, linked, FAA-claimed)
+        A. lockfreequeues (v5.1.0 / v6.0.0 Release)
       
     </span>
   </a>
@@ -2918,32 +3175,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#cas2-dwcas-evidence-none" class="md-nav__link">
+  <a href="#b-nim-debra-v0110-v100-release" class="md-nav__link">
     <span class="md-ellipsis">
       
-        CAS2 / DWCAS evidence — none
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#why-the-committed-flag-pattern-exists" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Why the committed-flag pattern exists
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#algorithm-name" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Algorithm name
+        B. nim-debra (v0.11.0 / v1.0.0 Release)
       
     </span>
   </a>
@@ -2952,6 +3187,95 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-documentation-strategy-why-not-blind-hard-redirects" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Documentation Strategy: Why NOT Blind Hard Redirects?
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Documentation Strategy: Why NOT Blind Hard Redirects?">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#why-blind-redirects-fail-users" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Why Blind Redirects Fail Users:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-recommended-3-tier-transition-pattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Recommended 3-Tier Transition Pattern:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-facade-api-mapping-dictionary" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Facade API Mapping Dictionary
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Facade API Mapping Dictionary">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-lockfreequeues-facade-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. lockfreequeues Facade Surface
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-nim-debra-facade-surface" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. nim-debra Facade Surface
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-execution-checklist-for-legacy-repositories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Execution Checklist for Legacy Repositories
+      
+    </span>
+  </a>
   
 </li>
       
@@ -2975,244 +3299,225 @@
   
 
 
-<h1 id="lcrq-cas2-analysis">LCRQ + CAS2 analysis<a class="headerlink" href="#lcrq-cas2-analysis" title="Permanent link">¶</a></h1>
-<h2 id="what-queuenim-actually-implements">What <code>queue.nim</code> actually implements<a class="headerlink" href="#what-queuenim-actually-implements" title="Permanent link">¶</a></h2>
-<p>v5's <code>src/lockfreequeues/queue.nim</code> is <strong>LCRQ-inspired, not strict LCRQ</strong>.
-It is a segmented (linked-ring-list) MPMC queue that borrows the <em>shape</em>
-of Morrison &amp; Afek's LCRQ — fixed-size segments with <code>fetchAdd</code>-claimed
-producer slots and a forward <code>next</code> link for overflow — but it does
-<strong>not</strong> use the doubleword-CAS-on-cell primitive that defines a strict
-CRQ cell.</p>
-<h3 id="structural-evidence-segmented-linked-faa-claimed">Structural evidence (segmented, linked, FAA-claimed)<a class="headerlink" href="#structural-evidence-segmented-linked-faa-claimed" title="Permanent link">¶</a></h3>
-<ul>
-<li>Segment type with <code>data</code>, <code>next</code>, <code>tail</code>, <code>head</code> and (for <code>ccProd == ccMulti</code>)
-  <code>committed: array[S, Atomic[bool]]</code> flags: <code>src/lockfreequeues/queue.nim:150-181</code>.</li>
-<li>Producer slot reservation uses <code>compareExchange</code> on <code>seg.tail</code> (single 64-bit word),
-  not a paired (seq, value) DWCAS: <code>src/lockfreequeues/queue.nim:1002-1007</code>. The
-  publication step is <code>seg.committed[tail].store(true, moRelease)</code> — a second,
-  separate store, not the same atomic transaction as the slot grab.</li>
-<li>MPMC consumer claim: <code>seg.prevConsumerIdx.compareExchange(prevIdx, mySlot, ...)</code>
-  (single word), followed by a separate <code>seg.committed[mySlot].load(moAcquire)</code>
-  visibility check at <code>queue.nim:1186-1219</code>. Again two atomics, not one DWCAS.</li>
-<li>Segment retirement via nim-debra EBR: <code>retireOnCAS</code> / <code>retireOnPublish</code>
-  at <code>queue.nim:1142-1147, 1077-1080, 1200-1206</code>. Strict LCRQ uses
-  hazard-pointer / safe-memory-reclamation; v5 uses EBR — same family,
-  different implementation.</li>
-</ul>
-<h3 id="cas2-dwcas-evidence-none">CAS2 / DWCAS evidence — none<a class="headerlink" href="#cas2-dwcas-evidence-none" title="Permanent link">¶</a></h3>
-<p>A repository-wide search for <code>Atomic128</code>, <code>DWCAS</code>, <code>cmpxchg16</code>, <code>CAS2</code>,
-<code>uint128</code>, <code>doubleword</code> across <code>src/</code> returns <strong>zero hits</strong>. v5 uses
-only single-word <code>std/atomics</code> primitives (<code>compareExchange</code>, <code>fetchAdd</code>,
-<code>load</code>, <code>store</code>). There is no Atomic128 anywhere in the tree.</p>
-<h3 id="why-the-committed-flag-pattern-exists">Why the committed-flag pattern exists<a class="headerlink" href="#why-the-committed-flag-pattern-exists" title="Permanent link">¶</a></h3>
-<p>Strict CRQ cells encode <code>(seq, value)</code> and require DWCAS (paper §4).
-Nim's <code>std/atomics</code> does not portably expose DWCAS. The committed-flag
-overlay is the standard workaround: claim the slot with single-word
-FAA/CAS on <code>tail</code>/<code>prevConsumerIdx</code>, then publish visibility via a
-separate <code>moRelease</code> store on a per-slot bool. Sound and lock-free,
-but pays an extra cache-line touch per element and cannot express
-the SegmentClosed state in a single atomic — which is what the
-v4.3-Task-14 <code>cellState</code> tri-state migration adds.</p>
-<h3 id="algorithm-name">Algorithm name<a class="headerlink" href="#algorithm-name" title="Permanent link">¶</a></h3>
-<p><strong>"LCRQ-inspired segmented MPMC queue with per-slot committed-flag
-publication overlay, using nim-debra EBR for segment reclamation."</strong></p>
-<p>Implications for cellState: <code>{CellEmpty, CellFilled, CellClosed}:
-Atomic[uint8]</code> is portable on single-word atomics, so the v4.3
-migration does <strong>not</strong> require DWCAS and fits v5's portability
-constraints. It is a richer encoding that enables the consumer-side
-<code>close-CAS-on-empty</code> escalation pattern the boolean overlay cannot
-express.</p>
+<h1 id="ecosystem-transition-plan-lockfreequeues-nim-debra-lockfree">Ecosystem Transition Plan: <code>lockfreequeues</code> &amp; <code>nim-debra</code> → <code>lockfree</code><a class="headerlink" href="#ecosystem-transition-plan-lockfreequeues-nim-debra-lockfree" title="Permanent link">¶</a></h1>
+<h2 id="1-executive-summary">1. Executive Summary<a class="headerlink" href="#1-executive-summary" title="Permanent link">¶</a></h2>
+<p>As part of the <strong>v0.1.0 Umbrella Consolidation</strong>, the standalone libraries <code>lockfreequeues</code> and <code>nim-debra</code> are consolidated into a single unified package: <strong><code>lockfree</code></strong>.</p>
+<p>To prevent breaking existing downstream adopters and Nimble package consumers, <code>lockfreequeues</code> and <code>nim-debra</code> will not be abruptly abandoned or hard-deleted. Instead, they transition through a <strong>Two-Stage Facade Architecture</strong>:
+1. <strong>The Repositories Become Thin Zero-Overhead Forwarding Shims</strong>: They depend on <code>lockfree &gt;= 0.1.0</code> and re-export the consolidated modules.
+2. <strong>The Documentation Sites Become Guided Landing Hubs</strong>: Instead of confusing users with blind 301 redirects, the legacy doc sites display a prominent migration banner, an API mapping dictionary, and direct deep-links to the canonical <code>lockfree</code> documentation.</p>
 <hr>
-<h1 id="v43-task-14-commit-by-commit-port-analysis">v4.3-task-14 commit-by-commit port analysis<a class="headerlink" href="#v43-task-14-commit-by-commit-port-analysis" title="Permanent link">¶</a></h1>
+<h2 id="2-package-architecture-release-strategy">2. Package Architecture &amp; Release Strategy<a class="headerlink" href="#2-package-architecture-release-strategy" title="Permanent link">¶</a></h2>
+<h3 id="a-lockfreequeues-v510-v600-release">A. <code>lockfreequeues</code> (v5.1.0 / v6.0.0 Release)<a class="headerlink" href="#a-lockfreequeues-v510-v600-release" title="Permanent link">¶</a></h3>
+<p>In the <code>lockfreequeues</code> repository:
+- <strong><code>lockfreequeues.nimble</code></strong>:
+  </p><div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="n">version</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="s">"5.1.0"</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">author</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="s">"Elijah Rivers"</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">description</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="s">"Compatibility facade for lockfree - lock-free queues for Nim"</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">license</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="s">"MIT"</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">srcDir</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="s">"src"</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="n">requires</span><span class="w"> </span><span class="s">"nim &gt;= 2.2.10"</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="n">requires</span><span class="w"> </span><span class="s">"lockfree &gt;= 0.1.0"</span>
+</code></pre></div>
+- <strong><code>src/lockfreequeues.nim</code></strong>:
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="sd">## Backwards-compatibility facade.</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="sd">## Re-exports the unified lockfree compatibility layer.</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfree</span><span class="o">/</span><span class="n">compat</span><span class="o">/</span><span class="n">lockfreequeues</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="k">export</span><span class="w"> </span><span class="n">lockfreequeues</span>
+</code></pre></div>
+- <strong>Result</strong>: Any user running <code>nimble install lockfreequeues</code> or having <code>requires "lockfreequeues"</code> in their <code>.nimble</code> continues to compile with zero code changes, while transparently benefiting from the hardened <code>lockfree</code> engine and bugfixes.<p></p>
+<h3 id="b-nim-debra-v0110-v100-release">B. <code>nim-debra</code> (v0.11.0 / v1.0.0 Release)<a class="headerlink" href="#b-nim-debra-v0110-v100-release" title="Permanent link">¶</a></h3>
+<p>In the <code>nim-debra</code> repository:
+- <strong><code>debra.nimble</code></strong>:
+  </p><div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">version</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="s">"0.11.0"</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">author</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="s">"Elijah Rivers"</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">description</span><span class="w">   </span><span class="o">=</span><span class="w"> </span><span class="s">"Compatibility facade for lockfree/smr/nebr - DEBRA+ memory reclamation"</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="n">license</span><span class="w">       </span><span class="o">=</span><span class="w"> </span><span class="s">"MIT"</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">srcDir</span><span class="w">        </span><span class="o">=</span><span class="w"> </span><span class="s">"src"</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">requires</span><span class="w"> </span><span class="s">"nim &gt;= 2.2.10"</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">requires</span><span class="w"> </span><span class="s">"lockfree &gt;= 0.1.0"</span>
+</code></pre></div>
+- <strong><code>src/debra.nim</code></strong>:
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="sd">## Backwards-compatibility facade.</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="sd">## Re-exports NEBR from lockfree.</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfree</span><span class="o">/</span><span class="n">smr</span><span class="o">/</span><span class="n">nebr</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="k">export</span><span class="w"> </span><span class="n">nebr</span>
+</code></pre></div>
+- <strong>Result</strong>: Any caller depending on <code>debra</code> gets the latest NEBR implementation (including <code>unregisterThread</code>, Apple Silicon cacheline tuning, and bugfixes) automatically.<p></p>
+<hr>
+<h2 id="3-documentation-strategy-why-not-blind-hard-redirects">3. Documentation Strategy: Why NOT Blind Hard Redirects?<a class="headerlink" href="#3-documentation-strategy-why-not-blind-hard-redirects" title="Permanent link">¶</a></h2>
+<p>A common anti-pattern in package consolidation is setting an immediate blind HTTP 301 redirect from <code>https://elijahr.github.io/lockfreequeues/</code> to <code>https://elijahr.github.io/lockfree/</code>.</p>
+<h3 id="why-blind-redirects-fail-users">Why Blind Redirects Fail Users:<a class="headerlink" href="#why-blind-redirects-fail-users" title="Permanent link">¶</a></h3>
+<ol>
+<li><strong>Broken Deep Links</strong>: A developer searching Google or GitHub for <code>MupmucProducer.push</code> or <code>DebraManager.registerThread</code> lands on <code>lockfree</code>'s front page, which explains <code>BQueue</code> and <code>Channel[T]</code>. The developer cannot find their method, assumes the library removed their feature, and files an issue or abandons the project.</li>
+<li><strong>Context Loss</strong>: Legacy codebases cannot immediately rewrite their types. They need to see the exact signature of the facade types they are currently calling.</li>
+</ol>
+<h3 id="the-recommended-3-tier-transition-pattern">The Recommended 3-Tier Transition Pattern:<a class="headerlink" href="#the-recommended-3-tier-transition-pattern" title="Permanent link">¶</a></h3>
+<pre class="mermaid"><code>flowchart TD
+    subgraph LegacySites["Legacy Documentation Sites (lockfreequeues / nim-debra)"]
+        Banner["Top High-Contrast Banner: 'Consolidated into lockfree'"]
+        Landing["Landing Page: 'Package Transition &amp; Facade APIs'"]
+        DeepLinks["API Reference with 'Mapped to lockfree' notes"]
+    end
+
+    subgraph Canonical["Canonical Documentation Hub (lockfree)"]
+        MainDocs["Modern lockfree Guides (Channel, BQueue, Queue, C ABI)"]
+        CompatDoc["docs/api/compat.md (Full Legacy Type Dictionary)"]
+        MigrateDoc["docs/migration.md (Step-by-step Upgrade Recipes)"]
+    end
+
+    Banner --&gt;|Direct Link| MigrateDoc
+    Landing --&gt;|API Mapping| CompatDoc
+    DeepLinks --&gt;|Underlying Types| MainDocs</code></pre>
+<ol>
+<li><strong>Persistent Top Banner (on MkDocs sites)</strong>:
+   Add to <code>mkdocs.yml</code> on both legacy repos:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">extra</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">banner</span><span class="p">:</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="nt">content</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">&gt;</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="w">      </span><span class="no">⚠️ &lt;strong&gt;Package Consolidated:&lt;/strong&gt; This library is now maintained as a zero-overhead compatibility facade over </span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">      </span><span class="no">&lt;a href="https://elijahr.github.io/lockfree/"&gt;&lt;strong&gt;lockfree&lt;/strong&gt;&lt;/a&gt;.</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="w">      </span><span class="no">See the &lt;a href="https://elijahr.github.io/lockfree/migration/"&gt;Migration Guide&lt;/a&gt;.</span>
+</code></pre></div></li>
+<li><strong>Dedicated Facade Reference Page</strong>:
+   The index page of both legacy documentation sites explains:</li>
+<li>What the package is today (a maintained compatibility wrapper).</li>
+<li>The exact list of APIs it exports.</li>
+<li>A side-by-side mapping table showing the modern <code>lockfree</code> equivalent.</li>
+<li>Recommended timeline: new projects should install <code>lockfree</code> directly; existing projects can migrate at leisure.</li>
+</ol>
+<hr>
+<h2 id="4-facade-api-mapping-dictionary">4. Facade API Mapping Dictionary<a class="headerlink" href="#4-facade-api-mapping-dictionary" title="Permanent link">¶</a></h2>
+<h3 id="a-lockfreequeues-facade-surface">A. <code>lockfreequeues</code> Facade Surface<a class="headerlink" href="#a-lockfreequeues-facade-surface" title="Permanent link">¶</a></h3>
 <table>
 <thead>
 <tr>
-<th>SHA</th>
-<th>Kind</th>
-<th>Classification</th>
-<th>Target in v5</th>
+<th style="text-align: left;">Legacy Alias</th>
+<th style="text-align: left;">Modern <code>lockfree</code> Underlying Type</th>
+<th style="text-align: left;">Recommended Migration Path</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>e60d504</td>
-<td>feat</td>
-<td>PORT_POSSIBLE_BUT_NOT_OBVIOUS</td>
-<td><code>queue.nim</code> MPMC + MPSC paths</td>
+<td style="text-align: left;"><code>Sipsic[N, T]</code></td>
+<td style="text-align: left;"><code>BQueue[T, ccSingle, ccSingle, N, 0, 0]</code></td>
+<td style="text-align: left;"><code>newSpscQueue[T, N]()</code></td>
 </tr>
 <tr>
-<td>3f4c779</td>
-<td>feat</td>
-<td>PORT_POSSIBLE_BUT_NOT_OBVIOUS</td>
-<td><code>queue.nim</code> MPMC pop path</td>
+<td style="text-align: left;"><code>Mupsic[N, P, T]</code></td>
+<td style="text-align: left;"><code>BQueue[T, ccMulti, ccSingle, N, P, 0]</code></td>
+<td style="text-align: left;"><code>newMpscQueue[T, N, P]()</code></td>
 </tr>
 <tr>
-<td>027256c</td>
-<td>test</td>
-<td>PORT_RECOMMENDED (after e60d504+3f4c779)</td>
-<td>new test file</td>
+<td style="text-align: left;"><code>Sipmuc[N, C, T]</code></td>
+<td style="text-align: left;"><code>BQueue[T, ccSingle, ccMulti, N, 0, C]</code></td>
+<td style="text-align: left;"><code>newSpmcQueue[T, N, C]()</code></td>
 </tr>
 <tr>
-<td>e3ffd6e</td>
-<td>test</td>
-<td>INAPPLICABLE</td>
-<td>fixture for a v4-only commit boundary</td>
+<td style="text-align: left;"><code>Mupmuc[N, P, C, T]</code></td>
+<td style="text-align: left;"><code>BQueue[T, ccMulti, ccMulti, N, P, C]</code></td>
+<td style="text-align: left;"><code>newMpmcQueue[T, N, P, C]()</code></td>
 </tr>
 <tr>
-<td>510ef27</td>
-<td>test</td>
-<td>PORT_RECOMMENDED</td>
-<td>new MPMC move-analyzer test</td>
+<td style="text-align: left;"><code>UnboundedSipsic[T, ST, S]</code></td>
+<td style="text-align: left;"><code>Queue[T, ccSingle, ccSingle, ST, S, 1]</code></td>
+<td style="text-align: left;"><code>newUnboundedSpscQueue[T, S]()</code></td>
 </tr>
 <tr>
-<td>da32689</td>
-<td>test</td>
-<td>INAPPLICABLE</td>
-<td>v4 test files don't exist in v5</td>
+<td style="text-align: left;"><code>UnboundedMupsic[T, ST, S, M]</code></td>
+<td style="text-align: left;"><code>Queue[T, ccMulti, ccSingle, ST, S, M]</code></td>
+<td style="text-align: left;"><code>newUnboundedMpscQueue[T, S, M]()</code></td>
 </tr>
 <tr>
-<td>b751bab</td>
-<td>docs</td>
-<td>PORT_RECOMMENDED</td>
-<td>inline comment near <code>queue.nim:1003</code></td>
+<td style="text-align: left;"><code>UnboundedSipmuc[T, ST, S, M]</code></td>
+<td style="text-align: left;"><code>Queue[T, ccSingle, ccMulti, ST, S, M]</code></td>
+<td style="text-align: left;"><code>newUnboundedSpmcQueue[T, S, M]()</code></td>
 </tr>
 <tr>
-<td>2e266a3</td>
-<td>docs</td>
-<td>PORT_RECOMMENDED</td>
-<td>doc-comment on <code>queue.nim</code> MPMC pop</td>
+<td style="text-align: left;"><code>UnboundedMupmuc[T, ST, S, M]</code></td>
+<td style="text-align: left;"><code>Queue[T, ccMulti, ccMulti, ST, S, M]</code></td>
+<td style="text-align: left;"><code>newUnboundedMpmcQueue[T, S, M]()</code></td>
 </tr>
 <tr>
-<td>9763705</td>
-<td>test</td>
-<td>PORT_POSSIBLE_BUT_NOT_OBVIOUS</td>
-<td>needs v5 pin-state introspection</td>
+<td style="text-align: left;"><code>MupmucProducer[N, P, C, T]</code></td>
+<td style="text-align: left;"><code>Bound[T, AnyThreadTag, BQueue[...]]</code></td>
+<td style="text-align: left;"><code>queue.getProducer()</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>MupmucConsumer[N, P, C, T]</code></td>
+<td style="text-align: left;"><code>Bound[T, AnyThreadTag, BQueue[...]]</code></td>
+<td style="text-align: left;"><code>queue.getConsumer()</code></td>
 </tr>
 </tbody>
 </table>
-<h2 id="per-commit-notes">Per-commit notes<a class="headerlink" href="#per-commit-notes" title="Permanent link">¶</a></h2>
-<h3 id="e60d504-committed-cellstate-migration-task-1415">e60d504 — committed → cellState migration (Task 14+15)<a class="headerlink" href="#e60d504-committed-cellstate-migration-task-1415" title="Permanent link">¶</a></h3>
-<p><strong>PORT_POSSIBLE_BUT_NOT_OBVIOUS.</strong> v5's <code>queue.nim:178</code> still uses
-<code>committed: array[S, Atomic[bool]]</code>. Migrating to
-<code>cellState: array[S, Atomic[uint8]]</code> with <code>CellEmpty/CellFilled/CellClosed</code>
-is portable (no DWCAS needed) and would enable the close-CAS
-escalation in 3f4c779. Affected sites in v5:
-producer publish at <code>queue.nim:1005</code>, MPSC consumer commit-check at
-<code>queue.nim:1069</code>, MPMC consumer commit-checks at <code>queue.nim:1193, 1214</code>.
-Open design question: v5 collapses MPMC and MPSC into one <code>Segment</code>
-type with <code>when ccProd == ccMulti</code> for the publication field; the v4
-migration was monolithic per-family. In v5 the field swap also touches
-the MPSC pop site, which the v4 commit did not. Estimated work:
-~50 LOC field/type rename + ~20 LOC at each of 4 access sites + new
-helper <code>publishCell</code> / <code>tryCloseCell</code> (~30 LOC) + 1-2 days design to
-confirm MPSC pop semantics under the tri-state (does the single
-consumer ever need to observe <code>CellClosed</code>?). Total ~150 LOC + design.</p>
-<h3 id="3f4c779-pop-tryclaimslot-fetchadd-close-cas-task-16">3f4c779 — pop tryClaimSlot fetchAdd + close-CAS (Task 16)<a class="headerlink" href="#3f4c779-pop-tryclaimslot-fetchadd-close-cas-task-16" title="Permanent link">¶</a></h3>
-<p><strong>PORT_POSSIBLE_BUT_NOT_OBVIOUS.</strong> Depends on e60d504 landing first.
-The algorithmic change: switch MPMC consumer slot claim from
-<code>prevConsumerIdx.compareExchange</code> (single CAS) to
-<code>consumerHead.fetchAdd(1)</code> (FAA), then perform <code>close-CAS-on-empty</code>
-when the cell is observed empty after claim. This is the canonical
-LCRQ consumer pattern. v5's current <code>queue.nim:1216</code> uses
-<code>compareExchange</code> on <code>prevConsumerIdx</code> — this commit would replace
-that with FAA on a new <code>consumerHead</code> field (or repurpose
-<code>prevConsumerIdx</code> as a FAA cursor). The close-CAS gives stronger
-progress guarantees under producer-skip storms but requires the
-cellState tri-state from e60d504 to encode "claimed-but-empty →
-closed" without losing the empty/filled distinction. Estimated work:
-~80 LOC in MPMC pop path + ~40 LOC of new typestate dispatch.</p>
-<h3 id="027256c-closure-storm-tests-task-18">027256c — closure-storm tests (Task 18)<a class="headerlink" href="#027256c-closure-storm-tests-task-18" title="Permanent link">¶</a></h3>
-<p><strong>PORT_RECOMMENDED</strong> <em>after</em> e60d504 and 3f4c779 are ported.
-The v4 test file is <code>tests/t_unbounded_mpmc_push_typestate.nim</code> which
-does not exist in v5. The test <em>concepts</em> (Shape A retry on closed
-cell; SegmentClosed escalation) are valuable regression tests for the
-ported algorithm. Port as a new file <code>tests/t_unbounded_mpmc_closure_storm.nim</code>
-~180 LOC. Cannot port until close-CAS exists in v5.</p>
-<h3 id="e3ffd6e-scenario-2-fixture-repair">e3ffd6e — Scenario 2 fixture repair<a class="headerlink" href="#e3ffd6e-scenario-2-fixture-repair" title="Permanent link">¶</a></h3>
-<p><strong>INAPPLICABLE.</strong> This is a fixture fix for a removed-SC in e60d504
-inside <code>t_match_in_generic_context_smoke.nim</code>, a v4-typestate-DSL test
-fixture that v5 does not carry. The bug it repaired existed only at a
-v4 commit boundary.</p>
-<h3 id="510ef27-move-analyzer-test-for-non-copyable-t-task-19">510ef27 — move-analyzer test for non-copyable T (Task 19)<a class="headerlink" href="#510ef27-move-analyzer-test-for-non-copyable-t-task-19" title="Permanent link">¶</a></h3>
-<p><strong>PORT_RECOMMENDED.</strong> v5 currently has no move-analyzer test for the
-MPMC unbounded path (<code>grep -r MovePayload tests/</code> returned nothing).
-The test concept — <code>=copy {.error.}</code> on a payload type pushed through
-the MPMC pipeline — is fully applicable to v5's <code>queue.nim</code> MPMC
-producer at <code>queue.nim:1002-1007</code>. Independent of the cellState
-migration. Port as <code>tests/t_unbounded_mpmc_move_analyzer.nim</code> ~190 LOC.
-This is the highest-value standalone port: catches a real class of
-defects (silent <code>=copy</code> emission) and needs no algorithmic prerequisites.</p>
-<h3 id="da32689-drop-stale-committed-flag-comment-references">da32689 — drop stale committed-flag comment references<a class="headerlink" href="#da32689-drop-stale-committed-flag-comment-references" title="Permanent link">¶</a></h3>
-<p><strong>INAPPLICABLE.</strong> Comment-only cleanup of v4 test files that don't
-exist in v5. If e60d504 is ported, v5 will need its own analogous
-comment cleanup (smaller scope), but this specific patch does not apply.</p>
-<h3 id="b751bab-spmc-pop-fetchadd-hb-rationale-comment-fix">b751bab — SPMC pop fetchAdd HB-rationale comment fix<a class="headerlink" href="#b751bab-spmc-pop-fetchadd-hb-rationale-comment-fix" title="Permanent link">¶</a></h3>
-<p><strong>PORT_RECOMMENDED.</strong> Pure comment fix. v5's SPMC pop at
-<code>queue.nim:1130-1164</code> does not currently use <code>fetchAdd</code> (it uses
-<code>compareExchange</code> on <code>prevConsumerIdx</code>), so the <em>specific</em> comment
-about fetchAdd does not map directly. However, the underlying defect
-(claim that HB rides on the consumer-head atomic when it actually
-rides on the committed-flag / cellState chain) is worth auditing
-across v5's SPMC + MPMC pop comments at <code>queue.nim:1130-1219</code>.
-Estimated ~20 LOC of comment review + edits.</p>
-<h3 id="2e266a3-debra-pin-claim-ordering-invariant-doc-comment">2e266a3 — DEBRA Pin-Claim Ordering invariant doc-comment<a class="headerlink" href="#2e266a3-debra-pin-claim-ordering-invariant-doc-comment" title="Permanent link">¶</a></h3>
-<p><strong>PORT_RECOMMENDED.</strong> The invariant text is algorithm-agnostic and
-applies to v5's MPMC and SPMC pop paths. v5 currently has scattered
-references to debra pin discipline but no consolidated invariant
-block. Port the 6-item form (with topology-conditional Item 6 a/b/c)
-as a doc-comment header on the SPMC pop at <code>queue.nim:1112</code> and the
-MPMC pop at <code>queue.nim:1166</code>. ~60 LOC of comments, no code change.</p>
-<h3 id="9763705-explicit-pin-leak-assertions">9763705 — explicit pin-leak assertions<a class="headerlink" href="#9763705-explicit-pin-leak-assertions" title="Permanent link">¶</a></h3>
-<p><strong>PORT_POSSIBLE_BUT_NOT_OBVIOUS.</strong> Requires v5 to expose pin-state
-introspection from nim-debra (<code>scope.isPinned</code>, handle ref-count
-accessors). The v4 helper template likely depends on debra 0.7.x
-introspection API; v5 uses debra 0.8.0. Confirm the test-only
-accessors exist on 0.8.0, then port the helper template + add
-assertions to v5's closure-storm and move-analyzer tests (once
-those exist from 027256c / 510ef27 ports). ~100 LOC test helper +
-assertions.</p>
+<h3 id="b-nim-debra-facade-surface">B. <code>nim-debra</code> Facade Surface<a class="headerlink" href="#b-nim-debra-facade-surface" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Legacy DEBRA Symbol</th>
+<th style="text-align: left;">Modern <code>lockfree</code> Symbol</th>
+<th style="text-align: left;">Module</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>DebraManager[MaxThreads, CC]</code></td>
+<td style="text-align: left;"><code>DebraManager[MaxThreads, CC]</code></td>
+<td style="text-align: left;"><code>lockfree/smr/nebr</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>ThreadHandle[MaxThreads, CC]</code></td>
+<td style="text-align: left;"><code>ThreadHandle[MaxThreads, CC]</code></td>
+<td style="text-align: left;"><code>lockfree/smr/nebr</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>registerThread(manager)</code></td>
+<td style="text-align: left;"><code>registerThread(manager)</code></td>
+<td style="text-align: left;"><code>lockfree/smr/nebr</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>unregisterThread(handle)</code></td>
+<td style="text-align: left;"><code>unregisterThread(handle)</code></td>
+<td style="text-align: left;"><code>lockfree/smr/nebr</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>withPin(handle, body)</code></td>
+<td style="text-align: left;"><code>withPin(handle, body)</code></td>
+<td style="text-align: left;"><code>lockfree/smr/nebr</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>retireNode(handle, ptr)</code></td>
+<td style="text-align: left;"><code>retireNode(handle, ptr)</code></td>
+<td style="text-align: left;"><code>lockfree/smr/nebr</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>reclaimNow(handle)</code></td>
+<td style="text-align: left;"><code>reclaimNow(handle)</code></td>
+<td style="text-align: left;"><code>lockfree/smr/nebr</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>neutralizeStalled(...)</code></td>
+<td style="text-align: left;"><code>neutralizeStalled(...)</code></td>
+<td style="text-align: left;"><code>lockfree/smr/nebr</code></td>
+</tr>
+</tbody>
+</table>
 <hr>
-<h1 id="recommended-action">Recommended action<a class="headerlink" href="#recommended-action" title="Permanent link">¶</a></h1>
-<ol>
-<li>
-<p><strong>Port 510ef27 first</strong> (MPMC move-analyzer test, INDEPENDENT). It
-   has zero algorithmic prerequisites, exercises a real class of v5
-   defects (silent <code>=copy</code> in the MPMC publish path at <code>queue.nim:1004</code>),
-   and gives a regression net before any production change. ~1 day.</p>
-</li>
-<li>
-<p><strong>Port 2e266a3 + b751bab next</strong> (doc-comment landings, INDEPENDENT).
-   Pure documentation; lands the DEBRA Pin-Claim invariant and corrects
-   the HB-rationale comments on v5's SPMC/MPMC pop. ~0.5 day. Use the
-   landing to audit <em>all</em> HB comments in <code>queue.nim:1130-1219</code> against
-   the actual atomic ordering chain — likely surfaces 2-3 more stale
-   comments.</p>
-</li>
-<li>
-<p><strong>Decide on cellState migration as a v5.0.x or v5.1 design item.</strong>
-   Commits e60d504 + 3f4c779 + 027256c form an atomic algorithmic
-   upgrade (close-CAS-on-empty for MPMC progress under producer-skip).
-   Recommended sequence if pursued: (a) write a design doc covering
-   the MPSC-pop semantics question, (b) port e60d504 (cellState
-   field swap + publish/check sites), (c) port 3f4c779 (consumer
-   FAA + close-CAS), (d) port 027256c as the regression net. Est.
-   3-5 days end-to-end. <strong>Do not bundle into v5.0.0</strong> — v5.0.0 ships
-   the architecture collapse; cellState is a follow-on progress-guarantee
-   upgrade that wants its own design review.</p>
-</li>
-<li>
-<p><strong>Skip e3ffd6e and da32689</strong> entirely — they are v4-only commit-boundary
-   artifacts with no v5 analog. If e60d504 is ported, a v5-native
-   equivalent of da32689's comment cleanup will fall out of the port.</p>
-</li>
-<li>
-<p><strong>Defer 9763705 until 027256c + 510ef27 are landed</strong> — pin-leak
-   assertions are only meaningful at test sites that exercise pin
-   discipline; landing the tests first gives the assertions somewhere
-   to live. Verify debra 0.8.0 pin-state introspection surface before
-   committing to the port.</p>
-</li>
-</ol>
+<h2 id="5-execution-checklist-for-legacy-repositories">5. Execution Checklist for Legacy Repositories<a class="headerlink" href="#5-execution-checklist-for-legacy-repositories" title="Permanent link">¶</a></h2>
+<p>When publishing the consolidation releases:</p>
+<ul>
+<li>[ ] <strong><code>elijahr/lockfreequeues</code></strong>:</li>
+<li>Replace <code>README.md</code> with the Facade README (see Section 6).</li>
+<li>Update <code>lockfreequeues.nimble</code> to depend on <code>lockfree &gt;= 0.1.0</code>.</li>
+<li>Replace <code>src/lockfreequeues.nim</code> with <code>import lockfree/compat/lockfreequeues; export lockfreequeues</code>.</li>
+<li>Tag <code>v5.1.0</code> (or <code>v6.0.0</code>) and push to GitHub.</li>
+<li>[ ] <strong><code>elijahr/nim-debra</code></strong>:</li>
+<li>Replace <code>README.md</code> with the Facade README (see Section 7).</li>
+<li>Update <code>debra.nimble</code> to depend on <code>lockfree &gt;= 0.1.0</code>.</li>
+<li>Replace <code>src/debra.nim</code> with <code>import lockfree/smr/nebr; export nebr</code>.</li>
+<li>Tag <code>v0.11.0</code> (or <code>v1.0.0</code>) and push to GitHub.</li>
+</ul>
 
 
 
@@ -3235,7 +3540,7 @@ assertions.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 2, 2026 06:14:17 UTC"><span class="timeago" datetime="2026-06-02T06:14:17+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 2, 2026 06:14:17 UTC">2026-06-02</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 8, 2026 03:53:25 UTC"><span class="timeago" datetime="2026-10-08T03:53:25+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 8, 2026 03:53:25 UTC">2026-10-08</span>
   </span>
 
     
@@ -3245,7 +3550,7 @@ assertions.</p>
     <span class="md-icon" title="Created">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 2, 2026 06:14:17 UTC"><span class="timeago" datetime="2026-06-02T06:14:17+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 2, 2026 06:14:17 UTC">2026-06-02</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 8, 2026 03:53:25 UTC"><span class="timeago" datetime="2026-10-08T03:53:25+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 8, 2026 03:53:25 UTC">2026-10-08</span>
   </span>
 
     
@@ -3310,14 +3615,14 @@ assertions.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.code.annotate", "navigation.instant", "navigation.sections", "navigation.expand", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.copy", "content.code.annotate", "navigation.instant", "navigation.sections", "navigation.expand", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
-        <script src="../../js/timeago.min.js"></script>
+        <script src="../js/timeago.min.js"></script>
       
-        <script src="../../js/timeago_mkdocs_material.js"></script>
+        <script src="../js/timeago_mkdocs_material.js"></script>
       
     
   

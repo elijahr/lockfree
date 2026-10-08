@@ -1397,6 +1397,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../api/compat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility (lockfreequeues)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../api/bqueue/" class="md-nav__link">
         
   
@@ -1577,10 +1605,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_9">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_10">
         
           
-          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
             
   
   
@@ -1598,8 +1626,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_9">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_10">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1664,10 +1692,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_10">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_11">
         
           
-          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_11" id="__nav_3_11_label" tabindex="0">
             
   
   
@@ -1685,8 +1713,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_10">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_11">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1835,10 +1863,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_11">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_12">
         
           
-          <label class="md-nav__link" for="__nav_3_11" id="__nav_3_11_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_12" id="__nav_3_12_label" tabindex="0">
             
   
   
@@ -1856,8 +1884,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_11_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_11">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_12">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2144,6 +2172,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../../transition_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transition Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../migrations/from-lockfreequeues-v5/" class="md-nav__link">
         
   
@@ -2283,7 +2339,7 @@
   <span class="md-ellipsis">
     
   
-    nim-debra docs (T0)
+    nim-debra docs
   
 
     
@@ -2299,7 +2355,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    nim-debra docs (T0)
+    nim-debra docs
   
 
           </label>
@@ -3225,8 +3281,8 @@ types that genuinely cannot form a cycle through their <code>ref</code> fields.<
 <p>Under <code>--mm:refc</code>, cycles are collected by the mark-and-sweep pass at
 the cost of a full heap traversal.</p>
 <h2 id="composition-matrix-informational">Composition matrix (informational)<a class="headerlink" href="#composition-matrix-informational" title="Permanent link">¶</a></h2>
-<p>The full <code>ref T</code> composition matrix lives in the internal design doc
-(<a href="https://github.com/elijahr/lockfree/blob/devel/docs/internal/design-sections/02-type-system-and-payload-types.md">§2.5</a>).
+<p>The full <code>ref T</code> composition matrix is enforced by <code>src/lockfree/internal/path_c_admit.nim</code>
+and documented in <a href="../concepts/memory-management/">Memory management</a>.
 It is a 25-row enumeration of <code>ref of X</code> shapes (<code>ref int</code>,
 <code>ref Object</code>, <code>ref ref T</code>, <code>ref array[N, T]</code>, <code>ref tuple</code>, <code>ref proc</code>,
 <code>ref UncheckedArray</code>, closure environments, etc.) with an ACCEPT or
@@ -3276,7 +3332,7 @@ design-doc matrix.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 7, 2026 06:34:19 UTC"><span class="timeago" datetime="2026-06-07T06:34:19+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 7, 2026 06:34:19 UTC">2026-06-07</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 7, 2026 04:35:36 UTC"><span class="timeago" datetime="2026-10-07T04:35:36+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 7, 2026 04:35:36 UTC">2026-10-07</span>
   </span>
 
     

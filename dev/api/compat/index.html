@@ -7,31 +7,31 @@
       
       
       
-        <link rel="canonical" href="https://elijahr.github.io/lockfree/latest/examples/">
+        <link rel="canonical" href="https://elijahr.github.io/lockfree/latest/api/compat/">
       
       
-        <link rel="prev" href="../api/internal/path_c_wrap/">
+        <link rel="prev" href="../lockfree/">
       
       
-        <link rel="next" href="../migration/">
+        <link rel="next" href="../bqueue/">
       
       
         
       
       
-      <link rel="icon" href="../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>Overview - lockfree</title>
+        <title>Compatibility (lockfreequeues) - lockfree</title>
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -50,21 +50,21 @@
       
     
     
-      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
-      <link rel="stylesheet" href="../css/timeago.css">
+      <link rel="stylesheet" href="../../css/timeago.css">
     
-      <link rel="stylesheet" href="../css/custom.css">
+      <link rel="stylesheet" href="../../css/custom.css">
     
-      <link rel="stylesheet" href="../assets/bench-charts.css">
+      <link rel="stylesheet" href="../../assets/bench-charts.css">
     
-    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
     
     
-  <link href="../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
             html.glightbox-open { overflow: initial; height: 100%; }
             .gslide-title { margin-top: 0px; user-select: text; }
             .gslide-desc { color: #666; user-select: text; }
@@ -93,7 +93,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#examples" class="md-skip">
+        <a href="#legacy-compatibility-layer-compatlockfreequeues" class="md-skip">
           Skip to content
         </a>
       
@@ -113,7 +113,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href=".." title="lockfree" class="md-header__button md-logo" aria-label="lockfree" data-md-component="logo">
+    <a href="../.." title="lockfree" class="md-header__button md-logo" aria-label="lockfree" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -133,7 +133,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Overview
+              Compatibility (lockfreequeues)
             
           </span>
         </div>
@@ -249,7 +249,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href=".." title="lockfree" class="md-nav__button md-logo" aria-label="lockfree" data-md-component="logo">
+    <a href="../.." title="lockfree" class="md-nav__button md-logo" aria-label="lockfree" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -279,7 +279,7 @@
   
   
     <li class="md-nav__item">
-      <a href=".." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -360,7 +360,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/" class="md-nav__link">
+      <a href="../../guide/" class="md-nav__link">
         
   
   
@@ -388,7 +388,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/getting-started/" class="md-nav__link">
+      <a href="../../guide/getting-started/" class="md-nav__link">
         
   
   
@@ -467,7 +467,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/concepts/lock-freedom/" class="md-nav__link">
+      <a href="../../guide/concepts/lock-freedom/" class="md-nav__link">
         
   
   
@@ -495,7 +495,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/concepts/smr/" class="md-nav__link">
+      <a href="../../guide/concepts/smr/" class="md-nav__link">
         
   
   
@@ -523,7 +523,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/concepts/memory-management/" class="md-nav__link">
+      <a href="../../guide/concepts/memory-management/" class="md-nav__link">
         
   
   
@@ -610,7 +610,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/queues/" class="md-nav__link">
+      <a href="../../guide/queues/" class="md-nav__link">
         
   
   
@@ -638,7 +638,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/queues/bounded-vyukov/" class="md-nav__link">
+      <a href="../../guide/queues/bounded-vyukov/" class="md-nav__link">
         
   
   
@@ -666,7 +666,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/queues/strict-lcrq-mpmc/" class="md-nav__link">
+      <a href="../../guide/queues/strict-lcrq-mpmc/" class="md-nav__link">
         
   
   
@@ -694,7 +694,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/queues/legacy/" class="md-nav__link">
+      <a href="../../guide/queues/legacy/" class="md-nav__link">
         
   
   
@@ -781,7 +781,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/smr/nebr/" class="md-nav__link">
+      <a href="../../guide/smr/nebr/" class="md-nav__link">
         
   
   
@@ -817,7 +817,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/managed-ref/" class="md-nav__link">
+      <a href="../../guide/managed-ref/" class="md-nav__link">
         
   
   
@@ -845,7 +845,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/managed-slice/" class="md-nav__link">
+      <a href="../../guide/managed-slice/" class="md-nav__link">
         
   
   
@@ -873,7 +873,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/typestates/" class="md-nav__link">
+      <a href="../../guide/typestates/" class="md-nav__link">
         
   
   
@@ -901,7 +901,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/nimony/" class="md-nav__link">
+      <a href="../../guide/nimony/" class="md-nav__link">
         
   
   
@@ -980,7 +980,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/core-concepts/" class="md-nav__link">
+      <a href="../../guide/core-concepts/" class="md-nav__link">
         
   
   
@@ -1008,7 +1008,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/bounded-vs-unbounded/" class="md-nav__link">
+      <a href="../../guide/bounded-vs-unbounded/" class="md-nav__link">
         
   
   
@@ -1036,7 +1036,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/slot-ownership-typestates/" class="md-nav__link">
+      <a href="../../guide/slot-ownership-typestates/" class="md-nav__link">
         
   
   
@@ -1064,7 +1064,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/safety-model/" class="md-nav__link">
+      <a href="../../guide/safety-model/" class="md-nav__link">
         
   
   
@@ -1092,7 +1092,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/performance-tuning/" class="md-nav__link">
+      <a href="../../guide/performance-tuning/" class="md-nav__link">
         
   
   
@@ -1120,7 +1120,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../guide/examples/" class="md-nav__link">
+      <a href="../../guide/examples/" class="md-nav__link">
         
   
   
@@ -1160,8 +1160,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -1172,13 +1174,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked="">
         
           
           <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
@@ -1199,7 +1199,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1217,7 +1217,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/" class="md-nav__link">
+      <a href="../" class="md-nav__link">
         
   
   
@@ -1245,7 +1245,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/lockfree/" class="md-nav__link">
+      <a href="../lockfree/" class="md-nav__link">
         
   
   
@@ -1270,10 +1270,37 @@
                 
   
   
+    
   
   
-    <li class="md-nav__item">
-      <a href="../api/compat/" class="md-nav__link">
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility (lockfreequeues)
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
         
   
   
@@ -1289,6 +1316,104 @@
   
 
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#bounded-legacy-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bounded Legacy Types
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Bounded Legacy Types">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#bounded-constructors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Bounded Constructors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#unbounded-legacy-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unbounded Legacy Types
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Unbounded Legacy Types">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#unbounded-constructors" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Unbounded Constructors
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#implicit-handle-registration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implicit Handle Registration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#smr-compatibility-debra" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SMR Compatibility (debra)
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -1301,7 +1426,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/bqueue/" class="md-nav__link">
+      <a href="../bqueue/" class="md-nav__link">
         
   
   
@@ -1329,7 +1454,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/queue/" class="md-nav__link">
+      <a href="../queue/" class="md-nav__link">
         
   
   
@@ -1357,7 +1482,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/managed_ref/" class="md-nav__link">
+      <a href="../managed_ref/" class="md-nav__link">
         
   
   
@@ -1385,7 +1510,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/managed_slice/" class="md-nav__link">
+      <a href="../managed_slice/" class="md-nav__link">
         
   
   
@@ -1413,7 +1538,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/chronos/" class="md-nav__link">
+      <a href="../chronos/" class="md-nav__link">
         
   
   
@@ -1441,7 +1566,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/atomics/" class="md-nav__link">
+      <a href="../atomics/" class="md-nav__link">
         
   
   
@@ -1520,7 +1645,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/smr/nebr/" class="md-nav__link">
+      <a href="../smr/nebr/" class="md-nav__link">
         
   
   
@@ -1607,7 +1732,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/typestates/" class="md-nav__link">
+      <a href="../typestates/" class="md-nav__link">
         
   
   
@@ -1635,7 +1760,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/typestates/with_bound/" class="md-nav__link">
+      <a href="../typestates/with_bound/" class="md-nav__link">
         
   
   
@@ -1663,7 +1788,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/typestates/slot_state/" class="md-nav__link">
+      <a href="../typestates/slot_state/" class="md-nav__link">
         
   
   
@@ -1691,7 +1816,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/typestates/segment_state/" class="md-nav__link">
+      <a href="../typestates/segment_state/" class="md-nav__link">
         
   
   
@@ -1778,7 +1903,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/internal/slot_encoding/" class="md-nav__link">
+      <a href="../internal/slot_encoding/" class="md-nav__link">
         
   
   
@@ -1806,7 +1931,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/internal/path_c_admit/" class="md-nav__link">
+      <a href="../internal/path_c_admit/" class="md-nav__link">
         
   
   
@@ -1834,7 +1959,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../api/internal/path_c_wrap/" class="md-nav__link">
+      <a href="../internal/path_c_wrap/" class="md-nav__link">
         
   
   
@@ -1874,8 +1999,6 @@
       
   
   
-    
-  
   
   
     
@@ -1888,11 +2011,13 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" checked="">
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4">
         
           
           <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
@@ -1913,7 +2038,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1928,37 +2053,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Overview
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../examples/" class="md-nav__link">
         
   
   
@@ -1974,170 +2072,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
-      
-        <li class="md-nav__item">
-  <a href="#bounded-queues-bqueuet-ccprod-cccons-n-p-c" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Bounded queues (BQueue[T, ccProd, ccCons, N, P, C])
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Bounded queues (BQueue[T, ccProd, ccCons, N, P, C])">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#examplesspscnim-basic-queue-single-producer-single-consumer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        examples/spsc.nim — basic queue / single-producer single-consumer
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#examplesmpscnim-multi-producer-single-consumer-pipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        examples/mpsc.nim — multi-producer single-consumer pipeline
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#examplesspmcnim-single-producer-multi-consumer-fan-out" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        examples/spmc.nim — single-producer multi-consumer fan-out
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#examplesmpmcnim-multi-producer-multi-consumer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        examples/mpmc.nim — multi-producer multi-consumer
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#specialised-patterns" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Specialised patterns
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Specialised patterns">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#examplesaudio_buffernim-ringbuffer-under-mmnone" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        examples/audio_buffer.nim — ringbuffer under --mm:none
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#examplesevent_collectornim-collecting-events-into-a-sink" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        examples/event_collector.nim — collecting events into a sink
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#examplesjob_schedulernim-bounded-job-scheduling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        examples/job_scheduler.nim — bounded job scheduling
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#examplestask_fanoutnim-task-fan-out" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        examples/task_fanout.nim — task fan-out
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#examplesdebra_cc_helpersnim-nebr-cancellation-callbacks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        examples/debra_cc_helpers.nim — nebr cancellation callbacks
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#711-mapping-summary" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        §7.1.1 mapping summary
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2211,7 +2145,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../migration/" class="md-nav__link">
+      <a href="../../migration/" class="md-nav__link">
         
   
   
@@ -2239,7 +2173,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../transition_plan/" class="md-nav__link">
+      <a href="../../transition_plan/" class="md-nav__link">
         
   
   
@@ -2267,7 +2201,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../migrations/from-lockfreequeues-v5/" class="md-nav__link">
+      <a href="../../migrations/from-lockfreequeues-v5/" class="md-nav__link">
         
   
   
@@ -2295,7 +2229,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../migrations/from-nim-debra/" class="md-nav__link">
+      <a href="../../migrations/from-nim-debra/" class="md-nav__link">
         
   
   
@@ -2435,7 +2369,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/PROVENANCE/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/PROVENANCE/" class="md-nav__link">
         
   
   
@@ -2463,7 +2397,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/" class="md-nav__link">
         
   
   
@@ -2491,7 +2425,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/api/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/api/" class="md-nav__link">
         
   
   
@@ -2519,7 +2453,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/safety-model/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/safety-model/" class="md-nav__link">
         
   
   
@@ -2547,7 +2481,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/contributing/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/contributing/" class="md-nav__link">
         
   
   
@@ -2575,7 +2509,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/MIGRATION_v0.8.0/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/MIGRATION_v0.8.0/" class="md-nav__link">
         
   
   
@@ -2654,7 +2588,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/guide/getting-started/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/getting-started/" class="md-nav__link">
         
   
   
@@ -2682,7 +2616,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/guide/concepts/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/concepts/" class="md-nav__link">
         
   
   
@@ -2710,7 +2644,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/guide/atomics/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/atomics/" class="md-nav__link">
         
   
   
@@ -2738,7 +2672,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/guide/thread-registration/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/thread-registration/" class="md-nav__link">
         
   
   
@@ -2766,7 +2700,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/guide/pin-unpin/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/pin-unpin/" class="md-nav__link">
         
   
   
@@ -2794,7 +2728,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/guide/retiring-objects/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/retiring-objects/" class="md-nav__link">
         
   
   
@@ -2822,7 +2756,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/guide/reclamation/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/reclamation/" class="md-nav__link">
         
   
   
@@ -2850,7 +2784,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/guide/epoch-advancement/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/epoch-advancement/" class="md-nav__link">
         
   
   
@@ -2878,7 +2812,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/guide/neutralization/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/neutralization/" class="md-nav__link">
         
   
   
@@ -2906,7 +2840,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/guide/integration/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/integration/" class="md-nav__link">
         
   
   
@@ -2993,7 +2927,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/design/2026-04-25-batched-retire-reclaim/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/design/2026-04-25-batched-retire-reclaim/" class="md-nav__link">
         
   
   
@@ -3021,7 +2955,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../legacy/nim-debra/design/2026-04-25-custom-atomics/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/design/2026-04-25-custom-atomics/" class="md-nav__link">
         
   
   
@@ -3072,7 +3006,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../benchmarks/" class="md-nav__link">
+      <a href="../../benchmarks/" class="md-nav__link">
         
   
   
@@ -3099,7 +3033,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../contributing/" class="md-nav__link">
+      <a href="../../contributing/" class="md-nav__link">
         
   
   
@@ -3146,55 +3080,22 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#bounded-queues-bqueuet-ccprod-cccons-n-p-c" class="md-nav__link">
+  <a href="#bounded-legacy-types" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Bounded queues (BQueue[T, ccProd, ccCons, N, P, C])
+        Bounded Legacy Types
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Bounded queues (BQueue[T, ccProd, ccCons, N, P, C])">
+    <nav class="md-nav" aria-label="Bounded Legacy Types">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#examplesspscnim-basic-queue-single-producer-single-consumer" class="md-nav__link">
+  <a href="#bounded-constructors" class="md-nav__link">
     <span class="md-ellipsis">
       
-        examples/spsc.nim — basic queue / single-producer single-consumer
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#examplesmpscnim-multi-producer-single-consumer-pipeline" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        examples/mpsc.nim — multi-producer single-consumer pipeline
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#examplesspmcnim-single-producer-multi-consumer-fan-out" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        examples/spmc.nim — single-producer multi-consumer fan-out
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#examplesmpmcnim-multi-producer-multi-consumer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        examples/mpmc.nim — multi-producer multi-consumer
+        Bounded Constructors
       
     </span>
   </a>
@@ -3207,66 +3108,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#specialised-patterns" class="md-nav__link">
+  <a href="#unbounded-legacy-types" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Specialised patterns
+        Unbounded Legacy Types
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Specialised patterns">
+    <nav class="md-nav" aria-label="Unbounded Legacy Types">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#examplesaudio_buffernim-ringbuffer-under-mmnone" class="md-nav__link">
+  <a href="#unbounded-constructors" class="md-nav__link">
     <span class="md-ellipsis">
       
-        examples/audio_buffer.nim — ringbuffer under --mm:none
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#examplesevent_collectornim-collecting-events-into-a-sink" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        examples/event_collector.nim — collecting events into a sink
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#examplesjob_schedulernim-bounded-job-scheduling" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        examples/job_scheduler.nim — bounded job scheduling
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#examplestask_fanoutnim-task-fan-out" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        examples/task_fanout.nim — task fan-out
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#examplesdebra_cc_helpersnim-nebr-cancellation-callbacks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        examples/debra_cc_helpers.nim — nebr cancellation callbacks
+        Unbounded Constructors
       
     </span>
   </a>
@@ -3279,10 +3136,21 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#711-mapping-summary" class="md-nav__link">
+  <a href="#implicit-handle-registration" class="md-nav__link">
     <span class="md-ellipsis">
       
-        §7.1.1 mapping summary
+        Implicit Handle Registration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#smr-compatibility-debra" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SMR Compatibility (debra)
       
     </span>
   </a>
@@ -3309,108 +3177,106 @@
   
 
 
-<h1 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">¶</a></h1>
-<p>The <code>examples/</code> directory at the repo root holds runnable, single-file
-demonstrations of the user-facing API surface. Each file is intentionally
-small and focused; together they cover the four bounded cardinalities,
-two unbounded cardinalities, debra cancellation-callbacks, an audio
-ringbuffer pattern under <code>--mm:none</code>, a fan-out task scheduler, and an
-event-collection pattern.</p>
-<p>The §7.1.1 design canon names eight illustrative files
-(<code>basic-queue.nim</code>, <code>ref-payload.nim</code>, <code>slice-payload.nim</code>,
-<code>smr-only.nim</code>, <code>custom-types.nim</code>, <code>bounded-pipeline.nim</code>,
-<code>nimony-compat.nim</code>, <code>mm-none-audio.nim</code>). The shipping repo retains
-the lockfreequeues-era names below — the IA mapping is by topic, not
-file name. See the per-example sections for the topic each one
-demonstrates.</p>
-<p>All examples build under <code>--threads:on --mm:arc</code> (the project default
-since v0.1.0). See <a href="../guide/getting-started/">Getting Started</a> for
-the full toolchain.</p>
-<h2 id="bounded-queues-bqueuet-ccprod-cccons-n-p-c">Bounded queues (<code>BQueue[T, ccProd, ccCons, N, P, C]</code>)<a class="headerlink" href="#bounded-queues-bqueuet-ccprod-cccons-n-p-c" title="Permanent link">¶</a></h2>
-<h3 id="examplesspscnim-basic-queue-single-producer-single-consumer"><code>examples/spsc.nim</code> — basic queue / single-producer single-consumer<a class="headerlink" href="#examplesspscnim-basic-queue-single-producer-single-consumer" title="Permanent link">¶</a></h3>
-<p>Source: <a href="https://github.com/elijahr/lockfree/blob/devel/examples/spsc.nim"><code>examples/spsc.nim</code></a></p>
-<p>The minimal canonical intro. Single producer thread, single consumer
-thread, <code>int</code> payload, capacity 8. Mirrors the §7.1.1 <code>basic-queue.nim</code>
-slot.</p>
-<h3 id="examplesmpscnim-multi-producer-single-consumer-pipeline"><code>examples/mpsc.nim</code> — multi-producer single-consumer pipeline<a class="headerlink" href="#examplesmpscnim-multi-producer-single-consumer-pipeline" title="Permanent link">¶</a></h3>
-<p>Source: <a href="https://github.com/elijahr/lockfree/blob/devel/examples/mpsc.nim"><code>examples/mpsc.nim</code></a></p>
-<p>Bounded MPSC pipeline pattern. N producer threads, one consumer
-thread. Mirrors the §7.1.1 <code>bounded-pipeline.nim</code> slot.</p>
-<h3 id="examplesspmcnim-single-producer-multi-consumer-fan-out"><code>examples/spmc.nim</code> — single-producer multi-consumer fan-out<a class="headerlink" href="#examplesspmcnim-single-producer-multi-consumer-fan-out" title="Permanent link">¶</a></h3>
-<p>Source: <a href="https://github.com/elijahr/lockfree/blob/devel/examples/spmc.nim"><code>examples/spmc.nim</code></a></p>
-<p>Bounded SPMC fan-out pattern. One producer thread, N consumer threads.</p>
-<h3 id="examplesmpmcnim-multi-producer-multi-consumer"><code>examples/mpmc.nim</code> — multi-producer multi-consumer<a class="headerlink" href="#examplesmpmcnim-multi-producer-multi-consumer" title="Permanent link">¶</a></h3>
-<p>Source: <a href="https://github.com/elijahr/lockfree/blob/devel/examples/mpmc.nim"><code>examples/mpmc.nim</code></a></p>
-<p>The fully symmetric bounded case with per-thread producer and consumer
-endpoints via <code>getProducerHere()</code> / <code>getConsumerHere()</code>.</p>
-<h2 id="specialised-patterns">Specialised patterns<a class="headerlink" href="#specialised-patterns" title="Permanent link">¶</a></h2>
-<h3 id="examplesaudio_buffernim-ringbuffer-under-mmnone"><code>examples/audio_buffer.nim</code> — ringbuffer under <code>--mm:none</code><a class="headerlink" href="#examplesaudio_buffernim-ringbuffer-under-mmnone" title="Permanent link">¶</a></h3>
-<p>Source: <a href="https://github.com/elijahr/lockfree/blob/devel/examples/audio_buffer.nim"><code>examples/audio_buffer.nim</code></a></p>
-<p>Real-time audio processing pattern: fixed latency, no allocation, wait-
-free push/pop. Mirrors the §7.1.1 <code>mm-none-audio.nim</code> slot.</p>
-<h3 id="examplesevent_collectornim-collecting-events-into-a-sink"><code>examples/event_collector.nim</code> — collecting events into a sink<a class="headerlink" href="#examplesevent_collectornim-collecting-events-into-a-sink" title="Permanent link">¶</a></h3>
-<p>Source: <a href="https://github.com/elijahr/lockfree/blob/devel/examples/event_collector.nim"><code>examples/event_collector.nim</code></a></p>
-<p>Demonstrates using a queue as a typed event sink across threads.
-Touches the <code>ref T</code> and <code>seq[U]</code> Path-C payload arms.</p>
-<h3 id="examplesjob_schedulernim-bounded-job-scheduling"><code>examples/job_scheduler.nim</code> — bounded job scheduling<a class="headerlink" href="#examplesjob_schedulernim-bounded-job-scheduling" title="Permanent link">¶</a></h3>
-<p>Source: <a href="https://github.com/elijahr/lockfree/blob/devel/examples/job_scheduler.nim"><code>examples/job_scheduler.nim</code></a></p>
-<p>Worker-pool pattern with bounded backpressure. Touches the
-custom-types Path-C admit arm.</p>
-<h3 id="examplestask_fanoutnim-task-fan-out"><code>examples/task_fanout.nim</code> — task fan-out<a class="headerlink" href="#examplestask_fanoutnim-task-fan-out" title="Permanent link">¶</a></h3>
-<p>Source: <a href="https://github.com/elijahr/lockfree/blob/devel/examples/task_fanout.nim"><code>examples/task_fanout.nim</code></a></p>
-<p>Companion to <code>spmc.nim</code> showing a richer fan-out workload with
-heterogeneous task types.</p>
-<h3 id="examplesdebra_cc_helpersnim-nebr-cancellation-callbacks"><code>examples/debra_cc_helpers.nim</code> — nebr cancellation callbacks<a class="headerlink" href="#examplesdebra_cc_helpersnim-nebr-cancellation-callbacks" title="Permanent link">¶</a></h3>
-<p>Source: <a href="https://github.com/elijahr/lockfree/blob/devel/examples/debra_cc_helpers.nim"><code>examples/debra_cc_helpers.nim</code></a></p>
-<p>Demonstrates <code>lockfree/smr/nebr</code> reclamation callbacks outside the
-queue context. Mirrors the §7.1.1 <code>smr-only.nim</code> slot.</p>
-<h2 id="711-mapping-summary">§7.1.1 mapping summary<a class="headerlink" href="#711-mapping-summary" title="Permanent link">¶</a></h2>
+<h1 id="legacy-compatibility-layer-compatlockfreequeues">Legacy Compatibility Layer (<code>compat/lockfreequeues</code>)<a class="headerlink" href="#legacy-compatibility-layer-compatlockfreequeues" title="Permanent link">¶</a></h1>
+<p><code>lockfree/compat/lockfreequeues</code> provides a zero-breakage drop-in replacement
+for code written against <code>lockfreequeues</code> v4.2.0 and <code>nim-debra</code>.</p>
+<p>Legacy applications can either:
+- Update import paths from <code>import lockfreequeues</code> to <code>import lockfree/compat/lockfreequeues</code>
+- Retain <code>import lockfreequeues</code> (which resolves via the top-level compatibility shim <code>src/lockfreequeues.nim</code>)</p>
+<h2 id="bounded-legacy-types">Bounded Legacy Types<a class="headerlink" href="#bounded-legacy-types" title="Permanent link">¶</a></h2>
+<p>Historical type aliases retain capacity and thread configuration parameters first, with payload type <code>T</code> last:</p>
 <table>
 <thead>
 <tr>
-<th>§7.1.1 canonical name</th>
-<th>Shipping example</th>
+<th>Legacy Type</th>
+<th>Parameters</th>
+<th>Underlying Substrate</th>
+<th>Description</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td><code>basic-queue.nim</code></td>
-<td><code>spsc.nim</code></td>
+<td><code>Sipsic[N, T]</code></td>
+<td>Capacity <code>N</code>, Type <code>T</code></td>
+<td><code>BQueue[T, ccSingle, ccSingle, N, 0, 0]</code></td>
+<td>Bounded Single-Producer Single-Consumer</td>
 </tr>
 <tr>
-<td><code>ref-payload.nim</code></td>
-<td>(use any of <code>mpmc.nim</code> / <code>event_collector.nim</code>; the <code>ref T</code> admit arm is covered by tests/composition/t_path_c_matrix.nim)</td>
+<td><code>Mupsic[N, P, T]</code></td>
+<td>Capacity <code>N</code>, Producers <code>P</code>, Type <code>T</code></td>
+<td><code>BQueue[T, ccMulti, ccSingle, N, P, 0]</code></td>
+<td>Bounded Multi-Producer Single-Consumer</td>
 </tr>
 <tr>
-<td><code>slice-payload.nim</code></td>
-<td>(the string/seq admit arms are covered by tests/composition/t_path_c_matrix.nim and tests/t_managed_slice.nim)</td>
+<td><code>Sipmuc[N, C, T]</code></td>
+<td>Capacity <code>N</code>, Consumers <code>C</code>, Type <code>T</code></td>
+<td><code>BQueue[T, ccSingle, ccMulti, N, 0, C]</code></td>
+<td>Bounded Single-Producer Multi-Consumer</td>
 </tr>
 <tr>
-<td><code>smr-only.nim</code></td>
-<td><code>debra_cc_helpers.nim</code></td>
-</tr>
-<tr>
-<td><code>custom-types.nim</code></td>
-<td><code>job_scheduler.nim</code></td>
-</tr>
-<tr>
-<td><code>bounded-pipeline.nim</code></td>
-<td><code>mpsc.nim</code></td>
-</tr>
-<tr>
-<td><code>nimony-compat.nim</code></td>
-<td>(gated on nimony port; see <code>guide/nimony.md</code>)</td>
-</tr>
-<tr>
-<td><code>mm-none-audio.nim</code></td>
-<td><code>audio_buffer.nim</code></td>
+<td><code>Mupmuc[N, P, C, T]</code></td>
+<td>Capacity <code>N</code>, Producers <code>P</code>, Consumers <code>C</code>, Type <code>T</code></td>
+<td><code>BQueue[T, ccMulti, ccMulti, N, P, C]</code></td>
+<td>Bounded Multi-Producer Multi-Consumer</td>
 </tr>
 </tbody>
 </table>
-<p>The §7.1.1 names were the design-time slot list; the shipping names
-above are the topical demonstrations actually present in <code>examples/</code>.
-A future doc-cleanup pass may rename the shipping files to match the
-canon, or backfill the missing canonical names if user demand surfaces.</p>
+<h3 id="bounded-constructors">Bounded Constructors<a class="headerlink" href="#bounded-constructors" title="Permanent link">¶</a></h3>
+<ul>
+<li><code>newSipsicQueue[T, N]() -&gt; Sipsic[N, T]</code></li>
+<li><code>newMupsicQueue[T, N, P]() -&gt; Mupsic[N, P, T]</code></li>
+<li><code>newSipmucQueue[T, N, C]() -&gt; Sipmuc[N, C, T]</code></li>
+<li><code>newMupmucQueue[T, N, P, C]() -&gt; Mupmuc[N, P, C, T]</code></li>
+</ul>
+<h2 id="unbounded-legacy-types">Unbounded Legacy Types<a class="headerlink" href="#unbounded-legacy-types" title="Permanent link">¶</a></h2>
+<p>Unbounded type aliases retain historical parameter orders and default deallocation strategies:</p>
+<table>
+<thead>
+<tr>
+<th>Legacy Type</th>
+<th>Parameters</th>
+<th>Underlying Substrate</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>UnboundedSipsic[T, ST, S]</code></td>
+<td>Type <code>T</code>, Strategy <code>ST</code>, Segment Size <code>S</code></td>
+<td><code>Queue[T, ccSingle, ccSingle, ST, S, 1]</code></td>
+<td>Unbounded SPSC (inline segment free)</td>
+</tr>
+<tr>
+<td><code>UnboundedMupsic[T, ST, S, MaxThreads]</code></td>
+<td>Type <code>T</code>, Strategy <code>ST</code>, Segment Size <code>S</code>, Threads <code>MaxThreads</code></td>
+<td><code>Queue[T, ccMulti, ccSingle, ST, S, MaxThreads]</code></td>
+<td>Unbounded MPSC (committed flags + SMR)</td>
+</tr>
+<tr>
+<td><code>UnboundedSipmuc[T, ST, S, MaxThreads]</code></td>
+<td>Type <code>T</code>, Strategy <code>ST</code>, Segment Size <code>S</code>, Threads <code>MaxThreads</code></td>
+<td><code>Queue[T, ccSingle, ccMulti, ST, S, MaxThreads]</code></td>
+<td>Unbounded SPMC (committed flags + SMR)</td>
+</tr>
+<tr>
+<td><code>UnboundedMupmuc[T, ST, S, MaxThreads]</code></td>
+<td>Type <code>T</code>, Strategy <code>ST</code>, Segment Size <code>S</code>, Threads <code>MaxThreads</code></td>
+<td><code>Queue[T, ccMulti, ccMulti, ST, S, MaxThreads]</code></td>
+<td>Unbounded MPMC (strict-LCRQ + SMR)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="unbounded-constructors">Unbounded Constructors<a class="headerlink" href="#unbounded-constructors" title="Permanent link">¶</a></h3>
+<ul>
+<li><code>newUnboundedSipsicQueue[T, S]() -&gt; UnboundedSipsic[T, stEager, S]</code></li>
+<li><code>newUnboundedMupsicQueue[T, S, MaxThreads](manager = nil) -&gt; UnboundedMupsic[T, stEager, S, MaxThreads]</code></li>
+<li><code>newUnboundedSipmucQueue[T, S, MaxThreads](manager = nil) -&gt; UnboundedSipmuc[T, stEager, S, MaxThreads]</code></li>
+<li><code>newUnboundedMupmucQueue[T, S, MaxThreads](manager = nil) -&gt; UnboundedMupmuc[T, stEager, S, MaxThreads]</code></li>
+</ul>
+<h2 id="implicit-handle-registration">Implicit Handle Registration<a class="headerlink" href="#implicit-handle-registration" title="Permanent link">¶</a></h2>
+<p>In <code>lockfreequeues</code> v4.2.0, calling <code>getProducer</code> or <code>getConsumer</code> allowed immediate push/pop operations without manual thread-affinity binding. The compatibility shim preserves this behavior: <code>getProducer</code> and <code>getConsumer</code> automatically register and attach the calling thread if it is not already registered with the underlying queue or SMR manager.</p>
+<h2 id="smr-compatibility-debra">SMR Compatibility (<code>debra</code>)<a class="headerlink" href="#smr-compatibility-debra" title="Permanent link">¶</a></h2>
+<p>The module re-exports <code>DebraManager</code> and <code>ThreadHandle</code> from <code>lockfree/smr/nebr</code>. Code using <code>import debra</code> resolves transparently via <code>src/debra.nim</code>.</p>
 
 
 
@@ -3433,7 +3299,7 @@ canon, or backfill the missing canonical names if user demand surfaces.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 7, 2026 06:34:19 UTC"><span class="timeago" datetime="2026-06-07T06:34:19+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 7, 2026 06:34:19 UTC">2026-06-07</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 7, 2026 04:35:36 UTC"><span class="timeago" datetime="2026-10-07T04:35:36+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 7, 2026 04:35:36 UTC">2026-10-07</span>
   </span>
 
     
@@ -3443,7 +3309,7 @@ canon, or backfill the missing canonical names if user demand surfaces.</p>
     <span class="md-icon" title="Created">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 7, 2026 06:34:19 UTC"><span class="timeago" datetime="2026-06-07T06:34:19+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 7, 2026 06:34:19 UTC">2026-06-07</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 7, 2026 04:35:36 UTC"><span class="timeago" datetime="2026-10-07T04:35:36+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 7, 2026 04:35:36 UTC">2026-10-07</span>
   </span>
 
     
@@ -3508,14 +3374,14 @@ canon, or backfill the missing canonical names if user demand surfaces.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["content.code.copy", "content.code.annotate", "navigation.instant", "navigation.sections", "navigation.expand", "toc.follow"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.code.annotate", "navigation.instant", "navigation.sections", "navigation.expand", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
-        <script src="../js/timeago.min.js"></script>
+        <script src="../../js/timeago.min.js"></script>
       
-        <script src="../js/timeago_mkdocs_material.js"></script>
+        <script src="../../js/timeago_mkdocs_material.js"></script>
       
     
   

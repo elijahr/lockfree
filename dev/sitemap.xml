@@ -17,6 +17,10 @@
          <lastmod>2026-10-08</lastmod>
     </url>
     <url>
+         <loc>https://elijahr.github.io/lockfree/latest/transition_plan/</loc>
+         <lastmod>2026-10-08</lastmod>
+    </url>
+    <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/</loc>
          <lastmod>2026-10-08</lastmod>
     </url>
@@ -30,6 +34,10 @@
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/chronos/</loc>
+         <lastmod>2026-10-08</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/api/compat/</loc>
          <lastmod>2026-10-08</lastmod>
     </url>
     <url>
@@ -81,7 +89,7 @@
          <lastmod>2026-10-08</lastmod>
     </url>
     <url>
-         <loc>https://elijahr.github.io/lockfree/latest/design/v5-port-candidates-from-v4.3/</loc>
+         <loc>https://elijahr.github.io/lockfree/latest/design/2026-10-07-ergonomics-metaprogramming-c-abi/</loc>
          <lastmod>2026-10-08</lastmod>
     </url>
     <url>
@@ -246,6 +254,14 @@
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/migrations/from-nim-debra/</loc>
+         <lastmod>2026-10-08</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/transitions/lockfreequeues_README/</loc>
+         <lastmod>2026-10-08</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/transitions/nim_debra_README/</loc>
          <lastmod>2026-10-08</lastmod>
     </url>
 </urlset>
