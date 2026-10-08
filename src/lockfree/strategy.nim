@@ -19,3 +19,7 @@ when defined(gcNone):
   const DefaultDeallocationStrategy* = stManual
 else:
   const DefaultDeallocationStrategy* = stEager
+
+import ./cardinality
+export cardinality
+

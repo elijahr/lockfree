@@ -11,6 +11,5 @@
 ## PinScopeCardinality` and `ccCons: static PinScopeCardinality`
 ## generic params.
 
-type PinScopeCardinality* = enum
-  ccSingle ## Single-thread cardinality marker for a pinned scope.
-  ccMulti ## Multi-thread cardinality marker for a pinned scope.
+import ../cardinality
+export cardinality
