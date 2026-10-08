@@ -37,9 +37,10 @@ In addition to consolidating the queue topologies and in-tree NEBR Safe Memory R
 - **Apple Silicon Tuning**: Default `CacheLineBytes = 128` on `arm64` preventing false sharing on Apple M-series chips.
 - **`Queue.isEmpty`**: Constant-time atomic inspection primitive.
 
-### 6. Zero-Breakage Backward Compatibility Shims
-- `src/lockfree/compat/lockfreequeues.nim` provides 100% drop-in compatibility for `lockfreequeues` v4.2.0 (`Sipsic`, `Mupsic`, `Sipmuc`, `Mupmuc`, `UnboundedSipsic`, etc.) and `debra` (`DebraManager`, `ThreadHandle`, `withPin`).
-- Top-level shims `src/lockfreequeues.nim` and `src/debra.nim` ensure zero code changes required for existing adopters.
+### 6. Clean Core Architecture & Ecosystem Transition (Option B)
+- **Zero Legacy Baggage**: `src/` is a pristine, greenfield lock-free library without historical aliases or deprecated naming.
+- **Dedicated Adapter Repositories**: Backward compatibility for `lockfreequeues` (v4.2.0 API) and `nim-debra` is provided via dedicated downstream packages that depend on `lockfree >= 0.1.0`.
+- **Automated Downstream CI Gate**: `.github/workflows/downstream-compat.yml` runs both downstream test suites against in-flight `lockfree` commits using `nimble develop -y`, guaranteeing zero regressions across the ecosystem.
 
 ---
 
@@ -50,10 +51,11 @@ The entire test suite has been modularized and verified across all lanes:
 | Suite | Target | Test Count | Result | Wall Clock |
 | :--- | :--- | :---: | :---: | :---: |
 | **Compile-Fail Tripwires** | `tests/should_fail/runner.nim` | 23 | **PASS** | 0.05s |
-| **Core Umbrella Suite** | `nimble test` (`--mm:orc`) | 460 | **PASS** | 0.20s |
-| **Channel Facade Suite** | `nimble channel` | 25 | **PASS** | 0.06s |
-| **C ABI Verification** | `nimble cabi` (`-d:danger`) | 15 | **PASS** | 0.07s |
+| **Core Umbrella Suite** | `nimble test` (`--mm:orc`) | 444 | **PASS** | 0.18s |
+| **Channel Facade Suite** | `nimble channel` | 25 | **PASS** | 0.07s |
+| **C ABI Verification** | `nimble cabi` (`-d:danger`) | 15 | **PASS** | 0.08s |
 | **100k Concurrency Stress** | `nimble testStress` (`arc` / `orc`) | 21 | **PASS** | 0.63s |
+| **Downstream lockfreequeues** | `lockfreequeues/tests/test.nim` | 42 (+ 8 examples) | **PASS** | 0.08s |
 | **Clang ThreadSanitizer** | `nimble testTSan` | 500 | **PASS** | **0 Data Races** |
 | **Clang AddressSanitizer** | `nimble testASan` | 500 | **PASS** | **0 Leaks / 0 UAF** |
 
