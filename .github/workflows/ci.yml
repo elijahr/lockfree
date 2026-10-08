@@ -351,6 +351,7 @@ jobs:
       image: ghcr.io/elijahr/lockfree-ci:latest
     env:
       LOCKFREE_NIM_FROM_IMAGE: 'true'
+      LFQ_TEST_VARIANT: orc
     timeout-minutes: 35
 
     steps:
@@ -394,6 +395,8 @@ jobs:
           done
 
       - name: Test across multiple Nim versions (2.2.10, 2.2.12, devel)
+        env:
+          LFQ_TEST_VARIANT: orc
         run: |
           set -o pipefail
           nimble_run() {
