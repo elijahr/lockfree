@@ -76,6 +76,7 @@ import ./t_dwcas
 import ./t_queue_aliases
 import ./t_stack
 import ./t_deque
+import ./t_skiplist
 
 # chronos adapter tests gated on chronos availability
 # (chronos is NOT in lockfree.nimble requires). When chronos
@@ -115,7 +116,7 @@ export
   t_verify_pop_clears_mpsc_unbounded, t_verify_pop_clears_spmc_unbounded,
   t_verify_pop_clears_mpmc_unbounded, t_refcount_use_patterns,
   t_seq_char_dispose,
-  t_systems_opt, t_batch_pop, t_dwcas, t_queue_aliases, t_stack, t_deque
+  t_systems_opt, t_batch_pop, t_dwcas, t_queue_aliases, t_stack, t_deque, t_skiplist
 
 when (
   compiles do:

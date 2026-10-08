@@ -25,6 +25,10 @@ const LockfreeVersion* {.strdefine.} = "0.1.0"
 ##     - Ergonomic aliases: `UnboundedQueue`, `MpmcQueue`, `SpscQueue`,
 ##       `MpscQueue`, `SpmcQueue`
 ##     - Implementation: Linked-segment LCRQ with DEBRA/NEBR epoch-based memory reclamation.
+##   - **Concurrent Map Surface** (`lockfree/skiplist`):
+##     - Core type: `SkipListMap[K, V, MaxThreads, MaxLevel]`
+##     - Ergonomic aliases: `SortedTable`, `OrderedTable`, `ConcurrentSortedTable`
+##     - Implementation: Fraser / Herlihy MPMC Lock-Free SkipList with Debra SMR.
 ##   - **Channel Facade** (`lockfree/channel`):
 ##     - `Channel[T]`, `Sender[T]`, `Receiver[T]` with automatic thread-local registration.
 ##   - Strategy / reclamation / pinscope-stub enums re-exported for
@@ -33,13 +37,12 @@ const LockfreeVersion* {.strdefine.} = "0.1.0"
 
 when compileOption("threads"):
   import lockfree/atomics
-  import lockfree/atomics/dsl
-  import ./lockfree/[bqueue, cardinality, channel, deque, endpoint, exceptions, queue, reclamation, stack, strategy]
+  import ./lockfree/[bqueue, cardinality, channel, deque, endpoint, exceptions, queue, reclamation, skiplist, stack, strategy]
   import ./lockfree/internal/pinscope_stub
   import ./lockfree/typestates/with_bound
 
   export atomics, dsl
-  export bqueue, cardinality, channel, deque, endpoint, exceptions, queue, reclamation, stack, strategy
+  export bqueue, cardinality, channel, deque, endpoint, exceptions, queue, reclamation, skiplist, stack, strategy
   export pinscope_stub
   export with_bound
 else:
