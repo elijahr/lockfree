@@ -377,9 +377,17 @@ type
     ST: static DeallocationStrategy,
     S, MaxThreads: static int,
   ] {.QueueLifecycle: QueueInit.} = object
-    ## Unbounded lock-free queue, parameterized by producer/consumer
-    ## cardinality, deallocation strategy `ST`, segment size `S`, and
-    ## the debra registry capacity `MaxThreads`.
+    ## # Concurrency Topology: Unbounded Queue (`Queue`)
+    ##
+    ## | Dimension              | Specification                                                    |
+    ## |:-----------------------|:-----------------------------------------------------------------|
+    ## | **Topologies**         | SPSC, MPSC, SPMC, MPMC (compile-time cardinality dispatch)        |
+    ## | **Algorithm**          | Linked-Segment LCRQ / Lock-Free Ring Queue + Debra SMR          |
+    ## | **Capacity**           | Dynamically unbounded (chained segments of size `S`)             |
+    ## | **Coordination**       | Atomic head/tail pointers, CAS enqueue/dequeue, DWCAS LCRQ       |
+    ## | **Payload Encoding**   | Path-C Type Admission (`SlotEncoding(T)`: POD, ManagedRef/Slice) |
+    ## | **Progress Guarantee** | Lock-Free (MPMC, MPSC, SPMC) / Wait-Free (SPSC)                  |
+    ## | **Memory Reclamation** | NEBR / DEBRA (Epoch-Based Reclamation, `MaxThreads` capacity)    |
     ##
     ## Body layout splits on `(ccProd, ccCons) is (ccSingle, ccSingle)`:
     ##
@@ -414,6 +422,48 @@ type
         producerCount*: Atomic[int]
       when ccCons == ccMulti:
         consumerCount*: Atomic[int]
+
+type
+  UnboundedQueue*[
+    T;
+    ccProd, ccCons: static PinScopeCardinality,
+    ST: static DeallocationStrategy,
+    S, MaxThreads: static int,
+  ] = Queue[T, ccProd, ccCons, ST, S, MaxThreads]
+  ## # Concurrency Topology: Generic Unbounded Queue
+  ## Ergonomic alias for `Queue[T, ccProd, ccCons, ST, S, MaxThreads]`.
+
+  MpmcQueue*[
+    T;
+    ST: static DeallocationStrategy,
+    S, MaxThreads: static int,
+  ] = Queue[T, ccMulti, ccMulti, ST, S, MaxThreads]
+  ## # Concurrency Topology: MPMC Unbounded Queue
+  ## Multi-Producer Multi-Consumer unbounded queue with LCRQ segments and Debra SMR.
+
+  SpscQueue*[
+    T;
+    ST: static DeallocationStrategy,
+    S, MaxThreads: static int,
+  ] = Queue[T, ccSingle, ccSingle, ST, S, MaxThreads]
+  ## # Concurrency Topology: SPSC Unbounded Queue
+  ## Single-Producer Single-Consumer unbounded linked-segment queue.
+
+  MpscQueue*[
+    T;
+    ST: static DeallocationStrategy,
+    S, MaxThreads: static int,
+  ] = Queue[T, ccMulti, ccSingle, ST, S, MaxThreads]
+  ## # Concurrency Topology: MPSC Unbounded Queue
+  ## Multi-Producer Single-Consumer unbounded queue with Debra SMR.
+
+  SpmcQueue*[
+    T;
+    ST: static DeallocationStrategy,
+    S, MaxThreads: static int,
+  ] = Queue[T, ccSingle, ccMulti, ST, S, MaxThreads]
+  ## # Concurrency Topology: SPMC Unbounded Queue
+  ## Single-Producer Multi-Consumer unbounded queue with Debra SMR.
 
 ## ----------------------------------------------------------------------
 ## Param-coherence guards — unbounded subset of legacy
@@ -1249,6 +1299,47 @@ proc newUnboundedMpmcQueue*[
   ## Unbounded mpmc-equivalent (`ccMulti × ccMulti`) auto-create
   ## smart-constructor.
   newQueue(Queue[T, ccMulti, ccMulti, ST, S, MaxThreads])
+
+proc newUnboundedQueue*[
+    T;
+    ccProd, ccCons: static PinScopeCardinality,
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S, MaxThreads: static int,
+](): UnboundedQueue[T, ccProd, ccCons, ST, S, MaxThreads] {.inline.} =
+  ## Generic smart constructor for UnboundedQueue.
+  newQueue(Queue[T, ccProd, ccCons, ST, S, MaxThreads])
+
+proc newSpscUnboundedQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S, MaxThreads: static int,
+](): SpscQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Smart constructor for SpscQueue (Single-Producer Single-Consumer Unbounded).
+  newUnboundedSpscQueue[T, ST, S, MaxThreads]()
+
+proc newMpscUnboundedQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S, MaxThreads: static int,
+](): MpscQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Smart constructor for MpscQueue (Multi-Producer Single-Consumer Unbounded).
+  newUnboundedMpscQueue[T, ST, S, MaxThreads]()
+
+proc newSpmcUnboundedQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S, MaxThreads: static int,
+](): SpmcQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Smart constructor for SpmcQueue (Single-Producer Multi-Consumer Unbounded).
+  newUnboundedSpmcQueue[T, ST, S, MaxThreads]()
+
+proc newMpmcUnboundedQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S, MaxThreads: static int,
+](): MpmcQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Smart constructor for MpmcQueue (Multi-Producer Multi-Consumer Unbounded).
+  newUnboundedMpmcQueue[T, ST, S, MaxThreads]()
 
 ## ----------------------------------------------------------------------
 ## Push / pop on Bound endpoints.

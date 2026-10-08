@@ -13,14 +13,20 @@ const LockfreeVersion* {.strdefine.} = "0.1.0"
   ## override via `-d:LockfreeVersion=<x.y.z>` for fork builds; the
   ## bench JSON captures whatever value was compiled in.
 
-##
-## Original module contract:
-##   - Bounded surface: `BQueue[T, ccProd, ccCons, N, P, C]` in
-##     `lockfree/bqueue`.
-##   - Unbounded surface: `Queue[T, ccProd, ccCons, ST, S, MaxThreads]`
-##     in `lockfree/queue`. The `(ccSingle, ccSingle)` branch
-##     absorbs what was the standalone `UnboundedSpsc[S, T]` type
-##     (debra-free, committed-flag-free linked-segment protocol).
+## Module surface & Concurrency Topologies:
+##   - **Bounded Surface** (`lockfree/bqueue`):
+##     - Core type: `BQueue[T, ccProd, ccCons, N, P, C]`
+##     - Ergonomic aliases: `BoundedQueue`, `MpmcBoundedQueue`, `SpscBoundedQueue`,
+##       `MpscBoundedQueue`, `SpmcBoundedQueue`
+##     - Implementation: Dmitry Vyukov bounded MPMC queue with per-slot sequence counters
+##       and wait-free SPSC circular ring buffer.
+##   - **Unbounded Surface** (`lockfree/queue`):
+##     - Core type: `Queue[T, ccProd, ccCons, ST, S, MaxThreads]`
+##     - Ergonomic aliases: `UnboundedQueue`, `MpmcQueue`, `SpscQueue`,
+##       `MpscQueue`, `SpmcQueue`
+##     - Implementation: Linked-segment LCRQ with DEBRA/NEBR epoch-based memory reclamation.
+##   - **Channel Facade** (`lockfree/channel`):
+##     - `Channel[T]`, `Sender[T]`, `Receiver[T]` with automatic thread-local registration.
 ##   - Strategy / reclamation / pinscope-stub enums re-exported for
 ##     consumer code that references `stEager`, `stManual`, `ccSingle`,
 ##     `ccMulti` (and the legacy `rkNone`/`rkEbr` symbols) directly.

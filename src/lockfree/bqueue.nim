@@ -158,9 +158,40 @@ typestate BQueueLifecycle[
 type BQueue*[T; ccProd, ccCons: static PinScopeCardinality, N, P, C: static int] {.
   BQueueLifecycle: BQueueInit
 .} = object
-  ## Bounded lock-free queue with cardinality-dispatched Vyukov /
-  ## Spsc internals. No debra integration; the bounded body owns no
-  ## heap state and the default destructor is sufficient.
+  ## # Concurrency Topology: Bounded Queue (`BQueue`)
+  ##
+  ## | Dimension              | Specification                                                    |
+  ## |:-----------------------|:-----------------------------------------------------------------|
+  ## | **Topologies**         | SPSC, MPSC, SPMC, MPMC (compile-time cardinality dispatch)        |
+  ## | **Algorithm**          | Dmitry Vyukov Bounded MPMC Queue / Wait-Free Circular Buffer     |
+  ## | **Capacity**           | Fixed compile-time capacity `N` (must be power of two)          |
+  ## | **Index Synchronization**| Per-slot atomic sequence counters + CacheLine-aligned head/tail  |
+  ## | **Payload Encoding**   | Path-C Type Admission (`SlotEncoding(T)`: POD, ManagedRef/Slice) |
+  ## | **Progress Guarantee** | Lock-Free (MPMC, MPSC, SPMC) / Wait-Free (SPSC)                  |
+  ## | **Memory Reclamation** | In-place slot reuse (Zero heap allocation, no SMR required)       |
+  ##
+  ## ### Dmitry Vyukov Bounded MPMC Algorithm
+  ## For multi-producer and/or multi-consumer topologies (MPMC, MPSC, SPMC), `BQueue`
+  ## implements Dmitry Vyukov's array-based bounded queue algorithm:
+  ## - **Per-Slot Sequence Counters**: Each cell in `cells` contains `sequence: Atomic[uint64]`
+  ##   and the slot payload. Sequence numbers track cell generation and lifecycle turns:
+  ##   - Initial state for slot `i`: `sequence == i`.
+  ##   - Enqueue turn at position `pos`: producer checks `sequence == pos`. Upon writing,
+  ##     producer advances `sequence` to `pos + 1`.
+  ##   - Dequeue turn at position `pos`: consumer checks `sequence == pos + 1`. Upon reading,
+  ##     consumer resets `sequence` to `pos + mask + 1`, recycling the slot for the next turn.
+  ## - **Cacheline Separation**: `head` and `tail` indices reside on separate 64/128-byte
+  ##   cachelines (`CacheLineBytes`), eliminating false sharing between producer and consumer cores.
+  ## - **ABA Immunity**: The monotonically advancing sequence counters prevent ABA hazards
+  ##   without requiring Double-Width CAS (DWCAS).
+  ##
+  ## ### Path-C Payload Encoding
+  ## Managed payload types in Nim (ref types under ARC/ORC, `string`, `seq`) cannot be moved
+  ## or copied with raw bitwise operations without corrupting ARC/ORC metadata. Path-C
+  ## payload encoding routes types according to their nature:
+  ## - Raw primitives and POD types are stored directly inline.
+  ## - Managed ref objects use `ManagedRef` with explicit destructor/refcount tracking.
+  ## - Strings and seqs utilize `ManagedSlice` with safe dispose hooks.
   ##
   ## Field-layout split by cardinality:
   ##   - SPSC (`ccSingle × ccSingle`): `StorageN1[N, T]` (N+1 slots,
@@ -180,6 +211,32 @@ type BQueue*[T; ccProd, ccCons: static PinScopeCardinality, N, P, C: static int]
       producerThreadIds*: array[P, Atomic[int]]
     when ccCons == ccMulti:
       consumerThreadIds*: array[C, Atomic[int]]
+
+type
+  BoundedQueue*[T; ccProd, ccCons: static PinScopeCardinality, N, P, C: static int] =
+    BQueue[T, ccProd, ccCons, N, P, C]
+    ## # Concurrency Topology: Generic Bounded Queue
+    ## Ergonomic alias for `BQueue[T, ccProd, ccCons, N, P, C]`.
+
+  MpmcBoundedQueue*[T; N, P, C: static int] =
+    BQueue[T, ccMulti, ccMulti, N, P, C]
+    ## # Concurrency Topology: MPMC Bounded Queue
+    ## Multi-Producer Multi-Consumer bounded lock-free queue based on Dmitry Vyukov's algorithm.
+
+  SpscBoundedQueue*[T; N: static int] =
+    BQueue[T, ccSingle, ccSingle, N, 0, 0]
+    ## # Concurrency Topology: SPSC Bounded Queue
+    ## Single-Producer Single-Consumer bounded wait-free circular buffer with cacheline separation.
+
+  MpscBoundedQueue*[T; N, P: static int] =
+    BQueue[T, ccMulti, ccSingle, N, P, 0]
+    ## # Concurrency Topology: MPSC Bounded Queue
+    ## Multi-Producer Single-Consumer bounded lock-free queue with registered producer threads.
+
+  SpmcBoundedQueue*[T; N, C: static int] =
+    BQueue[T, ccSingle, ccMulti, N, 0, C]
+    ## # Concurrency Topology: SPMC Bounded Queue
+    ## Single-Producer Multi-Consumer bounded lock-free queue with registered consumer threads.
 
 ## ----------------------------------------------------------------------
 ## Param-coherence guards for BQueue.
@@ -376,6 +433,46 @@ proc newMpmcQueue*[T; N, P, C: static int](): BQueue[T, ccMulti, ccMulti, N, P, 
   ## `P` is the producer-registry capacity, `C` is the consumer-registry
   ## capacity.
   newBQueue[T, ccMulti, ccMulti, N, P, C]()
+
+proc newBoundedQueue*[T; ccProd, ccCons: static PinScopeCardinality, N, P, C: static int](): BoundedQueue[T, ccProd, ccCons, N, P, C] {.inline.} =
+  ## Smart constructor for BoundedQueue.
+  newBQueue[T, ccProd, ccCons, N, P, C]()
+
+proc initBoundedQueue*[T; ccProd, ccCons: static PinScopeCardinality, N, P, C: static int](): BoundedQueue[T, ccProd, ccCons, N, P, C] {.inline.} =
+  ## Initializes a BoundedQueue.
+  initBQueue[T, ccProd, ccCons, N, P, C]()
+
+proc newMpmcBoundedQueue*[T; N, P, C: static int](): MpmcBoundedQueue[T, N, P, C] {.inline.} =
+  ## Smart constructor for MpmcBoundedQueue (Multi-Producer Multi-Consumer).
+  newMpmcQueue[T, N, P, C]()
+
+proc initMpmcBoundedQueue*[T; N, P, C: static int](): MpmcBoundedQueue[T, N, P, C] {.inline.} =
+  ## Initializes an MpmcBoundedQueue (Multi-Producer Multi-Consumer).
+  initBQueue[T, ccMulti, ccMulti, N, P, C]()
+
+proc newSpscBoundedQueue*[T; N: static int](): SpscBoundedQueue[T, N] {.inline.} =
+  ## Smart constructor for SpscBoundedQueue (Single-Producer Single-Consumer).
+  newSpscQueue[T, N]()
+
+proc initSpscBoundedQueue*[T; N: static int](): SpscBoundedQueue[T, N] {.inline.} =
+  ## Initializes an SpscBoundedQueue (Single-Producer Single-Consumer).
+  initBQueue[T, ccSingle, ccSingle, N, 0, 0]()
+
+proc newMpscBoundedQueue*[T; N, P: static int](): MpscBoundedQueue[T, N, P] {.inline.} =
+  ## Smart constructor for MpscBoundedQueue (Multi-Producer Single-Consumer).
+  newMpscQueue[T, N, P]()
+
+proc initMpscBoundedQueue*[T; N, P: static int](): MpscBoundedQueue[T, N, P] {.inline.} =
+  ## Initializes an MpscBoundedQueue (Multi-Producer Single-Consumer).
+  initBQueue[T, ccMulti, ccSingle, N, P, 0]()
+
+proc newSpmcBoundedQueue*[T; N, C: static int](): SpmcBoundedQueue[T, N, C] {.inline.} =
+  ## Smart constructor for SpmcBoundedQueue (Single-Producer Multi-Consumer).
+  newSpmcQueue[T, N, C]()
+
+proc initSpmcBoundedQueue*[T; N, C: static int](): SpmcBoundedQueue[T, N, C] {.inline.} =
+  ## Initializes an SpmcBoundedQueue (Single-Producer Multi-Consumer).
+  initBQueue[T, ccSingle, ccMulti, N, 0, C]()
 
 proc capacity*[T; ccProd, ccCons: static PinScopeCardinality, N, P, C: static int](
     self: var BQueue[T, ccProd, ccCons, N, P, C]
