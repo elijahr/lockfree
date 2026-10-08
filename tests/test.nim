@@ -72,6 +72,7 @@ import ./composition/t_verify_pop_clears_mpmc_unbounded
 import ./t_wraparound
 import ./t_batch_pop
 import ./t_systems_opt
+import ./t_dwcas
 
 # chronos adapter tests gated on chronos availability
 # (chronos is NOT in lockfree.nimble requires). When chronos
@@ -111,7 +112,7 @@ export
   t_verify_pop_clears_mpsc_unbounded, t_verify_pop_clears_spmc_unbounded,
   t_verify_pop_clears_mpmc_unbounded, t_refcount_use_patterns,
   t_seq_char_dispose,
-  t_systems_opt, t_batch_pop
+  t_systems_opt, t_batch_pop, t_dwcas
 
 when (
   compiles do:

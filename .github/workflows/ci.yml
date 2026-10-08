@@ -27,7 +27,8 @@
 #   9   Helgrind (subset)                   ubuntu-latest stable      orc   gcc
 #  10   Linux arm64                         ubuntu-24.04-arm stable   orc   gcc
 #  11   macOS arm64                         macos-latest stable       orc   clang
-#  17   Windows + MSVC                      windows-latest stable     orc   MSVC
+#  17a  Windows + MSVC                      windows-latest stable     orc   vcc    LFQ_CC=vcc
+#  17b  Windows + MinGW                     windows-latest stable     orc   gcc    LFQ_CC=gcc
 #
 # Deleted cells (per audit §3 green-mirage analysis):
 #   2 (arc), 3 (refc), 4 (atomicArc), 5 (mm:none) — `LOCKFREE_MM` env var
@@ -38,7 +39,7 @@
 #
 # Resolved Open Questions (§6.13, all RESOLVED 2026-06-06):
 #   O1  Wall-clock thresholds: GREEN <=20m / YELLOW 20-30m / RED >30m.
-#   O4  Windows IN  (cell 17, MSVC + orc, sanitizers omitted).
+#   O4  Windows IN  (cells 17a MSVC + 17b MinGW, orc, sanitizers omitted).
 #   O5  nim cpp IN  (covered by cell 1 inner exec; standalone cell 18 retired).
 #   O8  Lint is Linux-only (one cell, OS-independent).
 #   O9  actions/cache@v4 keyed on lockfree.nimble + nimble.lock.
@@ -61,6 +62,7 @@ on:
   push:
     paths-ignore:
       - '*.md'
+  workflow_dispatch:
 # yamllint enable rule:truthy
 
 # Cancel superseded runs on the same ref so a force-push or rapid
@@ -597,27 +599,28 @@ jobs:
   # heavy cells fire when work lands on the release branches.
   #
   # The matrix carries cells 6 (TSAN), 7 (ASAN), 10 (Linux arm64),
-  # 11 (macOS arm64), 17 (Windows MSVC).
+  # 11 (macOS arm64), 17a (Windows MSVC), 17b (Windows MinGW).
   # ===========================================================================
   test-heavy:
     name: '${{ matrix.cell }}: ${{ matrix.label }}'
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')) || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.runs-on }}
     # Per-cell container: Linux cells (6, 7, 10) inherit the multi-arch
     # lockfree-ci image (Nim 2.2.10 stable + all build tools); macOS (11)
-    # and Windows (17) cannot use a Linux container so their entries omit
+    # and Windows (17a/17b) cannot use a Linux container so their entries omit
     # the `container` key. GHA treats a null/missing `container` value as
     # "run directly on the runner".
     container: ${{ matrix.container }}
     timeout-minutes: ${{ matrix.timeout }}
     env:
       LOCKFREE_NIM_FROM_IMAGE: ${{ matrix.nim-from-image }}
-      # Platform cells (10 arm64, 11 macOS, 17 Windows) give PLATFORM coverage
+      # Platform cells (10 arm64, 11 macOS, 17a/17b Windows) give PLATFORM coverage
       # on the default MM only; the full orc/cpp/arc/refc matrix is already
       # covered by the fast Linux baseline cells (1a-d). Without this, their
       # `nimble test` compiled all four lanes cold and overran the timeout.
       # Cells 6/7 use the dedicated testTSan/testASan tasks and ignore it.
       LFQ_TEST_VARIANT: ${{ matrix.mm }}
+      LFQ_CC: ${{ matrix.compiler || '' }}
 
     strategy:
       fail-fast: false
@@ -682,11 +685,13 @@ jobs:
             cache-tag: 'base'
             timeout: 45
 
-          # --- Cell 17: Windows + MSVC + orc (per O4) ------------------------
+          # --- Cell 17a: Windows + MSVC (vcc) + orc --------------------------
           # No container: Windows runner cannot host a Linux container.
-          - cell: '17'
+          # Exercises MSVC _InterlockedCompareExchange128 64-bit DWCAS and <intrin.h>.
+          - cell: '17a'
             label: 'windows MSVC orc'
             runs-on: windows-latest
+            compiler: 'vcc'
             nim-from-image: 'false'
             nim-version: 'stable'
             mm: 'orc'
@@ -694,6 +699,22 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'no'
             cache-tag: 'msvc'
+            timeout: 45
+
+          # --- Cell 17b: Windows + MinGW GCC + orc ---------------------------
+          # No container: Windows runner cannot host a Linux container.
+          # Exercises MinGW GCC __sync_val_compare_and_swap on __int128 (cmpxchg16b with -mcx16).
+          - cell: '17b'
+            label: 'windows MinGW gcc orc'
+            runs-on: windows-latest
+            compiler: 'gcc'
+            nim-from-image: 'false'
+            nim-version: 'stable'
+            mm: 'orc'
+            backend: 'c'
+            sanitize-threads: 'no'
+            sanitize-address: 'no'
+            cache-tag: 'mingw'
             timeout: 45
 
     steps:
@@ -834,14 +855,26 @@ jobs:
           "${NIM_BIN}/nim.exe" --version | head -1
           "${NIM_BIN}/nimble.exe" --version
 
+      - name: Setup MSVC developer command prompt (Windows)
+        if: runner.os == 'Windows' && matrix.compiler == 'vcc'
+        uses: ilammy/msvc-dev-cmd@v1.13.0
+
+      - name: Setup MinGW GCC (Windows)
+        if: runner.os == 'Windows' && matrix.compiler == 'gcc'
+        shell: bash
+        run: |
+          echo "C:\msys64\mingw64\bin" >> "$GITHUB_PATH"
+          echo "C:\msys64\usr\bin" >> "$GITHUB_PATH"
+
       - name: Cache nimble packages
         uses: actions/cache@v4
         with:
           path: |
             ~/.nimble/pkgs2
             ~/.nimble/bin
-          key: nimble-${{ runner.os }}-${{ matrix.nim-version }}-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+          key: nimble-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.compiler || 'default' }}-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
+            nimble-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.compiler || 'default' }}-
             nimble-${{ runner.os }}-${{ matrix.nim-version }}-
 
       - name: Cache Nim nimcache
@@ -937,8 +970,8 @@ jobs:
       - name: Run tests (Windows)
         if: runner.os == 'Windows'
         shell: bash
-        # Cell 17 (windows-latest + MSVC + orc). MSVC's cl.exe is the
-        # default `cc` for Nim on Windows; sanitizers omitted per §6.3.
+        # Cell 17a (windows-latest + MSVC + orc) and Cell 17b (windows-latest + MinGW gcc + orc).
+        # Sanitizers omitted on Windows per §6.3.
         run: |
           set -o pipefail
           nimble_run() {
@@ -954,8 +987,26 @@ jobs:
               return 1
             fi
           }
-          echo "::group::Run test suite on Windows (mm=${{ matrix.mm }})"
+          echo "::group::Compiler verification (${{ matrix.compiler }})"
+          if [ "${{ matrix.compiler }}" = "vcc" ]; then
+            which cl.exe || true
+            cl.exe 2>&1 | head -n 2 || true
+          elif [ "${{ matrix.compiler }}" = "gcc" ]; then
+            which gcc.exe || true
+            gcc.exe --version | head -n 1 || true
+          fi
+          echo "::endgroup::"
+
+          echo "::group::Verify 64-bit DWCAS (128-bit atomics) on Windows"
+          nim c --cc:${{ matrix.compiler }} --threads:on -r tests/t_dwcas.nim
+          echo "::endgroup::"
+
+          echo "::group::Run test suite on Windows (compiler=${{ matrix.compiler }}, mm=${{ matrix.mm }})"
           nimble_run nimble test
+          echo "::endgroup::"
+
+          echo "::group::Run examples on Windows"
+          nimble_run nimble examples
           echo "::endgroup::"
 
   # ===========================================================================

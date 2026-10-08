@@ -23,7 +23,7 @@
 ##
 ##
 
-import std/[osproc, strformat, strutils]
+import std/[os, osproc, strformat, strutils]
 
 type
   ExpectedOutcome = enum
@@ -250,8 +250,10 @@ const cases = @[
 proc runCase(c: Case): bool =
   # Child nim invocation uses the worktree's nimble.paths (regenerated
   # by `nimble setup` / `nimble install -dy`) for dep resolution.
+  let ccEnv = getEnv("LFQ_CC", "")
+  let ccFlag = if ccEnv.len > 0: " --cc:" & ccEnv else: ""
   let cmd =
-    &"nim c --threads:on --hints:off --warnings:off --path:src --compileOnly {c.file}"
+    &"nim c{ccFlag} --threads:on --hints:off --warnings:off --path:src --compileOnly {c.file}"
   let (output, exitCode) = execCmdEx(cmd)
   case c.outcome
   of eoCompiles:

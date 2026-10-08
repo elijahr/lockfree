@@ -48,10 +48,12 @@ task test, "Runs the test suite":
   # developer-machine signal matches the per-push GHA gate.
   let nimcacheBase = getHomeDir() / ".cache" / "nim"
   let variant = getEnv("LFQ_TEST_VARIANT", "orc")
+  let ccEnv = getEnv("LFQ_CC", "")
+  let ccFlag = if ccEnv.len > 0: " --cc:" & ccEnv else: ""
 
   proc runOrc =
     # C with default MM (orc)
-    exec "nim c --threads:on --nimcache:" & (nimcacheBase / "test_orc") & " -r tests/test.nim"
+    exec "nim c" & ccFlag & " --threads:on --nimcache:" & (nimcacheBase / "test_orc") & " -r tests/test.nim"
 
   proc runCpp =
     # C++
@@ -59,7 +61,7 @@ task test, "Runs the test suite":
 
   proc runArc =
     # Test with arc MM
-    exec "nim c --mm:arc --threads:on --nimcache:" & (nimcacheBase / "test_arc") & " -r tests/test.nim"
+    exec "nim c" & ccFlag & " --mm:arc --threads:on --nimcache:" & (nimcacheBase / "test_arc") & " -r tests/test.nim"
     # NEBR (nebr) lifted test suite.
     # Runs under arc only here; CI cells will refine the matrix
     # (orc/refc/atomicArc + TSan/ASan) and may also lift the upstream
@@ -67,11 +69,11 @@ task test, "Runs the test suite":
     # harnesses currently sitting at tests/smr/debra-legacy/ alongside
     # the aggregator. Two tests (item_processing, lockfree_stack_typestates)
     # are excluded from the aggregator pending example-source lift.
-    exec "nim c --mm:arc --threads:on --nimcache:" & (nimcacheBase / "nebr_aggregator_arc") & " -r tests/smr/debra-legacy/t_nebr_all.nim"
+    exec "nim c" & ccFlag & " --mm:arc --threads:on --nimcache:" & (nimcacheBase / "nebr_aggregator_arc") & " -r tests/smr/debra-legacy/t_nebr_all.nim"
 
   proc runRefc =
     # Test with refc MM
-    exec "nim c --mm:refc --threads:on --nimcache:" & (nimcacheBase / "test_refc") & " -r tests/test.nim"
+    exec "nim c" & ccFlag & " --mm:refc --threads:on --nimcache:" & (nimcacheBase / "test_refc") & " -r tests/test.nim"
 
   case variant
   of "all":
