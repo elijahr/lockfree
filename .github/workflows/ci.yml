@@ -17,7 +17,7 @@
 #  1d   Baseline refc                       ubuntu-latest stable      refc  gcc    LFQ_TEST_VARIANT=refc
 #  12   chronos Tier 3 adapter              ubuntu-latest stable      arc   gcc   -d:lockfreeChronos
 #  15   stress (100k bounded, orc+arc)      ubuntu-latest stable      orc+arc gcc  testStress task (not in umbrella)
-#  13   nim devel (informational)           ubuntu-latest devel       orc   gcc   continue-on-error: true (orc-only after 1→1a/b/c/d split)
+#  13   Multi-Nim (2.2.10, 2.2.12, devel)   ubuntu-latest multi-ver   orc   gcc   single-runner toolchain switching
 #  14   nimony aufbruch (informational)     ubuntu-latest nimony      arc   gcc   continue-on-error: true (pinned SHA + actions/cache@v4)
 #
 # Tier C — runs ONLY on push to main/devel (post-merge gate, skipped on PR triggers):
@@ -158,7 +158,7 @@ jobs:
   # 1a/1b/1c/1d so each MM lane runs in its own parallel matrix cell; wall
   # clock now collapses to max-of-lanes (~7 min cold). LFQ_TEST_VARIANT
   # selects which lane each cell runs.
-  # Chronos (12) is cheap; nim devel (13) and nimony (14) are informational
+  # Chronos (12) is cheap; Multi-Nim (13) consolidates multiple compilers; nimony (14) is informational
   # but kept on every push so upstream-breakage badges stay current.
   #
   # Standalone-job-shaped Tier-A cells (chronos, nimony) live below as
@@ -241,50 +241,9 @@ jobs:
             continue-on-error: 'false'
             timeout: 30
 
-          # --- Cell 13: Nim devel (informational) ----------------------------
-          # Reduced from the prior 4-lane internal sweep to orc-only when
-          # cell 1 split into the 1a/1b/1c/1d matrix above. Devel is
-          # informational (continue-on-error: true) and the goal is "does
-          # nim devel still compile lockfree?" rather than full MM
-          # coverage; orc is the canonical lane. If devel-side cpp/arc/refc
-          # signal ever matters, add 13a/13b/13c/13d analogues here.
-          - cell: '13'
-            label: 'nim devel (informational)'
-            runs-on: ubuntu-latest
-            nim-version: 'devel'
-            variant: 'orc'
-            mm: 'orc'
-            backend: 'c'
-            sanitize-threads: 'no'
-            sanitize-address: 'no'
-            cache-tag: 'orc'
-            continue-on-error: 'true'
-            timeout: 30
-
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
-
-      # Tier A runs inside the lockfree-ci container on Linux. Stable cells
-      # (cell 1) use the Nim 2.2.10 toolchain the image already ships, so no
-      # install step runs. Devel cells (cell 13) install Nim devel via the
-      # container's preinstalled vfox + vfox-nim plugin — `ref:devel` triggers
-      # vfox-nim's nightly-binary path (resolves to the latest nim-lang/nightlies
-      # build for the devel branch), avoiding a full source bootstrap.
-      - name: Install Nim devel via vfox (container)
-        if: matrix.nim-version == 'devel'
-        run: |
-          vfox install nim@ref:devel
-          # Symlink directly to the resolved binary, not vfox shims. `vfox use`
-          # requires shell hook activation (`vfox activate`) which is not present
-          # in a bare `docker exec` step; the install path layout is deterministic
-          # ($VFOX_HOME/cache/nim/v-<resolved>/nim-<resolved>/bin/), so a direct
-          # symlink is more reliable than shim resolution (same rationale as the
-          # asdf shim issue in push 26).
-          ln -sf /opt/vfox/cache/nim/v-devel/nim-devel/bin/nim /usr/local/bin/nim
-          ln -sf /opt/vfox/cache/nim/v-devel/nim-devel/bin/nimble /usr/local/bin/nimble
-          nim --version | head -1
-          nimble --version
 
       - name: Cache nimble packages
         uses: actions/cache@v4
@@ -292,19 +251,19 @@ jobs:
           path: |
             ~/.nimble/pkgs2
             ~/.nimble/bin
-          key: nimble-${{ runner.os }}-${{ matrix.nim-version }}-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+          key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
-            nimble-${{ runner.os }}-${{ matrix.nim-version }}-
+            nimble-${{ runner.os }}-stable-
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
         with:
           path: |
             ~/.cache/nim
-          key: nimcache-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          key: nimcache-${{ runner.os }}-stable-${{ matrix.cache-tag }}-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
           restore-keys: |
-            nimcache-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-
-            nimcache-${{ runner.os }}-${{ matrix.nim-version }}-
+            nimcache-${{ runner.os }}-stable-${{ matrix.cache-tag }}-
+            nimcache-${{ runner.os }}-stable-
 
       # Tier A is container-only (LOCKFREE_NIM_FROM_IMAGE='true' at job level),
       # so this step is a no-op here. Kept as a safety net in case the matrix
@@ -353,12 +312,10 @@ jobs:
 
       - name: Run examples
         # Examples have no MM variants, so we only need to run them once
-        # across the test-fast matrix. Gate to the orc lane on stable Nim
-        # (cell 1a) — running examples on every variant cell would burn
-        # ~3 min/cell × 4 cells with no added signal. Cell 13 (devel) is
-        # also skipped: devel-Nim signal is "does it compile?" rather than
-        # full examples coverage.
-        if: matrix.variant == 'orc' && matrix.nim-version == 'stable'
+        # across the test-fast matrix. Gate to the orc lane (cell 1a) —
+        # running examples on every variant cell would burn ~3 min/cell × 4 cells
+        # with no added signal.
+        if: matrix.variant == 'orc'
         run: |
           set -o pipefail
           nimble_run() {
@@ -377,6 +334,145 @@ jobs:
           echo "::group::Run examples"
           nimble_run nimble examples
           echo "::endgroup::"
+
+  # ===========================================================================
+  # Cell 13 — Multi-Nim toolchain consolidation (2.2.10, 2.2.12, devel).
+  #
+  # Tier A: runs on every push and pull_request.
+  # Consolidates testing across multiple Nim compiler versions into a single
+  # job runner using vfox toolchain switching (cached toolchain paths) to
+  # eliminate redundant VM spin-up, checkout, and cache overhead across
+  # separate matrix jobs.
+  # ===========================================================================
+  multi-nim:
+    name: '13: Multi-Nim (2.2.10, 2.2.12, devel)'
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/elijahr/lockfree-ci:latest
+    env:
+      LOCKFREE_NIM_FROM_IMAGE: 'true'
+    timeout-minutes: 35
+
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Cache nimble packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nimble/pkgs2
+            ~/.nimble/bin
+          key: nimble-${{ runner.os }}-multinim-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+          restore-keys: |
+            nimble-${{ runner.os }}-multinim-
+            nimble-${{ runner.os }}-stable-
+
+      - name: Cache vfox Nim toolchains
+        uses: actions/cache@v4
+        with:
+          path: /opt/vfox/cache/nim
+          key: vfox-nim-${{ runner.os }}-2.2.10-2.2.12-devel
+          restore-keys: |
+            vfox-nim-${{ runner.os }}-
+
+      - name: Cache Nim nimcache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/nim
+          key: nimcache-${{ runner.os }}-multinim-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          restore-keys: |
+            nimcache-${{ runner.os }}-multinim-
+
+      - name: Install dependencies from nimble registry
+        run: |
+          nimble install -dy
+          nimble setup
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+            [ -e "$d/src" ] || ln -s . "$d/src"
+          done
+
+      - name: Test across multiple Nim versions (2.2.10, 2.2.12, devel)
+        run: |
+          set -o pipefail
+          nimble_run() {
+            local logfile
+            logfile="$(mktemp)"
+            "$@" 2>&1 | tee "$logfile"
+            local rc=${PIPESTATUS[0]}
+            if [[ $rc -ne 0 ]]; then
+              return $rc
+            fi
+            if grep -Eq '^[[:space:]]*Error:' "$logfile"; then
+              echo "::error::nimble reported an error but exited 0; failing the step."
+              return 1
+            fi
+          }
+
+          switch_toolchain() {
+            local ver="$1"
+            echo "::group::Switching toolchain to Nim ${ver}"
+            if [[ "$ver" == "2.2.10" ]]; then
+              ln -sf /opt/vfox/cache/nim/v-2.2.10/nim-2.2.10/bin/nim /usr/local/bin/nim
+              ln -sf /opt/vfox/cache/nim/v-2.2.10/nim-2.2.10/bin/nimble /usr/local/bin/nimble
+              ln -sf /opt/vfox/cache/nim/v-2.2.10/nim-2.2.10/bin/nim /usr/bin/nim
+              ln -sf /opt/vfox/cache/nim/v-2.2.10/nim-2.2.10/bin/nimble /usr/bin/nimble
+            elif [[ "$ver" == "devel" ]]; then
+              if [[ ! -d /opt/vfox/cache/nim/v-devel/nim-devel/bin ]]; then
+                echo "Installing Nim devel via vfox..."
+                vfox install nim@ref:devel
+              fi
+              ln -sf /opt/vfox/cache/nim/v-devel/nim-devel/bin/nim /usr/local/bin/nim
+              ln -sf /opt/vfox/cache/nim/v-devel/nim-devel/bin/nimble /usr/local/bin/nimble
+              ln -sf /opt/vfox/cache/nim/v-devel/nim-devel/bin/nim /usr/bin/nim
+              ln -sf /opt/vfox/cache/nim/v-devel/nim-devel/bin/nimble /usr/bin/nimble
+            else
+              if [[ ! -d "/opt/vfox/cache/nim/v-${ver}/nim-${ver}/bin" ]]; then
+                echo "Installing Nim ${ver} via vfox..."
+                vfox install --yes "nim@${ver}"
+              fi
+              ln -sf "/opt/vfox/cache/nim/v-${ver}/nim-${ver}/bin/nim" /usr/local/bin/nim
+              ln -sf "/opt/vfox/cache/nim/v-${ver}/nim-${ver}/bin/nimble" /usr/local/bin/nimble
+              ln -sf "/opt/vfox/cache/nim/v-${ver}/nim-${ver}/bin/nim" /usr/bin/nim
+              ln -sf "/opt/vfox/cache/nim/v-${ver}/nim-${ver}/bin/nimble" /usr/bin/nimble
+            fi
+            echo "Active compiler: $(nim --version | head -1)"
+            echo "Active nimble:   $(nimble --version | head -1)"
+            echo "::endgroup::"
+          }
+
+          VERSIONS=("2.2.10" "2.2.12" "devel")
+          FAILED_STABLE=0
+          FAILED_DEVEL=0
+
+          for ver in "${VERSIONS[@]}"; do
+            switch_toolchain "$ver"
+            echo "::group::Running test suite under Nim ${ver}"
+            nimble setup
+            for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+              [ -e "$d/src" ] || ln -s . "$d/src"
+            done
+
+            export LFQ_TEST_VARIANT=orc
+            if nimble_run nimble test; then
+              echo "✅ Nim ${ver} test suite passed."
+            else
+              if [[ "$ver" == "devel" ]]; then
+                echo "::warning::Nim devel test suite failed (informational / upstream tracking)."
+                FAILED_DEVEL=1
+              else
+                echo "::error::Nim ${ver} test suite failed!"
+                FAILED_STABLE=1
+              fi
+            fi
+            echo "::endgroup::"
+          done
+
+          if [[ $FAILED_STABLE -ne 0 ]]; then
+            echo "::error::One or more release versions of Nim failed tests."
+            exit 1
+          fi
 
   # ===========================================================================
   # Cell 12 — chronos Tier 3 adapter (-d:lockfreeChronos). Tier A.
