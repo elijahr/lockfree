@@ -561,16 +561,30 @@ jobs:
           git checkout "${NIMONY_SHA}"
           nimble install -y
 
+      - name: Run non-nimony ARC baseline under standard Nim
+        run: |
+          set -o pipefail
+          echo "::group::standard Nim arc baseline"
+          nim c \
+            --threads:on \
+            --mm:arc \
+            --path:src \
+            -r \
+            tests/nimony/t_nimony_arc_baseline.nim
+          echo "::endgroup::"
+
       - name: Run aufbruch baseline under nimony
         run: |
           set -o pipefail
           echo "::group::nimony aufbruch baseline"
-          nim c \
-            --threads:on \
-            --mm:arc \
-            -d:nimony \
-            -r \
-            tests/nimony/t_nimony_arc_baseline.nim
+          export PATH="$HOME/.nimble/bin:/tmp/nimony/bin:/tmp/nimony:$PATH"
+          NIMONY_BIN="$(command -v nimony || echo /tmp/nimony/bin/nimony)"
+          if [ -x "$NIMONY_BIN" ]; then
+            "$NIMONY_BIN" c -r tests/nimony/t_nimony_arc_baseline.nim
+          else
+            echo "::error::nimony binary not found or not executable at $NIMONY_BIN"
+            exit 1
+          fi
           echo "::endgroup::"
 
   # ===========================================================================
