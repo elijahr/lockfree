@@ -279,12 +279,7 @@ proc steal*[T](self: ChaseLevDeque[T]): Option[T] =
 
   var buf = core.buffer.load(moAcquire)
   let idx = int(t and int64(buf.mask))
-<<<<<<< HEAD
-  let encoded = buf.data[idx]
-||||||| 57f5163
-=======
   let encoded = buf.data[idx] # Canonical Chase-Lev Read-Before-CAS
->>>>>>> main
 
   var expectedTop = t
   if core.top.compareExchangeStrong(expectedTop, t + 1, moSequentiallyConsistent, moRelaxed):
