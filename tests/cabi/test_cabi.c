@@ -431,7 +431,100 @@ static void test_cabi_set(void) {
 }
 
 /* -------------------------------------------------------------------------
- * Test 7: Concurrent Multithreaded MPMC Queue Test via pthreads
+ * Test 7: Ctrie (MPMC Concurrent Hash Trie) & Wait-Free Snapshots
+ * ------------------------------------------------------------------------- */
+static void test_cabi_ctrie(void) {
+    printf("Running test_cabi_ctrie...\n");
+    destructor_entry_tracker_t tracker = {0, 0, 0};
+    lfq_ctrie_t* ctrie = NULL;
+    lfq_status_t status = lfq_ctrie_create(test_entry_destructor_fn, &tracker, &ctrie);
+    TEST_ASSERT(status == LFQ_OK && ctrie != NULL, "lfq_ctrie_create failed");
+    TEST_ASSERT(lfq_ctrie_is_empty(ctrie), "New ctrie should be empty");
+    TEST_ASSERT(lfq_ctrie_len(ctrie) == 0, "New ctrie len should be 0");
+    TEST_ASSERT(!lfq_ctrie_contains(ctrie, (void*)(uintptr_t)42), "Empty ctrie should not contain 42");
+
+    /* Insert 4 entries: 10->100, 20->200, 30->300, 40->400 */
+    bool inserted = false;
+    status = lfq_ctrie_insert(ctrie, (void*)(uintptr_t)10, (void*)(uintptr_t)100, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_ctrie_insert 10 failed");
+    status = lfq_ctrie_insert(ctrie, (void*)(uintptr_t)20, (void*)(uintptr_t)200, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_ctrie_insert 20 failed");
+    status = lfq_ctrie_insert(ctrie, (void*)(uintptr_t)30, (void*)(uintptr_t)300, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_ctrie_insert 30 failed");
+    status = lfq_ctrie_insert(ctrie, (void*)(uintptr_t)40, (void*)(uintptr_t)400, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_ctrie_insert 40 failed");
+
+    TEST_ASSERT(!lfq_ctrie_is_empty(ctrie), "Ctrie should not be empty");
+    TEST_ASSERT(lfq_ctrie_len(ctrie) == 4, "Ctrie len should be 4");
+
+    void* val = NULL;
+    status = lfq_ctrie_lookup(ctrie, (void*)(uintptr_t)10, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 100, "Lookup 10 failed or wrong value");
+    status = lfq_ctrie_lookup(ctrie, (void*)(uintptr_t)20, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 200, "Lookup 20 failed or wrong value");
+    status = lfq_ctrie_lookup(ctrie, (void*)(uintptr_t)30, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 300, "Lookup 30 failed or wrong value");
+    status = lfq_ctrie_lookup(ctrie, (void*)(uintptr_t)40, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 400, "Lookup 40 failed or wrong value");
+
+    /* Lookup non-existent key returns LFQ_ERR_EMPTY */
+    status = lfq_ctrie_lookup(ctrie, (void*)(uintptr_t)999, &val);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY, "Lookup non-existent key should return LFQ_ERR_EMPTY");
+
+    /* Create Wait-Free Snapshot */
+    lfq_ctrie_snapshot_t* snap = NULL;
+    status = lfq_ctrie_snapshot(ctrie, &snap);
+    TEST_ASSERT(status == LFQ_OK && snap != NULL, "lfq_ctrie_snapshot failed");
+    TEST_ASSERT(!lfq_ctrie_snapshot_is_empty(snap), "Snapshot should not be empty");
+    TEST_ASSERT(lfq_ctrie_snapshot_len(snap) == 4, "Snapshot len should be 4");
+    TEST_ASSERT(lfq_ctrie_snapshot_contains(snap, (void*)(uintptr_t)10), "Snapshot should contain 10");
+    TEST_ASSERT(lfq_ctrie_snapshot_contains(snap, (void*)(uintptr_t)20), "Snapshot should contain 20");
+    TEST_ASSERT(lfq_ctrie_snapshot_contains(snap, (void*)(uintptr_t)30), "Snapshot should contain 30");
+    TEST_ASSERT(lfq_ctrie_snapshot_contains(snap, (void*)(uintptr_t)40), "Snapshot should contain 40");
+    void* snap_val = NULL;
+    status = lfq_ctrie_snapshot_lookup(snap, (void*)(uintptr_t)20, &snap_val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)snap_val == 200, "Snapshot lookup 20 failed");
+
+    /* Mutate active ctrie after snapshot: update 10, remove 20, insert 50 */
+    status = lfq_ctrie_put(ctrie, (void*)(uintptr_t)10, (void*)(uintptr_t)1000, &inserted);
+    TEST_ASSERT(status == LFQ_OK && !inserted, "Update 10 should return inserted == false");
+    bool removed = false;
+    status = lfq_ctrie_remove(ctrie, (void*)(uintptr_t)20, &removed);
+    TEST_ASSERT(status == LFQ_OK && removed, "lfq_ctrie_remove 20 failed");
+    status = lfq_ctrie_insert(ctrie, (void*)(uintptr_t)50, (void*)(uintptr_t)500, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "Insert 50 failed");
+
+    /* Verify active ctrie state */
+    TEST_ASSERT(lfq_ctrie_len(ctrie) == 4, "Active ctrie len should be 4 (10, 30, 40, 50)");
+    TEST_ASSERT(!lfq_ctrie_contains(ctrie, (void*)(uintptr_t)20), "Active ctrie should not contain 20");
+    TEST_ASSERT(lfq_ctrie_contains(ctrie, (void*)(uintptr_t)50), "Active ctrie should contain 50");
+    status = lfq_ctrie_lookup(ctrie, (void*)(uintptr_t)10, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 1000, "Active ctrie key 10 should be updated to 1000");
+
+    /* Verify Snapshot Isolation: snap must be unmodified point-in-time view */
+    TEST_ASSERT(lfq_ctrie_snapshot_len(snap) == 4, "Snapshot len must remain 4");
+    TEST_ASSERT(lfq_ctrie_snapshot_contains(snap, (void*)(uintptr_t)20), "Snapshot must still contain 20");
+    TEST_ASSERT(!lfq_ctrie_snapshot_contains(snap, (void*)(uintptr_t)50), "Snapshot must not contain 50");
+    status = lfq_ctrie_snapshot_lookup(snap, (void*)(uintptr_t)10, &snap_val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)snap_val == 100, "Snapshot key 10 must still be 100");
+    status = lfq_ctrie_snapshot_lookup(snap, (void*)(uintptr_t)20, &snap_val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)snap_val == 200, "Snapshot key 20 must still be 200");
+
+    /* Destroy snapshot */
+    status = lfq_ctrie_snapshot_destroy(snap);
+    TEST_ASSERT(status == LFQ_OK, "lfq_ctrie_snapshot_destroy failed");
+
+    /* Destroy active ctrie: remaining items (10, 30, 40, 50) destructed */
+    status = lfq_ctrie_destroy(ctrie);
+    TEST_ASSERT(status == LFQ_OK, "lfq_ctrie_destroy failed");
+    TEST_ASSERT(tracker.count_destroyed == 4, "Ctrie destructor count should be 4");
+    TEST_ASSERT(tracker.sum_keys == (10 + 30 + 40 + 50), "Ctrie destructor key sum mismatch");
+    TEST_ASSERT(tracker.sum_vals == (1000 + 300 + 400 + 500), "Ctrie destructor val sum mismatch");
+    printf("test_cabi_ctrie PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
+ * Test 8: Concurrent Multithreaded MPMC Queue Test via pthreads
  * ------------------------------------------------------------------------- */
 #define NUM_PRODUCERS 4
 #define NUM_CONSUMERS 4
@@ -558,6 +651,7 @@ int main(void) {
     test_cabi_deque();
     test_cabi_table();
     test_cabi_set();
+    test_cabi_ctrie();
     test_cabi_concurrency();
 
     /* TaskPool C ABI */

@@ -846,6 +846,83 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check tracker.count == 3
     check tracker.sum == (11 + 22 + 33)
 
+  test "Ctrie lifecycle, insert, lookup, remove, and wait-free snapshot":
+    var ctrie: ptr lfq_ctrie_t = nil
+    check lfq_ctrie_create(nil, nil, addr ctrie) == LFQ_OK
+    check ctrie != nil
+    check lfq_ctrie_is_empty(ctrie) == true
+    check lfq_ctrie_len(ctrie) == 0
+
+    var inserted: bool = false
+    check lfq_ctrie_insert(ctrie, cast[pointer](1), cast[pointer](10), addr inserted) == LFQ_OK
+    check inserted == true
+    check lfq_ctrie_insert(ctrie, cast[pointer](2), cast[pointer](20), addr inserted) == LFQ_OK
+    check inserted == true
+    check lfq_ctrie_insert(ctrie, cast[pointer](3), cast[pointer](30), addr inserted) == LFQ_OK
+    check inserted == true
+
+    check lfq_ctrie_is_empty(ctrie) == false
+    check lfq_ctrie_len(ctrie) == 3
+    check lfq_ctrie_contains(ctrie, cast[pointer](1)) == true
+    check lfq_ctrie_contains(ctrie, cast[pointer](2)) == true
+    check lfq_ctrie_contains(ctrie, cast[pointer](3)) == true
+    check lfq_ctrie_contains(ctrie, cast[pointer](4)) == false
+
+    var val: pointer = nil
+    check lfq_ctrie_lookup(ctrie, cast[pointer](2), addr val) == LFQ_OK
+    check cast[int](val) == 20
+
+    # Wait-free snapshot
+    var snap: ptr lfq_ctrie_snapshot_t = nil
+    check lfq_ctrie_snapshot(ctrie, addr snap) == LFQ_OK
+    check snap != nil
+    check lfq_ctrie_snapshot_is_empty(snap) == false
+    check lfq_ctrie_snapshot_len(snap) == 3
+    check lfq_ctrie_snapshot_contains(snap, cast[pointer](2)) == true
+
+    # Mutate ctrie after snapshot
+    var removed: bool = false
+    check lfq_ctrie_remove(ctrie, cast[pointer](2), addr removed) == LFQ_OK
+    check removed == true
+    check lfq_ctrie_len(ctrie) == 2
+    check lfq_ctrie_contains(ctrie, cast[pointer](2)) == false
+
+    # Snapshot should still hold 2
+    check lfq_ctrie_snapshot_len(snap) == 3
+    check lfq_ctrie_snapshot_contains(snap, cast[pointer](2)) == true
+    var snapVal: pointer = nil
+    check lfq_ctrie_snapshot_lookup(snap, cast[pointer](2), addr snapVal) == LFQ_OK
+    check cast[int](snapVal) == 20
+
+    check lfq_ctrie_snapshot_destroy(snap) == LFQ_OK
+    check lfq_ctrie_destroy(ctrie) == LFQ_OK
+
+  test "Ctrie destructor callback on destroy":
+    type EntryTracker = object
+      count: int
+      sumKeys: int
+      sumVals: int
+
+    proc ctrieDestructor(key: pointer, val: pointer, userData: pointer) {.cdecl.} =
+      let tracker = cast[ptr EntryTracker](userData)
+      if tracker != nil:
+        inc tracker.count
+        tracker.sumKeys += cast[int](key)
+        tracker.sumVals += cast[int](val)
+
+    var tracker = EntryTracker(count: 0, sumKeys: 0, sumVals: 0)
+    var ctrie: ptr lfq_ctrie_t = nil
+    check lfq_ctrie_create(ctrieDestructor, addr tracker, addr ctrie) == LFQ_OK
+
+    var inserted: bool = false
+    check lfq_ctrie_insert(ctrie, cast[pointer](5), cast[pointer](50), addr inserted) == LFQ_OK
+    check lfq_ctrie_insert(ctrie, cast[pointer](6), cast[pointer](60), addr inserted) == LFQ_OK
+
+    check lfq_ctrie_destroy(ctrie) == LFQ_OK
+    check tracker.count == 2
+    check tracker.sumKeys == (5 + 6)
+    check tracker.sumVals == (50 + 60)
+
   test "Direct C99 Header Interoperability":
     let code = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -I" & includeDir & " " & (includeDir / "lockfree.h"))
     check code == 0

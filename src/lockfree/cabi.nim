@@ -25,6 +25,7 @@ import lockfree/deque
 import lockfree/skiplist
 import lockfree/set
 import lockfree/taskpool
+import lockfree/ctrie
 import std/options
 
 # ------------------------------------------------------------------------------
@@ -1369,4 +1370,226 @@ proc lfq_taskpool_num_workers*(pool: ptr lfq_taskpool_t): csize_t {.exportc: "lf
     csize_t(pool.raw[].numWorkers)
   except:
     0
+
+# ------------------------------------------------------------------------------
+# 7. Ctrie (MPMC Concurrent Hash Trie with Wait-Free Snapshots)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_ctrie* {.exportc: "lfq_ctrie_t".} = object
+    destructor*: lfq_entry_destructor_fn
+    userData*: pointer
+    raw*: ptr Ctrie[pointer, pointer]
+
+  lfq_ctrie_t* = lfq_ctrie
+
+  lfq_ctrie_snapshot_handle* {.exportc: "lfq_ctrie_snapshot_t".} = object
+    raw*: ptr Snapshot[pointer, pointer]
+
+  lfq_ctrie_snapshot_t* = lfq_ctrie_snapshot_handle
+
+proc lfq_ctrie_create*(
+    destructor: lfq_entry_destructor_fn,
+    user_data: pointer,
+    out_ctrie: ptr ptr lfq_ctrie_t
+): lfq_status_t {.exportc: "lfq_ctrie_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_ctrie == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let c = cast[ptr lfq_ctrie_t](allocShared0(sizeof(lfq_ctrie_t)))
+    let raw = cast[ptr Ctrie[pointer, pointer]](allocShared0(sizeof(Ctrie[pointer, pointer])))
+    raw[] = initCtrie[pointer, pointer]()
+    c.destructor = destructor
+    c.userData = user_data
+    c.raw = raw
+    out_ctrie[] = c
+    LFQ_OK
+
+proc lfq_ctrie_destroy*(ctrie: ptr lfq_ctrie_t): lfq_status_t {.exportc: "lfq_ctrie_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(ctrie == nil or ctrie.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    if ctrie.destructor != nil:
+      try:
+        for k, v in ctrie.raw[].pairs:
+          ctrie.destructor(k, v, ctrie.userData)
+      except:
+        discard
+    `=destroy`(ctrie.raw[])
+    deallocShared(ctrie.raw)
+    deallocShared(ctrie)
+    LFQ_OK
+
+proc lfq_ctrie_insert*(
+    ctrie: ptr lfq_ctrie_t,
+    key: pointer,
+    val: pointer,
+    out_inserted: ptr bool
+): lfq_status_t {.exportc: "lfq_ctrie_insert", cdecl, gcsafe, raises: [].} =
+  if unlikely(ctrie == nil or ctrie.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let prev = ctrie.raw[].put(key, val)
+    if out_inserted != nil:
+      out_inserted[] = prev.isNone
+    LFQ_OK
+
+proc lfq_ctrie_put*(
+    ctrie: ptr lfq_ctrie_t,
+    key: pointer,
+    val: pointer,
+    out_inserted: ptr bool
+): lfq_status_t {.exportc: "lfq_ctrie_put", cdecl, gcsafe, raises: [].} =
+  lfq_ctrie_insert(ctrie, key, val, out_inserted)
+
+proc lfq_ctrie_lookup*(
+    ctrie: ptr lfq_ctrie_t,
+    key: pointer,
+    out_val: ptr pointer
+): lfq_status_t {.exportc: "lfq_ctrie_lookup", cdecl, gcsafe, raises: [].} =
+  if unlikely(ctrie == nil or ctrie.raw == nil or out_val == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let opt = ctrie.raw[].get(key)
+    if opt.isSome:
+      out_val[] = opt.get
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_ctrie_get*(
+    ctrie: ptr lfq_ctrie_t,
+    key: pointer,
+    out_val: ptr pointer
+): lfq_status_t {.exportc: "lfq_ctrie_get", cdecl, gcsafe, raises: [].} =
+  lfq_ctrie_lookup(ctrie, key, out_val)
+
+proc lfq_ctrie_remove*(
+    ctrie: ptr lfq_ctrie_t,
+    key: pointer,
+    out_removed: ptr bool
+): lfq_status_t {.exportc: "lfq_ctrie_remove", cdecl, gcsafe, raises: [].} =
+  if unlikely(ctrie == nil or ctrie.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let opt = ctrie.raw[].delete(key)
+    let removed = opt.isSome
+    if out_removed != nil:
+      out_removed[] = removed
+    if removed:
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_ctrie_delete*(
+    ctrie: ptr lfq_ctrie_t,
+    key: pointer,
+    out_deleted: ptr bool
+): lfq_status_t {.exportc: "lfq_ctrie_delete", cdecl, gcsafe, raises: [].} =
+  lfq_ctrie_remove(ctrie, key, out_deleted)
+
+proc lfq_ctrie_contains*(ctrie: ptr lfq_ctrie_t, key: pointer): bool {.exportc: "lfq_ctrie_contains", cdecl, gcsafe, raises: [].} =
+  if unlikely(ctrie == nil or ctrie.raw == nil):
+    return false
+  try:
+    ctrie.raw[].contains(key)
+  except:
+    false
+
+proc lfq_ctrie_len*(ctrie: ptr lfq_ctrie_t): csize_t {.exportc: "lfq_ctrie_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(ctrie == nil or ctrie.raw == nil):
+    return 0
+  try:
+    let count = ctrie.raw[].len
+    if count < 0: 0.csize_t else: csize_t(count)
+  except:
+    0
+
+proc lfq_ctrie_is_empty*(ctrie: ptr lfq_ctrie_t): bool {.exportc: "lfq_ctrie_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(ctrie == nil or ctrie.raw == nil):
+    return true
+  try:
+    ctrie.raw[].len == 0
+  except:
+    true
+
+# --- Snapshot procs ---
+
+proc lfq_ctrie_snapshot*(
+    ctrie: ptr lfq_ctrie_t,
+    out_snapshot: ptr ptr lfq_ctrie_snapshot_t
+): lfq_status_t {.exportc: "lfq_ctrie_snapshot", cdecl, gcsafe, raises: [].} =
+  if unlikely(ctrie == nil or ctrie.raw == nil or out_snapshot == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let snapObj = ctrie.raw[].snapshot()
+    let s = cast[ptr lfq_ctrie_snapshot_t](allocShared0(sizeof(lfq_ctrie_snapshot_t)))
+    let raw = cast[ptr Snapshot[pointer, pointer]](allocShared0(sizeof(Snapshot[pointer, pointer])))
+    raw[] = snapObj
+    s.raw = raw
+    out_snapshot[] = s
+    LFQ_OK
+
+proc lfq_ctrie_snapshot_create*(
+    ctrie: ptr lfq_ctrie_t,
+    out_snapshot: ptr ptr lfq_ctrie_snapshot_t
+): lfq_status_t {.exportc: "lfq_ctrie_snapshot_create", cdecl, gcsafe, raises: [].} =
+  lfq_ctrie_snapshot(ctrie, out_snapshot)
+
+proc lfq_ctrie_snapshot_destroy*(snapshot: ptr lfq_ctrie_snapshot_t): lfq_status_t {.exportc: "lfq_ctrie_snapshot_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(snapshot == nil or snapshot.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    `=destroy`(snapshot.raw[])
+    deallocShared(snapshot.raw)
+    deallocShared(snapshot)
+    LFQ_OK
+
+proc lfq_ctrie_snapshot_lookup*(
+    snapshot: ptr lfq_ctrie_snapshot_t,
+    key: pointer,
+    out_val: ptr pointer
+): lfq_status_t {.exportc: "lfq_ctrie_snapshot_lookup", cdecl, gcsafe, raises: [].} =
+  if unlikely(snapshot == nil or snapshot.raw == nil or out_val == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let opt = snapshot.raw[].get(key)
+    if opt.isSome:
+      out_val[] = opt.get
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_ctrie_snapshot_get*(
+    snapshot: ptr lfq_ctrie_snapshot_t,
+    key: pointer,
+    out_val: ptr pointer
+): lfq_status_t {.exportc: "lfq_ctrie_snapshot_get", cdecl, gcsafe, raises: [].} =
+  lfq_ctrie_snapshot_lookup(snapshot, key, out_val)
+
+proc lfq_ctrie_snapshot_contains*(snapshot: ptr lfq_ctrie_snapshot_t, key: pointer): bool {.exportc: "lfq_ctrie_snapshot_contains", cdecl, gcsafe, raises: [].} =
+  if unlikely(snapshot == nil or snapshot.raw == nil):
+    return false
+  try:
+    snapshot.raw[].contains(key)
+  except:
+    false
+
+proc lfq_ctrie_snapshot_len*(snapshot: ptr lfq_ctrie_snapshot_t): csize_t {.exportc: "lfq_ctrie_snapshot_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(snapshot == nil or snapshot.raw == nil):
+    return 0
+  try:
+    let count = snapshot.raw[].len
+    if count < 0: 0.csize_t else: csize_t(count)
+  except:
+    0
+
+proc lfq_ctrie_snapshot_is_empty*(snapshot: ptr lfq_ctrie_snapshot_t): bool {.exportc: "lfq_ctrie_snapshot_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(snapshot == nil or snapshot.raw == nil):
+    return true
+  try:
+    snapshot.raw[].len == 0
+  except:
+    true
+
 

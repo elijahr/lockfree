@@ -212,8 +212,96 @@ lfq_status_t lfq_taskpool_parallel_for(
 lfq_status_t lfq_taskpool_sync(lfq_taskpool_t* pool);
 size_t lfq_taskpool_num_workers(const lfq_taskpool_t* pool);
 
+/* -------------------------------------------------------------------------
+ * 7. Ctrie (MPMC Lock-Free Concurrent Hash Trie with Wait-Free Snapshots)
+ * ------------------------------------------------------------------------- */
+
+typedef struct lfq_ctrie lfq_ctrie_t;
+typedef struct lfq_ctrie_snapshot lfq_ctrie_snapshot_t;
+
+/* Ctrie Lifecycle */
+lfq_status_t lfq_ctrie_create(
+    lfq_entry_destructor_fn destructor,
+    void* user_data,
+    lfq_ctrie_t** out_ctrie
+);
+lfq_status_t lfq_ctrie_destroy(lfq_ctrie_t* ctrie);
+
+/* Ctrie Operations */
+lfq_status_t lfq_ctrie_insert(
+    lfq_ctrie_t* ctrie,
+    void* key,
+    void* val,
+    bool* out_inserted
+);
+lfq_status_t lfq_ctrie_put(
+    lfq_ctrie_t* ctrie,
+    void* key,
+    void* val,
+    bool* out_inserted
+);
+lfq_status_t lfq_ctrie_lookup(
+    const lfq_ctrie_t* ctrie,
+    void* key,
+    void** out_val
+);
+lfq_status_t lfq_ctrie_get(
+    const lfq_ctrie_t* ctrie,
+    void* key,
+    void** out_val
+);
+lfq_status_t lfq_ctrie_remove(
+    lfq_ctrie_t* ctrie,
+    void* key,
+    bool* out_removed
+);
+lfq_status_t lfq_ctrie_delete(
+    lfq_ctrie_t* ctrie,
+    void* key,
+    bool* out_deleted
+);
+bool lfq_ctrie_contains(const lfq_ctrie_t* ctrie, void* key);
+
+/* Ctrie Introspection */
+size_t lfq_ctrie_len(const lfq_ctrie_t* ctrie);
+bool lfq_ctrie_is_empty(const lfq_ctrie_t* ctrie);
+
+/* Ctrie Wait-Free Snapshot Operations */
+lfq_status_t lfq_ctrie_snapshot(
+    lfq_ctrie_t* ctrie,
+    lfq_ctrie_snapshot_t** out_snapshot
+);
+lfq_status_t lfq_ctrie_snapshot_create(
+    lfq_ctrie_t* ctrie,
+    lfq_ctrie_snapshot_t** out_snapshot
+);
+lfq_status_t lfq_ctrie_snapshot_destroy(
+    lfq_ctrie_snapshot_t* snapshot
+);
+lfq_status_t lfq_ctrie_snapshot_lookup(
+    const lfq_ctrie_snapshot_t* snapshot,
+    void* key,
+    void** out_val
+);
+lfq_status_t lfq_ctrie_snapshot_get(
+    const lfq_ctrie_snapshot_t* snapshot,
+    void* key,
+    void** out_val
+);
+bool lfq_ctrie_snapshot_contains(
+    const lfq_ctrie_snapshot_t* snapshot,
+    void* key
+);
+size_t lfq_ctrie_snapshot_len(
+    const lfq_ctrie_snapshot_t* snapshot
+);
+bool lfq_ctrie_snapshot_is_empty(
+    const lfq_ctrie_snapshot_t* snapshot
+);
+
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* LOCKFREE_H */
+
