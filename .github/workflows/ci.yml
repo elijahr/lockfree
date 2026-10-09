@@ -424,24 +424,24 @@ jobs:
           switch_toolchain() {
             local ver="$1"
             echo "::group::Switching toolchain to Nim ${ver}"
-            if command -v vfox &>/dev/null; then
-              local target="$ver"
-              if [[ "$ver" == "devel" ]]; then
-                target="ref:devel"
+            local target="$ver"
+            if [[ "$ver" == "devel" ]]; then
+              target="ref:devel"
+            fi
+            vfox install --yes "nim@${target}" || true
+            local bin_dir=""
+            for search_dir in "$HOME/.version-fox" "$HOME/.vfox"; do
+              if [ -d "$search_dir/cache/nim" ]; then
+                for candidate in $(find "$search_dir/cache/nim" -type f -name nim 2>/dev/null); do
+                  if [[ "$candidate" == *"$ver"* ]]; then
+                    bin_dir="$(dirname "$candidate")"
+                    break 2
+                  fi
+                done
               fi
-              vfox install --yes "nim@${target}" || true
-              vfox use -g "nim@${target}" || vfox use "nim@${target}" || true
-              local bin_dir
-              bin_dir="$(find "$HOME/.version-fox/cache/nim" "$HOME/.vfox/cache/nim" -maxdepth 3 -type f -name nim 2>/dev/null | grep "$ver" | head -n 1 | xargs dirname)"
-              if [ -n "$bin_dir" ]; then
-                export PATH="$bin_dir:$PATH"
-              fi
-            elif command -v choosenim &>/dev/null; then
-              if [[ "$ver" == "devel" ]]; then
-                choosenim --yes "#devel" || choosenim --yes devel
-              else
-                choosenim --yes "$ver"
-              fi
+            done
+            if [ -n "$bin_dir" ]; then
+              export PATH="$bin_dir:$PATH"
             fi
             echo "Active compiler: $(nim --version | head -1)"
             echo "Active nimble:   $(nimble --version | head -1)"
@@ -622,11 +622,17 @@ jobs:
       - name: Install Nimony nightly via vfox
         run: |
           vfox install --yes nim@nimony
-          NIMONY_DIR="$(find "$HOME/.version-fox/cache/nim" "$HOME/.vfox/cache/nim" -type f -name nimony 2>/dev/null | head -n 1 | xargs dirname)"
-          if [ -n "$NIMONY_DIR" ]; then
-            echo "$NIMONY_DIR" >> "$GITHUB_PATH"
-            echo "Added Nimony directory to GITHUB_PATH: $NIMONY_DIR"
-          fi
+          for search_dir in "$HOME/.version-fox" "$HOME/.vfox"; do
+            if [ -d "$search_dir/cache/nim" ]; then
+              nimony_bin="$(find "$search_dir/cache/nim" -type f -name nimony 2>/dev/null | head -n 1)"
+              if [ -n "$nimony_bin" ]; then
+                bin_dir="$(dirname "$nimony_bin")"
+                echo "$bin_dir" >> "$GITHUB_PATH"
+                echo "Added Nimony directory to GITHUB_PATH: $bin_dir"
+                break
+              fi
+            fi
+          done
 
       - name: Cache nimble packages
         uses: actions/cache@v4
