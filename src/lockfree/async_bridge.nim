@@ -25,6 +25,7 @@ when not compileOption("threads"):
 
 when defined(lockfreeAsyncdispatch) or compileOption("threads"):
   import std/[asyncdispatch, options]
+  import ./constants
   import ./atomics
   import ./atomics/backoff
   import ./bqueue
@@ -38,6 +39,9 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
   import ./exceptions
 
   export exceptions
+
+  const
+    moSeqCst* = moSequentiallyConsistent
 
   # ---------------------------------------------------------------------------
   # Payload Box: Safe ARC/ORC Cross-Thread Transport
@@ -88,16 +92,17 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     ## Thread-safe, non-blocking signal trigger. Can be invoked from any OS
     ## thread.
     if sig == nil: return
-    sig.signaled.store(true, moRelease)
+    sig.signaled.store(true, moSeqCst)
+    threadFence(moSeqCst)
     sig.event.trigger()
 
   proc clear*(sig: AsyncSignal) {.inline, gcsafe.} =
     if sig == nil: return
-    sig.signaled.store(false, moRelease)
+    sig.signaled.store(false, moSeqCst)
 
   proc wait*(sig: AsyncSignal): Future[void] =
     ## Suspends until the signal is fired. Sticky flag prevents lost wakeups.
-    if sig.signaled.exchange(false, moAcquireRelease):
+    if sig.signaled.exchange(false, moSeqCst):
       var fut = newFuture[void]("AsyncSignal.wait.fast")
       fut.complete()
       return fut
@@ -108,7 +113,7 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     if not sig.registered:
       sig.registered = true
       sig.event.addEvent(proc(fd: AsyncFD): bool =
-        sig.signaled.store(false, moRelease)
+        sig.signaled.store(false, moSeqCst)
         var pending = move sig.waiters
         sig.waiters = @[]
         sig.registered = false
@@ -148,8 +153,8 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
       queue*: BQueue[T, ccProd, ccCons, N, P, C]
       consumerSignal*: AsyncSignal
       producerSignal*: AsyncSignal
-      hasWaitingConsumers*: Atomic[bool]
-      hasWaitingProducers*: Atomic[bool]
+      hasWaitingConsumers* {.align: CacheLineBytes.}: Atomic[bool]
+      hasWaitingProducers* {.align: CacheLineBytes.}: Atomic[bool]
 
   proc newAsyncBQueue*[
       T;
@@ -182,13 +187,16 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     var cur = move item
     while true:
       self.producerSignal.clear()
-      self.hasWaitingProducers.store(true, moRelease)
+      self.hasWaitingProducers.store(true, moSeqCst)
+      threadFence(moSeqCst)
       if self.queue.push(cur):
-        self.hasWaitingProducers.store(false, moRelease)
-        if self.hasWaitingConsumers.load(moAcquire):
+        self.hasWaitingProducers.store(false, moSeqCst)
+        threadFence(moSeqCst)
+        if self.hasWaitingConsumers.load(moSeqCst):
           self.consumerSignal.fire()
         return true
       await self.producerSignal.wait()
+      self.hasWaitingProducers.store(false, moSeqCst)
 
   proc recvAsync*[T; N: static int](
       self: AsyncBQueue[T, ccSingle, ccSingle, N, 0, 0]
@@ -197,22 +205,27 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     ## invariant: No pin held across await.
     while true:
       self.consumerSignal.clear()
-      self.hasWaitingConsumers.store(true, moRelease)
+      self.hasWaitingConsumers.store(true, moSeqCst)
+      threadFence(moSeqCst)
       let v = self.queue.pop()
       if v.isSome:
-        self.hasWaitingConsumers.store(false, moRelease)
-        if self.hasWaitingProducers.load(moAcquire):
+        self.hasWaitingConsumers.store(false, moSeqCst)
+        threadFence(moSeqCst)
+        if self.hasWaitingProducers.load(moSeqCst):
           self.producerSignal.fire()
         return v
       await self.consumerSignal.wait()
+      self.hasWaitingConsumers.store(false, moSeqCst)
 
   proc tryPopAsync*[T; N: static int](
       self: AsyncBQueue[T, ccSingle, ccSingle, N, 0, 0]
   ): Future[Option[T]] =
     ## Speculative non-blocking try-pop. Returns immediately resolved Future.
     let v = self.queue.pop()
-    if v.isSome and self.hasWaitingProducers.load(moAcquire):
-      self.producerSignal.fire()
+    if v.isSome:
+      threadFence(moSeqCst)
+      if self.hasWaitingProducers.load(moSeqCst):
+        self.producerSignal.fire()
     var fut = newFuture[Option[T]]("tryPopAsync")
     fut.complete(v)
     return fut
@@ -223,7 +236,9 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     ## Synchronous push with consumer wakeup.
     result = self.queue.push(item)
     if result:
-      self.consumerSignal.fire()
+      threadFence(moSeqCst)
+      if self.hasWaitingConsumers.load(moSeqCst):
+        self.consumerSignal.fire()
 
   proc pop*[T; N: static int](
       self: AsyncBQueue[T, ccSingle, ccSingle, N, 0, 0]
@@ -252,7 +267,7 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     ] = ref object
       queue*: Queue[T, ccProd, ccCons, ST, S, MaxThreads]
       consumerSignal*: AsyncSignal
-      hasWaitingConsumers*: Atomic[bool]
+      hasWaitingConsumers* {.align: CacheLineBytes.}: Atomic[bool]
 
     AsyncQueueSpsc*[T; S, MaxThreads: static int] =
       AsyncQueue[T, ccSingle, ccSingle, stEager, S, MaxThreads]
@@ -291,7 +306,8 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     ## consumers.
     var prod = self.queue.getProducerHere()
     prod.push(item)
-    if self.hasWaitingConsumers.load(moAcquire):
+    threadFence(moSeqCst)
+    if self.hasWaitingConsumers.load(moSeqCst):
       self.consumerSignal.fire()
     var fut = newFuture[bool]("sendAsync")
     fut.complete(true)
@@ -303,12 +319,14 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     ## Asynchronously awaits and receives an item from the unbounded queue.
     while true:
       self.consumerSignal.clear()
-      self.hasWaitingConsumers.store(true, moRelease)
+      self.hasWaitingConsumers.store(true, moSeqCst)
+      threadFence(moSeqCst)
       let v = self.queue.pop()
       if v.isSome:
-        self.hasWaitingConsumers.store(false, moRelease)
+        self.hasWaitingConsumers.store(false, moSeqCst)
         return v
       await self.consumerSignal.wait()
+      self.hasWaitingConsumers.store(false, moSeqCst)
 
   proc tryPopAsync*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
       self: AsyncQueue[T, ccSingle, ccSingle, ST, S, MaxThreads]

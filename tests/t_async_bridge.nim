@@ -209,3 +209,54 @@ suite "AsyncBroadcastRing & AsyncBroadcastCursor (Pub-Sub Multicast)":
     let val = waitFor(c.recvAsync())
     check val == some(888)
     joinThread(th)
+
+suite "AsyncBridge Dekker Store-Load Stress & Zero Dropped Signals":
+  test "AsyncBQueue high coroutine churn producer-consumer stress":
+    var q = newAsyncBQueue[int, ccSingle, ccSingle, 8, 0, 0]()
+    const TotalItems = 2000
+
+    proc producer(queue: AsyncBQueue[int, ccSingle, ccSingle, 8, 0, 0]): Future[void] {.async.} =
+      for i in 1..TotalItems:
+        discard await queue.sendAsync(i)
+
+    proc consumer(queue: AsyncBQueue[int, ccSingle, ccSingle, 8, 0, 0]): Future[seq[int]] {.async.} =
+      result = @[]
+      while result.len < TotalItems:
+        let itemOpt = await queue.recvAsync()
+        if itemOpt.isSome:
+          result.add(itemOpt.get)
+
+    let prodFut = producer(q)
+    let consFut = consumer(q)
+    let received = waitFor(consFut)
+    waitFor(prodFut)
+    check received.len == TotalItems
+    for i in 0 ..< TotalItems:
+      check received[i] == i + 1
+
+  test "AsyncQueue high churn cross-thread producer to async consumer":
+    var q = newAsyncQueue(AsyncQueueSpsc[int, 64, 1])
+    const TotalItems = 3000
+
+    type ProdArg = object
+      qp: ptr AsyncQueueSpsc[int, 64, 1]
+
+    var arg = ProdArg(qp: addr q)
+    var th: Thread[ptr ProdArg]
+    createThread(th, proc(a: ptr ProdArg) {.thread.} =
+      for i in 1..TotalItems:
+        discard a.qp[].sendAsync(i)
+    , addr arg)
+
+    proc consumer(queue: AsyncQueueSpsc[int, 64, 1]): Future[seq[int]] {.async.} =
+      result = @[]
+      while result.len < TotalItems:
+        let itemOpt = await queue.recvAsync()
+        if itemOpt.isSome:
+          result.add(itemOpt.get)
+
+    let received = waitFor(consumer(q))
+    joinThread(th)
+    check received.len == TotalItems
+    for i in 0 ..< TotalItems:
+      check received[i] == i + 1
