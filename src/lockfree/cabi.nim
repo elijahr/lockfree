@@ -24,6 +24,7 @@ import lockfree/stack
 import lockfree/deque
 import lockfree/skiplist
 import lockfree/set
+import lockfree/taskpool
 import std/options
 
 # ------------------------------------------------------------------------------
@@ -1282,4 +1283,90 @@ proc lfq_set_is_empty*(set: ptr lfq_set_t): bool {.exportc: "lfq_set_is_empty", 
     return set.raw[].isEmpty()
   except:
     return true
+
+# ------------------------------------------------------------------------------
+# 6. TaskPool (Work-Stealing Task Scheduler)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_taskpool* {.exportc: "lfq_taskpool_t".} = object
+    raw*: ptr TaskPool
+
+  lfq_taskpool_t* = lfq_taskpool
+  lfq_task_fn* = proc(arg: pointer) {.cdecl, gcsafe.}
+  lfq_for_task_fn* = proc(index: csize_t, arg: pointer) {.cdecl, gcsafe.}
+
+proc lfq_taskpool_create*(
+    num_threads: csize_t,
+    out_pool: ptr ptr lfq_taskpool_t
+): lfq_status_t {.exportc: "lfq_taskpool_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_pool == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let p = cast[ptr lfq_taskpool_t](allocShared0(sizeof(lfq_taskpool_t)))
+    let raw = cast[ptr TaskPool](allocShared0(sizeof(TaskPool)))
+    raw[] = initTaskPool(int(num_threads))
+    p.raw = raw
+    out_pool[] = p
+    LFQ_OK
+
+proc lfq_taskpool_destroy*(pool: ptr lfq_taskpool_t): lfq_status_t {.exportc: "lfq_taskpool_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(pool == nil or pool.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    `=destroy`(pool.raw[])
+    deallocShared(pool.raw)
+    deallocShared(pool)
+    LFQ_OK
+
+proc lfq_taskpool_spawn*(
+    pool: ptr lfq_taskpool_t,
+    task: lfq_task_fn,
+    arg: pointer
+): lfq_status_t {.exportc: "lfq_taskpool_spawn", cdecl, gcsafe, raises: [].} =
+  if unlikely(pool == nil or pool.raw == nil or task == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    pool.raw[].spawn(task, arg)
+    LFQ_OK
+
+type
+  LfqParallelForAdapter = object
+    fn: lfq_for_task_fn
+    arg: pointer
+
+proc lfqParallelForHelper(i: int, arg: pointer) {.cdecl, gcsafe.} =
+  let adapter = cast[ptr LfqParallelForAdapter](arg)
+  if adapter != nil and adapter.fn != nil:
+    adapter.fn(csize_t(i), adapter.arg)
+
+proc lfq_taskpool_parallel_for*(
+    pool: ptr lfq_taskpool_t,
+    start: csize_t,
+    stop: csize_t,
+    task: lfq_for_task_fn,
+    arg: pointer,
+    chunk_size: csize_t
+): lfq_status_t {.exportc: "lfq_taskpool_parallel_for", cdecl, gcsafe, raises: [].} =
+  if unlikely(pool == nil or pool.raw == nil or task == nil or stop < start):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    var adapter = LfqParallelForAdapter(fn: task, arg: arg)
+    pool.raw[].parallelFor(int(start), int(stop), lfqParallelForHelper, cast[pointer](addr adapter), int(chunk_size))
+    LFQ_OK
+
+proc lfq_taskpool_sync*(pool: ptr lfq_taskpool_t): lfq_status_t {.exportc: "lfq_taskpool_sync", cdecl, gcsafe, raises: [].} =
+  if unlikely(pool == nil or pool.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    pool.raw[].sync()
+    LFQ_OK
+
+proc lfq_taskpool_num_workers*(pool: ptr lfq_taskpool_t): csize_t {.exportc: "lfq_taskpool_num_workers", cdecl, gcsafe, raises: [].} =
+  if unlikely(pool == nil or pool.raw == nil):
+    return 0
+  try:
+    csize_t(pool.raw[].numWorkers)
+  except:
+    0
 

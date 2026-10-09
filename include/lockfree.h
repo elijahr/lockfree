@@ -179,6 +179,39 @@ bool lfq_set_contains(const lfq_set_t* set, void* item);
 size_t lfq_set_len(const lfq_set_t* set);
 bool lfq_set_is_empty(const lfq_set_t* set);
 
+/* -------------------------------------------------------------------------
+ * 6. TaskPool (Work-Stealing Task Scheduler)
+ * ------------------------------------------------------------------------- */
+
+typedef struct lfq_taskpool lfq_taskpool_t;
+
+typedef void (*lfq_task_fn)(void* arg);
+typedef void (*lfq_for_task_fn)(size_t index, void* arg);
+
+/* TaskPool Lifecycle */
+lfq_status_t lfq_taskpool_create(
+    size_t num_threads,
+    lfq_taskpool_t** out_pool
+);
+lfq_status_t lfq_taskpool_destroy(lfq_taskpool_t* pool);
+
+/* TaskPool Operations */
+lfq_status_t lfq_taskpool_spawn(
+    lfq_taskpool_t* pool,
+    lfq_task_fn task,
+    void* arg
+);
+lfq_status_t lfq_taskpool_parallel_for(
+    lfq_taskpool_t* pool,
+    size_t start,
+    size_t stop,
+    lfq_for_task_fn task,
+    void* arg,
+    size_t chunk_size
+);
+lfq_status_t lfq_taskpool_sync(lfq_taskpool_t* pool);
+size_t lfq_taskpool_num_workers(const lfq_taskpool_t* pool);
+
 #ifdef __cplusplus
 }
 #endif
