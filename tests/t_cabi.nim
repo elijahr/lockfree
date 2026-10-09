@@ -923,6 +923,67 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check tracker.sumKeys == (5 + 6)
     check tracker.sumVals == (50 + 60)
 
+  test "BroadcastRing lifecycle, fan-out multicast, and replay":
+    var ring: ptr lfq_broadcast_t = nil
+    check lfq_broadcast_create(16, LFQ_OVERFLOW_DROP_OLDEST, 8, addr ring) == LFQ_OK
+    check ring != nil
+    check lfq_broadcast_capacity(ring) >= 16
+    check lfq_broadcast_len(ring) == 0
+    check lfq_broadcast_is_empty(ring) == true
+    check lfq_broadcast_subscriber_count(ring) == 0
+
+    var cur1: ptr lfq_broadcast_cursor_t = nil
+    var cur2: ptr lfq_broadcast_cursor_t = nil
+    check lfq_broadcast_subscribe(ring, LFQ_SUB_FROM_LATEST, addr cur1) == LFQ_OK
+    check lfq_broadcast_subscribe(ring, LFQ_SUB_FROM_LATEST, addr cur2) == LFQ_OK
+    check lfq_broadcast_subscriber_count(ring) == 2
+
+    check lfq_broadcast_publish(ring, cast[pointer](111)) == LFQ_OK
+    check lfq_broadcast_publish(ring, cast[pointer](222)) == LFQ_OK
+    check lfq_broadcast_len(ring) == 2
+    check lfq_broadcast_is_empty(ring) == false
+
+    # cur1 reads via try_read
+    var item1: pointer = nil
+    check lfq_broadcast_try_read(cur1, addr item1) == LFQ_OK
+    check cast[int](item1) == 111
+    check lfq_broadcast_try_read(cur1, addr item1) == LFQ_OK
+    check cast[int](item1) == 222
+    check lfq_broadcast_try_read(cur1, addr item1) == LFQ_ERR_EMPTY
+
+    # cur2 reads via poll
+    var item2: pointer = nil
+    var skipped: csize_t = 0
+    var res: lfq_poll_result_t
+    check lfq_broadcast_poll(cur2, addr item2, addr skipped, addr res) == LFQ_OK
+    check cast[int](item2) == 111
+    check res == LFQ_POLL_SUCCESS
+
+    check lfq_broadcast_poll(cur2, addr item2, addr skipped, addr res) == LFQ_OK
+    check cast[int](item2) == 222
+    check res == LFQ_POLL_SUCCESS
+
+    check lfq_broadcast_poll(cur2, addr item2, addr skipped, addr res) == LFQ_ERR_EMPTY
+    check res == LFQ_POLL_EMPTY
+
+    # cur3 replay via FROM_EARLIEST
+    var cur3: ptr lfq_broadcast_cursor_t = nil
+    check lfq_broadcast_subscribe(ring, LFQ_SUB_FROM_EARLIEST, addr cur3) == LFQ_OK
+    check lfq_broadcast_subscriber_count(ring) == 3
+
+    var item3: pointer = nil
+    check lfq_broadcast_try_read(cur3, addr item3) == LFQ_OK
+    check cast[int](item3) == 111
+    check lfq_broadcast_try_read(cur3, addr item3) == LFQ_OK
+    check cast[int](item3) == 222
+
+    check lfq_broadcast_unsubscribe(cur1) == LFQ_OK
+    check lfq_broadcast_unsubscribe(cur2) == LFQ_OK
+    check lfq_broadcast_unsubscribe(cur3) == LFQ_OK
+    check lfq_broadcast_subscriber_count(ring) == 0
+
+    check lfq_broadcast_destroy(ring) == LFQ_OK
+
   test "Direct C99 Header Interoperability":
     let code = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -I" & includeDir & " " & (includeDir / "lockfree.h"))
     check code == 0

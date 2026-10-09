@@ -299,9 +299,72 @@ bool lfq_ctrie_snapshot_is_empty(
     const lfq_ctrie_snapshot_t* snapshot
 );
 
+/* -------------------------------------------------------------------------
+ * 8. BroadcastRing (MPMC / SPMC Multicast Broadcast Ring Buffer)
+ * ------------------------------------------------------------------------- */
+
+typedef struct lfq_broadcast lfq_broadcast_t;
+typedef struct lfq_broadcast_cursor lfq_broadcast_cursor_t;
+
+typedef enum lfq_overflow_mode {
+    LFQ_OVERFLOW_DROP_OLDEST = 0,
+    LFQ_OVERFLOW_BACKOFF     = 1
+} lfq_overflow_mode_t;
+
+typedef enum lfq_sub_origin {
+    LFQ_SUB_FROM_LATEST   = 0,
+    LFQ_SUB_FROM_EARLIEST = 1
+} lfq_sub_origin_t;
+
+typedef enum lfq_poll_result {
+    LFQ_POLL_SUCCESS = 0,
+    LFQ_POLL_EMPTY   = 1,
+    LFQ_POLL_LAGGED  = 2
+} lfq_poll_result_t;
+
+/* BroadcastRing Lifecycle */
+lfq_status_t lfq_broadcast_create(
+    size_t capacity,
+    lfq_overflow_mode_t overflow_mode,
+    size_t max_readers,
+    lfq_broadcast_t** out_broadcast
+);
+lfq_status_t lfq_broadcast_destroy(lfq_broadcast_t* broadcast);
+
+/* BroadcastRing Publishing */
+lfq_status_t lfq_broadcast_publish(lfq_broadcast_t* broadcast, void* item);
+
+/* BroadcastRing Subscription & Cursor Operations */
+lfq_status_t lfq_broadcast_subscribe(
+    lfq_broadcast_t* broadcast,
+    lfq_sub_origin_t origin,
+    lfq_broadcast_cursor_t** out_cursor
+);
+lfq_status_t lfq_broadcast_unsubscribe(lfq_broadcast_cursor_t* cursor);
+
+/* Cursor Consumption */
+lfq_status_t lfq_broadcast_poll(
+    lfq_broadcast_cursor_t* cursor,
+    void** out_item,
+    size_t* out_skipped_count,
+    lfq_poll_result_t* out_result
+);
+lfq_status_t lfq_broadcast_try_read(
+    lfq_broadcast_cursor_t* cursor,
+    void** out_item
+);
+
+/* BroadcastRing Introspection */
+size_t lfq_broadcast_len(const lfq_broadcast_t* broadcast);
+size_t lfq_broadcast_capacity(const lfq_broadcast_t* broadcast);
+size_t lfq_broadcast_subscriber_count(const lfq_broadcast_t* broadcast);
+bool lfq_broadcast_is_empty(const lfq_broadcast_t* broadcast);
+size_t lfq_broadcast_cursor_lag(const lfq_broadcast_cursor_t* cursor);
+
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* LOCKFREE_H */
+
 

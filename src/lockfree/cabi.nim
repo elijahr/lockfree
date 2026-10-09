@@ -26,6 +26,7 @@ import lockfree/skiplist
 import lockfree/set
 import lockfree/taskpool
 import lockfree/ctrie
+import lockfree/broadcast
 import std/options
 
 # ------------------------------------------------------------------------------
@@ -1591,5 +1592,202 @@ proc lfq_ctrie_snapshot_is_empty*(snapshot: ptr lfq_ctrie_snapshot_t): bool {.ex
     snapshot.raw[].len == 0
   except:
     true
+
+# ------------------------------------------------------------------------------
+# 8. BroadcastRing (MPMC / SPMC Multicast Broadcast Ring Buffer)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_overflow_mode_t* {.size: sizeof(cint).} = enum
+    LFQ_OVERFLOW_DROP_OLDEST = 0
+    LFQ_OVERFLOW_BACKOFF     = 1
+
+  lfq_sub_origin_t* {.size: sizeof(cint).} = enum
+    LFQ_SUB_FROM_LATEST   = 0
+    LFQ_SUB_FROM_EARLIEST = 1
+
+  lfq_poll_result_t* {.size: sizeof(cint).} = enum
+    LFQ_POLL_SUCCESS = 0
+    LFQ_POLL_EMPTY   = 1
+    LFQ_POLL_LAGGED  = 2
+
+  lfq_broadcast_handle* {.exportc: "lfq_broadcast_t".} = object
+    raw*: ptr BroadcastRing[pointer]
+
+  lfq_broadcast_t* = lfq_broadcast_handle
+
+  lfq_broadcast_cursor_handle* {.exportc: "lfq_broadcast_cursor_t".} = object
+    raw*: ptr BroadcastCursor[pointer]
+
+  lfq_broadcast_cursor_t* = lfq_broadcast_cursor_handle
+
+proc lfq_broadcast_create*(
+    capacity: csize_t,
+    overflow_mode: lfq_overflow_mode_t,
+    max_readers: csize_t,
+    out_broadcast: ptr ptr lfq_broadcast_t
+): lfq_status_t {.exportc: "lfq_broadcast_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_broadcast == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let om = if overflow_mode == LFQ_OVERFLOW_BACKOFF: omBackoff else: omDropOldest
+    let cap = if capacity == 0: DefaultRingCapacity else: int(capacity)
+    let maxR = if max_readers == 0: DefaultMaxReaders else: int(max_readers)
+    let b = cast[ptr lfq_broadcast_t](allocShared0(sizeof(lfq_broadcast_t)))
+    let raw = cast[ptr BroadcastRing[pointer]](allocShared0(sizeof(BroadcastRing[pointer])))
+    raw[] = initBroadcastRing[pointer](cap, om, maxR)
+    b.raw = raw
+    out_broadcast[] = b
+    LFQ_OK
+
+proc lfq_broadcast_destroy*(
+    broadcast: ptr lfq_broadcast_t
+): lfq_status_t {.exportc: "lfq_broadcast_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(broadcast == nil or broadcast.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    {.cast(gcsafe).}:
+      `=destroy`(broadcast.raw[])
+    deallocShared(broadcast.raw)
+    deallocShared(broadcast)
+    LFQ_OK
+
+proc lfq_broadcast_publish*(
+    broadcast: ptr lfq_broadcast_t,
+    item: pointer
+): lfq_status_t {.exportc: "lfq_broadcast_publish", cdecl, gcsafe, raises: [].} =
+  if unlikely(broadcast == nil or broadcast.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    broadcast.raw[].publish(item)
+    LFQ_OK
+
+proc lfq_broadcast_subscribe*(
+    broadcast: ptr lfq_broadcast_t,
+    origin: lfq_sub_origin_t,
+    out_cursor: ptr ptr lfq_broadcast_cursor_t
+): lfq_status_t {.exportc: "lfq_broadcast_subscribe", cdecl, gcsafe, raises: [].} =
+  if unlikely(broadcast == nil or broadcast.raw == nil or out_cursor == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let so = if origin == LFQ_SUB_FROM_EARLIEST: soFromEarliest else: soFromLatest
+    let curObj = broadcast.raw[].subscribe(so)
+    let c = cast[ptr lfq_broadcast_cursor_t](allocShared0(sizeof(lfq_broadcast_cursor_t)))
+    let raw = cast[ptr BroadcastCursor[pointer]](allocShared0(sizeof(BroadcastCursor[pointer])))
+    raw[] = curObj
+    c.raw = raw
+    out_cursor[] = c
+    LFQ_OK
+
+proc lfq_broadcast_unsubscribe*(
+    cursor: ptr lfq_broadcast_cursor_t
+): lfq_status_t {.exportc: "lfq_broadcast_unsubscribe", cdecl, gcsafe, raises: [].} =
+  if unlikely(cursor == nil or cursor.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    cursor.raw[].unsubscribe()
+    {.cast(gcsafe).}:
+      `=destroy`(cursor.raw[])
+    deallocShared(cursor.raw)
+    deallocShared(cursor)
+    LFQ_OK
+
+proc lfq_broadcast_poll*(
+    cursor: ptr lfq_broadcast_cursor_t,
+    out_item: ptr pointer,
+    out_skipped_count: ptr csize_t,
+    out_result: ptr lfq_poll_result_t
+): lfq_status_t {.exportc: "lfq_broadcast_poll", cdecl, gcsafe, raises: [].} =
+  if unlikely(cursor == nil or cursor.raw == nil or out_item == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let res = cursor.raw[].poll()
+    case res.kind
+    of prSuccess:
+      out_item[] = res.val
+      if out_skipped_count != nil:
+        out_skipped_count[] = 0
+      if out_result != nil:
+        out_result[] = LFQ_POLL_SUCCESS
+      LFQ_OK
+    of prEmpty:
+      out_item[] = nil
+      if out_skipped_count != nil:
+        out_skipped_count[] = 0
+      if out_result != nil:
+        out_result[] = LFQ_POLL_EMPTY
+      LFQ_ERR_EMPTY
+    of prLagged:
+      out_item[] = nil
+      if out_skipped_count != nil:
+        out_skipped_count[] = csize_t(res.skippedCount)
+      if out_result != nil:
+        out_result[] = LFQ_POLL_LAGGED
+      LFQ_OK
+
+proc lfq_broadcast_try_read*(
+    cursor: ptr lfq_broadcast_cursor_t,
+    out_item: ptr pointer
+): lfq_status_t {.exportc: "lfq_broadcast_try_read", cdecl, gcsafe, raises: [].} =
+  if unlikely(cursor == nil or cursor.raw == nil or out_item == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    var val: pointer = nil
+    if cursor.raw[].tryRead(val):
+      out_item[] = val
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_broadcast_len*(
+    broadcast: ptr lfq_broadcast_t
+): csize_t {.exportc: "lfq_broadcast_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(broadcast == nil or broadcast.raw == nil):
+    return 0
+  try:
+    csize_t(broadcast.raw[].len)
+  except:
+    0
+
+proc lfq_broadcast_capacity*(
+    broadcast: ptr lfq_broadcast_t
+): csize_t {.exportc: "lfq_broadcast_capacity", cdecl, gcsafe, raises: [].} =
+  if unlikely(broadcast == nil or broadcast.raw == nil):
+    return 0
+  try:
+    csize_t(broadcast.raw[].capacity)
+  except:
+    0
+
+proc lfq_broadcast_subscriber_count*(
+    broadcast: ptr lfq_broadcast_t
+): csize_t {.exportc: "lfq_broadcast_subscriber_count", cdecl, gcsafe, raises: [].} =
+  if unlikely(broadcast == nil or broadcast.raw == nil):
+    return 0
+  try:
+    csize_t(broadcast.raw[].subscriberCount)
+  except:
+    0
+
+proc lfq_broadcast_is_empty*(
+    broadcast: ptr lfq_broadcast_t
+): bool {.exportc: "lfq_broadcast_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(broadcast == nil or broadcast.raw == nil):
+    return true
+  try:
+    broadcast.raw[].len == 0
+  except:
+    true
+
+proc lfq_broadcast_cursor_lag*(
+    cursor: ptr lfq_broadcast_cursor_t
+): csize_t {.exportc: "lfq_broadcast_cursor_lag", cdecl, gcsafe, raises: [].} =
+  if unlikely(cursor == nil or cursor.raw == nil):
+    return 0
+  try:
+    csize_t(cursor.raw[].lag)
+  except:
+    0
+
 
 

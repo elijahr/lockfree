@@ -524,7 +524,84 @@ static void test_cabi_ctrie(void) {
 }
 
 /* -------------------------------------------------------------------------
- * Test 8: Concurrent Multithreaded MPMC Queue Test via pthreads
+ * Test 8: BroadcastRing (MPMC / SPMC Multicast Broadcast Ring)
+ * ------------------------------------------------------------------------- */
+static void test_cabi_broadcast(void) {
+    printf("Running test_cabi_broadcast...\n");
+    lfq_broadcast_t* ring = NULL;
+    lfq_status_t status = lfq_broadcast_create(16, LFQ_OVERFLOW_DROP_OLDEST, 8, &ring);
+    TEST_ASSERT(status == LFQ_OK && ring != NULL, "lfq_broadcast_create failed");
+    TEST_ASSERT(lfq_broadcast_capacity(ring) >= 16, "Capacity should be >= 16");
+    TEST_ASSERT(lfq_broadcast_len(ring) == 0, "Initial len should be 0");
+    TEST_ASSERT(lfq_broadcast_is_empty(ring), "Initial ring should be empty");
+    TEST_ASSERT(lfq_broadcast_subscriber_count(ring) == 0, "Initial subscriber count should be 0");
+
+    /* Subscribe 2 cursors from latest */
+    lfq_broadcast_cursor_t* cur1 = NULL;
+    lfq_broadcast_cursor_t* cur2 = NULL;
+    status = lfq_broadcast_subscribe(ring, LFQ_SUB_FROM_LATEST, &cur1);
+    TEST_ASSERT(status == LFQ_OK && cur1 != NULL, "Subscribe cur1 failed");
+    status = lfq_broadcast_subscribe(ring, LFQ_SUB_FROM_LATEST, &cur2);
+    TEST_ASSERT(status == LFQ_OK && cur2 != NULL, "Subscribe cur2 failed");
+    TEST_ASSERT(lfq_broadcast_subscriber_count(ring) == 2, "Subscriber count should be 2");
+
+    /* Publish 2 items: 100 and 200 */
+    status = lfq_broadcast_publish(ring, (void*)(uintptr_t)100);
+    TEST_ASSERT(status == LFQ_OK, "Publish 100 failed");
+    status = lfq_broadcast_publish(ring, (void*)(uintptr_t)200);
+    TEST_ASSERT(status == LFQ_OK, "Publish 200 failed");
+    TEST_ASSERT(lfq_broadcast_len(ring) == 2, "Ring len should be 2");
+    TEST_ASSERT(!lfq_broadcast_is_empty(ring), "Ring should not be empty");
+
+    /* Cursor 1 reads via try_read */
+    void* item1 = NULL;
+    status = lfq_broadcast_try_read(cur1, &item1);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)item1 == 100, "cur1 read 100 failed");
+    status = lfq_broadcast_try_read(cur1, &item1);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)item1 == 200, "cur1 read 200 failed");
+    status = lfq_broadcast_try_read(cur1, &item1);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY, "cur1 should be empty now");
+
+    /* Cursor 2 reads via poll */
+    void* item2 = NULL;
+    size_t skipped = 0;
+    lfq_poll_result_t poll_res;
+    status = lfq_broadcast_poll(cur2, &item2, &skipped, &poll_res);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)item2 == 100 && poll_res == LFQ_POLL_SUCCESS, "cur2 poll 100 failed");
+    status = lfq_broadcast_poll(cur2, &item2, &skipped, &poll_res);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)item2 == 200 && poll_res == LFQ_POLL_SUCCESS, "cur2 poll 200 failed");
+    status = lfq_broadcast_poll(cur2, &item2, &skipped, &poll_res);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY && poll_res == LFQ_POLL_EMPTY, "cur2 poll should be empty");
+
+    /* Subscribe Cursor 3 with FROM_EARLIEST: should replay existing messages */
+    lfq_broadcast_cursor_t* cur3 = NULL;
+    status = lfq_broadcast_subscribe(ring, LFQ_SUB_FROM_EARLIEST, &cur3);
+    TEST_ASSERT(status == LFQ_OK && cur3 != NULL, "Subscribe cur3 failed");
+    TEST_ASSERT(lfq_broadcast_subscriber_count(ring) == 3, "Subscriber count should be 3");
+
+    void* item3 = NULL;
+    status = lfq_broadcast_try_read(cur3, &item3);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)item3 == 100, "cur3 replay 100 failed");
+    status = lfq_broadcast_try_read(cur3, &item3);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)item3 == 200, "cur3 replay 200 failed");
+
+    /* Unsubscribe all cursors */
+    status = lfq_broadcast_unsubscribe(cur1);
+    TEST_ASSERT(status == LFQ_OK, "Unsubscribe cur1 failed");
+    status = lfq_broadcast_unsubscribe(cur2);
+    TEST_ASSERT(status == LFQ_OK, "Unsubscribe cur2 failed");
+    status = lfq_broadcast_unsubscribe(cur3);
+    TEST_ASSERT(status == LFQ_OK, "Unsubscribe cur3 failed");
+    TEST_ASSERT(lfq_broadcast_subscriber_count(ring) == 0, "Subscriber count should be 0");
+
+    /* Destroy ring */
+    status = lfq_broadcast_destroy(ring);
+    TEST_ASSERT(status == LFQ_OK, "lfq_broadcast_destroy failed");
+    printf("test_cabi_broadcast PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
+ * Test 9: Concurrent Multithreaded MPMC Queue Test via pthreads
  * ------------------------------------------------------------------------- */
 #define NUM_PRODUCERS 4
 #define NUM_CONSUMERS 4
@@ -652,6 +729,7 @@ int main(void) {
     test_cabi_table();
     test_cabi_set();
     test_cabi_ctrie();
+    test_cabi_broadcast();
     test_cabi_concurrency();
 
     /* TaskPool C ABI */
