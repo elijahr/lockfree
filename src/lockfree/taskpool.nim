@@ -134,8 +134,6 @@ proc newTask(fn: ClosureProc, barrier: ptr Atomic[int64] = nil): Task =
   let r = cast[ClosureRepr](fn)
   result.rawClosureFn = r.fn
   result.rawClosureEnv = r.env
-  if r.env != nil:
-    GC_ref(cast[ref int](r.env))
   result.barrier = barrier
 
 proc newTask(fn: TaskProc, arg: pointer, barrier: ptr Atomic[int64] = nil): Task =
@@ -164,13 +162,9 @@ proc executeAndFree(task: Task, core: ptr TaskPoolCore) {.gcsafe.} =
         if task.cdeclFn != nil:
           task.cdeclFn(task.arg)
       of tkClosure:
-        try:
-          if task.rawClosureFn != nil:
-            let rawFn = cast[proc(env: pointer) {.nimcall, gcsafe.}](task.rawClosureFn)
-            rawFn(task.rawClosureEnv)
-        finally:
-          if task.rawClosureEnv != nil:
-            GC_unref(cast[ref int](task.rawClosureEnv))
+        if task.rawClosureFn != nil:
+          let rawFn = cast[proc(env: pointer) {.nimcall, gcsafe.}](task.rawClosureFn)
+          rawFn(task.rawClosureEnv)
     finally:
       if task.barrier != nil:
         discard task.barrier[].fetchSub(1'i64, moRelease)
@@ -444,21 +438,17 @@ proc forkJoin*(pool: TaskPool, tasks: openArray[ClosureProc]) =
         sleep(1)
         spins = 32
 
-proc parallelForImpl(
-    pool: TaskPool,
-    first, last, effChunk: int,
-    fn: proc(i: int) {.closure, gcsafe.}
-) {.gcsafe.} =
-  let count = last - first + 1
-  if count <= effChunk:
-    for i in first .. last:
-      fn(i)
-  else:
-    let mid = first + count div 2
-    pool.forkJoin(
-      proc() {.closure, gcsafe.} = pool.parallelForImpl(first, mid - 1, effChunk, fn),
-      proc() {.closure, gcsafe.} = pool.parallelForImpl(mid, last, effChunk, fn)
-    )
+type
+  ParallelForClosurePayload = object
+    first, last: int
+    rawFn: pointer
+    rawEnv: pointer
+
+proc runClosureChunkTask(arg: pointer) {.nimcall, gcsafe.} =
+  let p = cast[ptr ParallelForClosurePayload](arg)
+  let fn = cast[proc(i: int, env: pointer) {.nimcall, gcsafe.}](p.rawFn)
+  for i in p.first .. p.last:
+    fn(i, p.rawEnv)
 
 proc parallelFor*(
     pool: TaskPool,
@@ -467,7 +457,7 @@ proc parallelFor*(
     chunkSize: int = 0
 ) =
   ## Executes iterations in parallel for `i` in `first .. last` (inclusive)
-  ## using recursive divide-and-conquer work-stealing.
+  ## using chunked work-stealing tasks without closure environment heap allocations.
   if last < first: return
   let count = last - first + 1
   if count == 1:
@@ -476,7 +466,40 @@ proc parallelFor*(
 
   let numW = max(1, pool.numWorkers)
   let effChunk = if chunkSize > 0: chunkSize else: max(1, count div (numW * 4))
-  pool.parallelForImpl(first, last, effChunk, fn)
+  if count <= effChunk:
+    for i in first .. last:
+      fn(i)
+    return
+
+  let r = cast[ClosureRepr](fn)
+  let numChunks = (count + effChunk - 1) div effChunk
+  var payloads = newSeq[ParallelForClosurePayload](numChunks)
+
+  var barrier {.align: CacheLineBytes.}: Atomic[int64]
+  barrier.store(int64(numChunks - 1), moRelaxed)
+
+  for c in 1 ..< numChunks:
+    let cStart = first + c * effChunk
+    let cEnd = min(last, cStart + effChunk - 1)
+    payloads[c] = ParallelForClosurePayload(first: cStart, last: cEnd, rawFn: r.fn, rawEnv: r.env)
+    let t = newTask(runClosureChunkTask, cast[pointer](addr payloads[c]), addr barrier)
+    pool.core.spawnTask(t)
+
+  let cEnd0 = min(last, first + effChunk - 1)
+  for i in first .. cEnd0:
+    fn(i)
+
+  var spins = 0
+  while barrier.load(moAcquire) > 0:
+    if not pool.helpWork():
+      inc spins
+      if spins < 32:
+        cpuPause()
+      elif spins < 128:
+        schedYield()
+      else:
+        sleep(1)
+        spins = 32
 
 proc parallelFor*(
     pool: TaskPool,

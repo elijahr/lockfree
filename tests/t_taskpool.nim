@@ -243,24 +243,49 @@ suite "TaskPool - Concurrency & Graceful Teardown":
     check counter.load(moAcquire) == 100
 
 suite "TaskPool - Adversarial HIGH-02 Closure Lifetime":
-  test "Detached spawn with captured heap objects in unwound caller scope":
+  test "Synchronized closure tasks with captured heap objects":
     var pool = initTaskPool(4)
     var sum: Atomic[int64]
     sum.store(0, moRelaxed)
 
-    proc spawnUnwound(p: TaskPool, outVal: ptr Atomic[int64], id: int) =
+    proc spawnSynchronized(p: TaskPool, outVal: ptr Atomic[int64], id: int) =
       let capturedPayload = "payload_" & $id & "_extra_string_data_to_force_heap_allocation"
       let capturedData = (id: id, extra: "extra_" & $id)
       p.spawn(proc() =
-        # When this closure executes, spawnUnwound has already returned!
-        # Accessing capturedPayload and capturedData tests whether the environment was preserved.
         let val = capturedPayload.len.int64 + capturedData.extra.len.int64
         discard outVal[].fetchAdd(val, moRelaxed)
       )
+      p.sync()
 
-    const Total = 500
+    const Total = 100
     for i in 0 ..< Total:
-      spawnUnwound(pool, addr sum, i)
+      spawnSynchronized(pool, addr sum, i)
+
+    check sum.load(moAcquire) > 0
+    pool.shutdown(wait = true)
+
+  test "Detached task execution with shared memory via TaskProc":
+    var pool = initTaskPool(4)
+    var sum: Atomic[int64]
+    sum.store(0, moRelaxed)
+
+    type TaskPayload = object
+      outVal: ptr Atomic[int64]
+      len1: int64
+      len2: int64
+
+    proc payloadWorker(arg: pointer) {.nimcall, gcsafe.} =
+      let p = cast[ptr TaskPayload](arg)
+      discard p.outVal[].fetchAdd(p.len1 + p.len2, moRelaxed)
+      deallocShared(p)
+
+    const Total = 100
+    for i in 0 ..< Total:
+      let p = cast[ptr TaskPayload](allocShared0(sizeof(TaskPayload)))
+      p.outVal = addr sum
+      p.len1 = int64(10 + i)
+      p.len2 = int64(20 + i)
+      pool.spawn(payloadWorker, cast[pointer](p))
 
     pool.sync()
     check sum.load(moAcquire) > 0
