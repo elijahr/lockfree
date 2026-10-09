@@ -5026,7 +5026,10 @@ the lockfree CHANGELOG <code>[0.1.0]</code> entry for details.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Bounded lock-free queue — <code>BQueue[T, ccProd, ccCons, N, P, C]</code>.</p>
+        <p>===========================================================================
+Concurrency Topology: SPSC, SPMC, MPSC, MPMC Bounded Ring-Buffer Queues (<code>BQueue</code>)
+===========================================================================</p>
+<p>Bounded lock-free queue — <code>BQueue[T, ccProd, ccCons, N, P, C]</code>.</p>
 <p>A 6-param bounded ring-buffer surface with no debra integration and
 no <code>ST</code>/<code>S</code>/<code>MaxThreads</code> axes. Cardinality dispatch uses
 <code>when (ccProd, ccCons) is</code> internally.</p>
@@ -5101,8 +5104,8 @@ state types below can <code>distinct</code> from it.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L119" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:119
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L123" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:123
           </a>
         
       </div>
@@ -5145,8 +5148,8 @@ attachment pragma on the BQueue object below.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L124" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:124
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L128" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:128
           </a>
         
       </div>
@@ -5188,8 +5191,8 @@ attachment pragma on the BQueue object below.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L130" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:130
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L134" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:134
           </a>
         
       </div>
@@ -5231,8 +5234,8 @@ attachment pragma on the BQueue object below.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L216" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:216
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L220" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:220
           </a>
         
       </div>
@@ -5274,8 +5277,8 @@ attachment pragma on the BQueue object below.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L221" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:221
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L225" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:225
           </a>
         
       </div>
@@ -5317,8 +5320,8 @@ attachment pragma on the BQueue object below.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L226" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:226
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L230" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:230
           </a>
         
       </div>
@@ -5360,8 +5363,8 @@ attachment pragma on the BQueue object below.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L231" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:231
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L235" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:235
           </a>
         
       </div>
@@ -5403,8 +5406,8 @@ attachment pragma on the BQueue object below.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L236" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:236
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L240" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:240
           </a>
         
       </div>
@@ -5446,8 +5449,8 @@ attachment pragma on the BQueue object below.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L250" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:250
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L254" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:254
           </a>
         
       </div>
@@ -5509,8 +5512,8 @@ Has no runtime cost.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L270" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:270
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L274" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:274
           </a>
         
       </div>
@@ -5566,8 +5569,8 @@ forwards verbatim — callers should prefer <code>newBQueue</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L371" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:371
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L375" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:375
           </a>
         
       </div>
@@ -5628,8 +5631,8 @@ the v3.x → v4.x naming and minimize churn in the test suite.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L384" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:384
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L388" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:388
           </a>
         
       </div>
@@ -5684,8 +5687,8 @@ the v3.x → v4.x naming and minimize churn in the test suite.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L409" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:409
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L413" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:413
           </a>
         
       </div>
@@ -5741,8 +5744,8 @@ the v3.x → v4.x naming and minimize churn in the test suite.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L415" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:415
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L419" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:419
           </a>
         
       </div>
@@ -5798,8 +5801,8 @@ the v3.x → v4.x naming and minimize churn in the test suite.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L422" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:422
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L426" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:426
           </a>
         
       </div>
@@ -5856,8 +5859,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L429" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:429
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L433" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:433
           </a>
         
       </div>
@@ -5912,8 +5915,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L437" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:437
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L441" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:441
           </a>
         
       </div>
@@ -5968,8 +5971,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L441" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:441
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L445" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:445
           </a>
         
       </div>
@@ -6024,8 +6027,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L445" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:445
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L449" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:449
           </a>
         
       </div>
@@ -6080,8 +6083,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L449" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:449
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L453" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:453
           </a>
         
       </div>
@@ -6136,8 +6139,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L453" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:453
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L457" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:457
           </a>
         
       </div>
@@ -6192,8 +6195,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L457" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:457
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L461" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:461
           </a>
         
       </div>
@@ -6248,8 +6251,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L461" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:461
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L465" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:465
           </a>
         
       </div>
@@ -6304,8 +6307,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L465" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:465
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L469" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:469
           </a>
         
       </div>
@@ -6360,8 +6363,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L469" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:469
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L473" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:473
           </a>
         
       </div>
@@ -6416,8 +6419,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L473" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:473
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L477" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:477
           </a>
         
       </div>
@@ -6485,8 +6488,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L477" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:477
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L481" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:481
           </a>
         
       </div>
@@ -6555,8 +6558,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L483" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:483
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L487" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:487
           </a>
         
       </div>
@@ -6625,8 +6628,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L490" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:490
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L494" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:494
           </a>
         
       </div>
@@ -6696,8 +6699,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L506" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:506
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L510" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:510
           </a>
         
       </div>
@@ -6767,8 +6770,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L528" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:528
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L532" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:532
           </a>
         
       </div>
@@ -6838,8 +6841,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L554" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:554
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L558" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:558
           </a>
         
       </div>
@@ -6903,8 +6906,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L569" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:569
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L573" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:573
           </a>
         
       </div>
@@ -6968,8 +6971,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L591" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:591
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L595" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:595
           </a>
         
       </div>
@@ -7033,8 +7036,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L617" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:617
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L621" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:621
           </a>
         
       </div>
@@ -7110,8 +7113,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L632" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:632
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L636" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:636
           </a>
         
       </div>
@@ -7187,8 +7190,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L651" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:651
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L655" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:655
           </a>
         
       </div>
@@ -7254,8 +7257,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L670" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:670
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L674" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:674
           </a>
         
       </div>
@@ -7321,8 +7324,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L679" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:679
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L683" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:683
           </a>
         
       </div>
@@ -7392,8 +7395,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L697" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:697
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L701" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:701
           </a>
         
       </div>
@@ -7463,8 +7466,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L735" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:735
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L739" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:739
           </a>
         
       </div>
@@ -7534,8 +7537,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L747" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:747
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L751" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:751
           </a>
         
       </div>
@@ -7605,8 +7608,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L758" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:758
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L762" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:762
           </a>
         
       </div>
@@ -7676,8 +7679,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L803" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:803
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L807" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:807
           </a>
         
       </div>
@@ -7747,8 +7750,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L821" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:821
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L825" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:825
           </a>
         
       </div>
@@ -7822,8 +7825,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L857" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:857
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L861" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:861
           </a>
         
       </div>
@@ -7901,8 +7904,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L916" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:916
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L920" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:920
           </a>
         
       </div>
@@ -7980,8 +7983,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L940" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:940
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L944" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:944
           </a>
         
       </div>
@@ -8053,8 +8056,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L966" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:966
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L970" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:970
           </a>
         
       </div>
@@ -8126,8 +8129,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L990" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:990
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L994" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:994
           </a>
         
       </div>
@@ -8206,8 +8209,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1015" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1015
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1019" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1019
           </a>
         
       </div>
@@ -8285,8 +8288,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1027" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1027
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1031" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1031
           </a>
         
       </div>
@@ -8364,8 +8367,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1040" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1040
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1044" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1044
           </a>
         
       </div>
@@ -8443,8 +8446,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1055" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1055
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1059" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1059
           </a>
         
       </div>
@@ -8530,8 +8533,8 @@ Returns the number of items successfully extracted.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1070" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1070
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1074" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1074
           </a>
         
       </div>
@@ -8615,8 +8618,8 @@ Returns the number of items successfully extracted.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1096" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1096
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1100" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1100
           </a>
         
       </div>
@@ -8694,8 +8697,8 @@ Returns the number of items successfully extracted.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1110" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1110
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1114" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1114
           </a>
         
       </div>
@@ -8769,8 +8772,8 @@ Returns the number of items successfully extracted.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1125" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1125
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1129" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1129
           </a>
         
       </div>
@@ -8836,8 +8839,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1169" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1169
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1173" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1173
           </a>
         
       </div>
@@ -8901,8 +8904,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1182" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1182
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1186" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1186
           </a>
         
       </div>
@@ -8966,8 +8969,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1194" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1194
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1198" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1198
           </a>
         
       </div>
@@ -9027,8 +9030,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1216" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1216
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1220" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1220
           </a>
         
       </div>
@@ -9088,8 +9091,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1226" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1226
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1230" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1230
           </a>
         
       </div>
@@ -9149,8 +9152,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1238" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1238
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1242" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1242
           </a>
         
       </div>
@@ -9210,8 +9213,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1250" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1250
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1254" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1254
           </a>
         
       </div>
@@ -9271,8 +9274,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1262" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1262
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1266" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1266
           </a>
         
       </div>
@@ -9332,8 +9335,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1276" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1276
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1280" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1280
           </a>
         
       </div>
@@ -9405,8 +9408,8 @@ contract). For POD payloads the <code>cleanup</code> is logically a no-op.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1290" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1290
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1294" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1294
           </a>
         
       </div>
@@ -9470,8 +9473,8 @@ explicit cleanup callback under mm:none for non-POD T).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1309" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1309
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1313" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1313
           </a>
         
       </div>
@@ -9531,8 +9534,8 @@ explicit cleanup callback under mm:none for non-POD T).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1341" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1341
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1345" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1345
           </a>
         
       </div>
@@ -9609,8 +9612,8 @@ explicit cleanup callback under mm:none for non-POD T).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1348" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1348
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1352" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1352
           </a>
         
       </div>
@@ -9681,8 +9684,8 @@ explicit cleanup callback under mm:none for non-POD T).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1366" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1366
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1370" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1370
           </a>
         
       </div>
@@ -9759,8 +9762,8 @@ explicit cleanup callback under mm:none for non-POD T).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1379" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1379
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1383" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1383
           </a>
         
       </div>

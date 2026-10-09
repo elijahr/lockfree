@@ -5065,7 +5065,10 @@ documented limitation; see the lockfree CHANGELOG <code>[0.1.0]</code> entry.</p
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Unbounded <code>Queue</code> generic.</p>
+        <p>===========================================================================
+Concurrency Topology: SPSC, SPMC, MPSC, MPMC Unbounded Linked-Segment Queues (<code>Queue</code>)
+===========================================================================</p>
+<p>Unbounded <code>Queue</code> generic.</p>
 <div class="highlight"><pre><span></span><code>Queue[T, ccProd, ccCons, ST, S, MaxThreads]
 </code></pre></div>
 <p>Param order is LOAD-BEARING:
@@ -5127,8 +5130,8 @@ On 64-bit (uint == uint64) the value is identical to <code>1'u64 shl 63</code>.<
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L133" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:133
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L137" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:137
           </a>
         
       </div>
@@ -5175,8 +5178,8 @@ lock-free guarantee on every debra-supported target.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L143" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:143
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L147" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:147
           </a>
         
       </div>
@@ -5268,8 +5271,8 @@ every nullable type Nim exposes (broader than <code>T is ptr or ref</code>).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L181" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:181
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L185" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:185
           </a>
         
       </div>
@@ -5347,8 +5350,8 @@ legitimate publish and MUST be returned via <code>some(observed.second)</code>.<
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L218" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:218
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L222" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:222
           </a>
         
       </div>
@@ -5424,8 +5427,8 @@ into it. Returns false if the cell is already filled or closed.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L242" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:242
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L246" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:246
           </a>
         
       </div>
@@ -5463,8 +5466,8 @@ into it. Returns false if the cell is already filled or closed.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L285" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:285
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L289" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:289
           </a>
         
       </div>
@@ -5506,8 +5509,8 @@ into it. Returns false if the cell is already filled or closed.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L292" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:292
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L296" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:296
           </a>
         
       </div>
@@ -5549,8 +5552,8 @@ into it. Returns false if the cell is already filled or closed.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L300" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:300
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L304" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:304
           </a>
         
       </div>
@@ -5613,8 +5616,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L326" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:326
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L330" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:330
           </a>
         
       </div>
@@ -5652,8 +5655,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L432" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:432
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L436" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:436
           </a>
         
       </div>
@@ -5690,8 +5693,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L440" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:440
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L444" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:444
           </a>
         
       </div>
@@ -5728,8 +5731,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L448" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:448
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L452" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:452
           </a>
         
       </div>
@@ -5766,8 +5769,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L456" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:456
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L460" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:460
           </a>
         
       </div>
@@ -5804,8 +5807,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L464" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:464
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L468" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:468
           </a>
         
       </div>
@@ -5847,8 +5850,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L476" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:476
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L480" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:480
           </a>
         
       </div>
@@ -5908,8 +5911,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L488" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:488
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L492" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:492
           </a>
         
       </div>
@@ -6008,8 +6011,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L650" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:650
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L654" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:654
           </a>
         
       </div>
@@ -6094,8 +6097,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L670" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:670
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L674" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:674
           </a>
         
       </div>
@@ -6179,8 +6182,8 @@ constructable here, but is excluded by the dedicated spsc
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L747" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:747
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L751" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:751
           </a>
         
       </div>
@@ -6255,8 +6258,8 @@ on the consumer thread and supply the handle directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L784" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:784
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L788" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:788
           </a>
         
       </div>
@@ -6333,8 +6336,8 @@ on the consumer thread and supply the handle directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L811" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:811
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L815" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:815
           </a>
         
       </div>
@@ -6405,8 +6408,8 @@ on the consumer thread and supply the handle directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L837" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:837
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L841" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:841
           </a>
         
       </div>
@@ -6482,8 +6485,8 @@ on the consumer thread and supply the handle directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L865" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:865
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L869" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:869
           </a>
         
       </div>
@@ -6553,8 +6556,8 @@ on the consumer thread and supply the handle directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L882" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:882
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L886" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:886
           </a>
         
       </div>
@@ -6630,8 +6633,8 @@ attach-time: producers/consumers via <code>getProducer().attach()</code> /
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L898" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:898
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L902" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:902
           </a>
         
       </div>
@@ -6695,8 +6698,8 @@ attach-time: producers/consumers via <code>getProducer().attach()</code> /
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L961" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:961
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L965" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:965
           </a>
         
       </div>
@@ -6760,8 +6763,8 @@ attach-time: producers/consumers via <code>getProducer().attach()</code> /
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L970" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:970
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L974" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:974
           </a>
         
       </div>
@@ -6830,8 +6833,8 @@ attach-time: producers/consumers via <code>getProducer().attach()</code> /
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L979" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:979
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L983" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:983
           </a>
         
       </div>
@@ -6898,8 +6901,8 @@ the unbounded SPSC pop path.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1028" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1028
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1032" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1032
           </a>
         
       </div>
@@ -6969,8 +6972,8 @@ the unbounded SPSC pop path.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1068" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1068
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1072" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1072
           </a>
         
       </div>
@@ -7034,8 +7037,8 @@ the unbounded SPSC pop path.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1090" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1090
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1094" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1094
           </a>
         
       </div>
@@ -7105,8 +7108,8 @@ the unbounded SPSC pop path.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1106" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1106
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1110" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1110
           </a>
         
       </div>
@@ -7180,8 +7183,8 @@ available; only copies are rejected.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1127" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1127
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1131" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1131
           </a>
         
       </div>
@@ -7260,8 +7263,8 @@ refcount; the manager is left intact for its owner to free.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1150" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1150
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1154" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1154
           </a>
         
       </div>
@@ -7318,8 +7321,8 @@ no debra integration).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1226" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1226
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1230" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1230
           </a>
         
       </div>
@@ -7392,8 +7395,8 @@ no debra integration).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1236" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1236
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1240" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1240
           </a>
         
       </div>
@@ -7451,8 +7454,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1252" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1252
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1256" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1256
           </a>
         
       </div>
@@ -7521,8 +7524,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1263" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1263
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1267" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1267
           </a>
         
       </div>
@@ -7578,8 +7581,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1274" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1274
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1278" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1278
           </a>
         
       </div>
@@ -7648,8 +7651,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1283" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1283
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1287" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1287
           </a>
         
       </div>
@@ -7705,8 +7708,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1294" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1294
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1298" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1298
           </a>
         
       </div>
@@ -7761,8 +7764,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1303" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1303
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1307" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1307
           </a>
         
       </div>
@@ -7817,8 +7820,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1312" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1312
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1316" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1316
           </a>
         
       </div>
@@ -7873,8 +7876,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1320" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1320
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1324" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1324
           </a>
         
       </div>
@@ -7929,8 +7932,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1328" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1328
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1332" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1332
           </a>
         
       </div>
@@ -7985,8 +7988,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1336" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1336
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1340" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1340
           </a>
         
       </div>
@@ -8059,8 +8062,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1360" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1360
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1364" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1364
           </a>
         
       </div>
@@ -8133,8 +8136,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1574" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1574
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1578" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1578
           </a>
         
       </div>
@@ -8208,8 +8211,8 @@ overloads with cardinality dispatch via the existing <code>when</code> arms.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1589" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1589
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1593" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1593
           </a>
         
       </div>
@@ -8287,8 +8290,8 @@ overloads with cardinality dispatch via the existing <code>when</code> arms.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1682" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1682
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1686" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1686
           </a>
         
       </div>
@@ -8387,8 +8390,8 @@ overloads with cardinality dispatch via the existing <code>when</code> arms.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1706" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1706
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1710" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1710
           </a>
         
       </div>
@@ -8486,8 +8489,8 @@ overloads with cardinality dispatch via the existing <code>when</code> arms.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1806" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1806
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1810" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1810
           </a>
         
       </div>
@@ -8561,8 +8564,8 @@ overloads with cardinality dispatch via the existing <code>when</code> arms.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2212" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2212
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2216" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2216
           </a>
         
       </div>
@@ -8648,8 +8651,8 @@ via atomic slot advance and runs SMR epoch advancement once for the entire batch
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2236" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2236
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2240" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2240
           </a>
         
       </div>
@@ -8729,8 +8732,8 @@ via atomic slot advance and runs SMR epoch advancement once for the entire batch
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2458" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2458
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2462" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2462
           </a>
         
       </div>
@@ -8804,8 +8807,8 @@ via atomic slot advance and runs SMR epoch advancement once for the entire batch
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2472" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2472
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2476" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2476
           </a>
         
       </div>
@@ -8879,8 +8882,8 @@ via atomic slot advance and runs SMR epoch advancement once for the entire batch
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2487" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2487
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2491" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2491
           </a>
         
       </div>
@@ -8946,8 +8949,8 @@ v5.0.0); other cardinalities route drain through Bound endpoints.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2522" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2522
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2526" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2526
           </a>
         
       </div>
@@ -9011,8 +9014,8 @@ v5.0.0); other cardinalities route drain through Bound endpoints.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2538" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2538
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2542" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2542
           </a>
         
       </div>
@@ -9076,8 +9079,8 @@ v5.0.0); other cardinalities route drain through Bound endpoints.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2551" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2551
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2555" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2555
           </a>
         
       </div>
@@ -9143,8 +9146,8 @@ consumer drain contract (no contention).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2564" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2564
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2568" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2568
           </a>
         
       </div>
@@ -9204,8 +9207,8 @@ consumer drain contract (no contention).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2584" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2584
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2588" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2588
           </a>
         
       </div>
@@ -9265,8 +9268,8 @@ consumer drain contract (no contention).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2596" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2596
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2600" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2600
           </a>
         
       </div>
@@ -9326,8 +9329,8 @@ consumer drain contract (no contention).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2609" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2609
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2613" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2613
           </a>
         
       </div>
@@ -9387,8 +9390,8 @@ consumer drain contract (no contention).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2622" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2622
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2626" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2626
           </a>
         
       </div>
@@ -9457,8 +9460,8 @@ seq payloads.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2635" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2635
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2639" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2639
           </a>
         
       </div>
@@ -9518,8 +9521,8 @@ seq payloads.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2654" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2654
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2658" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2658
           </a>
         
       </div>
@@ -9584,8 +9587,8 @@ seq payloads.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2681" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2681
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2685" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2685
           </a>
         
       </div>
@@ -9650,8 +9653,8 @@ seq payloads.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2691" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2691
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2695" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2695
           </a>
         
       </div>
@@ -9717,8 +9720,8 @@ lack <code>head</code> Nim's <code>offsetOf</code> will compile-fail at the call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2698" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2698
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2702" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2702
           </a>
         
       </div>
@@ -9786,8 +9789,8 @@ MPMC cardinality fails at the <code>offsetOf</code> site (field absent).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2706" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2706
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2710" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2710
           </a>
         
       </div>
@@ -9854,8 +9857,8 @@ the <code>offsetOf</code> site.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2716" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2716
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2720" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2720
           </a>
         
       </div>
@@ -9920,8 +9923,8 @@ the <code>offsetOf</code> site.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2725" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2725
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2729" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2729
           </a>
         
       </div>
