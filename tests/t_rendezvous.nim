@@ -234,3 +234,125 @@ suite "RendezvousChannel — Close Semantics":
 
     check caughtException
     check chan.isClosed
+
+  type
+    PayloadTracker = ref object
+      destroyedFlag: ptr Atomic[bool]
+
+  proc `=destroy`(x: var typeof(PayloadTracker()[])) =
+    if x.destroyedFlag != nil:
+      x.destroyedFlag[].store(true, moRelaxed)
+
+  test "closing channel unparks waiting senders and destroys payload (HIGH-03)":
+    let chan = initRendezvousChannel[PayloadTracker]()
+    var caughtException = false
+    var wasDestroyed: Atomic[bool]
+    wasDestroyed.store(false, moRelaxed)
+
+    type SenderCloseArg = object
+      ch: RendezvousChannel[PayloadTracker]
+      caught: ptr bool
+      destroyed: ptr Atomic[bool]
+
+    proc senderCloseThread(arg: ptr SenderCloseArg) {.thread.} =
+      try:
+        let tracker = PayloadTracker(destroyedFlag: arg.destroyed)
+        discard arg.ch.send(tracker)
+      except ChannelClosedDefect:
+        arg.caught[] = true
+
+    var arg = SenderCloseArg(ch: chan, caught: addr caughtException, destroyed: addr wasDestroyed)
+    var th: Thread[ptr SenderCloseArg]
+    createThread(th, senderCloseThread, addr arg)
+
+    sleep(20) # Ensure sender thread is parked in chan.send
+    chan.close()
+    joinThread(th)
+
+    check caughtException
+    check wasDestroyed.load(moRelaxed)
+
+suite "RendezvousChannel — Remediation Regression Verification":
+  test "correlation ID ticket symmetry under rapid concurrent handoff (HIGH-01)":
+    const HandOffCount = 5000
+    let chan = initRendezvousChannel[int]()
+
+    var symmetryViolations: Atomic[int]
+    symmetryViolations.store(0, moRelaxed)
+
+    type TicketArg = object
+      ch: RendezvousChannel[int]
+      violations: ptr Atomic[int]
+      partnerCids: ptr UncheckedArray[uint64]
+
+    var sendCids = newSeq[uint64](HandOffCount)
+    var recvCids = newSeq[uint64](HandOffCount)
+
+    proc symSender(arg: ptr TicketArg) {.thread.} =
+      for i in 0 ..< HandOffCount:
+        let cid = arg.ch.send(i)
+        arg.partnerCids[i] = cid
+
+    proc symReceiver(arg: ptr TicketArg) {.thread.} =
+      for i in 0 ..< HandOffCount:
+        var val: int
+        let cid = arg.ch.recv(val)
+        arg.partnerCids[i] = cid
+
+    var sArg = TicketArg(ch: chan, violations: addr symmetryViolations, partnerCids: cast[ptr UncheckedArray[uint64]](addr sendCids[0]))
+    var rArg = TicketArg(ch: chan, violations: addr symmetryViolations, partnerCids: cast[ptr UncheckedArray[uint64]](addr recvCids[0]))
+
+    var sTh: Thread[ptr TicketArg]
+    var rTh: Thread[ptr TicketArg]
+    createThread(sTh, symSender, addr sArg)
+    createThread(rTh, symReceiver, addr rArg)
+
+    joinThread(sTh)
+    joinThread(rTh)
+
+    var mismatchCount = 0
+    for i in 0 ..< HandOffCount:
+      if sendCids[i] == 0 or sendCids[i] != recvCids[i]:
+        inc mismatchCount
+
+    check mismatchCount == 0
+
+  test "bounded cancellation purge under high timeout rate (MED-01)":
+    let chan = initRendezvousChannel[int]()
+    const NumTimeouts = 50
+
+    # Flood channel with timed out receivers
+    for _ in 1 .. NumTimeouts:
+      var val: int
+      var cid: uint64
+      check not chan.recvWithTimeout(val, 1, cid)
+
+    # Flood channel with timed out senders
+    for _ in 1 .. NumTimeouts:
+      var cid: uint64
+      check not chan.sendWithTimeout(999, 1, cid)
+
+    # Channel should still perform normal handoff cleanly
+    var receivedVal = 0
+    var sCid: uint64 = 0
+    var rCid: uint64 = 0
+
+    type DirectArg = object
+      ch: RendezvousChannel[int]
+      outVal: ptr int
+      outCid: ptr uint64
+
+    proc fastReceiver(arg: ptr DirectArg) {.thread.} =
+      arg.outCid[] = arg.ch.recv(arg.outVal[])
+
+    var dArg = DirectArg(ch: chan, outVal: addr receivedVal, outCid: addr rCid)
+    var th: Thread[ptr DirectArg]
+    createThread(th, fastReceiver, addr dArg)
+
+    sleep(10)
+    sCid = chan.send(4242)
+    joinThread(th)
+
+    check receivedVal == 4242
+    check sCid > 0
+    check sCid == rCid

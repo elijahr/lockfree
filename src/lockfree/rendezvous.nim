@@ -296,6 +296,27 @@ type
   RendezvousChannel*[T] = object
     core*: ptr RendezvousChannelCore[T]
 
+proc purgeCancelledWaiters[T](core: ptr RendezvousChannelCore[T], maxSpins: int = 16) =
+  ## Bounded purge of contiguous rsCancelled waiters from core.head.
+  ## Prevents unbounded CAS retry latency under high timeout influx (MED-01).
+  var spins = 0
+  while spins < maxSpins:
+    var h = core.head.load(moAcquire)
+    let t = core.tail.load(moAcquire)
+    if h == nil or t == nil or h == t:
+      break
+    let hNext = h.next.load(moAcquire)
+    if hNext == nil or h != core.head.load(moAcquire):
+      break
+    if hNext.state.load(moAcquire) == rsCancelled:
+      if core.head.compareExchangeStrong(h, hNext, moAcquireRelease, moRelaxed):
+        inc spins
+      else:
+        cpuPause()
+        inc spins
+    else:
+      break
+
 proc allocWaiter[T](
     core: ptr RendezvousChannelCore[T],
     mode: WaiterMode,
@@ -305,13 +326,14 @@ proc allocWaiter[T](
   result = allocSharedAligned[RendezvousWaiter[T]]()
   initParker(result.parker)
   result.mode = mode
-  result.state.store(rsWaiting, moRelaxed)
-  result.vbox.store(vbox, moRelaxed)
+  result.state.store(rsWaiting, moRelease)
+  result.vbox.store(vbox, moRelease)
   result.correlationId = corrId
   result.next.store(nil, moRelaxed)
 
-  var cur = core.allNodes.load(moRelaxed)
+  # Track for clean deallocation in freeChannelCore
   while true:
+    var cur = core.allNodes.load(moAcquire)
     result.allNext = cur
     if core.allNodes.compareExchangeWeak(cur, result, moRelease, moRelaxed):
       break
@@ -410,6 +432,7 @@ proc send*[T](self: RendezvousChannel[T], item: sink T): uint64 =
   var myWaiter: ptr RendezvousWaiter[T] = nil
 
   while true:
+    purgeCancelledWaiters(core)
     if core.isClosed.load(moAcquire):
       decRef(myVBox)
       myWaiter = nil
@@ -441,15 +464,20 @@ proc send*[T](self: RendezvousChannel[T], item: sink T): uint64 =
               return corrId
           if myWaiter.state.load(moAcquire) == rsMatched:
             return corrId
+          decRef(myVBox)
           raise newException(ChannelClosedDefect, "RendezvousChannel closed while waiting")
       else:
         # Opposite mode: queue has waiting receivers!
         let hNext = h.next.load(moAcquire)
         if h == core.head.load(moAcquire) and hNext != nil:
+          if hNext.mode != wmReceiver:
+            if hNext.state.load(moAcquire) != rsWaiting:
+              discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+            continue
           var exp = rsWaiting
           if hNext.state.compareExchangeStrong(exp, rsMatched, moAcquireRelease, moRelaxed):
-            hNext.vbox.store(myVBox, moRelease)
             hNext.correlationId = corrId
+            hNext.vbox.store(myVBox, moRelease)
             hNext.parker.unpark()
             discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
             return corrId
@@ -466,6 +494,7 @@ proc recv*[T](self: RendezvousChannel[T], outVal: var T): uint64 =
   var myWaiter: ptr RendezvousWaiter[T] = nil
 
   while true:
+    purgeCancelledWaiters(core)
     if core.isClosed.load(moAcquire):
       raise newException(ChannelClosedDefect, "RendezvousChannel is closed")
 
@@ -511,6 +540,10 @@ proc recv*[T](self: RendezvousChannel[T], outVal: var T): uint64 =
         # Opposite mode: queue has waiting senders!
         let hNext = h.next.load(moAcquire)
         if h == core.head.load(moAcquire) and hNext != nil:
+          if hNext.mode != wmSender:
+            if hNext.state.load(moAcquire) != rsWaiting:
+              discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+            continue
           var exp = rsWaiting
           if hNext.state.compareExchangeStrong(exp, rsMatched, moAcquireRelease, moRelaxed):
             let transferred = hNext.vbox.load(moAcquire)
@@ -539,6 +572,7 @@ proc trySend*[T](self: RendezvousChannel[T], item: sink T, outCorrId: var uint64
     return false
 
   let core = self.core
+  purgeCancelledWaiters(core)
   while true:
     var h = core.head.load(moAcquire)
     var t = core.tail.load(moAcquire)
@@ -547,7 +581,7 @@ proc trySend*[T](self: RendezvousChannel[T], item: sink T, outCorrId: var uint64
       return false
 
     let hNext = h.next.load(moAcquire)
-    if hNext == nil or h != core.head.load(moAcquire):
+    if hNext == nil or h != core.head.load(moAcquire) or hNext.mode != wmReceiver:
       return false
 
     var exp = rsWaiting
@@ -570,6 +604,7 @@ proc tryRecv*[T](self: RendezvousChannel[T], outVal: var T, outCorrId: var uint6
     return false
 
   let core = self.core
+  purgeCancelledWaiters(core)
   while true:
     var h = core.head.load(moAcquire)
     var t = core.tail.load(moAcquire)
@@ -578,7 +613,7 @@ proc tryRecv*[T](self: RendezvousChannel[T], outVal: var T, outCorrId: var uint6
       return false
 
     let hNext = h.next.load(moAcquire)
-    if hNext == nil or h != core.head.load(moAcquire):
+    if hNext == nil or h != core.head.load(moAcquire) or hNext.mode != wmSender:
       return false
 
     var exp = rsWaiting
@@ -612,6 +647,7 @@ proc sendWithTimeout*[T](
 
   # Enqueue waiter
   while true:
+    purgeCancelledWaiters(core)
     if core.isClosed.load(moAcquire):
       decRef(myVBox)
       return false
@@ -635,10 +671,14 @@ proc sendWithTimeout*[T](
         # Match head receiver
         let hNext = h.next.load(moAcquire)
         if h == core.head.load(moAcquire) and hNext != nil:
+          if hNext.mode != wmReceiver:
+            if hNext.state.load(moAcquire) != rsWaiting:
+              discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+            continue
           var exp = rsWaiting
           if hNext.state.compareExchangeStrong(exp, rsMatched, moAcquireRelease, moRelaxed):
-            hNext.vbox.store(myVBox, moRelease)
             hNext.correlationId = corrId
+            hNext.vbox.store(myVBox, moRelease)
             hNext.parker.unpark()
             discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
             outCorrId = corrId
@@ -677,6 +717,7 @@ proc recvWithTimeout*[T](
   let myWaiter = allocWaiter[T](core, wmReceiver, nil, 0)
 
   while true:
+    purgeCancelledWaiters(core)
     if core.isClosed.load(moAcquire):
       return false
 
@@ -698,6 +739,10 @@ proc recvWithTimeout*[T](
       else:
         let hNext = h.next.load(moAcquire)
         if h == core.head.load(moAcquire) and hNext != nil:
+          if hNext.mode != wmSender:
+            if hNext.state.load(moAcquire) != rsWaiting:
+              discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+            continue
           var exp = rsWaiting
           if hNext.state.compareExchangeStrong(exp, rsMatched, moAcquireRelease, moRelaxed):
             let transferred = hNext.vbox.load(moAcquire)
