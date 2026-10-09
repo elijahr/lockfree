@@ -509,7 +509,7 @@ proc clean[K, V; MaxThreads: static int](
     cur: ptr INode[K, V],
     sn: ptr SNode[K, V],
     ready: var RetireReady[MaxThreads, ccMulti]
-) =
+) {.notATransition.} =
   if parent == nil: return
   let pMain = parent.main.load(moAcquire)
   if pMain != nil and pMain.kind == mnkCNode:
