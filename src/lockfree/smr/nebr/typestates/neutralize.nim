@@ -2,8 +2,8 @@
 ##
 ## Ensures proper sequence: ScanStart -> Scanning -> ScanComplete
 ##
-## When the epoch needs to advance, scan all threads and send SIGUSR1
-## to pinned threads that are stalled (behind globalEpoch by threshold).
+## When the epoch needs to advance, scan all threads and send SIGUSR1 to pinned
+## threads that are stalled (behind globalEpoch by threshold).
 
 import ../../../atomics
 import typestates
@@ -56,8 +56,8 @@ proc scanStart*[MaxThreads: static int, CC: static PinScopeCardinality = ccSingl
 proc loadEpoch*[MaxThreads: static int, CC: static PinScopeCardinality](
     s: ScanStart[MaxThreads, CC], epochsBeforeNeutralize: uint64 = 2
 ): Scanning[MaxThreads, CC] {.transition.} =
-  ## Load global epoch and compute threshold for stalled threads.
-  ## Threads with epoch < (globalEpoch - epochsBeforeNeutralize) get signaled.
+  ## Load global epoch and compute threshold for stalled threads. Threads with
+  ## epoch < (globalEpoch - epochsBeforeNeutralize) get signaled.
   var ctx = NeutralizeContext[MaxThreads, CC](s)
   ctx.globalEpoch = ctx.manager.globalEpoch.load(moAcquire)
 
@@ -88,12 +88,12 @@ proc scanAndSignal*[MaxThreads: static int, CC: static PinScopeCardinality](
   ## Returns count of signals sent.
   var ctx = NeutralizeContext[MaxThreads, CC](s)
   let activeMask = ctx.manager.activeThreadMask.load(moAcquire)
-  # Self-skip uses `isCurrent(tid)` rather than `tid == currentThreadId()`
-  # to avoid allocating a fresh `DuplicateHandle` per scan iteration on
-  # Windows. `isCurrent` compares OS-level thread IDs via
-  # `GetThreadId(tid.handle) == GetCurrentThreadId()` (POSIX uses
-  # `pthread_equal(tid, pthread_self())`), both of which are
-  # non-allocating. Closes the v0.10.0 documented handle-leak gap.
+  # Self-skip uses `isCurrent(tid)` rather than `tid == currentThreadId()` to
+  # avoid allocating a fresh `DuplicateHandle` per scan iteration on Windows.
+  # `isCurrent` compares OS-level thread IDs via `GetThreadId(tid.handle) ==
+  # GetCurrentThreadId()` (POSIX uses `pthread_equal(tid, pthread_self())`),
+  # both of which are non-allocating. Closes the v0.10.0 documented handle-leak
+  # gap.
 
   for i in 0 ..< MaxThreads:
     if (activeMask and (1'u64 shl i)) != 0:
@@ -105,11 +105,10 @@ proc scanAndSignal*[MaxThreads: static int, CC: static PinScopeCardinality](
           # Thread is stalled - send signal
           let tid = ctx.manager.threads[i].threadId.load(moAcquire)
           if tid.isValid and not isCurrent(tid):
-            # Don't signal ourselves or unset threads.
-            # `neutralizeRemoteSlot` abstracts the platform difference:
-            # POSIX delivers SIGUSR1 (handler reads target's
-            # `threadLocalIdx`); Windows suspends the target, flips the
-            # slot using the explicit `i` argument, then resumes.
+            # Don't signal ourselves or unset threads. `neutralizeRemoteSlot`
+            # abstracts the platform difference: POSIX delivers SIGUSR1 (handler
+            # reads target's `threadLocalIdx`); Windows suspends the target,
+            # flips the slot using the explicit `i` argument, then resumes.
             neutralizeRemoteSlot(tid, i)
             inc ctx.signalsSent
 

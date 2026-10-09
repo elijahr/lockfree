@@ -1,7 +1,7 @@
 ## N+1-slot virtual values for SPSC queue.
 ##
-## SPSC uses N+1 slots to distinguish full from empty without flags.
-## Virtual space is 0..<2*(N+1). Uses `mod (N+1)` for slot calculation.
+## SPSC uses N+1 slots to distinguish full from empty without flags. Virtual
+## space is 0..<2*(N+1). Uses `mod (N+1)` for slot calculation.
 
 import typestates
 

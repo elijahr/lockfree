@@ -13,13 +13,15 @@
 ##
 ## ## Overview
 ##
-## `SkipListMap[K, V]` is an MPMC lock-free ordered associative table implementing
-## Keir Fraser's and Maurice Herlihy's lock-free skip list algorithm with Harris-style
-## logical deletion marking and Debra Safe Memory Reclamation (SMR).
+## `SkipListMap[K, V]` is an MPMC lock-free ordered associative table
+## implementing Keir Fraser's and Maurice Herlihy's lock-free skip list
+## algorithm with Harris-style logical deletion marking and Debra Safe Memory
+## Reclamation (SMR).
 ##
 ## It maintains keys in strictly sorted order at level 0, supporting concurrent
-## insertions (`put`), lookups (`get`, `contains`, `[]`), removals (`delete`, `del`),
-## atomic conditional updates (`computeIfAbsent`), and ordered range traversals (`pairs`).
+## insertions (`put`), lookups (`get`, `contains`, `[]`), removals (`delete`,
+## `del`), atomic conditional updates (`computeIfAbsent`), and ordered range
+## traversals (`pairs`).
 
 when not compileOption("threads"):
   {.error: "lockfree/skiplist requires --threads:on".}
@@ -435,8 +437,8 @@ proc get*[K, V; MaxThreads, MaxLevel: static int](
     key: K,
     handle: ThreadHandle[MaxThreads, ccMulti]
 ): Option[V] =
-  ## Looks up `key` in the map using the provided thread handle.
-  ## Wait-free population guarantee: does not perform CAS or mutate state.
+  ## Looks up `key` in the map using the provided thread handle. Wait-free
+  ## population guarantee: does not perform CAS or mutate state.
   let pinned = unpinned(handle).pin()
   try:
     var pred = self.core.head
@@ -502,7 +504,8 @@ proc contains*[K, V; MaxThreads, MaxLevel: static int](
     self: SkipListMap[K, V, MaxThreads, MaxLevel],
     key: K
 ): bool {.inline.} =
-  ## Returns true if `key` is present in the map (auto-dispatched thread handle).
+  ## Returns true if `key` is present in the map (auto-dispatched thread
+  ## handle).
   self.get(key).isSome
 
 proc put*[K, V; MaxThreads, MaxLevel: static int](
@@ -511,8 +514,8 @@ proc put*[K, V; MaxThreads, MaxLevel: static int](
     val: V,
     handle: ThreadHandle[MaxThreads, ccMulti]
 ): bool =
-  ## Inserts or updates `(key, val)`.
-  ## Returns `true` if a new key was inserted, `false` if an existing key was updated.
+  ## Inserts or updates `(key, val)`. Returns `true` if a new key was inserted,
+  ## `false` if an existing key was updated.
   let pinned = unpinned(handle).pin()
   var ready = retireReady(pinned)
   try:
@@ -606,8 +609,8 @@ proc delete*[K, V; MaxThreads, MaxLevel: static int](
     key: K,
     handle: ThreadHandle[MaxThreads, ccMulti]
 ): bool =
-  ## Logically marks and physically splices `key` out of the map.
-  ## Returns `true` if `key` was found and removed, `false` otherwise.
+  ## Logically marks and physically splices `key` out of the map. Returns `true`
+  ## if `key` was found and removed, `false` otherwise.
   let pinned = unpinned(handle).pin()
   var ready = retireReady(pinned)
   try:
@@ -773,7 +776,8 @@ iterator pairs*[K, V; MaxThreads, MaxLevel: static int](
 iterator pairs*[K, V; MaxThreads, MaxLevel: static int](
     self: SkipListMap[K, V, MaxThreads, MaxLevel]
 ): (K, V) =
-  ## Iterates over all `(key, value)` pairs in strictly ascending key order (auto handle).
+  ## Iterates over all `(key, value)` pairs in strictly ascending key order
+  ## (auto handle).
   let h = self.getOrRegisterHandle()
   for p in self.pairs(h):
     yield p

@@ -1,21 +1,23 @@
 ## ===========================================================================
-## Concurrency Topology: MPMC (Multi-Producer Multi-Consumer) Lock-Free LIFO Stack with Elimination-Backoff
+## Concurrency Topology: MPMC (Multi-Producer Multi-Consumer) Lock-Free LIFO
+## Stack with Elimination-Backoff
 ## ===========================================================================
 ##
 ## A high-performance, non-blocking MPMC LIFO stack based on the classic Treiber
-## stack (Treiber, 1986) augmented with an Elimination-Backoff Array
-## (Hendler, Shavit, Yerushalmi, 2004).
+## stack (Treiber, 1986) augmented with an Elimination-Backoff Array (Hendler,
+## Shavit, Yerushalmi, 2004).
 ##
 ## Topology:
 ##   - Producers: Multi-Producer (MP) — concurrent lock-free push operations.
 ##   - Consumers: Multi-Consumer (MC) — concurrent lock-free pop operations.
-##   - Ordering:  LIFO (Last-In First-Out) linearizable semantics.
-##   - Contention Management: Elimination-Backoff Array allows concurrent pairs of
-##     push and pop operations to exchange payloads and cancel out without touching
-##     the central stack top pointer.
-##   - Memory Safety: Tagged atomic pointers (128-bit DWCAS) eliminate the ABA problem;
-##     internal cache-aligned node pooling guarantees zero use-after-free and leak-free
-##     reclamation under ARC, ORC, and refc memory managers.
+##   - Ordering: LIFO (Last-In First-Out) linearizable semantics.
+##   - Contention Management: Elimination-Backoff Array allows concurrent pairs
+##     of push and pop operations to exchange payloads and cancel out without
+##     touching the central stack top pointer.
+##   - Memory Safety: Tagged atomic pointers (128-bit DWCAS) eliminate the ABA
+##     problem; internal cache-aligned node pooling guarantees zero
+##     use-after-free and leak-free reclamation under ARC, ORC, and refc memory
+##     managers.
 
 import std/options
 export options
@@ -26,10 +28,11 @@ import ./internal/aligned_alloc
 
 const
   EliminationCapacity* = 8
-    ## Default number of collision slots in the Elimination-Backoff Array.
-    ## Must be a power of 2 for fast modulo bitmasking.
+    ## Default number of collision slots in the Elimination-Backoff Array. Must
+    ## be a power of 2 for fast modulo bitmasking.
   EliminationSpins* = 32
-    ## Spin count for a pusher waiting in an elimination slot for a concurrent popper.
+    ## Spin count for a pusher waiting in an elimination slot for a concurrent
+    ## popper.
 
 type
   StackNode[T] = object
@@ -207,8 +210,8 @@ proc push*[T](self: var TreiberStack[T], items: openArray[T]) =
     self.push(item)
 
 proc pop*[T](self: var TreiberStack[T]): Option[T] =
-  ## Pops an item from the stack in LIFO order.
-  ## Returns `some(item)` if available, or `none(T)` if the stack is empty.
+  ## Pops an item from the stack in LIFO order. Returns `some(item)` if
+  ## available, or `none(T)` if the stack is empty.
   var val: T
   if self.tryPopTreiber(val):
     return some(val)
@@ -233,8 +236,8 @@ proc pop*[T](self: var TreiberStack[T]): Option[T] =
     backoffOnRetry(spins)
 
 proc peek*[T](self: var TreiberStack[T]): Option[T] =
-  ## Returns a copy of the item at the top of the stack without removing it,
-  ## or `none(T)` if the stack is currently empty.
+  ## Returns a copy of the item at the top of the stack without removing it, or
+  ## `none(T)` if the stack is currently empty.
   var oldTop = self.top.load(moSequentiallyConsistent)
   while true:
     if oldTop.first == 0:
@@ -266,7 +269,8 @@ proc isEmpty*[T](self: TreiberStack[T]): bool {.inline.} =
   cast[ptr TreiberStack[T]](unsafeAddr self)[].isEmpty()
 
 proc drain*[T](self: var TreiberStack[T]): seq[T] =
-  ## Atomically detaches all items currently in the stack and returns them in LIFO order.
+  ## Atomically detaches all items currently in the stack and returns them in
+  ## LIFO order.
   var oldTop = self.top.load(moSequentiallyConsistent)
   while true:
     if oldTop.first == 0:
@@ -287,7 +291,8 @@ proc drain*[T](self: var TreiberStack[T]): seq[T] =
     oldTop = self.top.load(moSequentiallyConsistent)
 
 proc drainInto*[T](self: var TreiberStack[T], dest: var seq[T]) =
-  ## Atomically detaches all items currently in the stack and appends them to `dest` in LIFO order.
+  ## Atomically detaches all items currently in the stack and appends them to
+  ## `dest` in LIFO order.
   var oldTop = self.top.load(moSequentiallyConsistent)
   while true:
     if oldTop.first == 0:

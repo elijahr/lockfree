@@ -1,7 +1,7 @@
 ## SPSC Push operation lifecycle typestate.
 ##
-## Enforces correct sequencing for single-producer push:
-## Start -> LoadPointers -> CheckFull -> WriteData -> Complete
+## Enforces correct sequencing for single-producer push: Start -> LoadPointers
+## -> CheckFull -> WriteData -> Complete
 ##
 ## Key invariant: Once data is written, tail MUST be advanced.
 ##

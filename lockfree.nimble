@@ -3,7 +3,7 @@ import os
 # Package
 version        = "0.1.0"
 author         = "Elijah Shaw-Rutschman"
-description    = "Lock-free queues, SMR, and managed-payload types for Nim."
+description    = "High-performance, non-blocking lock-free data structures (Tables, Sets, Stacks, Queues, Channels, Deques, Broadcast Rings, TaskPools) with Debra SMR and ARC/ORC support for Nim."
 license        = "MIT"
 srcDir         = "src"
 entryPoints    = @["tests/test.nim"]
@@ -273,6 +273,35 @@ task cabi, "Builds and runs the C ABI verification test suite":
  
 task channel, "Builds and runs the Channel facade test suite":
   exec "nim c --threads:on --nimcache:.tmp/channel_d -r tests/t_channel.nim"
+
+
+task ctrie, "Builds and runs the Ctrie (Table) concurrent map test suite":
+  exec "nim c --threads:on --nimcache:.tmp/ctrie_d -r tests/t_ctrie.nim"
+
+
+task skiplist, "Builds and runs the SkipListMap and SkipListSet test suites":
+  exec "nim c --threads:on --nimcache:.tmp/skiplist_d -r tests/t_skiplist.nim"
+  exec "nim c --threads:on --nimcache:.tmp/set_d -r tests/t_set.nim"
+
+
+task stack, "Builds and runs the TreiberStack test suite":
+  exec "nim c --threads:on --nimcache:.tmp/stack_d -r tests/t_stack.nim"
+
+
+task deque, "Builds and runs the ChaseLevDeque test suite":
+  exec "nim c --threads:on --nimcache:.tmp/deque_d -r tests/t_deque.nim"
+
+
+task broadcast, "Builds and runs the BroadcastRing and TopicBus test suite":
+  exec "nim c --threads:on --nimcache:.tmp/broadcast_d -r tests/t_broadcast.nim"
+
+
+task rendezvous, "Builds and runs the RendezvousChannel test suite":
+  exec "nim c --threads:on --nimcache:.tmp/rendezvous_d -r tests/t_rendezvous.nim"
+
+
+task taskpool, "Builds and runs the TaskPool work-stealing scheduler test suite":
+  exec "nim c --threads:on --nimcache:.tmp/taskpool_d -r tests/t_taskpool.nim"
 
 
 # task `stresstests` removed in v5.0.0 . The 9 legacy
