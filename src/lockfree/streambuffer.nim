@@ -69,6 +69,10 @@ proc freeAlignedBuffer*(p: pointer) =
     c_free(p)
 
 proc nextPowerOfTwo*(n: int): int {.inline.} =
+  if n <= 16: return 16
+  when sizeof(int) == 8:
+    if n > (1 shl 62):
+      raise newException(ValueError, "Capacity exceeds maximum supported power of two (2^62)")
   var v = n - 1
   v = v or (v shr 1)
   v = v or (v shr 2)
@@ -278,14 +282,18 @@ type
     capacity*: int
     mask*: int
     isMirrored*: bool
+    # Reader Domain (MED-01 cacheline isolation)
     notEmptyParker* {.align: CacheLineBytes.}: Parker
-    notFullParker* {.align: CacheLineBytes.}: Parker
     hasWaitingReader*: Atomic[bool]
+    # Writer Domain (MED-01 cacheline isolation)
+    notFullParker* {.align: CacheLineBytes.}: Parker
     hasWaitingWriter*: Atomic[bool]
 
 proc initStreamRing*(capacity: int = DefaultStreamCapacity, useVirtualMirror: bool = false): StreamRing =
   ## Initializes a new SPSC zero-copy circular streaming ring buffer.
   ## Capacity is automatically rounded up to the next power of two.
+  if useVirtualMirror:
+    raise newException(ValueError, "Virtual memory mirrored ring buffer is not supported on this platform; use dual-slice IOVecPair")
   let cap = nextPowerOfTwo(capacity)
   result.capacity = cap
   result.mask = cap - 1
@@ -320,6 +328,7 @@ proc availableRead*(self: var StreamRing): int {.inline.} =
   ## Returns total bytes currently available to read.
   let t = self.tail.load(moAcquire)
   let h = self.head.load(moAcquire)
+  if t < h: return 0
   let avail = int(t - h)
   return if avail < 0: 0 else: avail
 
@@ -327,8 +336,10 @@ proc availableWrite*(self: var StreamRing): int {.inline.} =
   ## Returns total free bytes currently available to write.
   let t = self.tail.load(moAcquire)
   let h = self.head.load(moAcquire)
-  let avail = self.capacity - int(t - h)
-  return if avail < 0: 0 else: avail
+  if t < h: return self.capacity
+  let diff = t - h
+  if diff >= uint64(self.capacity): return 0
+  return self.capacity - int(diff)
 
 proc isEmpty*(self: var StreamRing): bool {.inline.} =
   self.availableRead() == 0
@@ -367,12 +378,15 @@ proc commitWrite*(self: var StreamRing, bytesWritten: int) =
   ## Commits bytesWritten bytes to the buffer, publishing data with release
   ## semantics and waking any waiting reader thread.
   if bytesWritten <= 0: return
+  assert bytesWritten <= self.capacity, "commitWrite exceeds buffer capacity"
   let oldTail = self.tail.load(moRelaxed)
   let newTail = oldTail + uint64(bytesWritten)
   self.tail.store(newTail, moRelease)
 
-  if self.hasWaitingReader.load(moAcquire):
-    self.hasWaitingReader.store(false, moRelease)
+  # Full barrier to prevent StoreLoad reordering between tail store and hasWaitingReader load (BLOCKER-01)
+  threadFence(moSeqCst)
+  if self.hasWaitingReader.load(moSeqCst):
+    self.hasWaitingReader.store(false, moSeqCst)
     self.notEmptyParker.unpark()
 
 proc acquireReadIov*(self: var StreamRing, requestedLen: int): IOVecPair =
@@ -402,12 +416,15 @@ proc commitRead*(self: var StreamRing, bytesRead: int) =
   ## Commits bytesRead bytes as consumed, releasing buffer space with release
   ## semantics and waking any waiting writer thread.
   if bytesRead <= 0: return
+  assert bytesRead <= self.capacity, "commitRead exceeds buffer capacity"
   let oldHead = self.head.load(moRelaxed)
   let newHead = oldHead + uint64(bytesRead)
   self.head.store(newHead, moRelease)
 
-  if self.hasWaitingWriter.load(moAcquire):
-    self.hasWaitingWriter.store(false, moRelease)
+  # Full barrier to prevent StoreLoad reordering between head store and hasWaitingWriter load (BLOCKER-01)
+  threadFence(moSeqCst)
+  if self.hasWaitingWriter.load(moSeqCst):
+    self.hasWaitingWriter.store(false, moSeqCst)
     self.notFullParker.unpark()
 
 # ------------------------------------------------------------------------------
@@ -467,18 +484,22 @@ proc writeBlocking*(self: var StreamRing, src: openArray[byte], timeoutNs: int64
       if elapsed >= timeoutNs: break
       let remTimeoutMs = int((timeoutNs - elapsed) div 1_000_000'i64)
       resetParker(self.notFullParker)
-      self.hasWaitingWriter.store(true, moRelease)
+      self.hasWaitingWriter.store(true, moSeqCst)
+      threadFence(moSeqCst)
       if self.availableWrite() > 0:
-        self.hasWaitingWriter.store(false, moRelease)
+        self.hasWaitingWriter.store(false, moSeqCst)
       else:
         discard self.notFullParker.parkTimeout(max(1, remTimeoutMs))
+        self.hasWaitingWriter.store(false, moSeqCst)
     else:
       resetParker(self.notFullParker)
-      self.hasWaitingWriter.store(true, moRelease)
+      self.hasWaitingWriter.store(true, moSeqCst)
+      threadFence(moSeqCst)
       if self.availableWrite() > 0:
-        self.hasWaitingWriter.store(false, moRelease)
+        self.hasWaitingWriter.store(false, moSeqCst)
       else:
         self.notFullParker.park()
+        self.hasWaitingWriter.store(false, moSeqCst)
 
   return writtenTotal
 
@@ -499,18 +520,22 @@ proc readBlocking*(self: var StreamRing, dst: var openArray[byte], timeoutNs: in
       if elapsed >= timeoutNs: return 0
       let remTimeoutMs = int((timeoutNs - elapsed) div 1_000_000'i64)
       resetParker(self.notEmptyParker)
-      self.hasWaitingReader.store(true, moRelease)
+      self.hasWaitingReader.store(true, moSeqCst)
+      threadFence(moSeqCst)
       if self.availableRead() > 0:
-        self.hasWaitingReader.store(false, moRelease)
+        self.hasWaitingReader.store(false, moSeqCst)
       else:
         discard self.notEmptyParker.parkTimeout(max(1, remTimeoutMs))
+        self.hasWaitingReader.store(false, moSeqCst)
     else:
       resetParker(self.notEmptyParker)
-      self.hasWaitingReader.store(true, moRelease)
+      self.hasWaitingReader.store(true, moSeqCst)
+      threadFence(moSeqCst)
       if self.availableRead() > 0:
-        self.hasWaitingReader.store(false, moRelease)
+        self.hasWaitingReader.store(false, moSeqCst)
       else:
         self.notEmptyParker.park()
+        self.hasWaitingReader.store(false, moSeqCst)
 
 # ------------------------------------------------------------------------------
 # 7. MPMC StreamRing (Two-Phase Ticket Reservation)
@@ -522,7 +547,7 @@ type
     head* {.align: CacheLineBytes.}: Atomic[uint64]
     tailCommitted* {.align: CacheLineBytes.}: Atomic[uint64]
     headCommitted* {.align: CacheLineBytes.}: Atomic[uint64]
-    buffer*: ptr UncheckedArray[byte]
+    buffer* {.align: CacheLineBytes.}: ptr UncheckedArray[byte]
     capacity*: int
     mask*: int
 
@@ -547,14 +572,17 @@ proc capacity*(self: MPMCStreamRing): int {.inline.} =
 proc availableRead*(self: var MPMCStreamRing): int {.inline.} =
   let tc = self.tailCommitted.load(moAcquire)
   let hc = self.headCommitted.load(moAcquire)
-  let diff = int(tc - hc)
-  return if diff < 0: 0 else: diff
+  if tc < hc: return 0
+  let diff = tc - hc
+  return min(int(diff), self.capacity)
 
 proc availableWrite*(self: var MPMCStreamRing): int {.inline.} =
   let t = self.tail.load(moAcquire)
   let hc = self.headCommitted.load(moAcquire)
-  let diff = self.capacity - int(t - hc)
-  return if diff < 0: 0 else: diff
+  if t < hc: return self.capacity
+  let diff = t - hc
+  if diff >= uint64(self.capacity): return 0
+  return self.capacity - int(diff)
 
 proc tryWrite*(self: var MPMCStreamRing, src: openArray[byte]): int =
   if src.len == 0: return 0
@@ -563,7 +591,14 @@ proc tryWrite*(self: var MPMCStreamRing, src: openArray[byte]): int =
   while true:
     let t = self.tail.load(moAcquire)
     let hc = self.headCommitted.load(moAcquire)
-    let avail = self.capacity - int(t - hc)
+    if t < hc:
+      # t is a stale snapshot preceding hc; retry CAS loop
+      backoffOnRetry(spins)
+      continue
+    let diff = t - hc
+    if diff >= uint64(self.capacity):
+      return 0 # Buffer is full
+    let avail = self.capacity - int(diff)
     if avail <= 0: return 0
     let toWrite = min(req, avail)
     var exp = t
@@ -586,7 +621,13 @@ proc tryRead*(self: var MPMCStreamRing, dst: var openArray[byte]): int =
   while true:
     let h = self.head.load(moAcquire)
     let tc = self.tailCommitted.load(moAcquire)
-    let avail = int(tc - h)
+    if tc < h:
+      # tc is a stale snapshot preceding h; retry CAS loop
+      backoffOnRetry(spins)
+      continue
+    let diff = tc - h
+    if diff == 0: return 0 # Buffer is empty
+    let avail = min(int(diff), self.capacity)
     if avail <= 0: return 0
     let toRead = min(req, avail)
     var exp = h
