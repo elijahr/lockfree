@@ -85,6 +85,7 @@ import ./t_rendezvous
 import ./t_channel
 import ./t_user_guide_snippets
 import ./t_ratelimit
+import ./t_streambuffer
 
 # chronos adapter tests gated on chronos availability
 # (chronos is NOT in lockfree.nimble requires). When chronos
@@ -124,7 +125,7 @@ export
   t_verify_pop_clears_mpsc_unbounded, t_verify_pop_clears_spmc_unbounded,
   t_verify_pop_clears_mpmc_unbounded, t_refcount_use_patterns,
   t_seq_char_dispose,
-  t_systems_opt, t_batch_pop, t_dwcas, t_queue_aliases, t_stack, t_deque, t_skiplist, t_set, t_taskpool, t_ctrie, t_broadcast, t_rendezvous, t_channel, t_user_guide_snippets, t_ratelimit
+  t_systems_opt, t_batch_pop, t_dwcas, t_queue_aliases, t_stack, t_deque, t_skiplist, t_set, t_taskpool, t_ctrie, t_broadcast, t_rendezvous, t_channel, t_user_guide_snippets, t_ratelimit, t_streambuffer
 
 when defined(lockfreeAsyncdispatch):
   import ./t_async_bridge
