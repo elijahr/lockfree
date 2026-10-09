@@ -276,11 +276,12 @@ proc steal*[T](self: ChaseLevDeque[T]): Option[T] =
   if t >= b:
     return none(T)
 
+  var buf = core.buffer.load(moAcquire)
+  let idx = int(t and int64(buf.mask))
+  let encoded = buf.data[idx]
+
   var expectedTop = t
   if core.top.compareExchangeStrong(expectedTop, t + 1, moSequentiallyConsistent, moRelaxed):
-    var buf = core.buffer.load(moAcquire)
-    let idx = int(t and int64(buf.mask))
-    let encoded = buf.data[idx]
     return some(unwrapOrIdentity[T](encoded))
   else:
     return none(T)
@@ -323,11 +324,12 @@ proc stealBatch*[T](self: ChaseLevDeque[T], dest: var openArray[T], maxItems: in
     if t >= b:
       break
 
+    var buf = core.buffer.load(moAcquire)
+    let idx = int(t and int64(buf.mask))
+    let encoded = buf.data[idx]
+
     var expectedTop = t
     if core.top.compareExchangeStrong(expectedTop, t + 1, moSequentiallyConsistent, moRelaxed):
-      var buf = core.buffer.load(moAcquire)
-      let idx = int(t and int64(buf.mask))
-      let encoded = buf.data[idx]
       dest[stolen] = unwrapOrIdentity[T](encoded)
       inc stolen
     else:

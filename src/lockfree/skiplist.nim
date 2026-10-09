@@ -148,14 +148,17 @@ proc newVBox[V](val: sink V): ptr VBox[V] {.inline.} =
 proc freeVBox[V](box: ptr VBox[V]) {.inline, gcsafe.} =
   if box != nil:
     when not (V is SomeNumber or V is bool or V is char or V is pointer or V is ptr):
-      `=destroy`(box.val)
+      {.cast(gcsafe).}:
+        `=destroy`(box.val)
     deallocShared(box)
 
 proc destroyVBoxCallback[V](p: pointer) {.nimcall, raises: [].} =
   let box = cast[ptr VBox[V]](p)
   if box != nil:
     try:
-      `=destroy`(box.val)
+      when not (V is SomeNumber or V is bool or V is char or V is pointer or V is ptr):
+        {.cast(gcsafe).}:
+          `=destroy`(box.val)
     except:
       discard
     deallocShared(box)
@@ -168,7 +171,8 @@ proc destroyNodeCallback[K, V; MaxLevel: static int](p: pointer) {.nimcall, rais
       destroyVBoxCallback[V](cast[pointer](box))
     try:
       when not (K is SomeNumber or K is bool or K is char or K is pointer or K is ptr):
-        `=destroy`(n.key)
+        {.cast(gcsafe).}:
+          `=destroy`(n.key)
     except:
       discard
     deallocShared(n)
@@ -179,7 +183,8 @@ proc freeNodeDirect[K, V; MaxLevel: static int](n: ptr SkipListNode[K, V, MaxLev
     if box != nil:
       freeVBox[V](box)
     when not (K is SomeNumber or K is bool or K is char or K is pointer or K is ptr):
-      `=destroy`(n.key)
+      {.cast(gcsafe).}:
+        `=destroy`(n.key)
     deallocShared(n)
 
 # ---------------------------------------------------------------------------
