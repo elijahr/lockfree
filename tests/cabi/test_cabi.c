@@ -19,6 +19,8 @@
 #include <time.h>
 #include "lockfree.h"
 #include "lockfree_ratelimit.h"
+#include "lockfree_streambuffer.h"
+#include <string.h>
 
 /* Nim runtime initialization symbol exported by liblockfree.a */
 extern void NimMain(void);
@@ -1039,6 +1041,252 @@ static void test_cabi_concurrency(void) {
 }
 
 /* -------------------------------------------------------------------------
+ * Test 12: StreamRing / StreamBuffer C ABI (Zero-Copy Streaming I/O)
+ * ------------------------------------------------------------------------- */
+typedef struct {
+    lfq_stream_ring_t* ring;
+    size_t total_bytes;
+    test_atomic_uint64_t* checksum;
+} streambuffer_worker_arg_t;
+
+static void* streambuffer_producer_worker(void* raw_arg) {
+    streambuffer_worker_arg_t* arg = (streambuffer_worker_arg_t*)raw_arg;
+    size_t sent = 0;
+    uint8_t val = 0;
+    while (sent < arg->total_bytes) {
+        size_t chunk = 64;
+        if (sent + chunk > arg->total_bytes) {
+            chunk = arg->total_bytes - sent;
+        }
+        lfq_iovec_pair_t iov = lfq_stream_ring_acquire_write_iov(arg->ring, chunk);
+        size_t avail = iov.first.iov_len + iov.second.iov_len;
+        if (avail == 0) {
+            #if defined(__x86_64__) || defined(_M_X64)
+            __asm__ volatile("pause");
+            #elif defined(__aarch64__) || defined(_M_ARM64)
+            __asm__ volatile("yield");
+            #endif
+            continue;
+        }
+        /* Fill first slice */
+        uint8_t* p1 = (uint8_t*)iov.first.iov_base;
+        for (size_t i = 0; i < iov.first.iov_len; i++) {
+            p1[i] = val++;
+        }
+        /* Fill second slice if any */
+        uint8_t* p2 = (uint8_t*)iov.second.iov_base;
+        for (size_t i = 0; i < iov.second.iov_len; i++) {
+            p2[i] = val++;
+        }
+        lfq_stream_ring_commit_write(arg->ring, avail);
+        sent += avail;
+    }
+    return NULL;
+}
+
+static void* streambuffer_consumer_worker(void* raw_arg) {
+    streambuffer_worker_arg_t* arg = (streambuffer_worker_arg_t*)raw_arg;
+    size_t received = 0;
+    uint64_t local_checksum = 0;
+    while (received < arg->total_bytes) {
+        size_t chunk = 128;
+        if (received + chunk > arg->total_bytes) {
+            chunk = arg->total_bytes - received;
+        }
+        lfq_iovec_pair_t iov = lfq_stream_ring_acquire_read_iov(arg->ring, chunk);
+        size_t avail = iov.first.iov_len + iov.second.iov_len;
+        if (avail == 0) {
+            #if defined(__x86_64__) || defined(_M_X64)
+            __asm__ volatile("pause");
+            #elif defined(__aarch64__) || defined(_M_ARM64)
+            __asm__ volatile("yield");
+            #endif
+            continue;
+        }
+        const uint8_t* p1 = (const uint8_t*)iov.first.iov_base;
+        for (size_t i = 0; i < iov.first.iov_len; i++) {
+            local_checksum += p1[i];
+        }
+        const uint8_t* p2 = (const uint8_t*)iov.second.iov_base;
+        for (size_t i = 0; i < iov.second.iov_len; i++) {
+            local_checksum += p2[i];
+        }
+        lfq_stream_ring_commit_read(arg->ring, avail);
+        received += avail;
+    }
+    ATOMIC_ADD(arg->checksum, local_checksum);
+    return NULL;
+}
+
+static void test_cabi_streambuffer(void) {
+    printf("Running test_cabi_streambuffer...\n");
+
+    /* 1. Lifecycle and Metrics */
+    lfq_stream_ring_t* ring = lfq_stream_ring_create(1024, false);
+    TEST_ASSERT(ring != NULL, "lfq_stream_ring_create failed");
+    TEST_ASSERT(lfq_stream_ring_capacity(ring) == 1024, "Stream ring capacity mismatch");
+    TEST_ASSERT(lfq_stream_ring_available_read(ring) == 0, "Available read should be 0");
+    TEST_ASSERT(lfq_stream_ring_available_write(ring) == 1024, "Available write should be 1024");
+    TEST_ASSERT(lfq_stream_ring_is_empty(ring), "Should be empty");
+    TEST_ASSERT(!lfq_stream_ring_is_full(ring), "Should not be full");
+
+    /* 2. Basic Copy Read/Write */
+    const char* msg = "Hello, LockFree StreamRing C ABI!";
+    size_t msg_len = strlen(msg);
+    size_t written = lfq_stream_ring_try_write(ring, msg, msg_len);
+    TEST_ASSERT(written == msg_len, "try_write length mismatch");
+    TEST_ASSERT(lfq_stream_ring_available_read(ring) == msg_len, "Available read mismatch");
+    TEST_ASSERT(lfq_stream_ring_available_write(ring) == 1024 - msg_len, "Available write mismatch");
+    TEST_ASSERT(!lfq_stream_ring_is_empty(ring), "Should not be empty");
+
+    char buf[64];
+    memset(buf, 0, sizeof(buf));
+    size_t read_bytes = lfq_stream_ring_try_read(ring, buf, sizeof(buf));
+    TEST_ASSERT(read_bytes == msg_len, "try_read length mismatch");
+    TEST_ASSERT(memcmp(buf, msg, msg_len) == 0, "Read data content mismatch");
+    TEST_ASSERT(lfq_stream_ring_is_empty(ring), "Should be empty after read");
+
+    /* 3. Zero-Copy IOVec Wrap-Around Test */
+    lfq_stream_ring_destroy(ring);
+    ring = lfq_stream_ring_create(1024, false);
+    TEST_ASSERT(ring != NULL, "lfq_stream_ring_create failed");
+
+    /* Advance head and tail to offset 1000 */
+    uint8_t dummy[1000];
+    memset(dummy, 0xCC, sizeof(dummy));
+    written = lfq_stream_ring_try_write(ring, dummy, sizeof(dummy));
+    TEST_ASSERT(written == sizeof(dummy), "Dummy write failed");
+    read_bytes = lfq_stream_ring_try_read(ring, dummy, sizeof(dummy));
+    TEST_ASSERT(read_bytes == sizeof(dummy), "Dummy read failed");
+    TEST_ASSERT(lfq_stream_ring_is_empty(ring), "Should be empty after dummy read");
+
+    /* Now write cursor is at 1000. Request 100 bytes (24 bytes remaining to capacity 1024, 76 bytes wrap) */
+    lfq_iovec_pair_t w_iov = lfq_stream_ring_acquire_write_iov(ring, 100);
+    TEST_ASSERT(w_iov.first.iov_len == 24, "First write slice length should be 24");
+    TEST_ASSERT(w_iov.first.iov_base != NULL, "First write slice base should not be NULL");
+    TEST_ASSERT(w_iov.second.iov_len == 76, "Second write slice length should be 76");
+    TEST_ASSERT(w_iov.second.iov_base != NULL, "Second write slice base should not be NULL");
+
+    memset(w_iov.first.iov_base, 0xAA, 24);
+    memset(w_iov.second.iov_base, 0xBB, 76);
+    lfq_stream_ring_commit_write(ring, 100);
+    TEST_ASSERT(lfq_stream_ring_available_read(ring) == 100, "Available read should be 100");
+
+    /* Read via IOVec */
+    lfq_iovec_pair_t r_iov = lfq_stream_ring_acquire_read_iov(ring, 100);
+    TEST_ASSERT(r_iov.first.iov_len == 24, "First read slice length should be 24");
+    TEST_ASSERT(r_iov.second.iov_len == 76, "Second read slice length should be 76");
+    const uint8_t* r1 = (const uint8_t*)r_iov.first.iov_base;
+    for (size_t i = 0; i < 24; i++) {
+        TEST_ASSERT(r1[i] == 0xAA, "Slice 1 byte mismatch");
+    }
+    const uint8_t* r2 = (const uint8_t*)r_iov.second.iov_base;
+    for (size_t i = 0; i < 76; i++) {
+        TEST_ASSERT(r2[i] == 0xBB, "Slice 2 byte mismatch");
+    }
+    lfq_stream_ring_commit_read(ring, 100);
+    TEST_ASSERT(lfq_stream_ring_is_empty(ring), "Should be empty after commit read");
+
+    /* 4. Blocking I/O with Timeout */
+    /* Empty ring read with 1ms timeout should return 0 */
+    read_bytes = lfq_stream_ring_read_blocking(ring, buf, 10, 1000000);
+    TEST_ASSERT(read_bytes == 0, "read_blocking on empty ring should timeout with 0 bytes");
+
+    written = lfq_stream_ring_write_blocking(ring, "BLOCKING", 8, 10000000);
+    TEST_ASSERT(written == 8, "write_blocking failed");
+    read_bytes = lfq_stream_ring_read_blocking(ring, buf, 8, 10000000);
+    TEST_ASSERT(read_bytes == 8, "read_blocking failed");
+    TEST_ASSERT(memcmp(buf, "BLOCKING", 8) == 0, "read_blocking content mismatch");
+
+    lfq_stream_ring_destroy(ring);
+
+    /* 5. StreamBuffer Aliases & Creation */
+    lfq_streambuffer_t* sbuf = lfq_streambuffer_create(512, false);
+    TEST_ASSERT(sbuf != NULL, "lfq_streambuffer_create failed");
+    TEST_ASSERT(lfq_streambuffer_capacity(sbuf) == 512, "Capacity mismatch");
+    TEST_ASSERT(lfq_streambuffer_is_empty(sbuf), "Should be empty");
+    TEST_ASSERT(!lfq_streambuffer_is_full(sbuf), "Should not be full");
+    TEST_ASSERT(lfq_streambuffer_available_read(sbuf) == 0, "Available read mismatch");
+    TEST_ASSERT(lfq_streambuffer_available_write(sbuf) == 512, "Available write mismatch");
+
+    written = lfq_streambuffer_try_write(sbuf, "ALIASTEST", 9);
+    TEST_ASSERT(written == 9, "streambuffer try_write failed");
+    read_bytes = lfq_streambuffer_try_read(sbuf, buf, sizeof(buf));
+    TEST_ASSERT(read_bytes == 9, "streambuffer try_read failed");
+    TEST_ASSERT(memcmp(buf, "ALIASTEST", 9) == 0, "streambuffer content mismatch");
+
+    lfq_iovec_pair_t sb_iov = lfq_streambuffer_acquire_write_iov(sbuf, 32);
+    TEST_ASSERT(sb_iov.first.iov_len + sb_iov.second.iov_len == 32, "IOVec length mismatch");
+    lfq_streambuffer_commit_write(sbuf, 32);
+    lfq_iovec_pair_t sb_riov = lfq_streambuffer_acquire_read_iov(sbuf, 32);
+    TEST_ASSERT(sb_riov.first.iov_len + sb_riov.second.iov_len == 32, "Read IOVec length mismatch");
+    lfq_streambuffer_commit_read(sbuf, 32);
+
+    written = lfq_streambuffer_write_blocking(sbuf, "BLK", 3, 5000000);
+    TEST_ASSERT(written == 3, "streambuffer write_blocking failed");
+    read_bytes = lfq_streambuffer_read_blocking(sbuf, buf, 3, 5000000);
+    TEST_ASSERT(read_bytes == 3, "streambuffer read_blocking failed");
+
+    lfq_streambuffer_destroy(sbuf);
+
+    /* 6. Null Resilience */
+    lfq_stream_ring_destroy(NULL);
+    lfq_streambuffer_destroy(NULL);
+    TEST_ASSERT(lfq_stream_ring_capacity(NULL) == 0, "capacity(NULL) should be 0");
+    TEST_ASSERT(lfq_stream_ring_available_read(NULL) == 0, "available_read(NULL) should be 0");
+    TEST_ASSERT(lfq_stream_ring_available_write(NULL) == 0, "available_write(NULL) should be 0");
+    TEST_ASSERT(lfq_stream_ring_is_empty(NULL), "is_empty(NULL) should be true");
+    TEST_ASSERT(!lfq_stream_ring_is_full(NULL), "is_full(NULL) should be false");
+    TEST_ASSERT(lfq_stream_ring_try_write(NULL, "a", 1) == 0, "try_write(NULL) should be 0");
+    TEST_ASSERT(lfq_stream_ring_try_read(NULL, buf, 1) == 0, "try_read(NULL) should be 0");
+    TEST_ASSERT(lfq_stream_ring_write_blocking(NULL, "a", 1, 100) == 0, "write_blocking(NULL) should be 0");
+    TEST_ASSERT(lfq_stream_ring_read_blocking(NULL, buf, 1, 100) == 0, "read_blocking(NULL) should be 0");
+    lfq_iovec_pair_t null_iov = lfq_stream_ring_acquire_write_iov(NULL, 10);
+    TEST_ASSERT(null_iov.first.iov_len == 0 && null_iov.second.iov_len == 0, "acquire_write_iov(NULL) should return empty");
+    null_iov = lfq_stream_ring_acquire_read_iov(NULL, 10);
+    TEST_ASSERT(null_iov.first.iov_len == 0 && null_iov.second.iov_len == 0, "acquire_read_iov(NULL) should return empty");
+    lfq_stream_ring_commit_write(NULL, 10);
+    lfq_stream_ring_commit_read(NULL, 10);
+
+    /* 7. Concurrent SPSC Producer-Consumer Thread Test */
+    const size_t CONCURRENT_BYTES = 50000;
+    lfq_stream_ring_t* conc_ring = lfq_stream_ring_create(4096, false);
+    TEST_ASSERT(conc_ring != NULL, "Concurrent ring create failed");
+
+    test_atomic_uint64_t cons_checksum = 0;
+    streambuffer_worker_arg_t prod_arg = {
+        .ring = conc_ring,
+        .total_bytes = CONCURRENT_BYTES,
+        .checksum = NULL
+    };
+    streambuffer_worker_arg_t cons_arg = {
+        .ring = conc_ring,
+        .total_bytes = CONCURRENT_BYTES,
+        .checksum = &cons_checksum
+    };
+
+    pthread_t th_prod, th_cons;
+    pthread_create(&th_prod, NULL, streambuffer_producer_worker, &prod_arg);
+    pthread_create(&th_cons, NULL, streambuffer_consumer_worker, &cons_arg);
+
+    pthread_join(th_prod, NULL);
+    pthread_join(th_cons, NULL);
+
+    /* Calculate expected checksum */
+    uint64_t expected_checksum = 0;
+    uint8_t v = 0;
+    for (size_t i = 0; i < CONCURRENT_BYTES; i++) {
+        expected_checksum += v++;
+    }
+    TEST_ASSERT(ATOMIC_LOAD(&cons_checksum) == expected_checksum, "Concurrent stream checksum mismatch");
+    TEST_ASSERT(lfq_stream_ring_is_empty(conc_ring), "Concurrent ring should be empty after test");
+
+    lfq_stream_ring_destroy(conc_ring);
+
+    printf("test_cabi_streambuffer PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
  * Main Entry Point
  * ------------------------------------------------------------------------- */
 int main(void) {
@@ -1056,6 +1304,7 @@ int main(void) {
     test_cabi_broadcast();
     test_cabi_rendezvous();
     test_cabi_ratelimit();
+    test_cabi_streambuffer();
     test_cabi_concurrency();
 
     /* TaskPool C ABI */
