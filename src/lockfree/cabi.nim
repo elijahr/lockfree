@@ -30,6 +30,8 @@ import lockfree/broadcast
 import lockfree/rendezvous
 import lockfree/ratelimit
 export ratelimit
+import lockfree/streambuffer
+export streambuffer
 import std/options
 
 # ------------------------------------------------------------------------------
@@ -2096,6 +2098,296 @@ proc lfq_leaky_bucket_reset*(
       lb[].reset()
     except:
       discard
+
+# ------------------------------------------------------------------------------
+# 11. StreamRing / StreamBuffer (Zero-Copy Streaming I/O)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_iovec_slice_t* {.exportc: "lfq_iovec_slice_t", bycopy.} = object
+    iov_base*: pointer
+    iov_len*: csize_t
+
+  lfq_iovec_pair_t* {.exportc: "lfq_iovec_pair_t", bycopy.} = object
+    first*: lfq_iovec_slice_t
+    second*: lfq_iovec_slice_t
+
+  lfq_stream_ring_handle* {.exportc: "lfq_stream_ring_t".} = object
+    raw*: ptr StreamRing
+
+  lfq_stream_ring_t* = lfq_stream_ring_handle
+  lfq_streambuffer_t* = lfq_stream_ring_handle
+
+proc lfq_stream_ring_create*(
+    capacity: csize_t,
+    use_virtual_mirror: bool
+): ptr lfq_stream_ring_t {.exportc: "lfq_stream_ring_create", cdecl, gcsafe, raises: [].} =
+  try:
+    let handle = cast[ptr lfq_stream_ring_t](allocShared0(sizeof(lfq_stream_ring_t)))
+    if handle == nil: return nil
+    let raw = cast[ptr StreamRing](allocShared0(sizeof(StreamRing)))
+    if raw == nil:
+      deallocShared(handle)
+      return nil
+    let cap = if capacity == 0: DefaultStreamCapacity else: int(capacity)
+    raw[] = initStreamRing(cap, use_virtual_mirror)
+    handle.raw = raw
+    handle
+  except:
+    nil
+
+proc lfq_stream_ring_destroy*(
+    ring: ptr lfq_stream_ring_t
+) {.exportc: "lfq_stream_ring_destroy", cdecl, gcsafe, raises: [].} =
+  if ring != nil:
+    if ring.raw != nil:
+      try:
+        ring.raw[].destroy()
+      except:
+        discard
+      deallocShared(ring.raw)
+      ring.raw = nil
+    deallocShared(ring)
+
+proc lfq_streambuffer_create*(
+    capacity: csize_t,
+    use_virtual_mirror: bool
+): ptr lfq_streambuffer_t {.exportc: "lfq_streambuffer_create", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_create(capacity, use_virtual_mirror)
+
+proc lfq_streambuffer_destroy*(
+    ring: ptr lfq_streambuffer_t
+) {.exportc: "lfq_streambuffer_destroy", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_destroy(ring)
+
+proc lfq_stream_ring_capacity*(
+    ring: ptr lfq_stream_ring_t
+): csize_t {.exportc: "lfq_stream_ring_capacity", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil: return 0
+  try:
+    csize_t(ring.raw[].capacity())
+  except:
+    0
+
+proc lfq_stream_ring_available_read*(
+    ring: ptr lfq_stream_ring_t
+): csize_t {.exportc: "lfq_stream_ring_available_read", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil: return 0
+  try:
+    csize_t(ring.raw[].availableRead())
+  except:
+    0
+
+proc lfq_stream_ring_available_write*(
+    ring: ptr lfq_stream_ring_t
+): csize_t {.exportc: "lfq_stream_ring_available_write", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil: return 0
+  try:
+    csize_t(ring.raw[].availableWrite())
+  except:
+    0
+
+proc lfq_stream_ring_is_empty*(
+    ring: ptr lfq_stream_ring_t
+): bool {.exportc: "lfq_stream_ring_is_empty", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil: return true
+  try:
+    ring.raw[].isEmpty()
+  except:
+    true
+
+proc lfq_stream_ring_is_full*(
+    ring: ptr lfq_stream_ring_t
+): bool {.exportc: "lfq_stream_ring_is_full", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil: return false
+  try:
+    ring.raw[].isFull()
+  except:
+    false
+
+proc lfq_streambuffer_capacity*(
+    ring: ptr lfq_streambuffer_t
+): csize_t {.exportc: "lfq_streambuffer_capacity", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_capacity(ring)
+
+proc lfq_streambuffer_available_read*(
+    ring: ptr lfq_streambuffer_t
+): csize_t {.exportc: "lfq_streambuffer_available_read", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_available_read(ring)
+
+proc lfq_streambuffer_available_write*(
+    ring: ptr lfq_streambuffer_t
+): csize_t {.exportc: "lfq_streambuffer_available_write", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_available_write(ring)
+
+proc lfq_streambuffer_is_empty*(
+    ring: ptr lfq_streambuffer_t
+): bool {.exportc: "lfq_streambuffer_is_empty", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_is_empty(ring)
+
+proc lfq_streambuffer_is_full*(
+    ring: ptr lfq_streambuffer_t
+): bool {.exportc: "lfq_streambuffer_is_full", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_is_full(ring)
+
+proc lfq_stream_ring_try_write*(
+    ring: ptr lfq_stream_ring_t,
+    src: pointer,
+    len: csize_t
+): csize_t {.exportc: "lfq_stream_ring_try_write", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil or src == nil or len == 0: return 0
+  try:
+    let s = cast[ptr UncheckedArray[byte]](src)
+    let written = ring.raw[].tryWrite(toOpenArray(s, 0, int(len) - 1))
+    csize_t(written)
+  except:
+    0
+
+proc lfq_stream_ring_try_read*(
+    ring: ptr lfq_stream_ring_t,
+    dst: pointer,
+    max_len: csize_t
+): csize_t {.exportc: "lfq_stream_ring_try_read", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil or dst == nil or max_len == 0: return 0
+  try:
+    let d = cast[ptr UncheckedArray[byte]](dst)
+    let readBytes = ring.raw[].tryRead(toOpenArray(d, 0, int(max_len) - 1))
+    csize_t(readBytes)
+  except:
+    0
+
+proc lfq_stream_ring_write_blocking*(
+    ring: ptr lfq_stream_ring_t,
+    src: pointer,
+    len: csize_t,
+    timeout_ns: int64
+): csize_t {.exportc: "lfq_stream_ring_write_blocking", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil or src == nil or len == 0: return 0
+  try:
+    let s = cast[ptr UncheckedArray[byte]](src)
+    let written = ring.raw[].writeBlocking(toOpenArray(s, 0, int(len) - 1), timeout_ns)
+    csize_t(written)
+  except:
+    0
+
+proc lfq_stream_ring_read_blocking*(
+    ring: ptr lfq_stream_ring_t,
+    dst: pointer,
+    max_len: csize_t,
+    timeout_ns: int64
+): csize_t {.exportc: "lfq_stream_ring_read_blocking", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil or dst == nil or max_len == 0: return 0
+  try:
+    let d = cast[ptr UncheckedArray[byte]](dst)
+    let readBytes = ring.raw[].readBlocking(toOpenArray(d, 0, int(max_len) - 1), timeout_ns)
+    csize_t(readBytes)
+  except:
+    0
+
+proc lfq_streambuffer_try_write*(
+    ring: ptr lfq_streambuffer_t,
+    src: pointer,
+    len: csize_t
+): csize_t {.exportc: "lfq_streambuffer_try_write", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_try_write(ring, src, len)
+
+proc lfq_streambuffer_try_read*(
+    ring: ptr lfq_streambuffer_t,
+    dst: pointer,
+    max_len: csize_t
+): csize_t {.exportc: "lfq_streambuffer_try_read", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_try_read(ring, dst, max_len)
+
+proc lfq_streambuffer_write_blocking*(
+    ring: ptr lfq_streambuffer_t,
+    src: pointer,
+    len: csize_t,
+    timeout_ns: int64
+): csize_t {.exportc: "lfq_streambuffer_write_blocking", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_write_blocking(ring, src, len, timeout_ns)
+
+proc lfq_streambuffer_read_blocking*(
+    ring: ptr lfq_streambuffer_t,
+    dst: pointer,
+    max_len: csize_t,
+    timeout_ns: int64
+): csize_t {.exportc: "lfq_streambuffer_read_blocking", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_read_blocking(ring, dst, max_len, timeout_ns)
+
+proc lfq_stream_ring_acquire_write_iov*(
+    ring: ptr lfq_stream_ring_t,
+    requested_len: csize_t
+): lfq_iovec_pair_t {.exportc: "lfq_stream_ring_acquire_write_iov", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil or requested_len == 0:
+    return lfq_iovec_pair_t()
+  try:
+    let iov = ring.raw[].acquireWriteIov(int(requested_len))
+    result.first.iov_base = cast[pointer](iov.first.data)
+    result.first.iov_len = csize_t(iov.first.len)
+    result.second.iov_base = cast[pointer](iov.second.data)
+    result.second.iov_len = csize_t(iov.second.len)
+  except:
+    result = lfq_iovec_pair_t()
+
+proc lfq_stream_ring_commit_write*(
+    ring: ptr lfq_stream_ring_t,
+    bytes_written: csize_t
+) {.exportc: "lfq_stream_ring_commit_write", cdecl, gcsafe, raises: [].} =
+  if ring != nil and ring.raw != nil and bytes_written > 0:
+    try:
+      ring.raw[].commitWrite(int(bytes_written))
+    except:
+      discard
+
+proc lfq_stream_ring_acquire_read_iov*(
+    ring: ptr lfq_stream_ring_t,
+    requested_len: csize_t
+): lfq_iovec_pair_t {.exportc: "lfq_stream_ring_acquire_read_iov", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil or requested_len == 0:
+    return lfq_iovec_pair_t()
+  try:
+    let iov = ring.raw[].acquireReadIov(int(requested_len))
+    result.first.iov_base = cast[pointer](iov.first.data)
+    result.first.iov_len = csize_t(iov.first.len)
+    result.second.iov_base = cast[pointer](iov.second.data)
+    result.second.iov_len = csize_t(iov.second.len)
+  except:
+    result = lfq_iovec_pair_t()
+
+proc lfq_stream_ring_commit_read*(
+    ring: ptr lfq_stream_ring_t,
+    bytes_read: csize_t
+) {.exportc: "lfq_stream_ring_commit_read", cdecl, gcsafe, raises: [].} =
+  if ring != nil and ring.raw != nil and bytes_read > 0:
+    try:
+      ring.raw[].commitRead(int(bytes_read))
+    except:
+      discard
+
+proc lfq_streambuffer_acquire_write_iov*(
+    ring: ptr lfq_streambuffer_t,
+    requested_len: csize_t
+): lfq_iovec_pair_t {.exportc: "lfq_streambuffer_acquire_write_iov", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_acquire_write_iov(ring, requested_len)
+
+proc lfq_streambuffer_commit_write*(
+    ring: ptr lfq_streambuffer_t,
+    bytes_written: csize_t
+) {.exportc: "lfq_streambuffer_commit_write", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_commit_write(ring, bytes_written)
+
+proc lfq_streambuffer_acquire_read_iov*(
+    ring: ptr lfq_streambuffer_t,
+    requested_len: csize_t
+): lfq_iovec_pair_t {.exportc: "lfq_streambuffer_acquire_read_iov", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_acquire_read_iov(ring, requested_len)
+
+proc lfq_streambuffer_commit_read*(
+    ring: ptr lfq_streambuffer_t,
+    bytes_read: csize_t
+) {.exportc: "lfq_streambuffer_commit_read", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_commit_read(ring, bytes_read)
+
 
 
 

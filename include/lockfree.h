@@ -432,6 +432,12 @@ bool lf_rendezvous_recv_timeout(lf_rendezvous_t* chan, void** out_payload, int t
 
 #include "lockfree_ratelimit.h"
 
+/* -------------------------------------------------------------------------
+ * 11. Stream Ring / Stream Buffer (Zero-Copy Streaming I/O)
+ * ------------------------------------------------------------------------- */
+
+#include "lockfree_streambuffer.h"
+
 #ifdef __cplusplus
 }
 #endif
