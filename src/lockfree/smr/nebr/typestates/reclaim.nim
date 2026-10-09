@@ -12,9 +12,9 @@
 ## `threadLocalIdx` set during `registerThread` for the legacy
 ## `reclaimStart(addr manager)` form.
 ##
-## A thread that retires but never calls `tryReclaim` will accumulate limbo
-## bags that no other thread can reclaim on its behalf. If such a thread stalls
-## or exits without draining its bags, those objects are leaked. The
+## A thread that retires but never calls `tryReclaim` will accumulate limbo bags
+## that no other thread can reclaim on its behalf. If such a thread stalls or
+## exits without draining its bags, those objects are leaked. The
 ## `neutralizeStalled` mechanism handles stalled-but-still-running threads (by
 ## forcing them to unpin so the global epoch can advance); it does not free
 ## their retired objects.
@@ -23,24 +23,24 @@
 ##
 ## * The `ReclaimStart` -> `EpochsLoaded` -> `ReclaimReady`/`ReclaimBlocked`
 ##   chain must be honored. `ReclaimBlocked` means the global epoch has not
-##   advanced far enough for any retired object to be safe; this is normal,
-##   not an error. `manager.advance()` increments the global epoch.
+##   advanced far enough for any retired object to be safe; this is normal, not
+##   an error. `manager.advance()` increments the global epoch.
 ## * Reclamation does not require pinning. The walker only inspects per-thread
-##   epoch stamps. Calling reclaim from a worker that is currently `Pinned`
-##   on the same manager is safe but will see its own thread as a constraint
-##   on `safeEpoch`.
+##   epoch stamps. Calling reclaim from a worker that is currently `Pinned` on
+##   the same manager is safe but will see its own thread as a constraint on
+##   `safeEpoch`.
 ## * `tryReclaim` is `notATransition` because `ReclaimReady` is the terminal
-##   state of the `ReclaimContext` typestate and the count return value is
-##   what the caller cares about.
+##   state of the `ReclaimContext` typestate and the count return value is what
+##   the caller cares about.
 ## * `reclaimStart(addr manager)` infers the slot from the thread-local
-##   `threadLocalRegistered` / `threadLocalIdx` pair, additionally guarded
-##   by `threadLocalManager` so a thread registered with manager A cannot
-##   accidentally walk manager B's slot list. If the calling thread has
-##   not been registered with `manager`, the returned context carries
-##   `idx = -1` and `tryReclaim` short-circuits to 0 reclaimed (rather
-##   than silently walking slot 0's bag list and racing with its owner).
-##   Prefer the handle form `reclaimStart(handle)` regardless: it is
-##   explicit and needs no thread-local lookup.
+##   `threadLocalRegistered` / `threadLocalIdx` pair, additionally guarded by
+##   `threadLocalManager` so a thread registered with manager A cannot
+##   accidentally walk manager B's slot list. If the calling thread has not been
+##   registered with `manager`, the returned context carries `idx = -1` and
+##   `tryReclaim` short-circuits to 0 reclaimed (rather than silently walking
+##   slot 0's bag list and racing with its owner). Prefer the handle form
+##   `reclaimStart(handle)` regardless: it is explicit and needs no thread-local
+##   lookup.
 ##
 ## ## See also
 ##
@@ -119,16 +119,16 @@ proc reclaimStart*[MaxThreads: static int, CC: static PinScopeCardinality = ccSi
   ## the returned context carries `idx = -1`, so `tryReclaim` short-circuits to
   ## 0 reclaimed instead of mutating slot 0's bag list (which would race with
   ## that slot's owner). `threadLocalIdx` defaults to 0 and cannot by itself
-  ## distinguish "registered at slot 0" from "never registered"; the
-  ## companion `threadLocalRegistered` flag is the explicit registered-bit.
+  ## distinguish "registered at slot 0" from "never registered"; the companion
+  ## `threadLocalRegistered` flag is the explicit registered-bit.
   ##
   ## In multi-manager scenarios `threadLocalIdx` and `threadLocalRegistered`
-  ## describe the slot the calling thread holds with whichever manager it
-  ## last registered with. Calling `reclaimStart(addr managerB)` from a
-  ## thread registered with `managerA` would otherwise reuse A's slot index
-  ## against B's bag list, racing with B's actual slot owner. The companion
-  ## `threadLocalManager` pointer is therefore compared by identity here:
-  ## on mismatch the context is returned with `idx = -1` and `tryReclaim`
+  ## describe the slot the calling thread holds with whichever manager it last
+  ## registered with. Calling `reclaimStart(addr managerB)` from a thread
+  ## registered with `managerA` would otherwise reuse A's slot index against B's
+  ## bag list, racing with B's actual slot owner. The companion
+  ## `threadLocalManager` pointer is therefore compared by identity here: on
+  ## mismatch the context is returned with `idx = -1` and `tryReclaim`
   ## short-circuits to 0.
   ##
   ## See also: `debra/convenience.reclaimNow`_ for the one-shot wrapper.
@@ -146,72 +146,70 @@ proc loadEpochs*[MaxThreads: static int, CC: static PinScopeCardinality](
 ): EpochsLoaded[MaxThreads, CC] {.transition.} =
   ## Load global epoch and compute minimum epoch across pinned threads.
   ##
-  ## Subscription read: an SC load of `globalEpoch` participates in the C11
-  ## SC total order S, pairing with the SC RMW in `pin` to give EBR its
-  ## StoreLoad ordering across threads. Without this, a reclaimer can read
-  ## another thread's `pinned=false` even when that thread's pin RMW has
-  ## already been issued, then proceed to free an object the still-pinning
-  ## thread is about to read. The SC load ensures that for every concurrently
-  ## pinning thread T, either (a) T's pin RMW is visible here (we observe
-  ## `pinned=true`), or (b) T's subsequent load of the protected pointer
-  ## happens after our prior writes — so T cannot have observed a still-live
-  ## pointer to an object we are about to free.
+  ## Subscription read: an SC load of `globalEpoch` participates in the C11 SC
+  ## total order S, pairing with the SC RMW in `pin` to give EBR its StoreLoad
+  ## ordering across threads. Without this, a reclaimer can read another
+  ## thread's `pinned=false` even when that thread's pin RMW has already been
+  ## issued, then proceed to free an object the still-pinning thread is about to
+  ## read. The SC load ensures that for every concurrently pinning thread T,
+  ## either (a) T's pin RMW is visible here (we observe `pinned=true`), or (b)
+  ## T's subsequent load of the protected pointer happens after our prior writes
+  ## — so T cannot have observed a still-live pointer to an object we are
+  ## about to free.
   ##
   ## The SC RMW is issued against a stack-local `Atomic[uint64]`, NOT
   ## `manager.globalEpoch`: `globalEpoch` is a hot shared cache line, and
   ## issuing the RMW there bounces it across cores on every reclaimer-side
-  ## subscription. The subscription handshake requires three properties to
-  ## be correct under TSAN:
+  ## subscription. The subscription handshake requires three properties to be
+  ## correct under TSAN:
   ##
-  ## 1. **Hardware StoreLoad barrier.** A plain SC load is too weak — on
-  ##    x86 it lowers to a bare `mov` and loses the `mfence` that an SC
-  ##    fence would provide. An SC RMW lowers to a `lock`-prefixed
-  ##    instruction on x86 and an `ldaxr`/`stlxr` seq-cst loop on ARM,
-  ##    both of which are full StoreLoad barriers.
+  ## 1. **Hardware StoreLoad barrier.** A plain SC load is too weak — on x86
+  ##    it lowers to a bare `mov` and loses the `mfence` that an SC fence would
+  ##    provide. An SC RMW lowers to a `lock`-prefixed instruction on x86 and an
+  ##    `ldaxr`/`stlxr` seq-cst loop on ARM, both of which are full StoreLoad
+  ##    barriers.
   ##
-  ## 2. **Participation in C11's SC total order S.** The SC loads on
-  ##    each thread's `pinned` flag (below) are in S. For the proof of
-  ##    EBR safety to go through, the subscription point itself must be
-  ##    in S so that pin RMWs published before our subscription are
-  ##    visible. C11 §29.3 makes S a single total order across **every**
-  ##    SC op, regardless of which atomic location it touches.
+  ## 2. **Participation in C11's SC total order S.** The SC loads on each
+  ##    thread's `pinned` flag (below) are in S. For the proof of EBR safety to
+  ##    go through, the subscription point itself must be in S so that pin RMWs
+  ##    published before our subscription are visible. C11 §29.3 makes S a
+  ##    single total order across **every** SC op, regardless of which atomic
+  ##    location it touches.
   ##
-  ## 3. **TSAN vector-clock modelling.** Standalone SC fences are not
-  ##    modelled by TSAN (see `compiler-rt/lib/tsan/rtl/`
-  ##    `tsan_interface_atomic.cpp` `OpFence::Atomic` ->
-  ##    `// FIXME: not implemented.`). SC RMWs are modelled correctly on
-  ##    every atomic location, so the analyser sees the synchronisation.
+  ## 3. **TSAN vector-clock modelling.** Standalone SC fences are not modelled
+  ##    by TSAN (see `compiler-rt/lib/tsan/rtl/` `tsan_interface_atomic.cpp`
+  ##    `OpFence::Atomic` -> `// FIXME: not implemented.`). SC RMWs are modelled
+  ##    correctly on every atomic location, so the analyser sees the
+  ##    synchronisation.
   ##
-  ## Properties (1) and (3) are properties of the *instruction*, not the
-  ## operand location; property (2) is location-independent by C11
-  ## construction. So a stack-local `Atomic[uint64]` gives us the same
-  ## subscription point with no cross-thread cache traffic.
+  ## Properties (1) and (3) are properties of the *instruction*, not the operand
+  ## location; property (2) is location-independent by C11 construction. So a
+  ## stack-local `Atomic[uint64]` gives us the same subscription point with no
+  ## cross-thread cache traffic.
   var subscribeBarrier: Atomic[uint64]
-  # Explicit zero-init. Default zero-init of `Atomic[uint64]` is already
-  # correct in Nim, but the explicit store makes the intent obvious to
-  # readers and to static-analysis tools that flag "use of uninitialized
-  # atomic" on the SC RMW below.
+  # Explicit zero-init. Default zero-init of `Atomic[uint64]` is already correct
+  # in Nim, but the explicit store makes the intent obvious to readers and to
+  # static-analysis tools that flag "use of uninitialized atomic" on the SC RMW
+  # below.
   subscribeBarrier.store(0'u64, moRelaxed)
   discard subscribeBarrier.fetchAdd(0'u64, moSequentiallyConsistent)
   var ctx = ReclaimContext[MaxThreads, CC](s)
-  # `globalEpoch` is now just a value read; reading a slightly stale
-  # epoch only makes `safeEpoch` conservatively lower, which is safe.
-  # The acquire ordering is enough to pair with the release-stamping in
-  # `advance.nim` and gives us the most-recent value any predecessor
-  # thread has observed.
+  # `globalEpoch` is now just a value read; reading a slightly stale epoch only
+  # makes `safeEpoch` conservatively lower, which is safe. The acquire ordering
+  # is enough to pair with the release-stamping in `advance.nim` and gives us
+  # the most-recent value any predecessor thread has observed.
   ctx.globalEpoch = ctx.manager.globalEpoch.load(moAcquire)
   ctx.safeEpoch = ctx.globalEpoch
 
-  # Subscribe to each thread's `pinned` flag with an SC load, not Acquire.
-  # The pin side publishes via an SC RMW on `pinned`. SC ops on the *same*
-  # atomic location are totally ordered in C11's S, so an SC load here is
-  # guaranteed to read from a position in `pinned`'s modification order
-  # that is consistent with S relative to every concurrent pin RMW. An
-  # Acquire load is not in S, so the reclaimer could observe `pinned=false`
-  # for a thread that has already published `pinned=true` — exactly the
-  # race TSAN reports as a use-after-free in `free` after `tryReclaim`.
-  # Crossbeam relies on the same property by packing pin+epoch into a
-  # single SC-accessed word.
+  # Subscribe to each thread's `pinned` flag with an SC load, not Acquire. The
+  # pin side publishes via an SC RMW on `pinned`. SC ops on the *same* atomic
+  # location are totally ordered in C11's S, so an SC load here is guaranteed to
+  # read from a position in `pinned`'s modification order that is consistent
+  # with S relative to every concurrent pin RMW. An Acquire load is not in S, so
+  # the reclaimer could observe `pinned=false` for a thread that has already
+  # published `pinned=true` — exactly the race TSAN reports as a
+  # use-after-free in `free` after `tryReclaim`. Crossbeam relies on the same
+  # property by packing pin+epoch into a single SC-accessed word.
   for i in 0 ..< MaxThreads:
     if ctx.manager.threads[i].pinned.load(moSequentiallyConsistent):
       let threadEpoch = ctx.manager.threads[i].epoch.load(moAcquire)
@@ -241,8 +239,8 @@ proc tryReclaim*[MaxThreads: static int, CC: static PinScopeCardinality](
   ## Reclaim eligible objects from the calling thread's own limbo bag list.
   ##
   ## Returns the count of objects reclaimed. Walks only `manager.threads[idx]`
-  ## where `idx` was captured into the `ReclaimContext` by `reclaimStart`.
-  ## Other threads' bags are untouched: they reclaim their own.
+  ## where `idx` was captured into the `ReclaimContext` by `reclaimStart`. Other
+  ## threads' bags are untouched: they reclaim their own.
   ##
   ## Cross-thread reclamation would race with the owner thread's `retire`
   ## mutations on `currentBag` and `limboBagTail`; those fields have no
@@ -269,10 +267,9 @@ proc tryReclaim*[MaxThreads: static int, CC: static PinScopeCardinality](
 
   # Walk from tail (oldest) toward head and reclaim eligible bags. Bags are
   # epoch-ordered (retire stamps `bag.epoch` on every insert and the list
-  # advances monotonically), so the safe prefix is always contiguous starting
-  # at the tail; the first not-yet-safe bag terminates the walk. Only the
-  # calling thread mutates this list (via retire), so no synchronization is
-  # needed.
+  # advances monotonically), so the safe prefix is always contiguous starting at
+  # the tail; the first not-yet-safe bag terminates the walk. Only the calling
+  # thread mutates this list (via retire), so no synchronization is needed.
   var bag = state.limboBagTail
 
   while bag != nil:

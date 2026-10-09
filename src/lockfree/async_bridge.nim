@@ -6,13 +6,18 @@
 ## foundational lock-free containers:
 ##   - BQueue[T] (Bounded MPMC / SPSC) -> AsyncBQueue[T]
 ##   - Queue[T] (Unbounded LCRQ) -> AsyncQueue[T]
-##   - RendezvousChannel[T] (Synchronous CSP zero-buffer handoff) -> AsyncRendezvousChannel[T]
-##   - BroadcastRing[T] (Multicast 1-to-N fanout) -> AsyncBroadcastRing[T], AsyncBroadcastCursor[T]
+##   - RendezvousChannel[T] (Synchronous CSP zero-buffer handoff) ->
+##     AsyncRendezvousChannel[T]
+##   - BroadcastRing[T] (Multicast 1-to-N fanout) -> AsyncBroadcastRing[T],
+##     AsyncBroadcastCursor[T]
 ##
 ## Core Architectural Invariants:
-##   1. Fast-Path Speculative Non-Blocking Execution (zero-allocation immediate Future return)
-##   2. Strict SMR Epoch Pin Isolation (PinScope ∩ SuspensionPoints = ∅; pin never held across await)
-##   3. Bilateral CAS Arbitration on Cancellation (zero item loss guaranteed on coroutine abort)
+##   1. Fast-Path Speculative Non-Blocking Execution (zero-allocation immediate
+##      Future return)
+##   2. Strict SMR Epoch Pin Isolation (PinScope ∩ SuspensionPoints = ∅; pin
+##      never held across await)
+##   3. Bilateral CAS Arbitration on Cancellation (zero item loss guaranteed on
+##      coroutine abort)
 ##   4. Thread-Safe Cross-Thread Wakeups via AsyncSignal
 
 when not compileOption("threads"):
@@ -80,7 +85,8 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     result.registered = false
 
   proc fire*(sig: AsyncSignal) {.inline, gcsafe.} =
-    ## Thread-safe, non-blocking signal trigger. Can be invoked from any OS thread.
+    ## Thread-safe, non-blocking signal trigger. Can be invoked from any OS
+    ## thread.
     if sig == nil: return
     sig.signaled.store(true, moRelease)
     sig.event.trigger()
@@ -171,8 +177,8 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
       self: AsyncBQueue[T, ccSingle, ccSingle, N, 0, 0],
       item: sink T
   ): Future[bool] {.async.} =
-    ## Asynchronously sends an item into the bounded queue.
-    ## Suspends if full until space is available.
+    ## Asynchronously sends an item into the bounded queue. Suspends if full
+    ## until space is available.
     var cur = move item
     while true:
       self.producerSignal.clear()
@@ -187,8 +193,8 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
   proc recvAsync*[T; N: static int](
       self: AsyncBQueue[T, ccSingle, ccSingle, N, 0, 0]
   ): Future[Option[T]] {.async.} =
-    ## Asynchronously awaits and receives an item from the bounded queue.
-    ## SMR invariant: No pin held across await.
+    ## Asynchronously awaits and receives an item from the bounded queue. SMR
+    ## invariant: No pin held across await.
     while true:
       self.consumerSignal.clear()
       self.hasWaitingConsumers.store(true, moRelease)
@@ -281,7 +287,8 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
       self: AsyncQueue[T, ccSingle, ccSingle, ST, S, MaxThreads],
       item: sink T
   ): Future[bool] =
-    ## Unbounded enqueue never blocks; pushes immediately and notifies waiting consumers.
+    ## Unbounded enqueue never blocks; pushes immediately and notifies waiting
+    ## consumers.
     var prod = self.queue.getProducerHere()
     prod.push(item)
     if self.hasWaitingConsumers.load(moAcquire):
@@ -374,8 +381,8 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     self.waiterLock.releaseLock()
 
   proc sendAsync*[T](self: AsyncRendezvousChannel[T], item: sink T): Future[bool] {.async.} =
-    ## Asynchronously sends an item through the rendezvous channel.
-    ## Matches an active receiver (OS thread or coroutine) or suspends until matched.
+    ## Asynchronously sends an item through the rendezvous channel. Matches an
+    ## active receiver (OS thread or coroutine) or suspends until matched.
     ## Bilateral CAS arbitration guarantees zero item loss on cancellation.
     if self.chan.isClosed:
       raise newException(ChannelClosedDefect, "RendezvousChannel is closed")
@@ -456,8 +463,8 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
       raise newException(ChannelClosedDefect, "Channel closed while waiting")
 
   proc recvAsync*[T](self: AsyncRendezvousChannel[T]): Future[Option[T]] {.async.} =
-    ## Asynchronously receives an item from the rendezvous channel.
-    ## Matches an active sender (OS thread or coroutine) or suspends until matched.
+    ## Asynchronously receives an item from the rendezvous channel. Matches an
+    ## active sender (OS thread or coroutine) or suspends until matched.
     if self.chan.isClosed:
       return none(T)
 
@@ -580,8 +587,9 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     return fut
 
   proc send*[T](self: AsyncRendezvousChannel[T], item: sink T): uint64 =
-    ## Synchronous send on AsyncRendezvousChannel (e.g. from an OS worker thread).
-    ## Wakes a waiting async receiver or falls back to sync RendezvousChannel.
+    ## Synchronous send on AsyncRendezvousChannel (e.g. from an OS worker
+    ## thread). Wakes a waiting async receiver or falls back to sync
+    ## RendezvousChannel.
     if self.chan.isClosed:
       raise newException(ChannelClosedDefect, "RendezvousChannel is closed")
 
@@ -616,8 +624,9 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     result = self.chan.send(curItem)
 
   proc recv*[T](self: AsyncRendezvousChannel[T], outVal: var T): uint64 =
-    ## Synchronous recv on AsyncRendezvousChannel (e.g. from an OS worker thread).
-    ## Wakes a waiting async sender or falls back to sync RendezvousChannel.
+    ## Synchronous recv on AsyncRendezvousChannel (e.g. from an OS worker
+    ## thread). Wakes a waiting async sender or falls back to sync
+    ## RendezvousChannel.
     if self.chan.isClosed:
       raise newException(ChannelClosedDefect, "RendezvousChannel is closed")
 
@@ -715,7 +724,8 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     return fut
 
   proc recvAsync*[T](self: AsyncBroadcastCursor[T]): Future[Option[T]] {.async.} =
-    ## Asynchronously awaits the next available broadcast message on this cursor.
+    ## Asynchronously awaits the next available broadcast message on this
+    ## cursor.
     while true:
       self.signal.clear()
       var val: T

@@ -68,12 +68,11 @@ proc shutdown*[MaxThreads: static int, CC: static PinScopeCardinality](
   let ctx = ManagerContext[MaxThreads, CC](m)
   let mgr = ctx.manager
   for i in 0 ..< MaxThreads:
-    # Reclaim all limbo bags for this thread. The bag list is chained
-    # oldest -> newer -> newest: `limboBagTail` is the oldest unfreed bag
-    # and `currentBag` is the newest (`.next == nil`). Walk from the tail
-    # following `.next`, mirroring `DebraManager.=destroy` (types.nim). A
-    # walk rooted at `currentBag` would terminate immediately and leak
-    # every older bag.
+    # Reclaim all limbo bags for this thread. The bag list is chained oldest ->
+    # newer -> newest: `limboBagTail` is the oldest unfreed bag and `currentBag`
+    # is the newest (`.next == nil`). Walk from the tail following `.next`,
+    # mirroring `DebraManager.=destroy` (types.nim). A walk rooted at
+    # `currentBag` would terminate immediately and leak every older bag.
     var bag = mgr.threads[i].limboBagTail
     while bag != nil:
       let next = bag.next

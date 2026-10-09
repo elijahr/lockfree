@@ -15,12 +15,14 @@
 ##
 ## ## Overview
 ##
-## `BroadcastRing[T]` is a high-performance lock-free multicast broadcast ring buffer.
-## In contrast to point-to-point queues where each item is consumed by exactly one
-## reader, `BroadcastRing[T]` delivers every message to all active registered subscribers.
+## `BroadcastRing[T]` is a high-performance lock-free multicast broadcast ring
+## buffer. In contrast to point-to-point queues where each item is consumed by
+## exactly one reader, `BroadcastRing[T]` delivers every message to all active
+## registered subscribers.
 ##
-## `TopicBus[T]` provides a multiplexed Pub-Sub bus routing messages by topic string to
-## automatically provisioned `BroadcastRing[T]` instances backed by `Ctrie`.
+## `TopicBus[T]` provides a multiplexed Pub-Sub bus routing messages by topic
+## string to automatically provisioned `BroadcastRing[T]` instances backed by
+## `Ctrie`.
 
 when not compileOption("threads"):
   {.error: "lockfree/broadcast requires --threads:on".}
@@ -256,9 +258,9 @@ proc len*[T](self: BroadcastRing[T]): int {.inline.} =
 # ---------------------------------------------------------------------------
 
 proc publish*[T](self: BroadcastRing[T], item: sink T) =
-  ## Publishes a message to all active subscribers.
-  ## In `omDropOldest`, overwrites oldest messages if the ring is full without blocking.
-  ## In `omBackoff`, stalls/spins until the slowest active subscriber advances.
+  ## Publishes a message to all active subscribers. In `omDropOldest`,
+  ## overwrites oldest messages if the ring is full without blocking. In
+  ## `omBackoff`, stalls/spins until the slowest active subscriber advances.
   let core = self.core
   let cap = core.capacity.uint64
 
@@ -306,8 +308,8 @@ proc publish*[T](self: BroadcastRing[T], item: sink T) =
     decRef(oldBox)
 
 proc tryPublish*[T](self: BroadcastRing[T], item: sink T): bool =
-  ## Non-blocking publish attempt.
-  ## Returns true if published. In `omBackoff`, returns false if the ring is currently full.
+  ## Non-blocking publish attempt. Returns true if published. In `omBackoff`,
+  ## returns false if the ring is currently full.
   let core = self.core
   let cap = core.capacity.uint64
 
@@ -388,11 +390,10 @@ proc lag*[T](cursor: BroadcastCursor[T]): uint64 {.inline.} =
   cursor.lagCount
 
 proc poll*[T](cursor: var BroadcastCursor[T]): PollResult[T] =
-  ## Polls the next message from this cursor's position.
-  ## Returns:
-  ##   prSuccess with the value if available.
-  ##   prEmpty if the publisher has not yet published this sequence.
-  ##   prLagged with skippedCount if the reader fell behind the ring horizon (omDropOldest).
+  ## Polls the next message from this cursor's position. Returns: prSuccess with
+  ## the value if available. prEmpty if the publisher has not yet published this
+  ## sequence. prLagged with skippedCount if the reader fell behind the ring
+  ## horizon (omDropOldest).
   if cursor.cursorId < 0 or cursor.ring.core == nil:
     return PollResult[T](kind: prEmpty)
 
@@ -432,10 +433,9 @@ proc poll*[T](cursor: var BroadcastCursor[T]): PollResult[T] =
   return PollResult[T](kind: prEmpty)
 
 proc tryRead*[T](cursor: var BroadcastCursor[T], outVal: var T): bool =
-  ## Convenience read helper.
-  ## If a message is available, writes to `outVal` and returns true.
-  ## If empty, returns false.
-  ## If lagged, advances cursor and returns false.
+  ## Convenience read helper. If a message is available, writes to `outVal` and
+  ## returns true. If empty, returns false. If lagged, advances cursor and
+  ## returns false.
   let res = cursor.poll()
   case res.kind
   of prSuccess:
@@ -469,7 +469,8 @@ proc initTopicBus*[T](
       defaultMaxReaders: DefaultMaxReaders
     )
 ): TopicBus[T] =
-  ## Initializes a new TopicBus multiplexing messages across topic-specific broadcast rings.
+  ## Initializes a new TopicBus multiplexing messages across topic-specific
+  ## broadcast rings.
   let core = cast[ptr TopicBusCore[T]](allocShared0(sizeof(TopicBusCore[T])))
   core.config = config
   core.topics = initCtrie[string, BroadcastRing[T]]()

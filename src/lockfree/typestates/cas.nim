@@ -1,7 +1,7 @@
 ## Type-safe CAS operations.
 ##
-## Forces explicit handling of success and failure paths via a typestate
-## union: a `CASPending` is consumed by `executeCAS` and produces either a
+## Forces explicit handling of success and failure paths via a typestate union:
+## a `CASPending` is consumed by `executeCAS` and produces either a
 ## `CASSucceeded` (carrying the written value) or a `CASFailed` (carrying the
 ## value actually observed at the address). Callers `match` on the resulting
 ## `CASResult` union and cannot reach the payload without selecting a branch.

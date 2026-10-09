@@ -1,7 +1,7 @@
 ## Registration typestate for thread registration.
 ##
-## Handles thread registration with the DEBRA manager, ensuring threads
-## properly claim slots in the thread array using lock-free CAS operations.
+## Handles thread registration with the DEBRA manager, ensuring threads properly
+## claim slots in the thread array using lock-free CAS operations.
 ##
 ## The typestate carries two static generic-param axes:
 ##
@@ -12,8 +12,8 @@
 ##   `MaxThreads` continue to bind cleanly.
 ##
 ## Codegen-emitted helpers (variant type `RegisterResult`, `=copy` hooks,
-## `state()` procs, `$` overloads, `match` macros) inherit `CC = ccSingle`
-## via the typestate macro's `defaults:` body section (typestates 0.9.2+).
+## `state()` procs, `$` overloads, `match` macros) inherit `CC = ccSingle` via
+## the typestate macro's `defaults:` body section (typestates 0.9.2+).
 
 import ../../../atomics
 import typestates
@@ -22,8 +22,8 @@ import ../types
 import ../signal
 import ../thread_id
 
-# `PinScopeCardinality` reaches this module via `../types` (re-exported
-# from `./cardinality`).
+# `PinScopeCardinality` reaches this module via `../types` (re-exported from
+# `./cardinality`).
 
 type
   RegistrationContext*[
@@ -72,8 +72,8 @@ proc unregistered*[MaxThreads: static int, CC: static PinScopeCardinality](
 proc register*[MaxThreads: static int, CC: static PinScopeCardinality](
     u: sink Unregistered[MaxThreads, CC]
 ): RegisterResult[MaxThreads, CC] {.transition.} =
-  ## Try to register thread by claiming a slot. Returns Registered if successful,
-  ## RegistrationFull if all slots are taken.
+  ## Try to register thread by claiming a slot. Returns Registered if
+  ## successful, RegistrationFull if all slots are taken.
   let ctx = RegistrationContext[MaxThreads, CC](u)
   let mgr = ctx.manager
 
@@ -90,17 +90,16 @@ proc register*[MaxThreads: static int, CC: static PinScopeCardinality](
       ):
         # Successfully claimed slot i.
         #
-        # Cycle-40 pivot (Windows): the slot stores the raw OS thread
-        # ID (`uint32`), not a duplicated handle. There is no handle
-        # to drain on re-claim — the cycle-37/38 deferred-close
-        # machinery is gone entirely, along with the handle leak and
-        # use-after-close race surfaces.
-        # Store thread ID for signaling
+        # Cycle-40 pivot (Windows): the slot stores the raw OS thread ID
+        # (`uint32`), not a duplicated handle. There is no handle to drain on
+        # re-claim — the cycle-37/38 deferred-close machinery is gone
+        # entirely, along with the handle leak and use-after-close race
+        # surfaces. Store thread ID for signaling
         mgr.threads[i].threadId.store(currentThreadId(), moRelease)
-        # Set thread-local index for signal handler. Both `threadLocalIdx`
-        # and `threadLocalRegistered` must be set: the bare index can't
-        # distinguish "registered at slot 0" from "never registered" since
-        # threadvars default to zero.
+        # Set thread-local index for signal handler. Both `threadLocalIdx` and
+        # `threadLocalRegistered` must be set: the bare index can't distinguish
+        # "registered at slot 0" from "never registered" since threadvars
+        # default to zero.
         threadLocalIdx = i
         threadLocalRegistered = true
         threadLocalManager = cast[pointer](mgr)

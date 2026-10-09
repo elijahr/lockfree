@@ -1,9 +1,7 @@
 ## SPMC Pop operation lifecycle typestate (Vyukov per-slot sequence protocol).
 ##
-## State machine:
-##   Start -> SlotClaimed | Empty | Start  (3-arm: claim succeeded /
-##                                          generation empty / retry)
-##   SlotClaimed -> T                      (terminal: read data + re-arm seq)
+## State machine: Start -> SlotClaimed | Empty | Start (3-arm: claim succeeded /
+## generation empty / retry) SlotClaimed -> T (terminal: read data + re-arm seq)
 ##
 ## Multiple consumers race on `head` — identical in shape to `mpmc_pop`, only
 ## the facade name differs (SpmcBase vs MpmcBase).
@@ -14,8 +12,8 @@
 ##
 ## Memory ordering follows Vyukov canonical: `moRelaxed` on the global `head`
 ## CAS (the per-slot `seq` does the data-ordering work), `moAcquire` on the
-## `seq` load (pairs with producer's release at `pos + 1`), and `moRelease`
-## on the `seq` store at `pos + N` (gates the next-generation producer).
+## `seq` load (pairs with producer's release at `pos + 1`), and `moRelease` on
+## the `seq` store at `pos + N` (gates the next-generation producer).
 ##
 ## Backoff: this verb returns the `Start` arm to signal "retry". The facade
 ## holds `var spins = InitialSpin` and calls `backoffOnRetry(spins)` between
@@ -34,8 +32,8 @@ type
   SPMCPopStart*[N: static int] = object ## Entry point. No data yet.
 
   SPMCPopSlotClaimed*[N: static int] = object
-    ## CAS on `head` succeeded - we own the slot at `pos mod N`.
-    ## MUST read data and publish the seq advance (re-arm for next gen).
+    ## CAS on `head` succeeded - we own the slot at `pos mod N`. MUST read data
+    ## and publish the seq advance (re-arm for next gen).
     pos*: uint64
     slot*: PhysicalSlotN[N]
 
@@ -50,10 +48,10 @@ typestate SPMCPopOp[N: static int]:
     SPMCPopStart[N] ->
       SPMCPopSlotClaimed[N] | SPMCPopEmpty[N] | SPMCPopStart[N] as SPMCPopClaimResult[N]
 
-# Forward declaration for Spmc (avoid circular import).
-# Field order MUST stay in lockstep with SpmcPushBase in spmc_push.nim
+# Forward declaration for Spmc (avoid circular import). Field order MUST stay in
+# lockstep with SpmcPushBase in spmc_push.nim
 # - the facade uses a single Spmc object castable to either base via the
-# offsetof asserts in design doc §10.12.
+#   offsetof asserts in design doc §10.12.
 type SpmcBase*[N, C: static int, T] = object
   head* {.align: CacheLineBytes.}: Atomic[uint64]
   tail* {.align: CacheLineBytes.}: Atomic[uint64]
@@ -68,12 +66,12 @@ proc tryClaim*[N, C: static int, T](
 ): SPMCPopClaimResult[N] {.inline, transition.} =
   ## Vyukov consumer claim. Returns one of:
   ## - SlotClaimed: head CAS won; caller must call `complete`.
-  ## - Empty: per-slot seq says producer hasn't written this generation
-  ##          yet. Caller returns false to user.
+  ## - Empty: per-slot seq says producer hasn't written this generation yet.
+  ##   Caller returns false to user.
   ## - Start: CAS race or consumer raced ahead; caller backs off and retries.
   let pos = queue.head.load(moRelaxed) # C1
-  # PhysicalSlotN[N] via the validated index() path - see spmc_push.nim
-  # tryClaim for rationale on the double-mod.
+  # PhysicalSlotN[N] via the validated index() path - see spmc_push.nim tryClaim
+  # for rationale on the double-mod.
   let slot = initRawN[N](int(pos mod uint64(N))).validate().index()
   let s = queue.cells.seqLoad(slot, moAcquire) # C2
   let diff = cast[int64](s) - cast[int64](pos + 1)
@@ -94,8 +92,8 @@ proc complete*[N, C: static int, T](
 ): T {.inline, notATransition.} =
   ## Read value from the claimed slot, then re-arm the seq for the next
   ## generation. The `seq.store(pos+N, moRelease)` is the consumer->next-
-  ## producer edge; the next producer at virtual position `pos + N` will
-  ## see this seq value via its acquire load and proceed to claim.
+  ## producer edge; the next producer at virtual position `pos + N` will see
+  ## this seq value via its acquire load and proceed to claim.
   let value = move(queue.cells.dataPtr(op.slot)[]) # C4 plain load; ordered by C2
   queue.cells.seqStore(op.slot, op.pos + uint64(N), moRelease) # C5 re-arm
   value

@@ -1,38 +1,37 @@
 ## Cache-line-aligned heap allocation for unbounded queue Segments.
 ##
-## Project-wide invariant: every ``Segment[S, T]`` allocation
-## must be aligned to ``CacheLineBytes`` (64 on x86_64) so that the
-## ``{.align: CacheLineBytes.}`` pragma on internal Atomic fields lifts those
-## fields onto distinct physical cache lines, not merely distinct intra-struct
-## offsets that share a 16-byte-aligned base with adjacent allocations.
+## Project-wide invariant: every ``Segment[S, T]`` allocation must be aligned to
+## ``CacheLineBytes`` (64 on x86_64) so that the ``{.align: CacheLineBytes.}``
+## pragma on internal Atomic fields lifts those fields onto distinct physical
+## cache lines, not merely distinct intra-struct offsets that share a
+## 16-byte-aligned base with adjacent allocations.
 ##
 ## ``c_calloc`` / ``c_malloc`` only guarantee ``2 * sizeof(size_t) == 16`` bytes
 ## of alignment under glibc and macOS libSystem. Without an aligned-allocation
 ## primitive, the first cache-line slot of every Segment is split across two
-## physical lines and false-shares with whatever neighbours the heap happens
-## to place adjacent.
+## physical lines and false-shares with whatever neighbours the heap happens to
+## place adjacent.
 ##
 ## Platform mapping:
 ##
 ## * POSIX (Linux, macOS): ``posix_memalign`` from ``<stdlib.h>``. Memory is
 ##   compatible with the standard ``free`` per POSIX.
 ## * Windows (MSVC + MinGW runtime): ``_aligned_malloc`` from ``<malloc.h>``.
-##   Memory MUST be freed with ``_aligned_free`` — using ``free`` corrupts
-##   the heap.
+##   Memory MUST be freed with ``_aligned_free`` — using ``free`` corrupts the
+##   heap.
 ##
 ## Both backends are wrapped behind ``allocAligned[T]() / freeAligned(p)`` so
 ## callers don't have to ``when defined(windows):`` at every site.
 ##
-## The C ``posix_memalign`` from ``<stdlib.h>`` is callable from both
-## ``nim c`` and ``nim cpp`` on macOS (libSystem) and Linux glibc,
-## returning 64-byte aligned memory and ``rc == 0`` on success.
+## The C ``posix_memalign`` from ``<stdlib.h>`` is callable from both ``nim c``
+## and ``nim cpp`` on macOS (libSystem) and Linux glibc, returning 64-byte
+## aligned memory and ``rc == 0`` on success.
 ##
-## Note: ``std/posix.posix_memalign`` was the first candidate, but on macOS
-## the Apple SDK declares the first parameter with the
-## ``__unsafe_indexable`` attribute under C++, which the Nim wrapper does
-## not match — ``nim cpp`` then fails with
-## "cannot convert argument of incomplete type 'void *' to 'void **'".
-## The local importc shim below uses the canonical C signature, which
+## Note: ``std/posix.posix_memalign`` was the first candidate, but on macOS the
+## Apple SDK declares the first parameter with the ``__unsafe_indexable``
+## attribute under C++, which the Nim wrapper does not match — ``nim cpp``
+## then fails with "cannot convert argument of incomplete type 'void *' to 'void
+## **'". The local importc shim below uses the canonical C signature, which
 ## clang accepts in both C and C++ modes.
 
 when defined(windows):
@@ -61,20 +60,20 @@ proc allocAligned*[T](): ptr T =
   ## Raises ``OutOfMemDefect`` on allocation failure (matches the existing
   ## ``c_calloc`` failure path in unbounded queue ``newSegment`` procs).
   ##
-  ## The caller owns the returned pointer; release with ``freeAligned``,
-  ## which routes to the platform-correct deallocator (``free`` on POSIX,
+  ## The caller owns the returned pointer; release with ``freeAligned``, which
+  ## routes to the platform-correct deallocator (``free`` on POSIX,
   ## ``_aligned_free`` on Windows).
   ##
   ## Both backends require ``alignment`` to be a power of two; the Windows
   ## ``_aligned_malloc`` accepts any power of two, while POSIX
-  ## ``posix_memalign`` additionally requires a multiple of
-  ## ``sizeof(pointer)``. ``CacheLineBytes`` (64) satisfies both on every
-  ## platform we target; ``alignof(T)`` is always a power of two per the
-  ## C standard, and an over-aligned ``T`` (e.g. an SSE/AVX vector or a
-  ## manually ``{.align: 128.}``-pragma'd object) would have
-  ## ``alignof(T) >= sizeof(pointer)`` as well, so taking ``max`` of the
-  ## two keeps the constraint valid. We compute the max at compile time so
-  ## the runtime alignment argument is constant per instantiation.
+  ## ``posix_memalign`` additionally requires a multiple of ``sizeof(pointer)``.
+  ## ``CacheLineBytes`` (64) satisfies both on every platform we target;
+  ## ``alignof(T)`` is always a power of two per the C standard, and an
+  ## over-aligned ``T`` (e.g. an SSE/AVX vector or a manually ``{.align:
+  ## 128.}``-pragma'd object) would have ``alignof(T) >= sizeof(pointer)`` as
+  ## well, so taking ``max`` of the two keeps the constraint valid. We compute
+  ## the max at compile time so the runtime alignment argument is constant per
+  ## instantiation.
   const alignment = max(CacheLineBytes, alignof(T))
   when defined(windows):
     let p = aligned_malloc(csize_t(sizeof(T)), csize_t(alignment))
@@ -88,11 +87,11 @@ proc allocAligned*[T](): ptr T =
   result = cast[ptr T](p)
 
 proc freeAligned*(p: pointer) {.inline.} =
-  ## Release a pointer obtained from ``allocAligned``. Does nothing on a
-  ## ``nil`` argument so callers can use it idempotently in destructors.
-  ## Takes ``pointer`` (not ``ptr T``) so callers in untyped destructor
-  ## hooks (where the segment type has been erased to ``pointer``) can
-  ## use the same call site as typed callers.
+  ## Release a pointer obtained from ``allocAligned``. Does nothing on a ``nil``
+  ## argument so callers can use it idempotently in destructors. Takes
+  ## ``pointer`` (not ``ptr T``) so callers in untyped destructor hooks (where
+  ## the segment type has been erased to ``pointer``) can use the same call site
+  ## as typed callers.
   if p == nil:
     return
   when defined(windows):
@@ -101,8 +100,8 @@ proc freeAligned*(p: pointer) {.inline.} =
     c_free(p)
 
 proc freeAligned*[T](p: ptr T) {.inline.} =
-  ## Typed convenience overload that forwards to the ``pointer`` variant.
-  ## Lets callers pass ``ptr T`` without an explicit cast.
+  ## Typed convenience overload that forwards to the ``pointer`` variant. Lets
+  ## callers pass ``ptr T`` without an explicit cast.
   freeAligned(cast[pointer](p))
 
 when isMainModule:

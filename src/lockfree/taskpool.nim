@@ -1,6 +1,6 @@
 ## ===========================================================================
-## Concurrency Topology:
-##   Work-Stealing TaskPool (Single-Worker Local LIFO Deque, Multi-Thief FIFO Steal)
+## Concurrency Topology: Work-Stealing TaskPool (Single-Worker Local LIFO Deque,
+## Multi-Thief FIFO Steal)
 ## ===========================================================================
 ##
 ## A high-performance, non-blocking work-stealing task pool and scheduler built
@@ -11,13 +11,16 @@
 ##   - Task Dispatch:
 ##       - Local worker push: LIFO bottom push/pop for optimal cache locality
 ##         and recursive fork-join task parallelism.
-##       - External push: Non-blocking TreiberStack MPMC injector with elimination-backoff.
+##       - External push: Non-blocking TreiberStack MPMC injector with
+##         elimination-backoff.
 ##       - Work-Stealing: Starving workers steal FIFO batches (stealBatch) from
 ##         peer worker deques.
 ##   - Work-Sharing & Coordination:
-##       - forkJoin: Fine-grained recursive task parallelism with work-stealing help loop.
+##       - forkJoin: Fine-grained recursive task parallelism with work-stealing
+##         help loop.
 ##       - parallelFor: Adaptive divide-and-conquer parallel loop scheduler.
-##       - Graceful shutdown: Atomic stop flag with complete task draining and thread join.
+##       - Graceful shutdown: Atomic stop flag with complete task draining and
+##         thread join.
 ##   - Memory Safety:
 ##       - Supports Nim closures (`proc() {.closure, gcsafe.}`), C-ABI function
 ##         pointers (`proc(arg: pointer) {.cdecl, gcsafe.}`), and standard
@@ -291,8 +294,8 @@ proc workerThreadEntry(ctx: ptr WorkerContext) {.thread, nimcall, gcsafe.} =
     break
 
 proc initTaskPool*(numWorkers: int = 0): TaskPool =
-  ## Initializes a new `TaskPool` with `numWorkers` threads.
-  ## If `numWorkers <= 0`, defaults to `countProcessors()`.
+  ## Initializes a new `TaskPool` with `numWorkers` threads. If `numWorkers <=
+  ## 0`, defaults to `countProcessors()`.
   var nw = numWorkers
   if nw <= 0:
     nw = countProcessors()
@@ -355,8 +358,8 @@ proc spawn*(pool: TaskPool, fn: CdeclTaskProc, arg: pointer) =
   pool.core.spawnTask(t)
 
 proc sync*(pool: TaskPool) =
-  ## Blocks until all active and queued tasks in the pool have completed.
-  ## The calling thread actively assists in executing tasks while waiting.
+  ## Blocks until all active and queued tasks in the pool have completed. The
+  ## calling thread actively assists in executing tasks while waiting.
   let core = pool.core
   if unlikely(core == nil): return
   var spins = 0
@@ -372,9 +375,9 @@ proc sync*(pool: TaskPool) =
         spins = 32
 
 proc forkJoin*(pool: TaskPool, left: ClosureProc, right: ClosureProc) =
-  ## Executes `left` and `right` concurrently.
-  ## `right` is spawned to the pool while `left` is executed immediately on the
-  ## current thread. The calling thread actively assists with work until `right` finishes.
+  ## Executes `left` and `right` concurrently. `right` is spawned to the pool
+  ## while `left` is executed immediately on the current thread. The calling
+  ## thread actively assists with work until `right` finishes.
   let core = pool.core
   assert core != nil, "TaskPool is uninitialized"
 
@@ -399,7 +402,8 @@ proc forkJoin*(pool: TaskPool, left: ClosureProc, right: ClosureProc) =
         spins = 32
 
 proc forkJoin*(pool: TaskPool, tasks: openArray[ClosureProc]) =
-  ## Executes an arbitrary number of closure tasks concurrently using work-stealing.
+  ## Executes an arbitrary number of closure tasks concurrently using
+  ## work-stealing.
   if tasks.len == 0: return
   if tasks.len == 1:
     tasks[0]()
@@ -472,7 +476,8 @@ proc parallelFor*(
     fn: proc(i: int) {.closure, gcsafe.},
     chunkSize: int = 0
 ) {.inline.} =
-  ## Executes iterations in parallel for `i` in `slice.a .. slice.b` (inclusive).
+  ## Executes iterations in parallel for `i` in `slice.a .. slice.b`
+  ## (inclusive).
   pool.parallelFor(slice.a, slice.b, fn, chunkSize)
 
 type
@@ -536,7 +541,8 @@ proc parallelFor*(
     arg: pointer,
     chunkSize: int = 0
 ) =
-  ## C-ABI compatible parallel for loop executing `fn(i, arg)` for `first .. last`.
+  ## C-ABI compatible parallel for loop executing `fn(i, arg)` for `first ..
+  ## last`.
   if last < first: return
   let count = last - first + 1
   if count == 1:

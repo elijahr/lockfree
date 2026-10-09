@@ -1,9 +1,7 @@
 ## MPMC Pop operation lifecycle typestate (Vyukov per-slot sequence protocol).
 ##
-## State machine:
-##   Start -> SlotClaimed | Empty | Start  (3-arm: claim succeeded /
-##                                          generation empty / retry)
-##   SlotClaimed -> T                      (terminal: read data + re-arm seq)
+## State machine: Start -> SlotClaimed | Empty | Start (3-arm: claim succeeded /
+## generation empty / retry) SlotClaimed -> T (terminal: read data + re-arm seq)
 ##
 ## Key invariant: Once a slot is claimed via CAS on `head`, the data MUST be
 ## read and the per-slot `seq` MUST be advanced to `pos + N` (release). That
@@ -11,8 +9,8 @@
 ##
 ## Memory ordering follows Vyukov canonical: `moRelaxed` on the global `head`
 ## CAS (the per-slot `seq` does the data-ordering work), `moAcquire` on the
-## `seq` load (pairs with producer's release at `pos + 1`), and `moRelease`
-## on the `seq` store at `pos + N` (gates the next-generation producer).
+## `seq` load (pairs with producer's release at `pos + 1`), and `moRelease` on
+## the `seq` store at `pos + N` (gates the next-generation producer).
 ##
 ## Backoff: this verb returns the `Start` arm to signal "retry". The facade
 ## holds `var spins = InitialSpin` and calls `backoffOnRetry(spins)` between
@@ -29,8 +27,8 @@ type
   MPMCPopStart*[N: static int] = object ## Entry point. No data yet.
 
   MPMCPopSlotClaimed*[N: static int] = object
-    ## CAS on `head` succeeded - we own the slot at `pos mod N`.
-    ## MUST read data and publish the seq advance (re-arm for next gen).
+    ## CAS on `head` succeeded - we own the slot at `pos mod N`. MUST read data
+    ## and publish the seq advance (re-arm for next gen).
     pos*: uint64
     slot*: PhysicalSlotN[N]
 
@@ -45,10 +43,10 @@ typestate MPMCPopOp[N: static int]:
     MPMCPopStart[N] ->
       MPMCPopSlotClaimed[N] | MPMCPopEmpty[N] | MPMCPopStart[N] as MPMCPopClaimResult[N]
 
-# Forward declaration for Mpmc (avoid circular import).
-# Field order MUST stay in lockstep with MpmcPushBase in mpmc_push.nim
+# Forward declaration for Mpmc (avoid circular import). Field order MUST stay in
+# lockstep with MpmcPushBase in mpmc_push.nim
 # - the facade uses a single Mpmc object castable to either base via the
-# offsetof asserts.
+#   offsetof asserts.
 type MpmcBase*[N, P, C: static int, T] = object
   head* {.align: CacheLineBytes.}: Atomic[uint64]
   tail* {.align: CacheLineBytes.}: Atomic[uint64]
@@ -63,12 +61,12 @@ proc tryClaim*[N, P, C: static int, T](
 ): MPMCPopClaimResult[N] {.inline, transition.} =
   ## Vyukov consumer claim. Returns one of:
   ## - SlotClaimed: head CAS won; caller must call `complete`.
-  ## - Empty: per-slot seq says producer hasn't written this generation
-  ##          yet. Caller returns false to user.
+  ## - Empty: per-slot seq says producer hasn't written this generation yet.
+  ##   Caller returns false to user.
   ## - Start: CAS race or consumer raced ahead; caller backs off and retries.
   let pos = queue.head.load(moRelaxed) # C1
-  # PhysicalSlotN[N] via the validated index() path - see mpmc_push.nim
-  # tryClaim for rationale on the double-mod.
+  # PhysicalSlotN[N] via the validated index() path - see mpmc_push.nim tryClaim
+  # for rationale on the double-mod.
   let slot = initRawN[N](int(pos mod uint64(N))).validate().index()
   let s = queue.cells.seqLoad(slot, moAcquire) # C2
   let diff = cast[int64](s) - cast[int64](pos + 1)
@@ -89,12 +87,12 @@ proc complete*[N, P, C: static int, T](
 ): T {.inline, notATransition.} =
   ## Read value from the claimed slot, then re-arm the seq for the next
   ## generation. The `seq.store(pos+N, moRelease)` is the consumer->next-
-  ## producer edge; the next producer at virtual position `pos + N` will
-  ## see this seq value via its acquire load and proceed to claim.
+  ## producer edge; the next producer at virtual position `pos + N` will see
+  ## this seq value via its acquire load and proceed to claim.
   ##
   ## Note: the old protocol had a "fire-and-forget head advance" CAS here
-  ## because head/reservedHead were separate. Vyukov has a single `head`
-  ## cursor advanced by the claimant at C3, so no follow-up CAS is needed.
+  ## because head/reservedHead were separate. Vyukov has a single `head` cursor
+  ## advanced by the claimant at C3, so no follow-up CAS is needed.
   let value = move(queue.cells.dataPtr(op.slot)[]) # C4 plain load; ordered by C2
   queue.cells.seqStore(op.slot, op.pos + uint64(N), moRelease) # C5 re-arm
   value

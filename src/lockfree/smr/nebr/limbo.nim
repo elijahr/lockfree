@@ -1,7 +1,7 @@
 ## Limbo bag data structures for DEBRA+ retire queues.
 ##
-## A limbo bag holds up to 64 retired objects. Bags are linked
-## together forming a thread-local retire queue.
+## A limbo bag holds up to 64 retired objects. Bags are linked together forming
+## a thread-local retire queue.
 
 proc c_calloc(n, size: csize_t): pointer {.importc: "calloc", header: "<stdlib.h>".}
 proc c_free(p: pointer) {.importc: "free", header: "<stdlib.h>".}
@@ -10,11 +10,11 @@ const LimboBagSize* = 64
 
 type
   Destructor* = proc(p: pointer) {.nimcall, raises: [].}
-    ## Destructor for retired objects. Marked `raises: []` so the cleanup
-    ## paths in `=destroy` (which itself cannot raise) can call them
-    ## without an `unlisted exception` effect warning. EBR destructors
-    ## are reclamation hooks and should not raise; if cleanup can fail,
-    ## handle it inside the destructor.
+    ## Destructor for retired objects. Marked `raises: []` so the cleanup paths
+    ## in `=destroy` (which itself cannot raise) can call them without an
+    ## `unlisted exception` effect warning. EBR destructors are reclamation
+    ## hooks and should not raise; if cleanup can fail, handle it inside the
+    ## destructor.
 
   RetiredObject* = object
     data*: pointer

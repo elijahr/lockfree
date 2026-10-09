@@ -55,8 +55,8 @@ proc registerThread*[MaxThreads: static int, CC: static PinScopeCardinality](
 ): ThreadHandle[MaxThreads, CC] {.raises: [DebraRegistrationError].} =
   ## Register current thread with the NEBR manager.
   ##
-  ## Must be called once per thread before any epoch operations.
-  ## Raises DebraRegistrationError if max threads already registered.
+  ## Must be called once per thread before any epoch operations. Raises
+  ## DebraRegistrationError if max threads already registered.
   installSignalHandler()
 
   let u = unregistered(addr manager)
@@ -75,9 +75,9 @@ proc unregisterThread*[
 ](
     manager: var DebraManager[MaxThreads, CC], handle: ThreadHandle[MaxThreads, CC]
 ) {.raises: [].} =
-  ## Unregister the current thread from the NEBR manager, releasing the
-  ## slot it claimed via `registerThread` so a future `registerThread` may
-  ## re-claim that slot index for a different thread.
+  ## Unregister the current thread from the NEBR manager, releasing the slot it
+  ## claimed via `registerThread` so a future `registerThread` may re-claim that
+  ## slot index for a different thread.
   ##
   ## **Caller contract (preconditions).** Both must hold or this proc fails a
   ## `doAssert` (see "Failure behavior" below):
@@ -93,32 +93,32 @@ proc unregisterThread*[
   ##    pending limbo is a programming error.
   ##
   ## **Why the contract exists.** Releasing the slot lets `registerThread`
-  ## re-claim THIS slot index for a DIFFERENT thread; `register` reuses the
-  ## slot in place and does not re-initialise its epoch/pinned/limbo state.
-  ## So any state left here is inherited verbatim by the next owner:
+  ## re-claim THIS slot index for a DIFFERENT thread; `register` reuses the slot
+  ## in place and does not re-initialise its epoch/pinned/limbo state. So any
+  ## state left here is inherited verbatim by the next owner:
   ##
   ## * A departing thread's still-pending retired objects are NOT necessarily
   ##   epoch-safe to free yet, and NEBR keeps NO manager-level orphan-reclaim
   ##   list — it cannot adopt them. Eagerly freeing them here would be a
   ##   premature-free UAF; leaving them on a reused slot would let the new
   ##   owner's `tryReclaim` walk them under a different epoch (a stale-slot
-  ##   use-after-free / double-free). Requiring the caller to drain first is
-  ##   the conservative resolution of both hazards.
+  ##   use-after-free / double-free). Requiring the caller to drain first is the
+  ##   conservative resolution of both hazards.
   ## * A stale `pinned = true` would make reclamation observe this slot as
   ##   pinned forever, stalling ALL reclamation manager-wide.
   ##
-  ## **Failure behavior.** Contract violations are reported via `doAssert`
-  ## (this proc is `{.raises: [].}`, a compile-time-pinned contract, so it
-  ## cannot raise). In debug builds a violation aborts loudly. Under
-  ## `-d:danger` assertions are compiled out, so violating the contract is
-  ## undefined behavior (the very slot-reuse UAF / double-free this contract
-  ## prevents) rather than a loud abort. Treat the contract as mandatory in
-  ## all builds, not merely as a debug aid.
+  ## **Failure behavior.** Contract violations are reported via `doAssert` (this
+  ## proc is `{.raises: [].}`, a compile-time-pinned contract, so it cannot
+  ## raise). In debug builds a violation aborts loudly. Under `-d:danger`
+  ## assertions are compiled out, so violating the contract is undefined
+  ## behavior (the very slot-reuse UAF / double-free this contract prevents)
+  ## rather than a loud abort. Treat the contract as mandatory in all builds,
+  ## not merely as a debug aid.
   ##
-  ## A handle with an out-of-range index, a slot whose `activeThreadMask` bit
-  ## is already clear (double-unregister), or a thread-affinity mismatch is
-  ## handled before the precondition checks: the first two return silently;
-  ## the affinity mismatch is its own `doAssert`.
+  ## A handle with an out-of-range index, a slot whose `activeThreadMask` bit is
+  ## already clear (double-unregister), or a thread-affinity mismatch is handled
+  ## before the precondition checks: the first two return silently; the affinity
+  ## mismatch is its own `doAssert`.
 
   if handle.idx < 0 or handle.idx >= MaxThreads:
     return
@@ -145,22 +145,24 @@ proc unregisterThread*[
   #
   #  * Leftover limbo bags (currentBag / limboBagTail) belong to the departing
   #    thread's retire lifecycle. A reused slot's `tryReclaim` would walk them
-  #    under the new owner's epoch arithmetic — a use-after-free / double-free of
-  #    objects retired against a now-departed reader set.
-  #  * A stale `pinned = true` makes `loadEpochs` (reclaim.nim) observe this slot
-  #    as pinned forever, pinning `safeEpoch` at the stale epoch and stalling ALL
-  #    reclamation manager-wide until manager destroy.
+  #    under the new owner's epoch arithmetic — a use-after-free / double-free
+  #    of objects retired against a now-departed reader set.
+  #  * A stale `pinned = true` makes `loadEpochs` (reclaim.nim) observe this
+  #    slot as pinned forever, pinning `safeEpoch` at the stale epoch and
+  #    stalling ALL reclamation manager-wide until manager destroy.
   #
-  # We do NOT eagerly drain the bags here: the departing thread's retired objects
-  # may not be epoch-safe to free yet, and freeing them now would be a different
-  # (premature-reclamation) UAF. NEBR has no manager-level orphan-reclaim list,
-  # so the conservative correct contract is: callers must drain their own limbo
-  # (via `tryReclaim` until empty) BEFORE unregistering. We assert that here so a
-  # violation surfaces loudly instead of leaking or double-freeing on reuse.
+  # We do NOT eagerly drain the bags here: the departing thread's retired
+  # objects may not be epoch-safe to free yet, and freeing them now would be a
+  # different (premature-reclamation) UAF. NEBR has no manager-level
+  # orphan-reclaim list, so the conservative correct contract is: callers must
+  # drain their own limbo (via `tryReclaim` until empty) BEFORE unregistering.
+  # We assert that here so a violation surfaces loudly instead of leaking or
+  # double-freeing on reuse.
   #
-  # `unregisterThread` is `{.raises: [].}` (a pinned compile-time contract in the
-  # test suite), so these are `doAssert`s (consistent with the affinity assert
-  # above and the `boundClients` assert in `=destroy`), not raised exceptions.
+  # `unregisterThread` is `{.raises: [].}` (a pinned compile-time contract in
+  # the test suite), so these are `doAssert`s (consistent with the affinity
+  # assert above and the `boundClients` assert in `=destroy`), not raised
+  # exceptions.
   doAssert not slot.pinned.load(moAcquire),
     "unregisterThread: slot is still pinned (thread is inside a critical " &
       "section); unpin before unregistering"

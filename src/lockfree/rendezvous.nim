@@ -16,13 +16,14 @@
 ##
 ## ## Overview
 ##
-## `RendezvousChannel[T]` implements a high-performance synchronous zero-buffer dual
-## channel based on William N. Scherer III and Michael L. Scott's dual data structures
-## (PPoPP '06).
+## `RendezvousChannel[T]` implements a high-performance synchronous zero-buffer
+## dual channel based on William N. Scherer III and Michael L. Scott's dual data
+## structures (PPoPP '06).
 ##
-## Senders block until a receiver arrives; receivers block until a sender arrives.
-## Data transfer occurs bilaterally between physical threads with zero intermediate queue
-## buffering. Monotonic correlation IDs enable deterministic request/response tracing.
+## Senders block until a receiver arrives; receivers block until a sender
+## arrives. Data transfer occurs bilaterally between physical threads with zero
+## intermediate queue buffering. Monotonic correlation IDs enable deterministic
+## request/response tracing.
 
 when not compileOption("threads"):
   {.error: "lockfree/rendezvous requires --threads:on".}
@@ -399,8 +400,8 @@ proc close*[T](self: RendezvousChannel[T]) =
 # ---------------------------------------------------------------------------
 
 proc send*[T](self: RendezvousChannel[T], item: sink T): uint64 =
-  ## Synchronously sends `item`, blocking until a receiver consumes it.
-  ## Returns the unique monotonic correlation ID for this rendezvous.
+  ## Synchronously sends `item`, blocking until a receiver consumes it. Returns
+  ## the unique monotonic correlation ID for this rendezvous.
   if self.core == nil or self.core.isClosed.load(moAcquire):
     raise newException(ChannelClosedDefect, "RendezvousChannel is closed")
 
@@ -457,8 +458,8 @@ proc send*[T](self: RendezvousChannel[T], item: sink T): uint64 =
             discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
 
 proc recv*[T](self: RendezvousChannel[T], outVal: var T): uint64 =
-  ## Synchronously receives an item, blocking until a sender provides it.
-  ## Stores payload in `outVal` and returns the matching correlation ID.
+  ## Synchronously receives an item, blocking until a sender provides it. Stores
+  ## payload in `outVal` and returns the matching correlation ID.
   if self.core == nil or self.core.isClosed.load(moAcquire):
     raise newException(ChannelClosedDefect, "RendezvousChannel is closed")
 
