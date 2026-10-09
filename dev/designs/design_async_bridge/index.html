@@ -1,0 +1,4128 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Lock-free queues for Nim">
+      
+      
+      
+        <link rel="canonical" href="https://elijahr.github.io/lockfree/latest/designs/design_async_bridge/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Concurrency Architecture &amp; Formal Invariants: Async Bridge Substrate - lockfree</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../css/timeago.css">
+    
+      <link rel="stylesheet" href="../../css/custom.css">
+    
+      <link rel="stylesheet" href="../../assets/bench-charts.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#concurrency-architecture-formal-invariants-async-bridge-substrate" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden="">
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="lockfree" class="md-header__button md-logo" aria-label="lockfree" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            lockfree
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Concurrency Architecture &amp; Formal Invariants: Async Bridge Substrate
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan" aria-label="Switch to light mode" type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan" aria-label="Switch to dark mode" type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/elijahr/lockfree" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    elijahr/lockfree
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="lockfree" class="md-nav__button md-logo" aria-label="lockfree" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    lockfree
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/elijahr/lockfree" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    elijahr/lockfree
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2">
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_3">
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/concepts/lock-freedom/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lock-freedom
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/concepts/smr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Safe memory reclamation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/concepts/memory-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_4">
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queues
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Queues
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/bounded-vyukov/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounded (Vyukov)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/strict-lcrq-mpmc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unbounded MPMC (strict-LCRQ)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/legacy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy cardinalities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_5">
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMR
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SMR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/smr/nebr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nebr
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/managed-ref/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ManagedRef
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/managed-slice/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ManagedSlice
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/typestates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Typestates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/nimony/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nimony
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_10">
+        
+          
+          <label class="md-nav__link" for="__nav_2_10" id="__nav_2_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Legacy guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/core-concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core concepts (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/bounded-vs-unbounded/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounded vs unbounded (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/slot-ownership-typestates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slot ownership typestates (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/safety-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Safety model (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/performance-tuning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lockfree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    lockfree (umbrella)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/compat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility (lockfreequeues)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/bqueue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounded Queue (BQueue)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unbounded Queue (Queue)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/managed_ref/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ManagedRef
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/managed_slice/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ManagedSlice
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/chronos/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chronos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/atomics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    atomics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_10">
+        
+          
+          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMR
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SMR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/smr/nebr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nebr
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_11">
+        
+          
+          <label class="md-nav__link" for="__nav_3_11" id="__nav_3_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Typestates
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Typestates
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typestates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Facade
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typestates/with_bound/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    with_bound
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typestates/slot_state/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    slot_state
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typestates/segment_state/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    segment_state
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_12">
+        
+          
+          <label class="md-nav__link" for="__nav_3_12" id="__nav_3_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Internal
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Internal
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/internal/slot_encoding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    slot_encoding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/internal/path_c_admit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    path_c_admit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/internal/path_c_wrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    path_c_wrap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4">
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migrations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Migrations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../transition_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transition Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migrations/from-lockfreequeues-v5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    From lockfreequeues v5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migrations/from-nim-debra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    From nim-debra
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Legacy
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_1">
+        
+          
+          <label class="md-nav__link" for="__nav_6_1" id="__nav_6_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nim-debra docs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    nim-debra docs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/PROVENANCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Provenance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/safety-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Safety model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/MIGRATION_v0.8.0/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration (v0.8.0)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_1_7">
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_7" id="__nav_6_1_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/atomics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atomics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/thread-registration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thread registration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/pin-unpin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pin / unpin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/retiring-objects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Retiring objects
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/reclamation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reclamation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/epoch-advancement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Epoch advancement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/neutralization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Neutralization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_1_8">
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_8" id="__nav_6_1_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/design/2026-04-25-batched-retire-reclaim/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batched retire/reclaim
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/design/2026-04-25-custom-atomics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom atomics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#concurrency-topology-substrate-banner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concurrency Topology &amp; Substrate Banner
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-executive-summary-problem-formulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Executive Summary &amp; Problem Formulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Executive Summary &amp; Problem Formulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-the-asynchronous-impedance-mismatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 The Asynchronous Impedance Mismatch
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-the-wave-3c-mandate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 The Wave 3C Mandate
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-core-architectural-subsystems" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Core Architectural Subsystems
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Core Architectural Subsystems">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-the-polyglot-asyncsignal-abstraction" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 The Polyglot AsyncSignal Abstraction
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.1 The Polyglot AsyncSignal Abstraction">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#universal-signal-semantics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Universal Signal Semantics
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-fast-path-speculative-non-blocking-execution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 Fast-Path Speculative Non-Blocking Execution
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.2 Fast-Path Speculative Non-Blocking Execution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#algorithmic-invariant-immediate-future-short-circuit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Algorithmic Invariant: Immediate Future Short-Circuit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-slow-path-waiter-registration-the-double-check-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Slow-Path Waiter Registration &amp; The Double-Check Protocol
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.3 Slow-Path Waiter Registration &amp; The Double-Check Protocol">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-lost-wakeup-race-condition" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Lost-Wakeup Race Condition
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-double-check-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Double-Check Protocol
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-safe-memory-reclamation-nebr-debra-isolation-invariant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Safe Memory Reclamation (NEBR / Debra) Isolation Invariant
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Safe Memory Reclamation (NEBR / Debra) Isolation Invariant">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-the-catastrophic-epoch-stall-problem" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 The Catastrophic Epoch Stall Problem
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-the-strict-pin-scope-boundary-invariant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 The Strict Pin Scope Boundary Invariant
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-container-specific-architectural-adaptations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Container-Specific Architectural Adaptations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Container-Specific Architectural Adaptations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-bounded-queue-asyncbqueuet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Bounded Queue: AsyncBQueue[T]
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4.1 Bounded Queue: AsyncBQueue[T]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#waiter-dual-ring-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Waiter Dual Ring Structure
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-unbounded-queue-asyncqueuet-morrison-afek-lcrq" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Unbounded Queue: AsyncQueue[T] (Morrison &amp; Afek LCRQ)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-synchronous-zero-buffer-channel-asyncrendezvouschannelt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Synchronous Zero-Buffer Channel: AsyncRendezvousChannel[T]
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4.3 Synchronous Zero-Buffer Channel: AsyncRendezvousChannel[T]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#dual-waiter-node-for-async-rendezvous" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dual Waiter Node for Async Rendezvous
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-work-stealing-deque-asyncchaselevdequet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Work-Stealing Deque: AsyncChaseLevDeque[T]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-broadcast-ring-buffer-asyncbroadcastringt-asynctopicbust" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Broadcast Ring Buffer: AsyncBroadcastRing[T] &amp; AsyncTopicBus[T]
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4.5 Broadcast Ring Buffer: AsyncBroadcastRing[T] &amp; AsyncTopicBus[T]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#consumer-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Consumer API:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-cancellation-semantics-zero-item-loss-invariant" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Cancellation Semantics &amp; Zero Item Loss Invariant
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Cancellation Semantics &amp; Zero Item Loss Invariant">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-the-asynchronous-cancellation-dilemma" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 The Asynchronous Cancellation Dilemma
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-bilateral-cas-arbitration-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 Bilateral CAS Arbitration Protocol
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5.2 Bilateral CAS Arbitration Protocol">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#protocol-state-machine-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Protocol State Machine Rules:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-threadpool-dispatch-worker-thread-integration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Threadpool Dispatch &amp; Worker Thread Integration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Threadpool Dispatch &amp; Worker Thread Integration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-bi-directional-offloading-architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Bi-Directional Offloading Architecture
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-async-taskpool-future-bridge" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Async Taskpool Future Bridge
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-c-abi-foreign-thread-interoperability" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. C ABI &amp; Foreign Thread Interoperability
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. C ABI &amp; Foreign Thread Interoperability">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#header-specification-includelockfree_async_bridgeh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Header Specification: include/lockfree_async_bridge.h
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-compilation-flags-modular-structure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. Compilation Flags &amp; Modular Structure
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. Compilation Flags &amp; Modular Structure">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#81-opt-in-activation-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.1 Opt-In Activation Matrix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#82-diagnostic-install-hints" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8.2 Diagnostic Install Hints
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-formal-memory-ordering-synchronization-proofs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Formal Memory Ordering &amp; Synchronization Proofs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Formal Memory Ordering &amp; Synchronization Proofs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91-memory-ordering-invariant-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 Memory Ordering Invariant Table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#92-linearization-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 Linearization Points
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-verification-test-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Verification &amp; Test Matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="concurrency-architecture-formal-invariants-async-bridge-substrate">Concurrency Architecture &amp; Formal Invariants: Async Bridge Substrate<a class="headerlink" href="#concurrency-architecture-formal-invariants-async-bridge-substrate" title="Permanent link">¶</a></h1>
+<p><strong>Document ID</strong>: <code>DESIGN-LOCKFREE-ASYNC-BRIDGE-001</code><br>
+<strong>Author</strong>: Marcus Vance (<code>architect-horsetail</code>), Staff Systems Architect<br>
+<strong>Reviewers</strong>: Caleb Thorne (<code>auditor-pegasus</code>), Elena Rostova (<code>implementer-kite</code>), Supreme Orchestrator (<code>orchestrator-whipbird</code>)<br>
+<strong>Status</strong>: RATIFIED ARCHITECTURAL SPECIFICATION<br>
+<strong>Target Substrate</strong>: <code>lockfree</code> (v0.1.0-consolidated)<br>
+<strong>Deliverable</strong>: <code>docs/designs/design_async_bridge.md</code>  </p>
+<hr>
+<h2 id="concurrency-topology-substrate-banner">Concurrency Topology &amp; Substrate Banner<a class="headerlink" href="#concurrency-topology-substrate-banner" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>====================================================================================================
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>Concurrency Topology: Multi-Runtime Async Bridge Substrate (Wave 3C)
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>====================================================================================================
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>| Dimension              | Architectural Specification                                             |
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>|:-----------------------|:------------------------------------------------------------------------|
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>| **Target Runtimes**    | Dual Support: `std/asyncdispatch` (stdlib) &amp; `chronos` (4.x / 5.x)        |
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>| **Target Containers**  | `BQueue`, `Queue` (LCRQ), `RendezvousChannel`, `ChaseLevDeque`, `BroadcastRing`|
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>| **Notification Engine**| Polyglot `AsyncSignal` (Event loop wakeups: `AsyncEvent`, OS eventfd, pipe)|
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>| **Fast-Path Dispatch** | Speculative Non-Blocking Poll (Zero-allocation synchronous fast path)   |
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>| **Slow-Path Dispatch** | Lock-Free Waiter Registration with Bilateral Unparking &amp; Future Resolution|
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>| **Memory Reclamation** | Debra SMR (NEBR) with Strict Epoch Pin Isolation Across `await` Boundary|
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>| **Payload Storage**    | Single-Owner Atomic Pointer Transfer (`VBox[T]`) under ARC/ORC          |
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>| **Cancellation Safety**| Bilateral CAS Arbitration: Zero Item Loss Guaranteed on Coroutine Abort |
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>| **Heterogeneous Match**| Seamless cross-execution: OS Worker Threads &lt;--&gt; Async Event Loops       |
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>| **Threadpool Handoff** | Work-Stealing Taskpool Dispatch with Async Stream Aggregation            |
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>| **Opt-In Flags**       | Flag-only opt-in: `-d:lockfreeAsyncdispatch` and `-d:lockfreeChronos`     |
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>| **C ABI Interop**      | Foreign thread signaling (`lockfree_async_signal_trigger`)               |
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>====================================================================================================
+</code></pre></div>
+<hr>
+<h2 id="1-executive-summary-problem-formulation">1. Executive Summary &amp; Problem Formulation<a class="headerlink" href="#1-executive-summary-problem-formulation" title="Permanent link">¶</a></h2>
+<h3 id="11-the-asynchronous-impedance-mismatch">1.1 The Asynchronous Impedance Mismatch<a class="headerlink" href="#11-the-asynchronous-impedance-mismatch" title="Permanent link">¶</a></h3>
+<p>Concurrent systems architectures face a fundamental dichotomy between two execution models:</p>
+<ol>
+<li><strong>Physical Multithreading with Lock-Free Algorithms</strong>:</li>
+<li>Heavyweight OS threads executing lock-free algorithms (e.g. Dmitry Vyukov's bounded MPMC queue, Morrison &amp; Afek LCRQ, Chase-Lev work-stealing deques, Scherer-Scott synchronous dual channels).</li>
+<li>Synchronization relies on hardware atomic primitives (<code>compareExchange</code>, <code>fetchAdd</code>), memory barriers (<code>moAcquire</code>, <code>moRelease</code>, <code>moSeqCst</code>), CPU backoff (<code>pause</code>, spinning), and OS-native futex parking (<code>WaitOnAddress</code>, <code>ulock_wait</code>, <code>SYS_futex</code>).</li>
+<li>
+<p>SMR (Safe Memory Reclamation) algorithms like Debra NEBR track active thread epochs through thread-local pin counters.</p>
+</li>
+<li>
+<p><strong>Cooperative Asynchronous Event Loops</strong>:</p>
+</li>
+<li>Lightweight green coroutines multiplexed over one or more event loop threads (Nim <code>std/asyncdispatch</code> or Status <code>chronos</code>).</li>
+<li>Cooperative scheduling via non-blocking state machine transformation (<code>{.async.}</code> / <code>Future[T]</code>).</li>
+<li>Blocking an event loop thread on a lock-free spin loop or an OS futex halts the entire reactor, starving all concurrent coroutines scheduled on that thread!</li>
+</ol>
+<h3 id="12-the-wave-3c-mandate">1.2 The Wave 3C Mandate<a class="headerlink" href="#12-the-wave-3c-mandate" title="Permanent link">¶</a></h3>
+<p>Wave 3C bridges this architectural gap. It provides a zero-overhead, memory-safe, lock-free async adapter layer that allows asynchronous coroutines in both <code>std/asyncdispatch</code> and <code>chronos</code> to interact directly with <code>lockfree</code> concurrent primitives without blocking the host event loop.</p>
+<p>The bridge operates across all five foundational concurrent primitives:
+- <strong>Bounded Queues (<code>BQueue[T]</code>)</strong>: Bounded FIFO queues with async backpressure (suspending producers on full queues, suspending consumers on empty queues).
+- <strong>Unbounded Queues (<code>Queue[T]</code>)</strong>: Morrison &amp; Afek LCRQ with non-blocking lock-free enqueue and asynchronous consumer awaiting.
+- <strong>Synchronous Dual Channels (<code>RendezvousChannel[T]</code>)</strong>: CSP-style zero-buffer synchronous handoff where coroutines can rendezvous with other coroutines OR with physical OS threads.
+- <strong>Work-Stealing Deques (<code>ChaseLevDeque[T]</code>)</strong>: Worker threads operating with high cache locality, while async thief coroutines steal work without polling.
+- <strong>Broadcast Rings (<code>BroadcastRing[T]</code> / <code>TopicBus[T]</code>)</strong>: 1-to-N fan-out multicast streams where async subscribers await published messages with configurable drop or backpressure semantics.</p>
+<hr>
+<h2 id="2-core-architectural-subsystems">2. Core Architectural Subsystems<a class="headerlink" href="#2-core-architectural-subsystems" title="Permanent link">¶</a></h2>
+<h3 id="21-the-polyglot-asyncsignal-abstraction">2.1 The Polyglot <code>AsyncSignal</code> Abstraction<a class="headerlink" href="#21-the-polyglot-asyncsignal-abstraction" title="Permanent link">¶</a></h3>
+<p>Different async runtimes employ incompatible notification primitives. <code>std/asyncdispatch</code> relies on <code>asyncdispatch.AsyncEvent</code> (backed by selector self-pipes or Windows event handles), whereas <code>chronos</code> employs <code>chronos.AsyncEvent</code> (backed by a high-performance user-space sticky atomic flag and event loop wakeups).</p>
+<p>To avoid code duplication while maintaining zero abstraction overhead, Wave 3C introduces the internal <code>AsyncSignal</code> abstraction:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">type</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="n">AsyncSignalKind</span><span class="o">*</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">enum</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="n">askAsyncDispatch</span><span class="p">,</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">    </span><span class="n">askChronos</span><span class="p">,</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="n">askNativeEventFd</span><span class="p">,</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="n">askNativePipe</span>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="n">AsyncSignal</span><span class="o">*</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">object</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="k">case</span><span class="w"> </span><span class="n">kind</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">AsyncSignalKind</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="k">of</span><span class="w"> </span><span class="nl">askAsyncDispatch</span><span class="o">:</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">      </span><span class="k">when</span><span class="w"> </span><span class="n">defined</span><span class="p">(</span><span class="n">lockfreeAsyncdispatch</span><span class="p">):</span>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">        </span><span class="n">dispEvent</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">asyncdispatch</span><span class="p">.</span><span class="n">AsyncEvent</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">      </span><span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">        </span><span class="n">dispPlaceholder</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">pointer</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span><span class="k">of</span><span class="w"> </span><span class="nl">askChronos</span><span class="o">:</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">      </span><span class="k">when</span><span class="w"> </span><span class="n">defined</span><span class="p">(</span><span class="n">lockfreeChronos</span><span class="p">):</span>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="w">        </span><span class="n">chronosEvent</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">chronos</span><span class="p">.</span><span class="n">AsyncEvent</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="w">      </span><span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">        </span><span class="n">chronosPlaceholder</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">pointer</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="w">    </span><span class="k">of</span><span class="w"> </span><span class="nl">askNativeEventFd</span><span class="o">:</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="w">      </span><span class="n">eventFd</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">cint</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a><span class="w">    </span><span class="k">of</span><span class="w"> </span><span class="nl">askNativePipe</span><span class="o">:</span>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="w">      </span><span class="n">pipeFds</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="nb">array</span><span class="o">[</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="n">cint</span><span class="o">]</span>
+</code></pre></div>
+<h4 id="universal-signal-semantics">Universal Signal Semantics<a class="headerlink" href="#universal-signal-semantics" title="Permanent link">¶</a></h4>
+<p>Every <code>AsyncSignal</code> variant MUST satisfy the following operational invariants:
+1. <strong>Thread-Safe Cross-Thread Fire (<code>fire()</code>)</strong>: Can be invoked from any physical OS thread, worker thread, or interrupt handler without taking mutexes.
+2. <strong>Sticky Semantics</strong>: If <code>fire()</code> is called before <code>wait()</code> is entered, the subsequent <code>wait()</code> completes immediately without suspending.
+3. <strong>Idempotence</strong>: Multiple consecutive calls to <code>fire()</code> before a <code>clear()</code> collapse into a single wakeup.
+4. <strong>Zero Allocation on Wakeup</strong>: Waking a waiting coroutine does not perform dynamic memory allocation.</p>
+<hr>
+<h3 id="22-fast-path-speculative-non-blocking-execution">2.2 Fast-Path Speculative Non-Blocking Execution<a class="headerlink" href="#22-fast-path-speculative-non-blocking-execution" title="Permanent link">¶</a></h3>
+<p>Under high throughput, contention is dynamic: data is frequently available immediately. Routing every queue pop or channel receive through the async scheduler introduces significant event-loop context-switching overhead and allocates unneeded <code>Future</code> state.</p>
+<p>Wave 3C enforces the <strong>Fast-Path Speculative Execution Rule</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>Coroutine calls asyncPop()
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>          |
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>          v
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>[Speculative Non-Blocking TryPop]
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>          |
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>     +----+----+
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>     |         |
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>  Success    Empty / Contended
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>     |         |
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>     v         v
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>Return       [Slow Path: Allocate Waiter]
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>Immediate    [Register on Lock-Free Waiter List]
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>Future(T)    [Double-Check TryPop]
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>             [await AsyncSignal.wait()]
+</code></pre></div>
+<h4 id="algorithmic-invariant-immediate-future-short-circuit">Algorithmic Invariant: Immediate Future Short-Circuit<a class="headerlink" href="#algorithmic-invariant-immediate-future-short-circuit" title="Permanent link">¶</a></h4>
+<ul>
+<li>If <code>tryPop()</code>, <code>tryRecv()</code>, or <code>trySteal()</code> succeeds on the first attempt, the adapter constructs an <strong>immediately resolved Future</strong>:</li>
+<li>In <code>chronos</code>: <code>newFutureCompleted(val)</code> (zero suspension).</li>
+<li>In <code>asyncdispatch</code>: <code>newFuture[T]()</code> with <code>fut.complete(val)</code> returned synchronously before yielding.</li>
+<li>No callback is registered with the reactor loop, and no event handle is primed. This achieves parity with synchronous lock-free throughput under loaded conditions.</li>
+</ul>
+<hr>
+<h3 id="23-slow-path-waiter-registration-the-double-check-protocol">2.3 Slow-Path Waiter Registration &amp; The Double-Check Protocol<a class="headerlink" href="#23-slow-path-waiter-registration-the-double-check-protocol" title="Permanent link">¶</a></h3>
+<p>When the speculative fast path fails, the coroutine must suspend. However, coordinating a concurrent lock-free queue with an asynchronous event loop creates a notorious concurrency hazard: the <strong>Lost-Wakeup Race Window</strong>.</p>
+<h4 id="the-lost-wakeup-race-condition">The Lost-Wakeup Race Condition<a class="headerlink" href="#the-lost-wakeup-race-condition" title="Permanent link">¶</a></h4>
+<p>Consider a naive slow path:
+1. Consumer checks queue: it is empty.
+2. Producer pushes item to queue and checks if any async consumer is waiting.
+3. Producer sees no registered waiter; producer continues.
+4. Consumer registers its <code>AsyncSignal</code> and calls <code>await signal.wait()</code>.
+5. <strong>Deadlock</strong>: The consumer waits forever even though an item is available in the queue!</p>
+<h4 id="the-double-check-protocol">The Double-Check Protocol<a class="headerlink" href="#the-double-check-protocol" title="Permanent link">¶</a></h4>
+<p>To eliminate this race without introducing heavyweight locks, Wave 3C establishes the <strong>Double-Check Protocol</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>Consumer (Async Event Loop)                Producer (Worker Thread)
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>---------------------------                ------------------------
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>1. Clear AsyncSignal flag
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>2. result = queue.tryPop()
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>   if result.isSome: return result
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>3. Register AsyncWaiter on WaiterList
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>   (Atomic CAS / release store)
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>4. RETRY: result = queue.tryPop()
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>   if result.isSome:
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>     Unregister AsyncWaiter
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>     return result
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>5. await signal.wait()
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>                                           A. queue.push(item)
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>                                           B. Check WaiterList
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>                                           C. If Waiter found:
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>                                              Remove Waiter
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>                                              signal.fire()
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>6. Loop to step 1 (Sticky Flag Handling)
+</code></pre></div>
+<p><strong>Formal Invariant</strong>: The signal flag MUST be cleared <em>before</em> the final <code>tryPop()</code> check. If a producer executes between step 4 and step 5, <code>signal.fire()</code> sets the sticky flag, causing <code>await signal.wait()</code> to return immediately.</p>
+<hr>
+<h2 id="3-safe-memory-reclamation-nebr-debra-isolation-invariant">3. Safe Memory Reclamation (NEBR / Debra) Isolation Invariant<a class="headerlink" href="#3-safe-memory-reclamation-nebr-debra-isolation-invariant" title="Permanent link">¶</a></h2>
+<h3 id="31-the-catastrophic-epoch-stall-problem">3.1 The Catastrophic Epoch Stall Problem<a class="headerlink" href="#31-the-catastrophic-epoch-stall-problem" title="Permanent link">¶</a></h3>
+<p>The <code>lockfree</code> repository utilizes Debra NEBR (Neutral Epoch-Based Reclamation, <code>src/lockfree/smr/nebr/</code>) for reclamation of retired queue and ctrie nodes. Under Debra:
+- An active thread enters a <strong>Pin Scope</strong> (<code>pin()</code>), publishing its thread-local epoch.
+- The global epoch cannot advance beyond the minimum epoch of any pinned thread.
+- When all threads advance, retired memory buffers are safely reclaimed.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>[ CRITICAL ARCHITECTURAL HAZARD: PINNING ACROSS ASYNC SUSPENSION ]
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>Thread 1 (Event Loop):
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>  pin()                       &lt;--- Thread enters Pin Scope
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>  let node = deref(head)
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>  await event.wait()          &lt;--- COROUTINE SUSPENDS! Event loop switches tasks!
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>  ... hours later ...
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>  unpin()
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>CONSEQUENCE:
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>While the coroutine is suspended awaiting an item, Thread 1 remains PINNED.
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>The global epoch CANNOT ADVANCE.
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>All concurrent producer threads retain ALL retired nodes in memory.
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>Result: OOM (Out Of Memory) crash and complete reclamation starvation!
+</code></pre></div>
+<h3 id="32-the-strict-pin-scope-boundary-invariant">3.2 The Strict Pin Scope Boundary Invariant<a class="headerlink" href="#32-the-strict-pin-scope-boundary-invariant" title="Permanent link">¶</a></h3>
+<p>To guarantee that SMR never suffers from suspension-induced epoch stalls, Wave 3C enforces the <strong>Strict Pin Scope Boundary Invariant</strong>:</p>
+<p>$$\forall c \in \text{Coroutines}, \quad \text{PinScope}(c) \cap \text{SuspensionPoints}(c) = \emptyset$$</p>
+<p><strong>Rules of Enforcement</strong>:
+1. <strong>Never <code>await</code> Inside a Pin Scope</strong>: It is a fatal compilation error or architectural violation to execute <code>await</code> while holding a Debra/NEBR pin.
+2. <strong>Extract-Unpin-Yield Sequence</strong>:
+   - Enter Pin Scope (<code>pin()</code>).
+   - Atomically dereference node and extract payload into a managed <code>VBox[T]</code> or local value.
+   - Exit Pin Scope (<code>unpin()</code>).
+   - Only AFTER the pin scope is fully closed may the coroutine yield, suspend, or await an <code>AsyncSignal</code>.
+3. <strong>Typestates Pragma Enforcement</strong>:
+   - All async adapter functions interacting with SMR must compile under <code>/Users/eek/.nimble/bin/typestates verify -W src/</code> with zero transitions active across async transform boundaries.</p>
+<hr>
+<h2 id="4-container-specific-architectural-adaptations">4. Container-Specific Architectural Adaptations<a class="headerlink" href="#4-container-specific-architectural-adaptations" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>+-----------------------------------------------------------------------------------------------+
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>|                                    Wave 3C Container Adapters                                 |
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>+-----------------------------------------------------------------------------------------------+
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>| Container               | Adapter Type                 | Fast Path       | Suspension Trigger |
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>|:------------------------|:-----------------------------|:----------------|:-------------------|
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>| `BQueue[T]`             | `AsyncBQueue[T]`             | `tryPush`/`tryPop`| Empty/Full         |
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>| `Queue[T]` (LCRQ)       | `AsyncQueue[T]`              | `tryPop`        | Empty              |
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>| `RendezvousChannel[T]`  | `AsyncRendezvousChannel[T]`  | `trySend`/`tryRecv`| No Peer Present  |
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>| `ChaseLevDeque[T]`      | `AsyncChaseLevDeque[T]`      | `trySteal`      | Empty Deque        |
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>| `BroadcastRing[T]`      | `AsyncBroadcastCursor[T]`    | `tryRecv`       | No New Sequence    |
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a>+-----------------------------------------------------------------------------------------------+
+</code></pre></div>
+<h3 id="41-bounded-queue-asyncbqueuet">4.1 Bounded Queue: <code>AsyncBQueue[T]</code><a class="headerlink" href="#41-bounded-queue-asyncbqueuet" title="Permanent link">¶</a></h3>
+<p>Bounded queues require bi-directional synchronization:
+1. <strong>Consumer Suspension (Empty Queue)</strong>: Consumers await when <code>head == tail</code>.
+2. <strong>Producer Backpressure (Full Queue)</strong>: Producers await when <code>tail - head == capacity</code>.</p>
+<h4 id="waiter-dual-ring-structure">Waiter Dual Ring Structure<a class="headerlink" href="#waiter-dual-ring-structure" title="Permanent link">¶</a></h4>
+<p><code>AsyncBQueue</code> maintains two waiter structures:
+- <code>emptyWaiters</code>: Lock-free Treiber stack of waiting consumers.
+- <code>fullWaiters</code>: Lock-free Treiber stack of waiting producers.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">type</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="n">AsyncBQueue</span><span class="o">*[</span><span class="n">T</span><span class="p">;</span><span class="w"> </span><span class="n">ccProd</span><span class="p">,</span><span class="w"> </span><span class="n">ccCons</span><span class="p">:</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="n">PinScopeCardinality</span><span class="p">;</span><span class="w"> </span><span class="n">N</span><span class="p">,</span><span class="w"> </span><span class="n">P</span><span class="p">,</span><span class="w"> </span><span class="n">C</span><span class="p">:</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="nb">int</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="k">object</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="n">queue</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">BQueue</span><span class="o">[</span><span class="n">T</span><span class="p">,</span><span class="w"> </span><span class="n">ccProd</span><span class="p">,</span><span class="w"> </span><span class="n">ccCons</span><span class="p">,</span><span class="w"> </span><span class="n">N</span><span class="p">,</span><span class="w"> </span><span class="n">P</span><span class="p">,</span><span class="w"> </span><span class="n">C</span><span class="o">]</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="n">consumerSignal</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">AsyncSignal</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">    </span><span class="n">producerSignal</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">AsyncSignal</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="n">hasWaitingConsumers</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">Atomic</span><span class="o">[</span><span class="nb">bool</span><span class="o">]</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span><span class="n">hasWaitingProducers</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">Atomic</span><span class="o">[</span><span class="nb">bool</span><span class="o">]</span>
+</code></pre></div>
+<ul>
+<li>When a producer successfully pushes an item:</li>
+<li>If <code>hasWaitingConsumers.load(moAcquire)</code> is true:<ul>
+<li>Atomically reset flag and invoke <code>consumerSignal.fire()</code>.</li>
+</ul>
+</li>
+<li>When a consumer successfully pops an item:</li>
+<li>If <code>hasWaitingProducers.load(moAcquire)</code> is true:<ul>
+<li>Atomically reset flag and invoke <code>producerSignal.fire()</code>.</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h3 id="42-unbounded-queue-asyncqueuet-morrison-afek-lcrq">4.2 Unbounded Queue: <code>AsyncQueue[T]</code> (Morrison &amp; Afek LCRQ)<a class="headerlink" href="#42-unbounded-queue-asyncqueuet-morrison-afek-lcrq" title="Permanent link">¶</a></h3>
+<p>Unbounded queues never block producers because capacity expands dynamically via linked ring nodes. Therefore, <code>AsyncQueue[T]</code> only requires <strong>Consumer Suspension</strong>:
+- Producers always execute synchronously via lock-free <code>enqueue()</code>.
+- SPSC mode uses Debra-free direct pop with zero pin overhead.
+- MPMC mode executes <code>tryPop()</code> inside an ephemeral pin scope, extracts <code>Option[T]</code>, closes pin scope, and suspends on <code>emptySignal</code> if <code>none()</code>.</p>
+<hr>
+<h3 id="43-synchronous-zero-buffer-channel-asyncrendezvouschannelt">4.3 Synchronous Zero-Buffer Channel: <code>AsyncRendezvousChannel[T]</code><a class="headerlink" href="#43-synchronous-zero-buffer-channel-asyncrendezvouschannelt" title="Permanent link">¶</a></h3>
+<p><code>RendezvousChannel[T]</code> (Wave 3B) provides CSP-style zero-buffer synchronous handoff. Senders and receivers must meet in real time.</p>
+<p>In an asynchronous context, <code>AsyncRendezvousChannel[T]</code> enables <strong>Heterogeneous Synchronization</strong>:
+- <strong>Case 1: Async Coroutine &lt;---&gt; Async Coroutine</strong>: Both parties suspend cooperatively on their respective event loops without blocking threads.
+- <strong>Case 2: Worker Thread &lt;---&gt; Async Coroutine</strong>: A physical worker thread calls synchronous <code>send(m)</code> (parking on OS futex), while an async coroutine calls <code>await recv()</code>. The arrival of the coroutine matches the thread, transfers data, wakes the thread via futex, and completes the coroutine's <code>Future</code>!
+- <strong>Case 3: Async Coroutine &lt;---&gt; Worker Thread</strong>: An async coroutine calls <code>await send(m)</code> (suspending on event loop), while a worker thread calls synchronous <code>recv()</code>. The thread completes the rendezvous, waking the coroutine via <code>AsyncSignal.fire()</code>.</p>
+<h4 id="dual-waiter-node-for-async-rendezvous">Dual Waiter Node for Async Rendezvous<a class="headerlink" href="#dual-waiter-node-for-async-rendezvous" title="Permanent link">¶</a></h4>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">type</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="n">AsyncWaiterKind</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">enum</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="n">awkThreadSync</span><span class="p">,</span><span class="w">  </span><span class="sd">## Physical OS thread (uses Parker futex)</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="n">awkAsyncDispatch</span><span class="p">,</span><span class="sd">## std/asyncdispatch Future</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">    </span><span class="n">awkChronos</span><span class="w">      </span><span class="sd">## chronos Future</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">  </span><span class="n">AsyncRendezvousWaiter</span><span class="o">[</span><span class="n">T</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">object</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">    </span><span class="n">mode</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">RendezvousMode</span><span class="w">             </span><span class="sd">## rmSender or rmReceiver</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span><span class="n">state</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">Atomic</span><span class="o">[</span><span class="n">RendezvousState</span><span class="o">]</span><span class="w">   </span><span class="sd">## rsWaiting, rsMatched, rsCancelled</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">    </span><span class="n">correlationId</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">uint64</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">    </span><span class="n">payload</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">Atomic</span><span class="o">[</span><span class="k">ptr</span><span class="w"> </span><span class="n">VBox</span><span class="o">[</span><span class="n">T</span><span class="o">]]</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">    </span><span class="n">kind</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">AsyncWaiterKind</span>
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="w">    </span><span class="n">parker</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">Parker</span><span class="w">                   </span><span class="sd">## For awkThreadSync</span>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="w">    </span><span class="n">signal</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">AsyncSignal</span><span class="w">              </span><span class="sd">## For awkAsyncDispatch / awkChronos</span>
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="w">    </span><span class="n">next</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">Atomic</span><span class="o">[</span><span class="k">ptr</span><span class="w"> </span><span class="n">AsyncRendezvousWaiter</span><span class="o">[</span><span class="n">T</span><span class="o">]]</span>
+</code></pre></div>
+<p>When an opposing party arrives:
+1. It atomically claims the waiter node via <code>state.compareExchange(rsWaiting, rsMatched, moAcqRel)</code>.
+2. It transfers the payload pointer.
+3. Based on <code>kind</code>, it executes either <code>parker.unpark()</code> (for OS thread) or <code>signal.fire()</code> (for async coroutine).</p>
+<hr>
+<h3 id="44-work-stealing-deque-asyncchaselevdequet">4.4 Work-Stealing Deque: <code>AsyncChaseLevDeque[T]</code><a class="headerlink" href="#44-work-stealing-deque-asyncchaselevdequet" title="Permanent link">¶</a></h3>
+<p>In task parallelism engines (such as <code>lockfree/taskpool.nim</code>), worker threads push and pop tasks locally from the bottom of their <code>ChaseLevDeque</code> in LIFO order.</p>
+<p><code>AsyncChaseLevDeque[T]</code> allows <strong>Asynchronous Thief Coroutines</strong> to steal tasks from the top in FIFO order:
+- A worker thread runs pure CPU work synchronously.
+- When an event-loop coroutine runs out of tasks, it executes <code>asyncSteal()</code>:
+  1. Speculative fast path: calls <code>deque.steal()</code>.
+  2. If an item is stolen, return immediately.
+  3. If empty, registers an <code>AsyncSignal</code> with the deque's thief-waiter list.
+  4. The worker thread, upon pushing new tasks to <code>bottom</code>, fires the thief signal if thieves are registered.</p>
+<hr>
+<h3 id="45-broadcast-ring-buffer-asyncbroadcastringt-asynctopicbust">4.5 Broadcast Ring Buffer: <code>AsyncBroadcastRing[T]</code> &amp; <code>AsyncTopicBus[T]</code><a class="headerlink" href="#45-broadcast-ring-buffer-asyncbroadcastringt-asynctopicbust" title="Permanent link">¶</a></h3>
+<p><code>BroadcastRing[T]</code> (Wave 3A) delivers every message to all registered readers via independent sequence cursors.</p>
+<p><code>AsyncBroadcastCursor[T]</code> transforms a broadcast subscriber into an <strong>Asynchronous Stream</strong>:
+</p><div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">type</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="n">AsyncBroadcastCursor</span><span class="o">*[</span><span class="n">T</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="k">object</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="n">cursor</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">BroadcastCursor</span><span class="o">[</span><span class="n">T</span><span class="o">]</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="n">ring</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">BroadcastRing</span><span class="o">[</span><span class="n">T</span><span class="o">]</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">    </span><span class="n">signal</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">AsyncSignal</span>
+</code></pre></div><p></p>
+<h4 id="consumer-api">Consumer API:<a class="headerlink" href="#consumer-api" title="Permanent link">¶</a></h4>
+<p></p><div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">proc</span><span class="w"> </span><span class="nf">recv</span><span class="o">*[</span><span class="n">T</span><span class="o">]</span><span class="p">(</span><span class="n">self</span><span class="p">:</span><span class="w"> </span><span class="n">AsyncBroadcastCursor</span><span class="o">[</span><span class="n">T</span><span class="o">]</span><span class="p">):</span><span class="w"> </span><span class="n">Future</span><span class="o">[</span><span class="n">Option</span><span class="o">[</span><span class="n">T</span><span class="o">]]</span><span class="w"> </span><span class="sx">{.async.}</span>
+</code></pre></div>
+1. Reads next sequence slot from <code>BroadcastRing</code>.
+2. If sequence has been published, extracts payload and advances cursor immediately.
+3. If sequence is pending, registers <code>signal</code> with the ring's reader-notification list and calls <code>await signal.wait()</code>.
+4. Publishers advancing the ring tail trigger reader signals via batch notification.<p></p>
+<hr>
+<h2 id="5-cancellation-semantics-zero-item-loss-invariant">5. Cancellation Semantics &amp; Zero Item Loss Invariant<a class="headerlink" href="#5-cancellation-semantics-zero-item-loss-invariant" title="Permanent link">¶</a></h2>
+<h3 id="51-the-asynchronous-cancellation-dilemma">5.1 The Asynchronous Cancellation Dilemma<a class="headerlink" href="#51-the-asynchronous-cancellation-dilemma" title="Permanent link">¶</a></h3>
+<p>In modern async programming, operations can be cancelled at any time due to:
+- Timeouts (<code>withTimeout</code>, <code>sendWithTimeout</code>).
+- Client disconnections.
+- Structured concurrency cancellation scopes.</p>
+<p>When a coroutine awaiting <code>await queue.pop()</code> is cancelled, a severe race condition occurs:
+<strong>What happens if the producer delivers an item at the exact microsecond the consumer is cancelled?</strong>
+- If the adapter ignores cancellation, the consumer leaks or drops the item.
+- If the adapter accepts cancellation but the item was already dequeued, the item vanishes into the void!</p>
+<h3 id="52-bilateral-cas-arbitration-protocol">5.2 Bilateral CAS Arbitration Protocol<a class="headerlink" href="#52-bilateral-cas-arbitration-protocol" title="Permanent link">¶</a></h3>
+<p>To ensure the <strong>Zero Item Loss Invariant</strong>, Wave 3C specifies a formal 3-state bilateral CAS arbitration protocol for every async waiter node:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>                  +--------------------+
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>                  |     wsPending      |
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>                  +---------+----------+
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>                            |
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>             +--------------+--------------+
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>             |                             |
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>      Producer Wins CAS             Canceller Wins CAS
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>(state -&gt; wsMatched, moAcqRel)   (state -&gt; wsCancelled, moAcqRel)
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>             |                             |
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>             v                             v
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a>  +--------------------+        +--------------------+
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>  |     wsMatched      |        |    wsCancelled     |
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>  +--------------------+        +--------------------+
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>  - Item custody handed off.    - Item NOT touched.
+<a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a>  - Operation CANNOT cancel.    - Waiter unlinked from list.
+<a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a>  - Must deliver to Future.     - CancelledError propagates.
+</code></pre></div>
+<h4 id="protocol-state-machine-rules">Protocol State Machine Rules:<a class="headerlink" href="#protocol-state-machine-rules" title="Permanent link">¶</a></h4>
+<ol>
+<li><strong>Producer Action</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">if</span><span class="w"> </span><span class="n">waiter</span><span class="p">.</span><span class="n">state</span><span class="p">.</span><span class="n">compareExchange</span><span class="p">(</span><span class="n">wsPending</span><span class="p">,</span><span class="w"> </span><span class="n">wsMatched</span><span class="p">,</span><span class="w"> </span><span class="n">moAcqRel</span><span class="p">):</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="c"># Producer won arbitration.</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="n">waiter</span><span class="p">.</span><span class="n">payload</span><span class="p">.</span><span class="n">store</span><span class="p">(</span><span class="n">itemBox</span><span class="p">,</span><span class="w"> </span><span class="n">moRelease</span><span class="p">)</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">  </span><span class="n">waiter</span><span class="p">.</span><span class="n">signal</span><span class="p">.</span><span class="n">fire</span><span class="p">()</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">  </span><span class="c"># Waiter was cancelled! Producer retains custody of item</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">  </span><span class="c"># and offers it to the next available waiter or leaves it in queue.</span>
+</code></pre></div></li>
+<li><strong>Canceller Action</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">if</span><span class="w"> </span><span class="n">waiter</span><span class="p">.</span><span class="n">state</span><span class="p">.</span><span class="n">compareExchange</span><span class="p">(</span><span class="n">wsPending</span><span class="p">,</span><span class="w"> </span><span class="n">wsCancelled</span><span class="p">,</span><span class="w"> </span><span class="n">moAcqRel</span><span class="p">):</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="w">  </span><span class="c"># Cancellation won arbitration.</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="w">  </span><span class="c"># Waiter safely removed. No item was dequeued.</span>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="w">  </span><span class="k">raise</span><span class="w"> </span><span class="n">newException</span><span class="p">(</span><span class="n">CancelledError</span><span class="p">,</span><span class="w"> </span><span class="s">"Async operation cancelled"</span><span class="p">)</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="w">  </span><span class="c"># PRODUCER ALREADY MATCHED! Cancellation was preempted.</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">  </span><span class="c"># The item has been transferred. The coroutine MUST NOT drop it!</span>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">  </span><span class="c"># The Future completes with the item; cancellation is deferred or ignored.</span>
+</code></pre></div></li>
+</ol>
+<p><strong>Architectural Guarantee</strong>: Under no interleaving of execution can an item be removed from a container without being delivered to a valid consumer.</p>
+<hr>
+<h2 id="6-threadpool-dispatch-worker-thread-integration">6. Threadpool Dispatch &amp; Worker Thread Integration<a class="headerlink" href="#6-threadpool-dispatch-worker-thread-integration" title="Permanent link">¶</a></h2>
+<h3 id="61-bi-directional-offloading-architecture">6.1 Bi-Directional Offloading Architecture<a class="headerlink" href="#61-bi-directional-offloading-architecture" title="Permanent link">¶</a></h3>
+<p>Wave 3C provides tight integration between async event loops and <code>lockfree/taskpool.nim</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>[ Async Event Loop Thread ]
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>             |
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a>             | dispatchToThreadpool(proc() = ...)
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>             v
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a>+-------------------------------------------------------------+
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>| Taskpool (Worker Threads 1 .. N)                            |
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a>| - Chase-Lev work-stealing task queues                       |
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>| - High-throughput CPU-bound processing                      |
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a>+-------------------------------------------------------------+
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>             |
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>             | Results pushed to AsyncQueue[T] / AsyncSignal
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a>             v
+<a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>[ Async Event Loop Thread wakes and processes Future result ]
+</code></pre></div>
+<h3 id="62-async-taskpool-future-bridge">6.2 Async Taskpool Future Bridge<a class="headerlink" href="#62-async-taskpool-future-bridge" title="Permanent link">¶</a></h3>
+<p></p><div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="k">proc</span><span class="w"> </span><span class="nf">spawnAsync</span><span class="o">*[</span><span class="n">T</span><span class="o">]</span><span class="p">(</span><span class="n">pool</span><span class="p">:</span><span class="w"> </span><span class="n">Taskpool</span><span class="p">,</span><span class="w"> </span><span class="n">task</span><span class="p">:</span><span class="w"> </span><span class="n">proc</span><span class="p">():</span><span class="w"> </span><span class="n">T</span><span class="w"> </span><span class="sx">{.gcsafe.}</span><span class="p">):</span><span class="w"> </span><span class="n">Future</span><span class="o">[</span><span class="n">T</span><span class="o">]</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="w">  </span><span class="sd">## Offloads a blocking CPU-bound computation to the lockfree taskpool</span>
+<a id="__codelineno-14-3" name="__codelineno-14-3" href="#__codelineno-14-3"></a><span class="w">  </span><span class="sd">## and returns a Future[T] that completes on the caller's event loop</span>
+<a id="__codelineno-14-4" name="__codelineno-14-4" href="#__codelineno-14-4"></a><span class="w">  </span><span class="sd">## upon task completion without spinning.</span>
+</code></pre></div>
+- The caller allocates a promise/future and attaches an <code>AsyncSignal</code>.
+- The task is scheduled on the worker threadpool.
+- Upon completion, the worker thread places the result in the shared box and executes <code>signal.fire()</code>.
+- The event loop resumes the calling coroutine with the computed result.<p></p>
+<hr>
+<h2 id="7-c-abi-foreign-thread-interoperability">7. C ABI &amp; Foreign Thread Interoperability<a class="headerlink" href="#7-c-abi-foreign-thread-interoperability" title="Permanent link">¶</a></h2>
+<p>To allow foreign C threads (e.g. audio processing threads, network kernel drivers, embedded C libraries) to push data into Nim async queues and wake Nim event loops, Wave 3C exports C ABI bindings:</p>
+<h3 id="header-specification-includelockfree_async_bridgeh">Header Specification: <code>include/lockfree_async_bridge.h</code><a class="headerlink" href="#header-specification-includelockfree_async_bridgeh" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="cp">#ifndef LOCKFREE_ASYNC_BRIDGE_H</span>
+<a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="cp">#define LOCKFREE_ASYNC_BRIDGE_H</span>
+<a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
+<a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdint.h&gt;</span>
+<a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdbool.h&gt;</span>
+<a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a>
+<a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="cp">#ifdef __cplusplus</span>
+<a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a><span class="k">extern</span><span class="w"> </span><span class="s">"C"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="cp">#endif</span>
+<a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a>
+<a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="k">typedef</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">lfq_async_queue_t</span><span class="p">;</span>
+<a id="__codelineno-15-12" name="__codelineno-15-12" href="#__codelineno-15-12"></a><span class="k">typedef</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">lfq_async_signal_t</span><span class="p">;</span>
+<a id="__codelineno-15-13" name="__codelineno-15-13" href="#__codelineno-15-13"></a>
+<a id="__codelineno-15-14" name="__codelineno-15-14" href="#__codelineno-15-14"></a><span class="c1">// Push an item from a foreign C thread into an async queue and trigger the event loop</span>
+<a id="__codelineno-15-15" name="__codelineno-15-15" href="#__codelineno-15-15"></a><span class="kt">int</span><span class="w"> </span><span class="nf">lfq_async_queue_push</span><span class="p">(</span><span class="n">lfq_async_queue_t</span><span class="w"> </span><span class="n">queue</span><span class="p">,</span><span class="w"> </span><span class="k">const</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">item</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">size</span><span class="p">);</span>
+<a id="__codelineno-15-16" name="__codelineno-15-16" href="#__codelineno-15-16"></a>
+<a id="__codelineno-15-17" name="__codelineno-15-17" href="#__codelineno-15-17"></a><span class="c1">// Manually fire an async signal from a foreign thread</span>
+<a id="__codelineno-15-18" name="__codelineno-15-18" href="#__codelineno-15-18"></a><span class="kt">void</span><span class="w"> </span><span class="nf">lfq_async_signal_fire</span><span class="p">(</span><span class="n">lfq_async_signal_t</span><span class="w"> </span><span class="n">signal</span><span class="p">);</span>
+<a id="__codelineno-15-19" name="__codelineno-15-19" href="#__codelineno-15-19"></a>
+<a id="__codelineno-15-20" name="__codelineno-15-20" href="#__codelineno-15-20"></a><span class="cp">#ifdef __cplusplus</span>
+<a id="__codelineno-15-21" name="__codelineno-15-21" href="#__codelineno-15-21"></a><span class="p">}</span>
+<a id="__codelineno-15-22" name="__codelineno-15-22" href="#__codelineno-15-22"></a><span class="cp">#endif</span>
+<a id="__codelineno-15-23" name="__codelineno-15-23" href="#__codelineno-15-23"></a>
+<a id="__codelineno-15-24" name="__codelineno-15-24" href="#__codelineno-15-24"></a><span class="cp">#endif </span><span class="c1">// LOCKFREE_ASYNC_BRIDGE_H</span>
+</code></pre></div>
+<p>Foreign threads write items with release semantics and fire the <code>AsyncSignal</code> using thread-safe system calls (<code>eventfd_write</code> on Linux, <code>write</code> on POSIX self-pipe, or <code>SetEvent</code> on Windows).</p>
+<hr>
+<h2 id="8-compilation-flags-modular-structure">8. Compilation Flags &amp; Modular Structure<a class="headerlink" href="#8-compilation-flags-modular-structure" title="Permanent link">¶</a></h2>
+<h3 id="81-opt-in-activation-matrix">8.1 Opt-In Activation Matrix<a class="headerlink" href="#81-opt-in-activation-matrix" title="Permanent link">¶</a></h3>
+<p>Following the established design pattern in <code>src/lockfree/chronos.nim</code>, the async bridge is strictly <strong>flag-only opt-in</strong>:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Compiler Flag</th>
+<th style="text-align: left;">Backend Activated</th>
+<th style="text-align: left;">Dependencies Required</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>-d:lockfreeChronos</code></td>
+<td style="text-align: left;"><code>lockfree/chronos.nim</code></td>
+<td style="text-align: left;"><code>chronos &gt;= 4.0.0, &lt; 5.0.0</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>-d:lockfreeAsyncdispatch</code></td>
+<td style="text-align: left;"><code>lockfree/asyncdispatch_bridge.nim</code></td>
+<td style="text-align: left;">Standard library <code>std/asyncdispatch</code></td>
+</tr>
+<tr>
+<td style="text-align: left;">None</td>
+<td style="text-align: left;">None (Sync Only)</td>
+<td style="text-align: left;">Zero additional dependencies</td>
+</tr>
+</tbody>
+</table>
+<h3 id="82-diagnostic-install-hints">8.2 Diagnostic Install Hints<a class="headerlink" href="#82-diagnostic-install-hints" title="Permanent link">¶</a></h3>
+<p>If a user compiles with <code>-d:lockfreeChronos</code> without having <code>chronos</code> installed, the compiler emits a fail-fast diagnostic error:
+</p><div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="k">when</span><span class="w"> </span><span class="n">defined</span><span class="p">(</span><span class="n">lockfreeChronos</span><span class="p">)</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">chronosReachable</span><span class="p">:</span>
+<a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span><span class="sx">{.error</span>:<span class="w"> </span><span class="sx">"lockfree/chronos</span>:<span class="w"> </span><span class="sx">-d</span>:<span class="sx">lockfreeChronos</span><span class="w"> </span><span class="sx">was</span><span class="w"> </span><span class="sx">set</span><span class="w"> </span><span class="sx">but</span><span class="w"> </span><span class="sx">chronos</span><span class="w"> </span><span class="sx">is</span><span class="w"> </span><span class="sx">not</span><span class="w"> </span><span class="sx">installed. Run</span><span class="w"> </span><span class="sx">`nimble</span><span class="w"> </span><span class="sx">install</span><span class="w"> </span><span class="sx">chronos`.".}</span>
+</code></pre></div><p></p>
+<p>Similarly, if <code>-d:lockfreeAsyncdispatch</code> is specified on a backend incompatible with threads, a compile-time assertion fails immediately:
+</p><div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="k">when</span><span class="w"> </span><span class="n">defined</span><span class="p">(</span><span class="n">lockfreeAsyncdispatch</span><span class="p">)</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">compileOption</span><span class="p">(</span><span class="s">"threads"</span><span class="p">):</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span><span class="sx">{.error</span>:<span class="w"> </span><span class="sx">"lockfree/asyncdispatch</span><span class="w"> </span><span class="sx">requires</span><span class="w"> </span><span class="sx">--threads</span>:<span class="sx">on</span><span class="w"> </span><span class="sx">for</span><span class="w"> </span><span class="sx">cross-thread</span><span class="w"> </span><span class="sx">lock-free</span><span class="w"> </span><span class="sx">coordination.".}</span>
+</code></pre></div><p></p>
+<hr>
+<h2 id="9-formal-memory-ordering-synchronization-proofs">9. Formal Memory Ordering &amp; Synchronization Proofs<a class="headerlink" href="#9-formal-memory-ordering-synchronization-proofs" title="Permanent link">¶</a></h2>
+<h3 id="91-memory-ordering-invariant-table">9.1 Memory Ordering Invariant Table<a class="headerlink" href="#91-memory-ordering-invariant-table" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Operation</th>
+<th style="text-align: left;">Atomic Target</th>
+<th style="text-align: left;">Order</th>
+<th style="text-align: left;">Formal Justification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>waiter.state</code> CAS</td>
+<td style="text-align: left;"><code>Atomic[RendezvousState]</code></td>
+<td style="text-align: left;"><code>moAcqRel</code></td>
+<td style="text-align: left;">Synchronizes matching party with cancelling or waiting party; guarantees payload visibility.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>payload</code> store</td>
+<td style="text-align: left;"><code>Atomic[ptr VBox[T]]</code></td>
+<td style="text-align: left;"><code>moRelease</code></td>
+<td style="text-align: left;">Establishes happens-before relationship between payload write and waiter unparking.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>payload</code> load</td>
+<td style="text-align: left;"><code>Atomic[ptr VBox[T]]</code></td>
+<td style="text-align: left;"><code>moAcquire</code></td>
+<td style="text-align: left;">Guarantees consumer observes initialized memory of payload box after match.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>hasWaitingConsumers</code> store</td>
+<td style="text-align: left;"><code>Atomic[bool]</code></td>
+<td style="text-align: left;"><code>moRelease</code></td>
+<td style="text-align: left;">Ensures queue state updates are visible to consumer before notification is sent.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>hasWaitingConsumers</code> load</td>
+<td style="text-align: left;"><code>Atomic[bool]</code></td>
+<td style="text-align: left;"><code>moAcquire</code></td>
+<td style="text-align: left;">Ensures producer observes registered waiters without stale cache effects.</td>
+</tr>
+<tr>
+<td style="text-align: left;">Sticky flag load/store</td>
+<td style="text-align: left;"><code>AsyncEvent</code></td>
+<td style="text-align: left;"><code>moSeqCst</code></td>
+<td style="text-align: left;">Precludes instruction reordering across the double-check lost-wakeup window.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="92-linearization-points">9.2 Linearization Points<a class="headerlink" href="#92-linearization-points" title="Permanent link">¶</a></h3>
+<ol>
+<li><strong>Successful Fast-Path Pop</strong>: Linearizes at the underlying container's atomic pop linearization point (e.g. CAS on queue head).</li>
+<li><strong>Successful Fast-Path Push</strong>: Linearizes at the underlying container's atomic push linearization point.</li>
+<li><strong>Slow-Path Consumer Match</strong>: Linearizes at the CAS transition of <code>waiter.state</code> from <code>wsPending</code> to <code>wsMatched</code>.</li>
+<li><strong>Slow-Path Cancellation</strong>: Linearizes at the CAS transition of <code>waiter.state</code> from <code>wsPending</code> to <code>wsCancelled</code>.</li>
+</ol>
+<hr>
+<h2 id="10-verification-test-matrix">10. Verification &amp; Test Matrix<a class="headerlink" href="#10-verification-test-matrix" title="Permanent link">¶</a></h2>
+<p>Wave 3C requires full test coverage across both runtimes and multi-threaded stress harnesses:</p>
+<ol>
+<li><strong>Unit Acceptance Tests</strong>:</li>
+<li><code>tests/t_async_bqueue.nim</code>: SPSC, MPSC, SPMC, MPMC push/pop with <code>asyncdispatch</code>.</li>
+<li><code>tests/t_async_queue.nim</code>: Unbounded LCRQ async push/pop.</li>
+<li><code>tests/t_async_rendezvous.nim</code>: Bilateral coroutine-to-coroutine and thread-to-coroutine matching.</li>
+<li><code>tests/t_async_broadcast.nim</code>: Multicast pub-sub cursor streams with async awaiting.</li>
+<li><strong>Adversarial Cancellation Suite</strong>:</li>
+<li>Rapid timeout cancellation (<code>withTimeout(pop(), 1.nanosecond)</code>).</li>
+<li>High-concurrency cancellation races: 16 producers, 16 consumers rapidly cancelling <code>Future</code>s.</li>
+<li>Assert zero item loss: sum of all produced items MUST equal sum of consumed items.</li>
+<li><strong>TSan &amp; Memory Leak Audit</strong>:</li>
+<li>Run under <code>--mm:orc</code> and <code>--mm:arc</code> with ThreadSanitizer enabled (<code>--passC:-fsanitize=thread --passL:-fsanitize=thread</code>).</li>
+<li>Confirm zero race conditions in <code>AsyncSignal</code> wakeups and zero memory leaks under cancelled futures.</li>
+</ol>
+
+
+
+
+
+
+
+  
+    
+  
+  
+    
+  
+
+
+  <aside class="md-source-file">
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Last update">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 9, 2026 03:56:11 UTC"><span class="timeago" datetime="2026-10-09T03:56:11+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 9, 2026 03:56:11 UTC">2026-10-09</span>
+  </span>
+
+    
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Created">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"></path></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 9, 2026 03:56:11 UTC"><span class="timeago" datetime="2026-10-09T03:56:11+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 9, 2026 03:56:11 UTC">2026-10-09</span>
+  </span>
+
+    
+    
+    
+  </aside>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/elijahr/lockfree" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.code.annotate", "navigation.instant", "navigation.sections", "navigation.expand", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../js/timeago.min.js"></script>
+      
+        <script src="../../js/timeago_mkdocs_material.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>
