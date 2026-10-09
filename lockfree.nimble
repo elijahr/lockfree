@@ -53,11 +53,11 @@ task test, "Runs the test suite":
 
   proc runOrc =
     # C with default MM (orc)
-    exec "nim c" & ccFlag & " --threads:on --nimcache:" & (nimcacheBase / "test_orc") & " -r tests/test.nim"
+    exec "nim c" & ccFlag & " --mm:orc --threads:on --nimcache:" & (nimcacheBase / "test_orc") & " -r tests/test.nim"
 
   proc runCpp =
     # C++
-    exec "nim cpp --threads:on --nimcache:" & (nimcacheBase / "test_cpp") & " -r tests/test.nim"
+    exec "nim cpp --mm:orc --threads:on --nimcache:" & (nimcacheBase / "test_cpp") & " -r tests/test.nim"
 
   proc runArc =
     # Test with arc MM
