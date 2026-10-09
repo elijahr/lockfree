@@ -1049,11 +1049,47 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check lfq_rendezvous_recv(chan, addr item, addr corrId) == LFQ_ERR_CLOSED
     check lfq_rendezvous_destroy(chan) == LFQ_OK
 
+  test "Rate Limiters C ABI (TokenBucket & LeakyBucket)":
+    # Stack-allocated TokenBucket
+    var tb: lfq_token_bucket_t
+    check lfq_token_bucket_init(addr tb, 100, 50) == 0
+    check lfq_token_bucket_available(addr tb) == 100
+    check lfq_token_bucket_try_acquire(addr tb, 40) == true
+    check lfq_token_bucket_available(addr tb) == 60
+    check lfq_token_bucket_acquire_timeout(addr tb, 10, 1_000_000) == true
+
+    # Reset
+    lfq_token_bucket_reset(addr tb, 100)
+    check lfq_token_bucket_available(addr tb) == 100
+
+    # Heap-allocated TokenBucket
+    let heapTb = lfq_token_bucket_create(50, 10)
+    check heapTb != nil
+    check lfq_token_bucket_available(heapTb) == 50
+    check lfq_token_bucket_try_acquire(heapTb, 25) == true
+    lfq_token_bucket_destroy(heapTb)
+
+    # Stack-allocated LeakyBucket
+    var lb: lfq_leaky_bucket_t
+    check lfq_leaky_bucket_init(addr lb, 100_000_000, 20) == 0
+    check lfq_leaky_bucket_try_consume(addr lb, 1) == true
+    check lfq_leaky_bucket_water_level(addr lb) > 0
+    lfq_leaky_bucket_reset(addr lb)
+    check lfq_leaky_bucket_water_level(addr lb) == 0
+
+    # Heap-allocated LeakyBucket
+    let heapLb = lfq_leaky_bucket_create(200_000_000, 50)
+    check heapLb != nil
+    check lfq_leaky_bucket_try_consume(heapLb, 1) == true
+    lfq_leaky_bucket_destroy(heapLb)
+
   test "Direct C99 Header Interoperability":
     let code1 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree.h"))
     check code1 == 0
     let code2 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_rendezvous.h"))
     check code2 == 0
+    let code3 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_ratelimit.h"))
+    check code3 == 0
 
   test "Compiled C99 test harness execution (clang + liblockfree.a)":
     let rootDir = currentSourcePath().parentDir() / ".."

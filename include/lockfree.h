@@ -13,6 +13,8 @@ extern "C" {
  * Status Codes & Common Types
  * ------------------------------------------------------------------------- */
 
+#ifndef LFQ_STATUS_DEFINED
+#define LFQ_STATUS_DEFINED
 typedef enum lfq_status {
     LFQ_OK                  =  0,
     LFQ_ERR_EMPTY           =  1,
@@ -24,6 +26,7 @@ typedef enum lfq_status {
     LFQ_ERR_FAILURE         = -1,
     LFQ_ERR_PANIC           = -2
 } lfq_status_t;
+#endif
 
 typedef void (*lfq_item_destructor_fn)(void* item, void* user_data);
 
@@ -422,6 +425,12 @@ bool lf_rendezvous_try_send(lf_rendezvous_t* chan, void* payload, uint64_t* out_
 bool lf_rendezvous_try_recv(lf_rendezvous_t* chan, void** out_payload, uint64_t* out_corr_id);
 bool lf_rendezvous_send_timeout(lf_rendezvous_t* chan, void* payload, int timeout_ms, uint64_t* out_corr_id);
 bool lf_rendezvous_recv_timeout(lf_rendezvous_t* chan, void** out_payload, int timeout_ms, uint64_t* out_corr_id);
+
+/* -------------------------------------------------------------------------
+ * 10. Rate Limiters (Hardware 128-Bit DWCAS TokenBucket & LeakyBucket)
+ * ------------------------------------------------------------------------- */
+
+#include "lockfree_ratelimit.h"
 
 #ifdef __cplusplus
 }

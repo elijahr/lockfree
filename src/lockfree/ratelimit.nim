@@ -19,6 +19,7 @@
 import lockfree/atomics
 import lockfree/atomics/backoff
 import lockfree/backoff
+import lockfree/constants
 import std/monotimes
 
 const NanosPerSec*: uint64 = 1_000_000_000'u64
@@ -46,7 +47,7 @@ type
   TokenBucket* = object
     ## Lock-free burst-tolerant token bucket using 128-bit hardware DWCAS.
     ## State transitions update timestamp and available tokens atomically.
-    state* {.align: 64.}: Atomic[RateLimitState]
+    state* {.align: CacheLineBytes.}: Atomic[RateLimitState]
     capacity*: uint64          ## Maximum capacity in scaled nano-tokens
     refillRatePerSec*: uint64  ## Tokens refilled per second
     scaleFactor*: uint64       ## Scaling factor (default: 10^9 for nano-tokens)
@@ -54,7 +55,7 @@ type
   LeakyBucket* = object
     ## Lock-free GCRA (Generic Cell Rate Algorithm) traffic smoother.
     ## Enforces uniform spacing between events with bounded burst tolerance.
-    state* {.align: 64.}: Atomic[RateLimitState]
+    state* {.align: CacheLineBytes.}: Atomic[RateLimitState]
     burstToleranceNs*: uint64  ## Burst tolerance tau in nanoseconds
     leakRatePerSec*: uint64    ## Tokens leaked per second
     scaleFactor*: uint64       ## Scaling factor (default: 1)
@@ -112,7 +113,13 @@ proc initTokenBucket*(
   ## By default, tokens are scaled by 10^9 (nano-tokens) for zero-division, zero-drift refill.
   result.refillRatePerSec = refillRatePerSec
   result.scaleFactor = if scaleFactor == 0: NanosPerSec else: scaleFactor
-  result.capacity = capacityTokens * result.scaleFactor
+
+  # Guard against 64-bit integer multiplication overflow (HIGH-01)
+  if capacityTokens > uint64.high div result.scaleFactor:
+    result.capacity = uint64.high
+  else:
+    result.capacity = capacityTokens * result.scaleFactor
+
   let initTokens =
     if initialTokens == uint64.high:
       result.capacity
@@ -338,20 +345,17 @@ proc tryConsumeAt*(self: var LeakyBucket, now: uint64, weight: uint64 = 1): bool
   let weightRem = weight mod self.leakRatePerSec
   let increment = weightWhole * NanosPerSec + (weightRem * NanosPerSec) div self.leakRatePerSec
 
-  let limit = if self.burstToleranceNs == 0: increment else: self.burstToleranceNs
-  if increment > limit:
-    return false
-
   var spins = InitialSpin
   var oldState = self.state.load(moSequentiallyConsistent)
   while true:
     let tat = max(now, oldState.first)
-    if tat + increment > now + limit:
+    # Canonical GCRA check: TAT must not exceed current time plus burst tolerance
+    if tat > now + self.burstToleranceNs:
       return false
 
     var desired: Pair[uint64, uint64]
     desired.first = tat + increment
-    desired.second = desired.first - now
+    desired.second = if desired.first > now: desired.first - now else: 0'u64
 
     if self.state.compareExchangeWeak(oldState, desired, moSequentiallyConsistent, moSequentiallyConsistent):
       return true
@@ -376,14 +380,6 @@ proc consumeWithTimeout*(
   if unlikely(self.leakRatePerSec == 0):
     return false
 
-  let weightWhole = weight div self.leakRatePerSec
-  let weightRem = weight mod self.leakRatePerSec
-  let increment = weightWhole * NanosPerSec + (weightRem * NanosPerSec) div self.leakRatePerSec
-
-  let limit = if self.burstToleranceNs == 0: increment else: self.burstToleranceNs
-  if increment > limit:
-    return false
-
   let startNs = getMonotonicTimeNs()
   while true:
     let nowNs = getMonotonicTimeNs()
@@ -395,8 +391,7 @@ proc consumeWithTimeout*(
 
     let st = self.state.load(moSequentiallyConsistent)
     let tat = max(nowNs, st.first)
-    let admitNs = if tat + increment > limit: (tat + increment) - limit else: nowNs
-    let waitNs = if admitNs > nowNs: admitNs - nowNs else: 1000'u64
+    let waitNs = if tat > nowNs + self.burstToleranceNs: (tat - self.burstToleranceNs) - nowNs else: 1000'u64
 
     if timeoutNs > 0:
       let elapsedTotal = int64(nowNs - startNs)
@@ -430,13 +425,13 @@ type
     tokens_or_level*: uint64
 
   lfq_token_bucket_t* {.exportc: "lfq_token_bucket_t", bycopy.} = object
-    state* {.align: 64.}: RateLimitState
+    state* {.align: CacheLineBytes.}: RateLimitState
     capacity*: uint64
     refill_rate_per_sec*: uint64
     scale_factor*: uint64
 
   lfq_leaky_bucket_t* {.exportc: "lfq_leaky_bucket_t", bycopy.} = object
-    state* {.align: 64.}: RateLimitState
+    state* {.align: CacheLineBytes.}: RateLimitState
     burst_tolerance_ns*: uint64
     leak_rate_per_sec*: uint64
     scale_factor*: uint64

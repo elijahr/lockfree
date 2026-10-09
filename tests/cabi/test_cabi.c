@@ -18,6 +18,7 @@
 #include <pthread.h>
 #include <time.h>
 #include "lockfree.h"
+#include "lockfree_ratelimit.h"
 
 /* Nim runtime initialization symbol exported by liblockfree.a */
 extern void NimMain(void);
@@ -792,7 +793,139 @@ static void test_cabi_rendezvous(void) {
 }
 
 /* -------------------------------------------------------------------------
- * Test 10: Concurrent Multithreaded MPMC Queue Test via pthreads
+ * Test 10: Rate Limiters (TokenBucket & LeakyBucket GCRA)
+ * ------------------------------------------------------------------------- */
+
+typedef struct {
+    lfq_token_bucket_t* bucket;
+    size_t iterations;
+    test_atomic_size_t* total_acquired;
+} tb_stress_arg_t;
+
+static void* tb_stress_worker(void* raw_arg) {
+    tb_stress_arg_t* arg = (tb_stress_arg_t*)raw_arg;
+    for (size_t i = 0; i < arg->iterations; i++) {
+        while (!lfq_token_bucket_try_acquire(arg->bucket, 1)) {
+            #if defined(__x86_64__) || defined(_M_X64)
+            __asm__ volatile("pause");
+            #elif defined(__aarch64__) || defined(_M_ARM64)
+            __asm__ volatile("yield");
+            #endif
+        }
+        ATOMIC_INC(arg->total_acquired);
+    }
+    return NULL;
+}
+
+static void test_cabi_ratelimit(void) {
+    printf("Running test_cabi_ratelimit...\n");
+
+    /* 1. Stack-Allocated TokenBucket */
+    lfq_token_bucket_t tb;
+    int rc = lfq_token_bucket_init(&tb, 50, 100);
+    TEST_ASSERT(rc == 0, "lfq_token_bucket_init failed");
+    TEST_ASSERT(lfq_token_bucket_available(&tb) == 50, "Available tokens should be 50");
+
+    bool ok = lfq_token_bucket_try_acquire(&tb, 20);
+    TEST_ASSERT(ok, "try_acquire 20 should succeed");
+    TEST_ASSERT(lfq_token_bucket_available(&tb) == 30, "Available tokens should be 30");
+
+    ok = lfq_token_bucket_try_acquire(&tb, 30);
+    TEST_ASSERT(ok, "try_acquire 30 should succeed");
+    TEST_ASSERT(lfq_token_bucket_available(&tb) == 0, "Available tokens should be 0");
+
+    ok = lfq_token_bucket_try_acquire(&tb, 1);
+    TEST_ASSERT(!ok, "try_acquire 1 from empty bucket should fail");
+
+    /* Reset */
+    lfq_token_bucket_reset(&tb, 50);
+    TEST_ASSERT(lfq_token_bucket_available(&tb) == 50, "Reset should restore tokens");
+
+    /* Timed Acquire */
+    ok = lfq_token_bucket_try_acquire(&tb, 50);
+    TEST_ASSERT(ok, "try_acquire 50 should succeed");
+    ok = lfq_token_bucket_acquire_timeout(&tb, 1, 50000000); /* 50ms timeout; 1 token refilled in 10ms */
+    TEST_ASSERT(ok, "acquire_timeout should succeed after refill");
+
+    /* Timed Acquire fail-fast */
+    ok = lfq_token_bucket_try_acquire(&tb, lfq_token_bucket_available(&tb));
+    ok = lfq_token_bucket_acquire_timeout(&tb, 50, 1000); /* 1us timeout for 50 tokens (needs 500ms) */
+    TEST_ASSERT(!ok, "acquire_timeout should fail fast when deficit exceeds timeout");
+
+    /* Null Resilience */
+    TEST_ASSERT(lfq_token_bucket_init(NULL, 10, 10) == -1, "Init NULL bucket should return -1");
+    TEST_ASSERT(!lfq_token_bucket_try_acquire(NULL, 1), "try_acquire NULL bucket should fail");
+    TEST_ASSERT(!lfq_token_bucket_acquire_timeout(NULL, 1, 100), "acquire_timeout NULL bucket should fail");
+    TEST_ASSERT(lfq_token_bucket_available(NULL) == 0, "available NULL bucket should return 0");
+    lfq_token_bucket_reset(NULL, 10);
+
+    /* 2. Heap-Allocated TokenBucket */
+    lfq_token_bucket_t* heap_tb = lfq_token_bucket_create(100, 200);
+    TEST_ASSERT(heap_tb != NULL, "lfq_token_bucket_create failed");
+    TEST_ASSERT(lfq_token_bucket_available(heap_tb) == 100, "Heap bucket available mismatch");
+    TEST_ASSERT(lfq_token_bucket_try_acquire(heap_tb, 40), "try_acquire on heap bucket failed");
+    TEST_ASSERT(lfq_token_bucket_available(heap_tb) == 60, "Heap bucket available after acquire mismatch");
+    lfq_token_bucket_destroy(heap_tb);
+    lfq_token_bucket_destroy(NULL);
+
+    /* 3. Concurrent Multithreaded Contention on TokenBucket */
+    lfq_token_bucket_t* shared_tb = lfq_token_bucket_create(1000, 50000);
+    TEST_ASSERT(shared_tb != NULL, "shared_tb create failed");
+    enum { TB_STRESS_THREADS = 4 };
+    const size_t ITERS_PER_TH = 500;
+    test_atomic_size_t total_acquired = 0;
+    pthread_t ths[TB_STRESS_THREADS];
+    tb_stress_arg_t args[TB_STRESS_THREADS];
+
+    for (size_t i = 0; i < TB_STRESS_THREADS; i++) {
+        args[i].bucket = shared_tb;
+        args[i].iterations = ITERS_PER_TH;
+        args[i].total_acquired = &total_acquired;
+        pthread_create(&ths[i], NULL, tb_stress_worker, &args[i]);
+    }
+    for (size_t i = 0; i < TB_STRESS_THREADS; i++) {
+        pthread_join(ths[i], NULL);
+    }
+    TEST_ASSERT(ATOMIC_LOAD(&total_acquired) == TB_STRESS_THREADS * ITERS_PER_TH, "Total acquired mismatch");
+    lfq_token_bucket_destroy(shared_tb);
+
+    /* 4. Stack-Allocated LeakyBucket (GCRA) */
+    lfq_leaky_bucket_t lb;
+    rc = lfq_leaky_bucket_init(&lb, 200000000, 10); /* burst tolerance 200ms, leak rate 10/sec */
+    TEST_ASSERT(rc == 0, "lfq_leaky_bucket_init failed");
+    ok = lfq_leaky_bucket_try_consume(&lb, 1);
+    TEST_ASSERT(ok, "cell 1 should conform");
+    ok = lfq_leaky_bucket_try_consume(&lb, 1);
+    TEST_ASSERT(ok, "cell 2 should conform");
+    TEST_ASSERT(lfq_leaky_bucket_water_level(&lb) > 0, "Water level should be positive");
+
+    /* Reset */
+    lfq_leaky_bucket_reset(&lb);
+    TEST_ASSERT(lfq_leaky_bucket_water_level(&lb) == 0, "Water level after reset should be 0");
+
+    /* Timed Consume */
+    ok = lfq_leaky_bucket_consume_timeout(&lb, 1, 50000000);
+    TEST_ASSERT(ok, "consume_timeout should succeed");
+
+    /* Null Resilience */
+    TEST_ASSERT(lfq_leaky_bucket_init(NULL, 0, 0) == -1, "Init NULL leaky bucket should return -1");
+    TEST_ASSERT(!lfq_leaky_bucket_try_consume(NULL, 1), "try_consume NULL leaky bucket should fail");
+    TEST_ASSERT(!lfq_leaky_bucket_consume_timeout(NULL, 1, 100), "consume_timeout NULL leaky bucket should fail");
+    TEST_ASSERT(lfq_leaky_bucket_water_level(NULL) == 0, "water_level NULL leaky bucket should return 0");
+    lfq_leaky_bucket_reset(NULL);
+
+    /* 5. Heap-Allocated LeakyBucket */
+    lfq_leaky_bucket_t* heap_lb = lfq_leaky_bucket_create(100000000, 50);
+    TEST_ASSERT(heap_lb != NULL, "lfq_leaky_bucket_create failed");
+    TEST_ASSERT(lfq_leaky_bucket_try_consume(heap_lb, 1), "try_consume heap leaky bucket failed");
+    lfq_leaky_bucket_destroy(heap_lb);
+    lfq_leaky_bucket_destroy(NULL);
+
+    printf("test_cabi_ratelimit PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
+ * Test 11: Concurrent Multithreaded MPMC Queue Test via pthreads
  * ------------------------------------------------------------------------- */
 #define NUM_PRODUCERS 4
 #define NUM_CONSUMERS 4
@@ -922,6 +1055,7 @@ int main(void) {
     test_cabi_ctrie();
     test_cabi_broadcast();
     test_cabi_rendezvous();
+    test_cabi_ratelimit();
     test_cabi_concurrency();
 
     /* TaskPool C ABI */
