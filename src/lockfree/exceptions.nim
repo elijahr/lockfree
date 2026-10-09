@@ -9,3 +9,9 @@ type NoProducersAvailableError* = object of CatchableError
 
 type NoConsumersAvailableError* = object of CatchableError
   ## Raised by `getConsumer()` if all consumers have been assigned to other threads.
+
+type ChannelClosedDefect* = object of Defect
+  ## Raised when attempting an operation on a closed channel.
+
+type RendezvousDefect* = object of Defect
+  ## Raised when a rendezvous operation is unexpectedly interrupted.
