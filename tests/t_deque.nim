@@ -14,6 +14,7 @@ import unittest2
 import std/[options, os]
 import lockfree/deque
 import lockfree/atomics
+import lockfree/atomics/backoff
 
 suite "ChaseLevDeque — Worker LIFO Lifecycle":
   test "empty state and basic push/pop":
@@ -387,12 +388,19 @@ suite "ChaseLevDeque — Last Element CAS Contention Race":
     workerWins: Atomic[int]
 
   proc raceThief(ctx: ptr RaceContext) {.thread.} =
+    var emptyCount = 0
     while not ctx.stop.load(moRelaxed):
       let s = ctx.deque.steal()
       if s.isSome:
         discard ctx.thiefWins.fetchAdd(1, moRelaxed)
+        emptyCount = 0
       else:
-        sleep(0)
+        inc emptyCount
+        if emptyCount > 128:
+          sleep(0)
+          emptyCount = 0
+        else:
+          cpuPause()
 
   test "continuous race for single remaining element (t == b)":
     let deque = initChaseLevDeque[int](16)
@@ -407,6 +415,7 @@ suite "ChaseLevDeque — Last Element CAS Contention Race":
     const Iterations = 2000
     for i in 1 .. Iterations:
       deque.pushBottom(i)
+      cpuPause()
       let p = deque.popBottom()
       if p.isSome:
         discard ctx.workerWins.fetchAdd(1, moRelaxed)

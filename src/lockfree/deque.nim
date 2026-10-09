@@ -39,6 +39,7 @@
 
 import std/options
 import lockfree/atomics
+import ./backoff
 import ./internal/aligned_alloc
 import ./internal/path_c_admit
 import ./internal/slot_encoding
@@ -212,7 +213,7 @@ proc pushBottom*[T](self: ChaseLevDeque[T], item: sink T) =
   let idx = int(b and int64(buf.mask))
   buf.data[idx] = wrapOrIdentity(item)
   threadFence(moRelease)
-  core.bottom.store(b + 1, moRelaxed)
+  core.bottom.store(b + 1, moRelease)
 
 proc popBottom*[T](self: ChaseLevDeque[T]): Option[T] =
   ## Pops an item from the bottom of the deque (LIFO order). ONLY the single
@@ -224,10 +225,10 @@ proc popBottom*[T](self: ChaseLevDeque[T]): Option[T] =
   var buf = core.buffer.load(moRelaxed)
 
   b = b - 1
-  core.bottom.store(b, moRelaxed)
+  core.bottom.store(b, moSequentiallyConsistent)
   threadFence(moSequentiallyConsistent)
 
-  var t = core.top.load(moRelaxed)
+  var t = core.top.load(moSequentiallyConsistent)
   if t <= b:
     let idx = int(b and int64(buf.mask))
     if t == b:
@@ -276,11 +277,12 @@ proc steal*[T](self: ChaseLevDeque[T]): Option[T] =
   if t >= b:
     return none(T)
 
+  var buf = core.buffer.load(moAcquire)
+  let idx = int(t and int64(buf.mask))
+  let encoded = buf.data[idx] # Canonical Chase-Lev Read-Before-CAS
+
   var expectedTop = t
   if core.top.compareExchangeStrong(expectedTop, t + 1, moSequentiallyConsistent, moRelaxed):
-    var buf = core.buffer.load(moAcquire)
-    let idx = int(t and int64(buf.mask))
-    let encoded = buf.data[idx]
     return some(unwrapOrIdentity[T](encoded))
   else:
     return none(T)
@@ -316,6 +318,7 @@ proc stealBatch*[T](self: ChaseLevDeque[T], dest: var openArray[T], maxItems: in
     return 0
 
   var stolen = 0
+  var spins = InitialSpin
   while stolen < limit:
     t = core.top.load(moAcquire)
     threadFence(moSequentiallyConsistent)
@@ -323,15 +326,23 @@ proc stealBatch*[T](self: ChaseLevDeque[T], dest: var openArray[T], maxItems: in
     if t >= b:
       break
 
+    var buf = core.buffer.load(moAcquire)
+    let idx = int(t and int64(buf.mask))
+    let encoded = buf.data[idx] # Canonical Chase-Lev Read-Before-CAS
+
     var expectedTop = t
     if core.top.compareExchangeStrong(expectedTop, t + 1, moSequentiallyConsistent, moRelaxed):
-      var buf = core.buffer.load(moAcquire)
-      let idx = int(t and int64(buf.mask))
-      let encoded = buf.data[idx]
       dest[stolen] = unwrapOrIdentity[T](encoded)
       inc stolen
+      spins = InitialSpin
     else:
-      break
+      # Contention handling: under peer-thief contention, retry if we haven't stolen any item yet
+      if stolen == 0:
+        backoffOnRetry(spins)
+        if spins > MaxSpin:
+          break
+      else:
+        break
 
   return stolen
 
