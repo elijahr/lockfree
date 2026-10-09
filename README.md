@@ -191,15 +191,22 @@ At the core of `lockfree`'s Morrison-Afek LCRQ unbounded MPMC queue and NEBR rec
 | **MPSC** | `Queue` | `newUnboundedMpscQueue[T, Strategy, S, MaxT]()` | Lock-free / Wait-free | Linked Segments | NEBR Epoch SMR |
 | **MPMC** | `BQueue` | `newMpmcQueue[T, N, P, C]()` / `BoundedMpmcQueue` | Lock-free / Lock-free | Zero-alloc (Ring buffer) | None (Static slots) |
 | **MPMC** | `Queue` | `newUnboundedMpmcQueue[T, Strategy, S, MaxT]()` | Lock-free (LCRQ DWCAS) / Lock-free | Linked Segments | NEBR Epoch SMR |
+| **MPMC** | `Stack` | `initTreiberStack[T]()` / `ConcurrentStack` | Lock-free / Lock-free | Dynamic Node Pool | Elimination-Backoff / Tagged DWCAS |
+| **Worker / Thief** | `Deque` | `initChaseLevDeque[T]()` / `ConcurrentDeque` | Lock-free (Bottom) / Lock-free (Top) | Dynamic Circular Buffer | Retired-Chain SMR |
+| **MPMC** | `SkipListMap` | `newSkipListMap[K, V]()` / `SortedTable` | Lock-free (Put/Del) / Wait-free (Get) | Dynamically Unbounded | NEBR Epoch SMR |
+| **MPMC** | `SkipListSet` | `newSkipListSet[T]()` / `ConcurrentSet` | Lock-free (Ins/Rem) / Wait-free (Has) | Dynamically Unbounded | NEBR Epoch SMR |
 | **CSP** | `Channel` | `newBoundedChannel[T](cap)` / `newChannel[T]` | Lock-free / Lock-free | Dynamic Tiers (64, 1024, 65536) | None (BQueue-backed) |
 | **CSP** | `Channel` | `newUnboundedChannel[T](segSize)` | Lock-free / Lock-free | Linked Segments | NEBR Epoch SMR |
-| **C ABI** | `lfq_queue_t` | `lfq_queue_create(&config, &queue)` | Topology-dependent | C Heap | NEBR / Internal |
+| **C ABI** | `lfq_*` | `lfq_queue_*`, `lfq_stack_*`, `lfq_deque_*`, `lfq_table_*`, `lfq_set_*` | Topology-dependent | C Heap | NEBR / Internal |
 
 ### Sizing and Topology Guidance:
 - **`BQueue` (Bounded)**: Ring buffers with compile-time or tiered runtime capacity. Ideal for embedded, real-time audio, and zero-allocation high-frequency packet loops.
 - **`Queue` (Unbounded)**: Segmented queues that expand under burst loads without blocking producers. Multi-consumer variants employ Morrison-Afek LCRQ and NEBR epoch reclamation.
+- **`Stack` (Treiber LIFO)**: High-concurrency stack featuring an Elimination-Backoff Array where overlapping push/pop pairs exchange data directly without serializing on the stack top.
+- **`Deque` (Chase-Lev Work-Stealing)**: Single-worker (bottom LIFO) and concurrent multi-thief (top FIFO) circular deque for fork-join parallelism, work-stealing schedulers, and task pools.
+- **`SkipListMap` & `SkipListSet` (Ordered Associative)**: Lock-free skip list maintaining total key ordering at level 0 with Harris-style logical deletion marking and NEBR epoch safety.
 - **`Channel` (Actor Facade)**: Ergonomic `Sender[T]` / `Receiver[T]` handles with split refcounting, automatic thread registration via thread-local storage (`{.threadvar.}`), and clean shutdown semantics.
-- **`lfq_*` (C ABI)**: Clean FFI surface (`include/lockfree.h`) exportable to C, C++, Rust, Zig, and Python.
+- **`lfq_*` (C ABI)**: Clean C99 FFI surface (`include/lockfree.h`) exportable to C, C++, Rust, Zig, and Python.
 
 ---
 

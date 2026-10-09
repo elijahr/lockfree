@@ -1,5 +1,6 @@
 ## ===========================================================================
-## Concurrency Topology: MPMC (Multi-Producer Multi-Consumer) Lock-Free Ordered Set
+## Concurrency Topology: MPMC (Multi-Producer Multi-Consumer) Lock-Free Ordered
+## Set
 ## ===========================================================================
 ##
 ## | Dimension              | Specification                                                    |
@@ -15,19 +16,21 @@
 ##
 ## ## Overview
 ##
-## `SkipListSet[T]` is an MPMC lock-free ordered set based on Fraser and Herlihy's
-## lock-free skip list algorithm with Harris-style logical deletion marking and
-## Debra Safe Memory Reclamation (SMR).
+## `SkipListSet[T]` is an MPMC lock-free ordered set based on Fraser and
+## Herlihy's lock-free skip list algorithm with Harris-style logical deletion
+## marking and Debra Safe Memory Reclamation (SMR).
 ##
-## Elements are maintained in strictly ascending sorted order at level 0. The set
-## supports concurrent membership queries (`contains`), insertions (`insert`, `incl`),
-## removals (`remove`, `excl`), size queries (`len`, `isEmpty`), sorted iteration (`items`),
-## and concurrent set algebra (`intersect`, `union`, `difference`, `isSubsetOf`).
+## Elements are maintained in strictly ascending sorted order at level 0. The
+## set supports concurrent membership queries (`contains`), insertions
+## (`insert`, `incl`), removals (`remove`, `excl`), size queries (`len`,
+## `isEmpty`), sorted iteration (`items`), and concurrent set algebra
+## (`intersect`, `union`, `difference`, `isSubsetOf`).
 
 when not compileOption("threads"):
   {.error: "lockfree/set requires --threads:on".}
 
 import std/[options]
+import pkg/typestates
 import ./atomics
 import ./smr/nebr
 import ./internal/aligned_alloc
@@ -118,7 +121,7 @@ proc allocSkipListSetId(): uint64 =
 
 proc toPinned[MaxThreads: static int, CC: static PinScopeCardinality](
     ready: RetireReady[MaxThreads, CC]
-): Pinned[MaxThreads, CC] {.inline.} =
+): Pinned[MaxThreads, CC] {.inline, notATransition.} =
   let ctx = RetireContext[MaxThreads, CC](ready)
   Pinned[MaxThreads, CC](EpochGuardContext[MaxThreads, CC](handle: ctx.handle, epoch: ctx.epoch))
 
@@ -146,7 +149,7 @@ proc destroyNodeCallback[T; MaxLevel: static int](p: pointer) {.nimcall, raises:
       discard
     deallocShared(n)
 
-proc freeNodeDirect[T; MaxLevel: static int](n: ptr SkipListNode[T, MaxLevel]) =
+proc freeNodeDirect[T; MaxLevel: static int](n: ptr SkipListNode[T, MaxLevel]) {.gcsafe.} =
   if n != nil:
     when not (T is SomeNumber or T is bool or T is char or T is pointer or T is ptr):
       `=destroy`(n.val)
@@ -304,7 +307,7 @@ proc initSkipListSet*[
 
 proc `=destroy`*[T; MaxThreads, MaxLevel: static int](
     self: var SkipListSet[T, MaxThreads, MaxLevel]
-) =
+) {.gcsafe.} =
   if self.core != nil:
     if self.core.rc.fetchSub(1, moRelease) == 1:
       threadFence(moAcquire)
@@ -342,7 +345,7 @@ proc find[T; MaxThreads, MaxLevel: static int](
     preds: var array[MaxLevel, ptr SkipListNode[T, MaxLevel]],
     succs: var array[MaxLevel, ptr SkipListNode[T, MaxLevel]],
     ready: var RetireReady[MaxThreads, ccMulti]
-): bool =
+): bool {.notATransition.} =
   while true:
     var pred = self.core.head
     var restart = false
@@ -413,8 +416,9 @@ proc contains*[T; MaxThreads, MaxLevel: static int](
     item: T,
     handle: ThreadHandle[MaxThreads, ccMulti]
 ): bool =
-  ## Returns `true` if `item` is present in the set using the provided thread handle.
-  ## Wait-free population guarantee: does not perform CAS or mutate state.
+  ## Returns `true` if `item` is present in the set using the provided thread
+  ## handle. Wait-free population guarantee: does not perform CAS or mutate
+  ## state.
   let pinned = unpinned(handle).pin()
   try:
     var pred = self.core.head
@@ -442,7 +446,8 @@ proc contains*[T; MaxThreads, MaxLevel: static int](
     self: SkipListSet[T, MaxThreads, MaxLevel],
     item: T
 ): bool {.inline.} =
-  ## Returns `true` if `item` is present in the set (auto-dispatched thread handle).
+  ## Returns `true` if `item` is present in the set (auto-dispatched thread
+  ## handle).
   let h = self.getOrRegisterHandle()
   self.contains(item, h)
 
@@ -451,8 +456,8 @@ proc insert*[T; MaxThreads, MaxLevel: static int](
     item: sink T,
     handle: ThreadHandle[MaxThreads, ccMulti]
 ): bool =
-  ## Inserts `item` into the set.
-  ## Returns `true` if a new item was inserted, `false` if `item` was already present.
+  ## Inserts `item` into the set. Returns `true` if a new item was inserted,
+  ## `false` if `item` was already present.
   let pinned = unpinned(handle).pin()
   var ready = retireReady(pinned)
   try:
@@ -527,8 +532,8 @@ proc remove*[T; MaxThreads, MaxLevel: static int](
     item: T,
     handle: ThreadHandle[MaxThreads, ccMulti]
 ): bool =
-  ## Logically marks and physically unlinks `item` from the set.
-  ## Returns `true` if `item` was found and removed, `false` otherwise.
+  ## Logically marks and physically unlinks `item` from the set. Returns `true`
+  ## if `item` was found and removed, `false` otherwise.
   let pinned = unpinned(handle).pin()
   var ready = retireReady(pinned)
   try:
@@ -604,7 +609,8 @@ iterator items*[T; MaxThreads, MaxLevel: static int](
 iterator items*[T; MaxThreads, MaxLevel: static int](
     self: SkipListSet[T, MaxThreads, MaxLevel]
 ): T =
-  ## Iterates over all elements in strictly ascending sorted order (auto handle).
+  ## Iterates over all elements in strictly ascending sorted order (auto
+  ## handle).
   let h = self.getOrRegisterHandle()
   for x in self.items(h):
     yield x
@@ -694,7 +700,8 @@ proc `==`*[T; MaxThreads, MaxLevel: static int](
 proc toSkipListSet*[T](
     items: openArray[T]
 ): SkipListSet[T, DefaultMaxThreads, DefaultMaxLevel] =
-  ## Constructs a new `SkipListSet` with default threads and level populated with items from `items`.
+  ## Constructs a new `SkipListSet` with default threads and level populated
+  ## with items from `items`.
   result = newSkipListSet[T, DefaultMaxThreads, DefaultMaxLevel]()
   for item in items:
     discard result.insert(item)

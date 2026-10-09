@@ -1,21 +1,20 @@
 ## MPSC Push operation lifecycle typestate (Vyukov per-slot sequence protocol).
 ##
-## State machine:
-##   Start -> SlotClaimed | Full | Start  (3-arm: claim succeeded / generation
-##                                         full / retry)
-##   SlotClaimed -> bool                  (terminal: write data + publish seq)
+## State machine: Start -> SlotClaimed | Full | Start (3-arm: claim succeeded /
+## generation full / retry) SlotClaimed -> bool (terminal: write data + publish
+## seq)
 ##
 ## Multiple producers race on `tail` — identical in shape to `mpmc_push`, only
 ## the facade name differs (MpscPushBase vs MpmcPushBase).
 ##
-## Key invariant: Once a slot is claimed via CAS on `tail`, data MUST be
-## written and the per-slot `seq` MUST be advanced to `pos + 1` (release).
-## That release is the producer->consumer happens-before edge.
+## Key invariant: Once a slot is claimed via CAS on `tail`, data MUST be written
+## and the per-slot `seq` MUST be advanced to `pos + 1` (release). That release
+## is the producer->consumer happens-before edge.
 ##
 ## Memory ordering follows Vyukov canonical: `moRelaxed` on the global `tail`
 ## CAS (the per-slot `seq` does the data-ordering work), `moAcquire` on the
-## `seq` load (pairs with consumer's release at `pos + N`), and `moRelease`
-## on the `seq` store at `pos + 1` (gates the matching consumer).
+## `seq` load (pairs with consumer's release at `pos + N`), and `moRelease` on
+## the `seq` store at `pos + 1` (gates the matching consumer).
 ##
 ## Backoff: this verb returns the `Start` arm to signal "retry". The facade
 ## holds `var spins = InitialSpin` and calls `backoffOnRetry(spins)` between
@@ -32,8 +31,8 @@ type
   MPSCPushStart*[N: static int] = object ## Entry point. No data yet.
 
   MPSCPushSlotClaimed*[N: static int] = object
-    ## CAS on `tail` succeeded - we own the slot at `pos mod N`.
-    ## MUST write data and publish the seq advance.
+    ## CAS on `tail` succeeded - we own the slot at `pos mod N`. MUST write data
+    ## and publish the seq advance.
     pos*: uint64
     slot*: PhysicalSlotN[N]
 
@@ -48,12 +47,11 @@ typestate MPSCPushOp[N: static int]:
       MPSCPushSlotClaimed[N] | MPSCPushFull[N] | MPSCPushStart[N] as
       MPSCPushClaimResult[N]
 
-# Forward declaration for Mpsc (avoid circular import).
-# Note: even though push only writes `tail`, the shared base type carries
-# `head` too so the facade can cast a single Mpsc[N,P,T] to either
-# MpscPushBase or MpscBase (pop-side). Field order MUST stay in lockstep
-# with MpscBase in mpsc_pop.nim, matching the offsetof
-# asserts the facade emits.
+# Forward declaration for Mpsc (avoid circular import). Note: even though push
+# only writes `tail`, the shared base type carries `head` too so the facade can
+# cast a single Mpsc[N,P,T] to either MpscPushBase or MpscBase (pop-side). Field
+# order MUST stay in lockstep with MpscBase in mpsc_pop.nim, matching the
+# offsetof asserts the facade emits.
 type MpscPushBase*[N, P: static int, T] = object
   head* {.align: CacheLineBytes.}: Atomic[uint64]
   tail* {.align: CacheLineBytes.}: Atomic[uint64]
@@ -68,14 +66,14 @@ proc tryClaim*[N, P: static int, T](
 ): MPSCPushClaimResult[N] {.inline, transition.} =
   ## Vyukov producer claim. Returns one of:
   ## - SlotClaimed: tail CAS won; caller must call `complete`.
-  ## - Full: per-slot seq says the previous-generation consumer hasn't
-  ##         re-armed this slot yet. Caller returns false to user.
+  ## - Full: per-slot seq says the previous-generation consumer hasn't re-armed
+  ##   this slot yet. Caller returns false to user.
   ## - Start: CAS race or producer raced ahead; caller backs off and retries.
   let pos = queue.tail.load(moRelaxed) # P1
   # PhysicalSlotN[N] is constructed via the validated index() path. The
   # double-mod (here, then again inside index()) is intentional: validate()
-  # checks val < 2*N and index() does the final mod. The cost is one extra
-  # mod on the hot path - negligible vs the CAS that follows.
+  # checks val < 2*N and index() does the final mod. The cost is one extra mod
+  # on the hot path - negligible vs the CAS that follows.
   let slot = initRawN[N](int(pos mod uint64(N))).validate().index()
   let s = queue.cells.seqLoad(slot, moAcquire) # P2
   let diff = cast[int64](s) - cast[int64](pos)
@@ -94,8 +92,8 @@ proc tryClaim*[N, P: static int, T](
 proc complete*[N, P: static int, T](
     op: MPSCPushSlotClaimed[N], queue: var MpscPushBase[N, P, T], item: sink T
 ): bool {.inline, notATransition.} =
-  ## Write item to the claimed slot, then publish the seq advance.
-  ## The `seq.store(pos+1, moRelease)` is the producer->consumer edge.
+  ## Write item to the claimed slot, then publish the seq advance. The
+  ## `seq.store(pos+1, moRelease)` is the producer->consumer edge.
   queue.cells.dataPtr(op.slot)[] = item # P4 plain store; ordered by P5
   queue.cells.seqStore(op.slot, op.pos + 1, moRelease) # P5 publish
   true

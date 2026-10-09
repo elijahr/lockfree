@@ -6,38 +6,38 @@
 ##
 ## - `MaxThreads: static int` — capacity of the manager's thread array.
 ## - `CC: static PinScopeCardinality = ccSingle` — consumer-cardinality
-##   phantom mirroring `DebraManager` / `ThreadHandle` /
-##   `RegistrationContext`. Default `ccSingle` matches the 0.7.x call
-##   shape, so existing call sites that spell only `MaxThreads` continue
-##   to bind cleanly.
+##   phantom mirroring `DebraManager` / `ThreadHandle` / `RegistrationContext`.
+##   Default `ccSingle` matches the 0.7.x call shape, so existing call sites
+##   that spell only `MaxThreads` continue to bind cleanly.
 ##
-## Codegen-emitted helpers (variant type `UnpinResult`, `=copy` hooks,
-## `state()` procs, `$` overloads, `match` macros) inherit `CC = ccSingle`
-## via the typestate macro's `defaults:` body section (typestates 0.9.2+).
+## Codegen-emitted helpers (variant type `UnpinResult`, `=copy` hooks, `state()`
+## procs, `$` overloads, `match` macros) inherit `CC = ccSingle` via the
+## typestate macro's `defaults:` body section (typestates 0.9.2+).
 ##
 ## ## States
 ##
 ## * `Unpinned` — outside a critical section. Constructed via `unpinned`.
 ## * `Pinned` — inside a critical section, epoch captured.
-## * `Neutralized` — was Pinned, then signaled; must `acknowledge`
-##   before re-pinning.
+## * `Neutralized` — was Pinned, then signaled; must `acknowledge` before
+##   re-pinning.
 ## * `Closed` — terminal state reached only by the destructor path of
 ##   `PinnedScope`. User code SHOULD NOT call `close` directly; rely on
-##   `PinnedScope` to drive the lifecycle. `close` performs no atomic
-##   operations — the slot's `pinned` / `neutralized` flags were already
-##   cleared by the preceding `unpin` (or `unpin + acknowledge`) call.
+##   `PinnedScope` to drive the lifecycle. `close` performs no atomic operations
+##   — the slot's `pinned` / `neutralized` flags were already cleared by the
+##   preceding `unpin` (or `unpin + acknowledge`) call.
 ##
 ## ## Pitfalls
 ##
 ## * The `Unpinned` -> `Pinned` -> `Unpinned`/`Neutralized` typestate sequence
-##   must be respected. Calling `pin` on a handle that is already pinned at
-##   the slot level (the manager's `threads[idx].pinned` flag is true) leaves
-##   the slot inconsistent. Use `PinnedScope` (in `debra/typestates/pinned_scope`)
-##   for the common path; reach for the typestate API only when you need finer control.
-## * If `unpin` returns `Neutralized`, the thread was signaled while inside
-##   the critical section. Call `acknowledge` before re-pinning. Skipping
-##   `acknowledge` will leave the slot's `neutralized` flag set, and the
-##   next `pin`/`unpin` cycle will misreport state.
+##   must be respected. Calling `pin` on a handle that is already pinned at the
+##   slot level (the manager's `threads[idx].pinned` flag is true) leaves the
+##   slot inconsistent. Use `PinnedScope` (in `debra/typestates/pinned_scope`)
+##   for the common path; reach for the typestate API only when you need finer
+##   control.
+## * If `unpin` returns `Neutralized`, the thread was signaled while inside the
+##   critical section. Call `acknowledge` before re-pinning. Skipping
+##   `acknowledge` will leave the slot's `neutralized` flag set, and the next
+##   `pin`/`unpin` cycle will misreport state.
 ## * `Pinned[MT, CC]` carries the captured `epoch` field; do not mutate the
 ##   manager's global epoch under the assumption a particular `Pinned` value
 ##   tracks it. Advance the manager epoch on the worker side, then re-pin to
@@ -45,7 +45,8 @@
 ##
 ## ## See also
 ##
-## * `debra/typestates/pinned_scope.PinnedScope`_ - the recommended high-level RAII guard.
+## * `debra/typestates/pinned_scope.PinnedScope`_ - the recommended high-level
+##   RAII guard.
 ## * `debra/typestates/retire`_ - `RetireReady` constructed from `Pinned`.
 
 import ../../../atomics
@@ -53,8 +54,8 @@ import typestates
 
 import ../types
 
-# `PinScopeCardinality` reaches this module via `../types` (re-exported
-# from `./cardinality`).
+# `PinScopeCardinality` reaches this module via `../types` (re-exported from
+# `./cardinality`).
 
 type
   EpochGuardContext*[MaxThreads: static int, CC: static PinScopeCardinality = ccSingle] = object of RootObj
@@ -118,21 +119,20 @@ proc pin*[MaxThreads: static int, CC: static PinScopeCardinality](
   ctx.epoch = mgr.globalEpoch.load(moAcquire)
   mgr.threads[idx].neutralized.store(false, moRelease)
   mgr.threads[idx].epoch.store(ctx.epoch, moRelease)
-  # Publication via an SC read-modify-write on `pinned`. Semantically
-  # equivalent to `pinned.store(true, moRelease)` followed by an SC
-  # thread fence: the RMW participates in the C11 SC total order S, so
-  # subsequent loads in this thread are ordered after any reclaimer's SC
-  # operations that precede this RMW in S, and prior stores in this
-  # thread (`epoch.store`, `neutralized.store`) are HB-before any
-  # reclaimer load that observes this RMW.
+  # Publication via an SC read-modify-write on `pinned`. Semantically equivalent
+  # to `pinned.store(true, moRelease)` followed by an SC thread fence: the RMW
+  # participates in the C11 SC total order S, so subsequent loads in this thread
+  # are ordered after any reclaimer's SC operations that precede this RMW in S,
+  # and prior stores in this thread (`epoch.store`, `neutralized.store`) are
+  # HB-before any reclaimer load that observes this RMW.
   #
   # We use an exchange (rather than `store`/`exchange`-with-fence) for a
-  # specific TSAN reason: standalone SC thread fences are not modelled by
-  # TSAN's vector clocks (see `compiler-rt/lib/tsan/rtl/tsan_interface_atomic.cpp`,
-  # `OpFence::Atomic` -> `// FIXME(dvyukov): not implemented.`). On ARM64,
-  # this caused TSAN to flag the EBR pin/reclaim handshake as a race even
-  # though the C11 proof goes through. SC RMWs are modelled correctly,
-  # and Crossbeam uses the same encoding for the same reason.
+  # specific TSAN reason: standalone SC thread fences are not modelled by TSAN's
+  # vector clocks (see `compiler-rt/lib/tsan/rtl/tsan_interface_atomic.cpp`,
+  # `OpFence::Atomic` -> `// FIXME(dvyukov): not implemented.`). On ARM64, this
+  # caused TSAN to flag the EBR pin/reclaim handshake as a race even though the
+  # C11 proof goes through. SC RMWs are modelled correctly, and Crossbeam uses
+  # the same encoding for the same reason.
   discard mgr.threads[idx].pinned.exchange(true, moSequentiallyConsistent)
 
   Pinned[MaxThreads, CC](ctx)
@@ -158,10 +158,9 @@ proc unpin*[MaxThreads: static int, CC: static PinScopeCardinality](
   let idx = ctx.handle.idx
 
   # SC store (not Release) so the modification order on `pinned` is fully
-  # ordered with the SC RMW in `pin` and the SC load in `loadEpochs`.
-  # Without SC here, a reclaimer's SC load on `pinned` could read the
-  # unpin's value while a subsequent re-pin RMW is in flight, breaking
-  # the EBR subscription handshake.
+  # ordered with the SC RMW in `pin` and the SC load in `loadEpochs`. Without SC
+  # here, a reclaimer's SC load on `pinned` could read the unpin's value while a
+  # subsequent re-pin RMW is in flight, breaking the EBR subscription handshake.
   mgr.threads[idx].pinned.store(false, moSequentiallyConsistent)
 
   if mgr.threads[idx].neutralized.load(moAcquire):
@@ -186,12 +185,11 @@ proc close*[MaxThreads: static int, CC: static PinScopeCardinality](
 ): Closed[MaxThreads, CC] {.transition.} =
   ## One-way exit transition for `PinnedScope`'s destructor path.
   ##
-  ## `close` is reserved for the `PinnedScope.=destroy` path; user code
-  ## should rely on `PinnedScope` to drive the lifecycle and should not
-  ## call `close` directly. `close` performs
-  ## no atomic operations; the slot's `pinned` and `neutralized` flags
-  ## were already cleared by the preceding `unpin` (or `unpin +
-  ## acknowledge`) call.
+  ## `close` is reserved for the `PinnedScope.=destroy` path; user code should
+  ## rely on `PinnedScope` to drive the lifecycle and should not call `close`
+  ## directly. `close` performs no atomic operations; the slot's `pinned` and
+  ## `neutralized` flags were already cleared by the preceding `unpin` (or
+  ## `unpin + acknowledge`) call.
   Closed[MaxThreads, CC](EpochGuardContext[MaxThreads, CC](u))
 
 func epoch*[MaxThreads: static int, CC: static PinScopeCardinality](

@@ -13,18 +13,21 @@
 ##
 ## ## Overview
 ##
-## `SkipListMap[K, V]` is an MPMC lock-free ordered associative table implementing
-## Keir Fraser's and Maurice Herlihy's lock-free skip list algorithm with Harris-style
-## logical deletion marking and Debra Safe Memory Reclamation (SMR).
+## `SkipListMap[K, V]` is an MPMC lock-free ordered associative table
+## implementing Keir Fraser's and Maurice Herlihy's lock-free skip list
+## algorithm with Harris-style logical deletion marking and Debra Safe Memory
+## Reclamation (SMR).
 ##
 ## It maintains keys in strictly sorted order at level 0, supporting concurrent
-## insertions (`put`), lookups (`get`, `contains`, `[]`), removals (`delete`, `del`),
-## atomic conditional updates (`computeIfAbsent`), and ordered range traversals (`pairs`).
+## insertions (`put`), lookups (`get`, `contains`, `[]`), removals (`delete`,
+## `del`), atomic conditional updates (`computeIfAbsent`), and ordered range
+## traversals (`pairs`).
 
 when not compileOption("threads"):
   {.error: "lockfree/skiplist requires --threads:on".}
 
 import std/[options]
+import pkg/typestates
 import ./atomics
 import ./smr/nebr
 import ./internal/aligned_alloc
@@ -119,7 +122,7 @@ proc allocSkipListId(): uint64 =
 
 proc toPinned[MaxThreads: static int, CC: static PinScopeCardinality](
     ready: RetireReady[MaxThreads, CC]
-): Pinned[MaxThreads, CC] {.inline.} =
+): Pinned[MaxThreads, CC] {.inline, notATransition.} =
   let ctx = RetireContext[MaxThreads, CC](ready)
   Pinned[MaxThreads, CC](EpochGuardContext[MaxThreads, CC](handle: ctx.handle, epoch: ctx.epoch))
 
@@ -142,9 +145,10 @@ proc newVBox[V](val: sink V): ptr VBox[V] {.inline.} =
   wasMoved(result.val)
   result.val = val
 
-proc freeVBox[V](box: ptr VBox[V]) {.inline.} =
+proc freeVBox[V](box: ptr VBox[V]) {.inline, gcsafe.} =
   if box != nil:
-    `=destroy`(box.val)
+    when not (V is SomeNumber or V is bool or V is char or V is pointer or V is ptr):
+      `=destroy`(box.val)
     deallocShared(box)
 
 proc destroyVBoxCallback[V](p: pointer) {.nimcall, raises: [].} =
@@ -169,7 +173,7 @@ proc destroyNodeCallback[K, V; MaxLevel: static int](p: pointer) {.nimcall, rais
       discard
     deallocShared(n)
 
-proc freeNodeDirect[K, V; MaxLevel: static int](n: ptr SkipListNode[K, V, MaxLevel]) =
+proc freeNodeDirect[K, V; MaxLevel: static int](n: ptr SkipListNode[K, V, MaxLevel]) {.gcsafe.} =
   if n != nil:
     let box = n.valPtr.load(moRelaxed)
     if box != nil:
@@ -330,7 +334,7 @@ proc initSkipListMap*[
 
 proc `=destroy`*[K, V; MaxThreads, MaxLevel: static int](
     self: var SkipListMap[K, V, MaxThreads, MaxLevel]
-) =
+) {.gcsafe.} =
   if self.core != nil:
     if self.core.rc.fetchSub(1, moRelease) == 1:
       threadFence(moAcquire)
@@ -368,7 +372,7 @@ proc find[K, V; MaxThreads, MaxLevel: static int](
     preds: var array[MaxLevel, ptr SkipListNode[K, V, MaxLevel]],
     succs: var array[MaxLevel, ptr SkipListNode[K, V, MaxLevel]],
     ready: var RetireReady[MaxThreads, ccMulti]
-): bool =
+): bool {.notATransition.} =
   while true:
     var pred = self.core.head
     var restart = false
@@ -433,8 +437,8 @@ proc get*[K, V; MaxThreads, MaxLevel: static int](
     key: K,
     handle: ThreadHandle[MaxThreads, ccMulti]
 ): Option[V] =
-  ## Looks up `key` in the map using the provided thread handle.
-  ## Wait-free population guarantee: does not perform CAS or mutate state.
+  ## Looks up `key` in the map using the provided thread handle. Wait-free
+  ## population guarantee: does not perform CAS or mutate state.
   let pinned = unpinned(handle).pin()
   try:
     var pred = self.core.head
@@ -500,7 +504,8 @@ proc contains*[K, V; MaxThreads, MaxLevel: static int](
     self: SkipListMap[K, V, MaxThreads, MaxLevel],
     key: K
 ): bool {.inline.} =
-  ## Returns true if `key` is present in the map (auto-dispatched thread handle).
+  ## Returns true if `key` is present in the map (auto-dispatched thread
+  ## handle).
   self.get(key).isSome
 
 proc put*[K, V; MaxThreads, MaxLevel: static int](
@@ -509,8 +514,8 @@ proc put*[K, V; MaxThreads, MaxLevel: static int](
     val: V,
     handle: ThreadHandle[MaxThreads, ccMulti]
 ): bool =
-  ## Inserts or updates `(key, val)`.
-  ## Returns `true` if a new key was inserted, `false` if an existing key was updated.
+  ## Inserts or updates `(key, val)`. Returns `true` if a new key was inserted,
+  ## `false` if an existing key was updated.
   let pinned = unpinned(handle).pin()
   var ready = retireReady(pinned)
   try:
@@ -557,7 +562,8 @@ proc put*[K, V; MaxThreads, MaxLevel: static int](
       let desired0 = toEntry(newNode, false)
       if not pred0.next[0].compareExchange(expected0, desired0, moAcquireRelease, moAcquire):
         freeVBox(newNode.valPtr.load(moRelaxed))
-        `=destroy`(newNode.key)
+        when not (K is SomeNumber or K is bool or K is char or K is pointer or K is ptr):
+          `=destroy`(newNode.key)
         deallocShared(newNode)
         continue
 
@@ -603,8 +609,8 @@ proc delete*[K, V; MaxThreads, MaxLevel: static int](
     key: K,
     handle: ThreadHandle[MaxThreads, ccMulti]
 ): bool =
-  ## Logically marks and physically splices `key` out of the map.
-  ## Returns `true` if `key` was found and removed, `false` otherwise.
+  ## Logically marks and physically splices `key` out of the map. Returns `true`
+  ## if `key` was found and removed, `false` otherwise.
   let pinned = unpinned(handle).pin()
   var ready = retireReady(pinned)
   try:
@@ -704,7 +710,8 @@ proc computeIfAbsent*[K, V; MaxThreads, MaxLevel: static int](
       let desired0 = toEntry(newNode, false)
       if not pred0.next[0].compareExchange(expected0, desired0, moAcquireRelease, moAcquire):
         freeVBox(newNode.valPtr.load(moRelaxed))
-        `=destroy`(newNode.key)
+        when not (K is SomeNumber or K is bool or K is char or K is pointer or K is ptr):
+          `=destroy`(newNode.key)
         deallocShared(newNode)
         continue
 
@@ -769,7 +776,8 @@ iterator pairs*[K, V; MaxThreads, MaxLevel: static int](
 iterator pairs*[K, V; MaxThreads, MaxLevel: static int](
     self: SkipListMap[K, V, MaxThreads, MaxLevel]
 ): (K, V) =
-  ## Iterates over all `(key, value)` pairs in strictly ascending key order (auto handle).
+  ## Iterates over all `(key, value)` pairs in strictly ascending key order
+  ## (auto handle).
   let h = self.getOrRegisterHandle()
   for p in self.pairs(h):
     yield p

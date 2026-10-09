@@ -22,6 +22,16 @@ from lockfree/smr/nebr import registerThread, unregisterThread, ThreadHandle, De
 import lockfree/smr/nebr/signal
 import lockfree/stack
 import lockfree/deque
+import lockfree/skiplist
+import lockfree/set
+import lockfree/taskpool
+import lockfree/ctrie
+import lockfree/broadcast
+import lockfree/rendezvous
+import lockfree/ratelimit
+export ratelimit
+import lockfree/streambuffer
+export streambuffer
 import std/options
 
 # ------------------------------------------------------------------------------
@@ -41,6 +51,7 @@ type
     LFQ_ERR_UNSUPPORTED   =  6
 
   lfq_item_destructor_fn* = proc(item: pointer, userData: pointer) {.cdecl, gcsafe.}
+  lfq_entry_destructor_fn* = proc(key: pointer, val: pointer, userData: pointer) {.cdecl, gcsafe.}
 
 # ------------------------------------------------------------------------------
 # Exception Firewall Template
@@ -51,6 +62,8 @@ template cAbiBoundary(body: untyped): lfq_status_t =
     body
   except NoProducersAvailableError, NoConsumersAvailableError:
     LFQ_ERR_REGISTRY_FULL
+  except ChannelClosedDefect:
+    LFQ_ERR_CLOSED
   except Defect:
     LFQ_ERR_PANIC
   except Exception:
@@ -361,7 +374,8 @@ proc unboundedProducerRelease[S, MaxThreads: static int](prod: ptr lfq_producer_
 
               let slot = addr q.rawQueue[].manager.threads[hIdx]
               if slot.limboBagTail == nil and slot.currentBag == nil:
-                # Restore NEBR threadvars for this manager so unregisterThread passes contract
+                # Restore NEBR threadvars for this manager so unregisterThread
+                # passes contract
                 threadLocalManager = mgrPtr
                 threadLocalIdx = hIdx
                 threadLocalRegistered = true
@@ -405,7 +419,8 @@ proc unboundedConsumerRelease[S, MaxThreads: static int](cons: ptr lfq_consumer_
 
               let slot = addr q.rawQueue[].manager.threads[hIdx]
               if slot.limboBagTail == nil and slot.currentBag == nil:
-                # Restore NEBR threadvars for this manager so unregisterThread passes contract
+                # Restore NEBR threadvars for this manager so unregisterThread
+                # passes contract
                 threadLocalManager = mgrPtr
                 threadLocalIdx = hIdx
                 threadLocalRegistered = true
@@ -1060,3 +1075,1321 @@ proc lfq_deque_is_empty*(deque: ptr lfq_deque_t): bool {.exportc: "lfq_deque_is_
     return deque.raw[].isEmpty()
   except:
     return true
+
+# ------------------------------------------------------------------------------
+# 4. Table (MPMC Ordered Key-Value Map based on SkipListMap)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_table* {.exportc: "lfq_table_t".} = object
+    destructor*: lfq_entry_destructor_fn
+    userData*: pointer
+    raw*: ptr SkipListMap[pointer, pointer]
+
+  lfq_table_t* = lfq_table
+
+proc lfq_table_create*(
+    destructor: lfq_entry_destructor_fn,
+    user_data: pointer,
+    out_table: ptr ptr lfq_table_t
+): lfq_status_t {.exportc: "lfq_table_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_table == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let t = cast[ptr lfq_table_t](allocShared0(sizeof(lfq_table_t)))
+    let raw = cast[ptr SkipListMap[pointer, pointer]](allocShared0(sizeof(SkipListMap[pointer, pointer])))
+    raw[] = initSkipListMap[pointer, pointer]()
+    t.destructor = destructor
+    t.userData = user_data
+    t.raw = raw
+    out_table[] = t
+    LFQ_OK
+
+proc lfq_table_destroy*(table: ptr lfq_table_t): lfq_status_t {.exportc: "lfq_table_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    if table.destructor != nil:
+      try:
+        for k, v in table.raw[].pairs:
+          table.destructor(k, v, table.userData)
+      except:
+        discard
+    `=destroy`(table.raw[])
+    deallocShared(table.raw)
+    deallocShared(table)
+    LFQ_OK
+
+proc lfq_table_put*(
+    table: ptr lfq_table_t,
+    key: pointer,
+    val: pointer,
+    out_inserted: ptr bool
+): lfq_status_t {.exportc: "lfq_table_put", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let inserted = table.raw[].put(key, val)
+    if out_inserted != nil:
+      out_inserted[] = inserted
+    LFQ_OK
+
+proc lfq_table_get*(
+    table: ptr lfq_table_t,
+    key: pointer,
+    out_val: ptr pointer
+): lfq_status_t {.exportc: "lfq_table_get", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.raw == nil or out_val == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let opt = table.raw[].get(key)
+    if opt.isSome:
+      out_val[] = opt.get
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_table_delete*(
+    table: ptr lfq_table_t,
+    key: pointer,
+    out_deleted: ptr bool
+): lfq_status_t {.exportc: "lfq_table_delete", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let deleted = table.raw[].delete(key)
+    if out_deleted != nil:
+      out_deleted[] = deleted
+    if deleted:
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_table_remove*(
+    table: ptr lfq_table_t,
+    key: pointer,
+    out_removed: ptr bool
+): lfq_status_t {.exportc: "lfq_table_remove", cdecl, gcsafe, raises: [].} =
+  lfq_table_delete(table, key, out_removed)
+
+proc lfq_table_contains*(table: ptr lfq_table_t, key: pointer): bool {.exportc: "lfq_table_contains", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.raw == nil):
+    return false
+  try:
+    return table.raw[].contains(key)
+  except:
+    return false
+
+proc lfq_table_len*(table: ptr lfq_table_t): csize_t {.exportc: "lfq_table_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.raw == nil):
+    return 0
+  try:
+    let count = table.raw[].len
+    if count < 0: 0.csize_t else: csize_t(count)
+  except:
+    0
+
+proc lfq_table_is_empty*(table: ptr lfq_table_t): bool {.exportc: "lfq_table_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.raw == nil):
+    return true
+  try:
+    return table.raw[].len == 0
+  except:
+    return true
+
+# ------------------------------------------------------------------------------
+# 5. Set (MPMC Ordered Set based on SkipListSet)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_set* {.exportc: "lfq_set_t".} = object
+    destructor*: lfq_item_destructor_fn
+    userData*: pointer
+    raw*: ptr SkipListSet[pointer]
+
+  lfq_set_t* = lfq_set
+
+proc lfq_set_create*(
+    destructor: lfq_item_destructor_fn,
+    user_data: pointer,
+    out_set: ptr ptr lfq_set_t
+): lfq_status_t {.exportc: "lfq_set_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_set == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let s = cast[ptr lfq_set_t](allocShared0(sizeof(lfq_set_t)))
+    let raw = cast[ptr SkipListSet[pointer]](allocShared0(sizeof(SkipListSet[pointer])))
+    raw[] = initSkipListSet[pointer]()
+    s.destructor = destructor
+    s.userData = user_data
+    s.raw = raw
+    out_set[] = s
+    LFQ_OK
+
+proc lfq_set_destroy*(set: ptr lfq_set_t): lfq_status_t {.exportc: "lfq_set_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(set == nil or set.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    if set.destructor != nil:
+      try:
+        for item in set.raw[].items:
+          set.destructor(item, set.userData)
+      except:
+        discard
+    `=destroy`(set.raw[])
+    deallocShared(set.raw)
+    deallocShared(set)
+    LFQ_OK
+
+proc lfq_set_insert*(
+    set: ptr lfq_set_t,
+    item: pointer,
+    out_inserted: ptr bool
+): lfq_status_t {.exportc: "lfq_set_insert", cdecl, gcsafe, raises: [].} =
+  if unlikely(set == nil or set.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let inserted = set.raw[].insert(item)
+    if out_inserted != nil:
+      out_inserted[] = inserted
+    LFQ_OK
+
+proc lfq_set_remove*(
+    set: ptr lfq_set_t,
+    item: pointer,
+    out_removed: ptr bool
+): lfq_status_t {.exportc: "lfq_set_remove", cdecl, gcsafe, raises: [].} =
+  if unlikely(set == nil or set.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let removed = set.raw[].remove(item)
+    if out_removed != nil:
+      out_removed[] = removed
+    if removed:
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_set_contains*(set: ptr lfq_set_t, item: pointer): bool {.exportc: "lfq_set_contains", cdecl, gcsafe, raises: [].} =
+  if unlikely(set == nil or set.raw == nil):
+    return false
+  try:
+    return set.raw[].contains(item)
+  except:
+    return false
+
+proc lfq_set_len*(set: ptr lfq_set_t): csize_t {.exportc: "lfq_set_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(set == nil or set.raw == nil):
+    return 0
+  try:
+    let count = set.raw[].len
+    if count < 0: 0.csize_t else: csize_t(count)
+  except:
+    0
+
+proc lfq_set_is_empty*(set: ptr lfq_set_t): bool {.exportc: "lfq_set_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(set == nil or set.raw == nil):
+    return true
+  try:
+    return set.raw[].isEmpty()
+  except:
+    return true
+
+# ------------------------------------------------------------------------------
+# 6. TaskPool (Work-Stealing Task Scheduler)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_taskpool* {.exportc: "lfq_taskpool_t".} = object
+    raw*: ptr TaskPool
+
+  lfq_taskpool_t* = lfq_taskpool
+  lfq_task_fn* = proc(arg: pointer) {.cdecl, gcsafe.}
+  lfq_for_task_fn* = proc(index: csize_t, arg: pointer) {.cdecl, gcsafe.}
+
+proc lfq_taskpool_create*(
+    num_threads: csize_t,
+    out_pool: ptr ptr lfq_taskpool_t
+): lfq_status_t {.exportc: "lfq_taskpool_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_pool == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let p = cast[ptr lfq_taskpool_t](allocShared0(sizeof(lfq_taskpool_t)))
+    let raw = cast[ptr TaskPool](allocShared0(sizeof(TaskPool)))
+    raw[] = initTaskPool(int(num_threads))
+    p.raw = raw
+    out_pool[] = p
+    LFQ_OK
+
+proc lfq_taskpool_destroy*(pool: ptr lfq_taskpool_t): lfq_status_t {.exportc: "lfq_taskpool_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(pool == nil or pool.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    `=destroy`(pool.raw[])
+    deallocShared(pool.raw)
+    deallocShared(pool)
+    LFQ_OK
+
+proc lfq_taskpool_spawn*(
+    pool: ptr lfq_taskpool_t,
+    task: lfq_task_fn,
+    arg: pointer
+): lfq_status_t {.exportc: "lfq_taskpool_spawn", cdecl, gcsafe, raises: [].} =
+  if unlikely(pool == nil or pool.raw == nil or task == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    pool.raw[].spawn(task, arg)
+    LFQ_OK
+
+type
+  LfqParallelForAdapter = object
+    fn: lfq_for_task_fn
+    arg: pointer
+
+proc lfqParallelForHelper(i: int, arg: pointer) {.cdecl, gcsafe.} =
+  let adapter = cast[ptr LfqParallelForAdapter](arg)
+  if adapter != nil and adapter.fn != nil:
+    adapter.fn(csize_t(i), adapter.arg)
+
+proc lfq_taskpool_parallel_for*(
+    pool: ptr lfq_taskpool_t,
+    start: csize_t,
+    stop: csize_t,
+    task: lfq_for_task_fn,
+    arg: pointer,
+    chunk_size: csize_t
+): lfq_status_t {.exportc: "lfq_taskpool_parallel_for", cdecl, gcsafe, raises: [].} =
+  if unlikely(pool == nil or pool.raw == nil or task == nil or stop < start):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    var adapter = LfqParallelForAdapter(fn: task, arg: arg)
+    pool.raw[].parallelFor(int(start), int(stop), lfqParallelForHelper, cast[pointer](addr adapter), int(chunk_size))
+    LFQ_OK
+
+proc lfq_taskpool_sync*(pool: ptr lfq_taskpool_t): lfq_status_t {.exportc: "lfq_taskpool_sync", cdecl, gcsafe, raises: [].} =
+  if unlikely(pool == nil or pool.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    pool.raw[].sync()
+    LFQ_OK
+
+proc lfq_taskpool_num_workers*(pool: ptr lfq_taskpool_t): csize_t {.exportc: "lfq_taskpool_num_workers", cdecl, gcsafe, raises: [].} =
+  if unlikely(pool == nil or pool.raw == nil):
+    return 0
+  try:
+    csize_t(pool.raw[].numWorkers)
+  except:
+    0
+
+# ------------------------------------------------------------------------------
+# 7. Ctrie (MPMC Concurrent Hash Trie with Wait-Free Snapshots)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_ctrie* {.exportc: "lfq_ctrie_t".} = object
+    destructor*: lfq_entry_destructor_fn
+    userData*: pointer
+    raw*: ptr Ctrie[pointer, pointer]
+
+  lfq_ctrie_t* = lfq_ctrie
+
+  lfq_ctrie_snapshot_handle* {.exportc: "lfq_ctrie_snapshot_t".} = object
+    raw*: ptr Snapshot[pointer, pointer]
+
+  lfq_ctrie_snapshot_t* = lfq_ctrie_snapshot_handle
+
+proc lfq_ctrie_create*(
+    destructor: lfq_entry_destructor_fn,
+    user_data: pointer,
+    out_ctrie: ptr ptr lfq_ctrie_t
+): lfq_status_t {.exportc: "lfq_ctrie_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_ctrie == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let c = cast[ptr lfq_ctrie_t](allocShared0(sizeof(lfq_ctrie_t)))
+    let raw = cast[ptr Ctrie[pointer, pointer]](allocShared0(sizeof(Ctrie[pointer, pointer])))
+    raw[] = initCtrie[pointer, pointer]()
+    c.destructor = destructor
+    c.userData = user_data
+    c.raw = raw
+    out_ctrie[] = c
+    LFQ_OK
+
+proc lfq_ctrie_destroy*(ctrie: ptr lfq_ctrie_t): lfq_status_t {.exportc: "lfq_ctrie_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(ctrie == nil or ctrie.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    if ctrie.destructor != nil:
+      try:
+        for k, v in ctrie.raw[].pairs:
+          ctrie.destructor(k, v, ctrie.userData)
+      except:
+        discard
+    `=destroy`(ctrie.raw[])
+    deallocShared(ctrie.raw)
+    deallocShared(ctrie)
+    LFQ_OK
+
+proc lfq_ctrie_insert*(
+    ctrie: ptr lfq_ctrie_t,
+    key: pointer,
+    val: pointer,
+    out_inserted: ptr bool
+): lfq_status_t {.exportc: "lfq_ctrie_insert", cdecl, gcsafe, raises: [].} =
+  if unlikely(ctrie == nil or ctrie.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let prev = ctrie.raw[].put(key, val)
+    if out_inserted != nil:
+      out_inserted[] = prev.isNone
+    LFQ_OK
+
+proc lfq_ctrie_put*(
+    ctrie: ptr lfq_ctrie_t,
+    key: pointer,
+    val: pointer,
+    out_inserted: ptr bool
+): lfq_status_t {.exportc: "lfq_ctrie_put", cdecl, gcsafe, raises: [].} =
+  lfq_ctrie_insert(ctrie, key, val, out_inserted)
+
+proc lfq_ctrie_lookup*(
+    ctrie: ptr lfq_ctrie_t,
+    key: pointer,
+    out_val: ptr pointer
+): lfq_status_t {.exportc: "lfq_ctrie_lookup", cdecl, gcsafe, raises: [].} =
+  if unlikely(ctrie == nil or ctrie.raw == nil or out_val == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let opt = ctrie.raw[].get(key)
+    if opt.isSome:
+      out_val[] = opt.get
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_ctrie_get*(
+    ctrie: ptr lfq_ctrie_t,
+    key: pointer,
+    out_val: ptr pointer
+): lfq_status_t {.exportc: "lfq_ctrie_get", cdecl, gcsafe, raises: [].} =
+  lfq_ctrie_lookup(ctrie, key, out_val)
+
+proc lfq_ctrie_remove*(
+    ctrie: ptr lfq_ctrie_t,
+    key: pointer,
+    out_removed: ptr bool
+): lfq_status_t {.exportc: "lfq_ctrie_remove", cdecl, gcsafe, raises: [].} =
+  if unlikely(ctrie == nil or ctrie.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let opt = ctrie.raw[].delete(key)
+    let removed = opt.isSome
+    if out_removed != nil:
+      out_removed[] = removed
+    if removed:
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_ctrie_delete*(
+    ctrie: ptr lfq_ctrie_t,
+    key: pointer,
+    out_deleted: ptr bool
+): lfq_status_t {.exportc: "lfq_ctrie_delete", cdecl, gcsafe, raises: [].} =
+  lfq_ctrie_remove(ctrie, key, out_deleted)
+
+proc lfq_ctrie_contains*(ctrie: ptr lfq_ctrie_t, key: pointer): bool {.exportc: "lfq_ctrie_contains", cdecl, gcsafe, raises: [].} =
+  if unlikely(ctrie == nil or ctrie.raw == nil):
+    return false
+  try:
+    ctrie.raw[].contains(key)
+  except:
+    false
+
+proc lfq_ctrie_len*(ctrie: ptr lfq_ctrie_t): csize_t {.exportc: "lfq_ctrie_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(ctrie == nil or ctrie.raw == nil):
+    return 0
+  try:
+    let count = ctrie.raw[].len
+    if count < 0: 0.csize_t else: csize_t(count)
+  except:
+    0
+
+proc lfq_ctrie_is_empty*(ctrie: ptr lfq_ctrie_t): bool {.exportc: "lfq_ctrie_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(ctrie == nil or ctrie.raw == nil):
+    return true
+  try:
+    ctrie.raw[].len == 0
+  except:
+    true
+
+# --- Snapshot procs ---
+
+proc lfq_ctrie_snapshot*(
+    ctrie: ptr lfq_ctrie_t,
+    out_snapshot: ptr ptr lfq_ctrie_snapshot_t
+): lfq_status_t {.exportc: "lfq_ctrie_snapshot", cdecl, gcsafe, raises: [].} =
+  if unlikely(ctrie == nil or ctrie.raw == nil or out_snapshot == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let snapObj = ctrie.raw[].snapshot()
+    let s = cast[ptr lfq_ctrie_snapshot_t](allocShared0(sizeof(lfq_ctrie_snapshot_t)))
+    let raw = cast[ptr Snapshot[pointer, pointer]](allocShared0(sizeof(Snapshot[pointer, pointer])))
+    raw[] = snapObj
+    s.raw = raw
+    out_snapshot[] = s
+    LFQ_OK
+
+proc lfq_ctrie_snapshot_create*(
+    ctrie: ptr lfq_ctrie_t,
+    out_snapshot: ptr ptr lfq_ctrie_snapshot_t
+): lfq_status_t {.exportc: "lfq_ctrie_snapshot_create", cdecl, gcsafe, raises: [].} =
+  lfq_ctrie_snapshot(ctrie, out_snapshot)
+
+proc lfq_ctrie_snapshot_destroy*(snapshot: ptr lfq_ctrie_snapshot_t): lfq_status_t {.exportc: "lfq_ctrie_snapshot_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(snapshot == nil or snapshot.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    `=destroy`(snapshot.raw[])
+    deallocShared(snapshot.raw)
+    deallocShared(snapshot)
+    LFQ_OK
+
+proc lfq_ctrie_snapshot_lookup*(
+    snapshot: ptr lfq_ctrie_snapshot_t,
+    key: pointer,
+    out_val: ptr pointer
+): lfq_status_t {.exportc: "lfq_ctrie_snapshot_lookup", cdecl, gcsafe, raises: [].} =
+  if unlikely(snapshot == nil or snapshot.raw == nil or out_val == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let opt = snapshot.raw[].get(key)
+    if opt.isSome:
+      out_val[] = opt.get
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_ctrie_snapshot_get*(
+    snapshot: ptr lfq_ctrie_snapshot_t,
+    key: pointer,
+    out_val: ptr pointer
+): lfq_status_t {.exportc: "lfq_ctrie_snapshot_get", cdecl, gcsafe, raises: [].} =
+  lfq_ctrie_snapshot_lookup(snapshot, key, out_val)
+
+proc lfq_ctrie_snapshot_contains*(snapshot: ptr lfq_ctrie_snapshot_t, key: pointer): bool {.exportc: "lfq_ctrie_snapshot_contains", cdecl, gcsafe, raises: [].} =
+  if unlikely(snapshot == nil or snapshot.raw == nil):
+    return false
+  try:
+    snapshot.raw[].contains(key)
+  except:
+    false
+
+proc lfq_ctrie_snapshot_len*(snapshot: ptr lfq_ctrie_snapshot_t): csize_t {.exportc: "lfq_ctrie_snapshot_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(snapshot == nil or snapshot.raw == nil):
+    return 0
+  try:
+    let count = snapshot.raw[].len
+    if count < 0: 0.csize_t else: csize_t(count)
+  except:
+    0
+
+proc lfq_ctrie_snapshot_is_empty*(snapshot: ptr lfq_ctrie_snapshot_t): bool {.exportc: "lfq_ctrie_snapshot_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(snapshot == nil or snapshot.raw == nil):
+    return true
+  try:
+    snapshot.raw[].len == 0
+  except:
+    true
+
+# ------------------------------------------------------------------------------
+# 8. BroadcastRing (MPMC / SPMC Multicast Broadcast Ring Buffer)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_overflow_mode_t* {.size: sizeof(cint).} = enum
+    LFQ_OVERFLOW_DROP_OLDEST = 0
+    LFQ_OVERFLOW_BACKOFF     = 1
+
+  lfq_sub_origin_t* {.size: sizeof(cint).} = enum
+    LFQ_SUB_FROM_LATEST   = 0
+    LFQ_SUB_FROM_EARLIEST = 1
+
+  lfq_poll_result_t* {.size: sizeof(cint).} = enum
+    LFQ_POLL_SUCCESS = 0
+    LFQ_POLL_EMPTY   = 1
+    LFQ_POLL_LAGGED  = 2
+
+  lfq_broadcast_handle* {.exportc: "lfq_broadcast_t".} = object
+    raw*: ptr BroadcastRing[pointer]
+
+  lfq_broadcast_t* = lfq_broadcast_handle
+
+  lfq_broadcast_cursor_handle* {.exportc: "lfq_broadcast_cursor_t".} = object
+    raw*: ptr BroadcastCursor[pointer]
+
+  lfq_broadcast_cursor_t* = lfq_broadcast_cursor_handle
+
+proc lfq_broadcast_create*(
+    capacity: csize_t,
+    overflow_mode: lfq_overflow_mode_t,
+    max_readers: csize_t,
+    out_broadcast: ptr ptr lfq_broadcast_t
+): lfq_status_t {.exportc: "lfq_broadcast_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_broadcast == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let om = if overflow_mode == LFQ_OVERFLOW_BACKOFF: omBackoff else: omDropOldest
+    let cap = if capacity == 0: DefaultRingCapacity else: int(capacity)
+    let maxR = if max_readers == 0: DefaultMaxReaders else: int(max_readers)
+    let b = cast[ptr lfq_broadcast_t](allocShared0(sizeof(lfq_broadcast_t)))
+    let raw = cast[ptr BroadcastRing[pointer]](allocShared0(sizeof(BroadcastRing[pointer])))
+    raw[] = initBroadcastRing[pointer](cap, om, maxR)
+    b.raw = raw
+    out_broadcast[] = b
+    LFQ_OK
+
+proc lfq_broadcast_destroy*(
+    broadcast: ptr lfq_broadcast_t
+): lfq_status_t {.exportc: "lfq_broadcast_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(broadcast == nil or broadcast.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    {.cast(gcsafe).}:
+      `=destroy`(broadcast.raw[])
+    deallocShared(broadcast.raw)
+    deallocShared(broadcast)
+    LFQ_OK
+
+proc lfq_broadcast_publish*(
+    broadcast: ptr lfq_broadcast_t,
+    item: pointer
+): lfq_status_t {.exportc: "lfq_broadcast_publish", cdecl, gcsafe, raises: [].} =
+  if unlikely(broadcast == nil or broadcast.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    broadcast.raw[].publish(item)
+    LFQ_OK
+
+proc lfq_broadcast_subscribe*(
+    broadcast: ptr lfq_broadcast_t,
+    origin: lfq_sub_origin_t,
+    out_cursor: ptr ptr lfq_broadcast_cursor_t
+): lfq_status_t {.exportc: "lfq_broadcast_subscribe", cdecl, gcsafe, raises: [].} =
+  if unlikely(broadcast == nil or broadcast.raw == nil or out_cursor == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let so = if origin == LFQ_SUB_FROM_EARLIEST: soFromEarliest else: soFromLatest
+    let curObj = broadcast.raw[].subscribe(so)
+    let c = cast[ptr lfq_broadcast_cursor_t](allocShared0(sizeof(lfq_broadcast_cursor_t)))
+    let raw = cast[ptr BroadcastCursor[pointer]](allocShared0(sizeof(BroadcastCursor[pointer])))
+    raw[] = curObj
+    c.raw = raw
+    out_cursor[] = c
+    LFQ_OK
+
+proc lfq_broadcast_unsubscribe*(
+    cursor: ptr lfq_broadcast_cursor_t
+): lfq_status_t {.exportc: "lfq_broadcast_unsubscribe", cdecl, gcsafe, raises: [].} =
+  if unlikely(cursor == nil or cursor.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    cursor.raw[].unsubscribe()
+    {.cast(gcsafe).}:
+      `=destroy`(cursor.raw[])
+    deallocShared(cursor.raw)
+    deallocShared(cursor)
+    LFQ_OK
+
+proc lfq_broadcast_poll*(
+    cursor: ptr lfq_broadcast_cursor_t,
+    out_item: ptr pointer,
+    out_skipped_count: ptr csize_t,
+    out_result: ptr lfq_poll_result_t
+): lfq_status_t {.exportc: "lfq_broadcast_poll", cdecl, gcsafe, raises: [].} =
+  if unlikely(cursor == nil or cursor.raw == nil or out_item == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let res = cursor.raw[].poll()
+    case res.kind
+    of prSuccess:
+      out_item[] = res.val
+      if out_skipped_count != nil:
+        out_skipped_count[] = 0
+      if out_result != nil:
+        out_result[] = LFQ_POLL_SUCCESS
+      LFQ_OK
+    of prEmpty:
+      out_item[] = nil
+      if out_skipped_count != nil:
+        out_skipped_count[] = 0
+      if out_result != nil:
+        out_result[] = LFQ_POLL_EMPTY
+      LFQ_ERR_EMPTY
+    of prLagged:
+      out_item[] = nil
+      if out_skipped_count != nil:
+        out_skipped_count[] = csize_t(res.skippedCount)
+      if out_result != nil:
+        out_result[] = LFQ_POLL_LAGGED
+      LFQ_OK
+
+proc lfq_broadcast_try_read*(
+    cursor: ptr lfq_broadcast_cursor_t,
+    out_item: ptr pointer
+): lfq_status_t {.exportc: "lfq_broadcast_try_read", cdecl, gcsafe, raises: [].} =
+  if unlikely(cursor == nil or cursor.raw == nil or out_item == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    var val: pointer = nil
+    if cursor.raw[].tryRead(val):
+      out_item[] = val
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc lfq_broadcast_len*(
+    broadcast: ptr lfq_broadcast_t
+): csize_t {.exportc: "lfq_broadcast_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(broadcast == nil or broadcast.raw == nil):
+    return 0
+  try:
+    csize_t(broadcast.raw[].len)
+  except:
+    0
+
+proc lfq_broadcast_capacity*(
+    broadcast: ptr lfq_broadcast_t
+): csize_t {.exportc: "lfq_broadcast_capacity", cdecl, gcsafe, raises: [].} =
+  if unlikely(broadcast == nil or broadcast.raw == nil):
+    return 0
+  try:
+    csize_t(broadcast.raw[].capacity)
+  except:
+    0
+
+proc lfq_broadcast_subscriber_count*(
+    broadcast: ptr lfq_broadcast_t
+): csize_t {.exportc: "lfq_broadcast_subscriber_count", cdecl, gcsafe, raises: [].} =
+  if unlikely(broadcast == nil or broadcast.raw == nil):
+    return 0
+  try:
+    csize_t(broadcast.raw[].subscriberCount)
+  except:
+    0
+
+proc lfq_broadcast_is_empty*(
+    broadcast: ptr lfq_broadcast_t
+): bool {.exportc: "lfq_broadcast_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(broadcast == nil or broadcast.raw == nil):
+    return true
+  try:
+    broadcast.raw[].len == 0
+  except:
+    true
+
+proc lfq_broadcast_cursor_lag*(
+    cursor: ptr lfq_broadcast_cursor_t
+): csize_t {.exportc: "lfq_broadcast_cursor_lag", cdecl, gcsafe, raises: [].} =
+  if unlikely(cursor == nil or cursor.raw == nil):
+    return 0
+  try:
+    csize_t(cursor.raw[].lag)
+  except:
+    0
+
+# ------------------------------------------------------------------------------
+# 9. RendezvousChannel (Zero-Buffer Synchronous Dual Channel)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_rendezvous_handle {.exportc: "lfq_rendezvous_t".} = object
+    raw*: ptr RendezvousChannel[pointer]
+
+  lfq_rendezvous_t* = lfq_rendezvous_handle
+  lf_rendezvous_t* = lfq_rendezvous_handle
+
+proc lfq_rendezvous_create*(
+    out_chan: ptr ptr lfq_rendezvous_t
+): lfq_status_t {.exportc: "lfq_rendezvous_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_chan == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let handle = cast[ptr lfq_rendezvous_t](allocShared0(sizeof(lfq_rendezvous_t)))
+    let raw = cast[ptr RendezvousChannel[pointer]](allocShared0(sizeof(RendezvousChannel[pointer])))
+    raw[] = initRendezvousChannel[pointer]()
+    handle.raw = raw
+    out_chan[] = handle
+    LFQ_OK
+
+proc lfq_rendezvous_destroy*(
+    chan: ptr lfq_rendezvous_t
+): lfq_status_t {.exportc: "lfq_rendezvous_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    {.cast(gcsafe).}:
+      `=destroy`(chan.raw[])
+    deallocShared(chan.raw)
+    deallocShared(chan)
+    LFQ_OK
+
+proc lfq_rendezvous_close*(
+    chan: ptr lfq_rendezvous_t
+): lfq_status_t {.exportc: "lfq_rendezvous_close", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    chan.raw[].close()
+    LFQ_OK
+
+proc lfq_rendezvous_is_closed*(
+    chan: ptr lfq_rendezvous_t
+): bool {.exportc: "lfq_rendezvous_is_closed", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil):
+    return true
+  try:
+    chan.raw[].isClosed()
+  except:
+    true
+
+proc lfq_rendezvous_send*(
+    chan: ptr lfq_rendezvous_t,
+    payload: pointer,
+    out_corr_id: ptr uint64
+): lfq_status_t {.exportc: "lfq_rendezvous_send", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  if unlikely(chan.raw[].isClosed()):
+    return LFQ_ERR_CLOSED
+  cAbiBoundary:
+    let cid = chan.raw[].send(payload)
+    if out_corr_id != nil:
+      out_corr_id[] = cid
+    LFQ_OK
+
+proc lfq_rendezvous_recv*(
+    chan: ptr lfq_rendezvous_t,
+    out_payload: ptr pointer,
+    out_corr_id: ptr uint64
+): lfq_status_t {.exportc: "lfq_rendezvous_recv", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil or out_payload == nil):
+    return LFQ_ERR_INVALID_ARG
+  if unlikely(chan.raw[].isClosed()):
+    return LFQ_ERR_CLOSED
+  cAbiBoundary:
+    var val: pointer = nil
+    let cid = chan.raw[].recv(val)
+    out_payload[] = val
+    if out_corr_id != nil:
+      out_corr_id[] = cid
+    LFQ_OK
+
+proc lfq_rendezvous_try_send*(
+    chan: ptr lfq_rendezvous_t,
+    payload: pointer,
+    out_corr_id: ptr uint64
+): lfq_status_t {.exportc: "lfq_rendezvous_try_send", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  if unlikely(chan.raw[].isClosed()):
+    return LFQ_ERR_CLOSED
+  cAbiBoundary:
+    var cid: uint64 = 0
+    if chan.raw[].trySend(payload, cid):
+      if out_corr_id != nil:
+        out_corr_id[] = cid
+      LFQ_OK
+    else:
+      if chan.raw[].isClosed():
+        LFQ_ERR_CLOSED
+      else:
+        LFQ_ERR_EMPTY
+
+proc lfq_rendezvous_try_recv*(
+    chan: ptr lfq_rendezvous_t,
+    out_payload: ptr pointer,
+    out_corr_id: ptr uint64
+): lfq_status_t {.exportc: "lfq_rendezvous_try_recv", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil or out_payload == nil):
+    return LFQ_ERR_INVALID_ARG
+  if unlikely(chan.raw[].isClosed()):
+    return LFQ_ERR_CLOSED
+  cAbiBoundary:
+    var val: pointer = nil
+    var cid: uint64 = 0
+    if chan.raw[].tryRecv(val, cid):
+      out_payload[] = val
+      if out_corr_id != nil:
+        out_corr_id[] = cid
+      LFQ_OK
+    else:
+      if chan.raw[].isClosed():
+        LFQ_ERR_CLOSED
+      else:
+        LFQ_ERR_EMPTY
+
+proc lfq_rendezvous_send_timeout*(
+    chan: ptr lfq_rendezvous_t,
+    payload: pointer,
+    timeout_ms: int32,
+    out_corr_id: ptr uint64
+): lfq_status_t {.exportc: "lfq_rendezvous_send_timeout", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  if unlikely(chan.raw[].isClosed()):
+    return LFQ_ERR_CLOSED
+  cAbiBoundary:
+    var cid: uint64 = 0
+    if chan.raw[].sendWithTimeout(payload, int(timeout_ms), cid):
+      if out_corr_id != nil:
+        out_corr_id[] = cid
+      LFQ_OK
+    else:
+      if chan.raw[].isClosed():
+        LFQ_ERR_CLOSED
+      else:
+        LFQ_ERR_EMPTY
+
+proc lfq_rendezvous_recv_timeout*(
+    chan: ptr lfq_rendezvous_t,
+    out_payload: ptr pointer,
+    timeout_ms: int32,
+    out_corr_id: ptr uint64
+): lfq_status_t {.exportc: "lfq_rendezvous_recv_timeout", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil or out_payload == nil):
+    return LFQ_ERR_INVALID_ARG
+  if unlikely(chan.raw[].isClosed()):
+    return LFQ_ERR_CLOSED
+  cAbiBoundary:
+    var val: pointer = nil
+    var cid: uint64 = 0
+    if chan.raw[].recvWithTimeout(val, int(timeout_ms), cid):
+      out_payload[] = val
+      if out_corr_id != nil:
+        out_corr_id[] = cid
+      LFQ_OK
+    else:
+      if chan.raw[].isClosed():
+        LFQ_ERR_CLOSED
+      else:
+        LFQ_ERR_EMPTY
+
+# ------------------------------------------------------------------------------
+# Section 9.1 C-Style API Functions
+# ------------------------------------------------------------------------------
+
+proc lf_rendezvous_create*(): ptr lfq_rendezvous_t {.exportc: "lf_rendezvous_create", cdecl, gcsafe, raises: [].} =
+  var res: ptr lfq_rendezvous_t = nil
+  if lfq_rendezvous_create(addr res) == LFQ_OK:
+    res
+  else:
+    nil
+
+proc lf_rendezvous_destroy*(chan: ptr lfq_rendezvous_t) {.exportc: "lf_rendezvous_destroy", cdecl, gcsafe, raises: [].} =
+  discard lfq_rendezvous_destroy(chan)
+
+proc lf_rendezvous_close*(chan: ptr lfq_rendezvous_t) {.exportc: "lf_rendezvous_close", cdecl, gcsafe, raises: [].} =
+  discard lfq_rendezvous_close(chan)
+
+proc lf_rendezvous_send*(
+    chan: ptr lfq_rendezvous_t,
+    payload: pointer,
+    out_corr_id: ptr uint64
+): cint {.exportc: "lf_rendezvous_send", cdecl, gcsafe, raises: [].} =
+  cint(lfq_rendezvous_send(chan, payload, out_corr_id))
+
+proc lf_rendezvous_recv*(
+    chan: ptr lfq_rendezvous_t,
+    out_payload: ptr pointer,
+    out_corr_id: ptr uint64
+): cint {.exportc: "lf_rendezvous_recv", cdecl, gcsafe, raises: [].} =
+  cint(lfq_rendezvous_recv(chan, out_payload, out_corr_id))
+
+proc lf_rendezvous_try_send*(
+    chan: ptr lfq_rendezvous_t,
+    payload: pointer,
+    out_corr_id: ptr uint64
+): bool {.exportc: "lf_rendezvous_try_send", cdecl, gcsafe, raises: [].} =
+  lfq_rendezvous_try_send(chan, payload, out_corr_id) == LFQ_OK
+
+proc lf_rendezvous_try_recv*(
+    chan: ptr lfq_rendezvous_t,
+    out_payload: ptr pointer,
+    out_corr_id: ptr uint64
+): bool {.exportc: "lf_rendezvous_try_recv", cdecl, gcsafe, raises: [].} =
+  lfq_rendezvous_try_recv(chan, out_payload, out_corr_id) == LFQ_OK
+
+proc lf_rendezvous_send_timeout*(
+    chan: ptr lfq_rendezvous_t,
+    payload: pointer,
+    timeout_ms: cint,
+    out_corr_id: ptr uint64
+): bool {.exportc: "lf_rendezvous_send_timeout", cdecl, gcsafe, raises: [].} =
+  lfq_rendezvous_send_timeout(chan, payload, int32(timeout_ms), out_corr_id) == LFQ_OK
+
+proc lf_rendezvous_recv_timeout*(
+    chan: ptr lfq_rendezvous_t,
+    out_payload: ptr pointer,
+    timeout_ms: cint,
+    out_corr_id: ptr uint64
+): bool {.exportc: "lf_rendezvous_recv_timeout", cdecl, gcsafe, raises: [].} =
+  lfq_rendezvous_recv_timeout(chan, out_payload, int32(timeout_ms), out_corr_id) == LFQ_OK
+
+# ------------------------------------------------------------------------------
+# 10. Rate Limiters (Hardware 128-Bit DWCAS TokenBucket & LeakyBucket)
+# ------------------------------------------------------------------------------
+
+proc lfq_token_bucket_create*(
+    capacity: uint64,
+    refill_rate: uint64
+): ptr lfq_token_bucket_t {.exportc: "lfq_token_bucket_create", cdecl, gcsafe, raises: [].} =
+  try:
+    let p = cast[ptr lfq_token_bucket_t](allocShared0(sizeof(lfq_token_bucket_t)))
+    if lfq_token_bucket_init(p, capacity, refill_rate) != 0:
+      deallocShared(p)
+      return nil
+    p
+  except:
+    nil
+
+proc lfq_token_bucket_destroy*(
+    bucket: ptr lfq_token_bucket_t
+) {.exportc: "lfq_token_bucket_destroy", cdecl, gcsafe, raises: [].} =
+  if bucket != nil:
+    deallocShared(bucket)
+
+proc lfq_token_bucket_reset*(
+    bucket: ptr lfq_token_bucket_t,
+    tokens: uint64
+) {.exportc: "lfq_token_bucket_reset", cdecl, gcsafe, raises: [].} =
+  if bucket != nil:
+    try:
+      let tb = cast[ptr TokenBucket](bucket)
+      tb[].reset(tokens)
+    except:
+      discard
+
+proc lfq_leaky_bucket_create*(
+    burst_tolerance_ns: uint64,
+    leak_rate: uint64
+): ptr lfq_leaky_bucket_t {.exportc: "lfq_leaky_bucket_create", cdecl, gcsafe, raises: [].} =
+  try:
+    let p = cast[ptr lfq_leaky_bucket_t](allocShared0(sizeof(lfq_leaky_bucket_t)))
+    if lfq_leaky_bucket_init(p, burst_tolerance_ns, leak_rate) != 0:
+      deallocShared(p)
+      return nil
+    p
+  except:
+    nil
+
+proc lfq_leaky_bucket_destroy*(
+    bucket: ptr lfq_leaky_bucket_t
+) {.exportc: "lfq_leaky_bucket_destroy", cdecl, gcsafe, raises: [].} =
+  if bucket != nil:
+    deallocShared(bucket)
+
+proc lfq_leaky_bucket_reset*(
+    bucket: ptr lfq_leaky_bucket_t
+) {.exportc: "lfq_leaky_bucket_reset", cdecl, gcsafe, raises: [].} =
+  if bucket != nil:
+    try:
+      let lb = cast[ptr LeakyBucket](bucket)
+      lb[].reset()
+    except:
+      discard
+
+# ------------------------------------------------------------------------------
+# 11. StreamRing / StreamBuffer (Zero-Copy Streaming I/O)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_iovec_slice_t* {.exportc: "lfq_iovec_slice_t", bycopy.} = object
+    iov_base*: pointer
+    iov_len*: csize_t
+
+  lfq_iovec_pair_t* {.exportc: "lfq_iovec_pair_t", bycopy.} = object
+    first*: lfq_iovec_slice_t
+    second*: lfq_iovec_slice_t
+
+  lfq_stream_ring_handle* {.exportc: "lfq_stream_ring_t".} = object
+    raw*: ptr StreamRing
+
+  lfq_stream_ring_t* = lfq_stream_ring_handle
+  lfq_streambuffer_t* = lfq_stream_ring_handle
+
+proc lfq_stream_ring_create*(
+    capacity: csize_t,
+    use_virtual_mirror: bool
+): ptr lfq_stream_ring_t {.exportc: "lfq_stream_ring_create", cdecl, gcsafe, raises: [].} =
+  try:
+    let handle = cast[ptr lfq_stream_ring_t](allocShared0(sizeof(lfq_stream_ring_t)))
+    if handle == nil: return nil
+    let raw = cast[ptr StreamRing](allocShared0(sizeof(StreamRing)))
+    if raw == nil:
+      deallocShared(handle)
+      return nil
+    let cap = if capacity == 0: DefaultStreamCapacity else: int(capacity)
+    raw[] = initStreamRing(cap, use_virtual_mirror)
+    handle.raw = raw
+    handle
+  except:
+    nil
+
+proc lfq_stream_ring_destroy*(
+    ring: ptr lfq_stream_ring_t
+) {.exportc: "lfq_stream_ring_destroy", cdecl, gcsafe, raises: [].} =
+  if ring != nil:
+    if ring.raw != nil:
+      try:
+        ring.raw[].destroy()
+      except:
+        discard
+      deallocShared(ring.raw)
+      ring.raw = nil
+    deallocShared(ring)
+
+proc lfq_streambuffer_create*(
+    capacity: csize_t,
+    use_virtual_mirror: bool
+): ptr lfq_streambuffer_t {.exportc: "lfq_streambuffer_create", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_create(capacity, use_virtual_mirror)
+
+proc lfq_streambuffer_destroy*(
+    ring: ptr lfq_streambuffer_t
+) {.exportc: "lfq_streambuffer_destroy", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_destroy(ring)
+
+proc lfq_stream_ring_capacity*(
+    ring: ptr lfq_stream_ring_t
+): csize_t {.exportc: "lfq_stream_ring_capacity", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil: return 0
+  try:
+    csize_t(ring.raw[].capacity())
+  except:
+    0
+
+proc lfq_stream_ring_available_read*(
+    ring: ptr lfq_stream_ring_t
+): csize_t {.exportc: "lfq_stream_ring_available_read", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil: return 0
+  try:
+    csize_t(ring.raw[].availableRead())
+  except:
+    0
+
+proc lfq_stream_ring_available_write*(
+    ring: ptr lfq_stream_ring_t
+): csize_t {.exportc: "lfq_stream_ring_available_write", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil: return 0
+  try:
+    csize_t(ring.raw[].availableWrite())
+  except:
+    0
+
+proc lfq_stream_ring_is_empty*(
+    ring: ptr lfq_stream_ring_t
+): bool {.exportc: "lfq_stream_ring_is_empty", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil: return true
+  try:
+    ring.raw[].isEmpty()
+  except:
+    true
+
+proc lfq_stream_ring_is_full*(
+    ring: ptr lfq_stream_ring_t
+): bool {.exportc: "lfq_stream_ring_is_full", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil: return false
+  try:
+    ring.raw[].isFull()
+  except:
+    false
+
+proc lfq_streambuffer_capacity*(
+    ring: ptr lfq_streambuffer_t
+): csize_t {.exportc: "lfq_streambuffer_capacity", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_capacity(ring)
+
+proc lfq_streambuffer_available_read*(
+    ring: ptr lfq_streambuffer_t
+): csize_t {.exportc: "lfq_streambuffer_available_read", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_available_read(ring)
+
+proc lfq_streambuffer_available_write*(
+    ring: ptr lfq_streambuffer_t
+): csize_t {.exportc: "lfq_streambuffer_available_write", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_available_write(ring)
+
+proc lfq_streambuffer_is_empty*(
+    ring: ptr lfq_streambuffer_t
+): bool {.exportc: "lfq_streambuffer_is_empty", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_is_empty(ring)
+
+proc lfq_streambuffer_is_full*(
+    ring: ptr lfq_streambuffer_t
+): bool {.exportc: "lfq_streambuffer_is_full", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_is_full(ring)
+
+proc lfq_stream_ring_try_write*(
+    ring: ptr lfq_stream_ring_t,
+    src: pointer,
+    len: csize_t
+): csize_t {.exportc: "lfq_stream_ring_try_write", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil or src == nil or len == 0: return 0
+  try:
+    let s = cast[ptr UncheckedArray[byte]](src)
+    let written = ring.raw[].tryWrite(toOpenArray(s, 0, int(len) - 1))
+    csize_t(written)
+  except:
+    0
+
+proc lfq_stream_ring_try_read*(
+    ring: ptr lfq_stream_ring_t,
+    dst: pointer,
+    max_len: csize_t
+): csize_t {.exportc: "lfq_stream_ring_try_read", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil or dst == nil or max_len == 0: return 0
+  try:
+    let d = cast[ptr UncheckedArray[byte]](dst)
+    let readBytes = ring.raw[].tryRead(toOpenArray(d, 0, int(max_len) - 1))
+    csize_t(readBytes)
+  except:
+    0
+
+proc lfq_stream_ring_write_blocking*(
+    ring: ptr lfq_stream_ring_t,
+    src: pointer,
+    len: csize_t,
+    timeout_ns: int64
+): csize_t {.exportc: "lfq_stream_ring_write_blocking", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil or src == nil or len == 0: return 0
+  try:
+    let s = cast[ptr UncheckedArray[byte]](src)
+    let written = ring.raw[].writeBlocking(toOpenArray(s, 0, int(len) - 1), timeout_ns)
+    csize_t(written)
+  except:
+    0
+
+proc lfq_stream_ring_read_blocking*(
+    ring: ptr lfq_stream_ring_t,
+    dst: pointer,
+    max_len: csize_t,
+    timeout_ns: int64
+): csize_t {.exportc: "lfq_stream_ring_read_blocking", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil or dst == nil or max_len == 0: return 0
+  try:
+    let d = cast[ptr UncheckedArray[byte]](dst)
+    let readBytes = ring.raw[].readBlocking(toOpenArray(d, 0, int(max_len) - 1), timeout_ns)
+    csize_t(readBytes)
+  except:
+    0
+
+proc lfq_streambuffer_try_write*(
+    ring: ptr lfq_streambuffer_t,
+    src: pointer,
+    len: csize_t
+): csize_t {.exportc: "lfq_streambuffer_try_write", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_try_write(ring, src, len)
+
+proc lfq_streambuffer_try_read*(
+    ring: ptr lfq_streambuffer_t,
+    dst: pointer,
+    max_len: csize_t
+): csize_t {.exportc: "lfq_streambuffer_try_read", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_try_read(ring, dst, max_len)
+
+proc lfq_streambuffer_write_blocking*(
+    ring: ptr lfq_streambuffer_t,
+    src: pointer,
+    len: csize_t,
+    timeout_ns: int64
+): csize_t {.exportc: "lfq_streambuffer_write_blocking", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_write_blocking(ring, src, len, timeout_ns)
+
+proc lfq_streambuffer_read_blocking*(
+    ring: ptr lfq_streambuffer_t,
+    dst: pointer,
+    max_len: csize_t,
+    timeout_ns: int64
+): csize_t {.exportc: "lfq_streambuffer_read_blocking", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_read_blocking(ring, dst, max_len, timeout_ns)
+
+proc lfq_stream_ring_acquire_write_iov*(
+    ring: ptr lfq_stream_ring_t,
+    requested_len: csize_t
+): lfq_iovec_pair_t {.exportc: "lfq_stream_ring_acquire_write_iov", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil or requested_len == 0:
+    return lfq_iovec_pair_t()
+  try:
+    let iov = ring.raw[].acquireWriteIov(int(requested_len))
+    result.first.iov_base = cast[pointer](iov.first.data)
+    result.first.iov_len = csize_t(iov.first.len)
+    result.second.iov_base = cast[pointer](iov.second.data)
+    result.second.iov_len = csize_t(iov.second.len)
+  except:
+    result = lfq_iovec_pair_t()
+
+proc lfq_stream_ring_commit_write*(
+    ring: ptr lfq_stream_ring_t,
+    bytes_written: csize_t
+) {.exportc: "lfq_stream_ring_commit_write", cdecl, gcsafe, raises: [].} =
+  if ring != nil and ring.raw != nil and bytes_written > 0:
+    try:
+      ring.raw[].commitWrite(int(bytes_written))
+    except:
+      discard
+
+proc lfq_stream_ring_acquire_read_iov*(
+    ring: ptr lfq_stream_ring_t,
+    requested_len: csize_t
+): lfq_iovec_pair_t {.exportc: "lfq_stream_ring_acquire_read_iov", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil or requested_len == 0:
+    return lfq_iovec_pair_t()
+  try:
+    let iov = ring.raw[].acquireReadIov(int(requested_len))
+    result.first.iov_base = cast[pointer](iov.first.data)
+    result.first.iov_len = csize_t(iov.first.len)
+    result.second.iov_base = cast[pointer](iov.second.data)
+    result.second.iov_len = csize_t(iov.second.len)
+  except:
+    result = lfq_iovec_pair_t()
+
+proc lfq_stream_ring_commit_read*(
+    ring: ptr lfq_stream_ring_t,
+    bytes_read: csize_t
+) {.exportc: "lfq_stream_ring_commit_read", cdecl, gcsafe, raises: [].} =
+  if ring != nil and ring.raw != nil and bytes_read > 0:
+    try:
+      ring.raw[].commitRead(int(bytes_read))
+    except:
+      discard
+
+proc lfq_streambuffer_acquire_write_iov*(
+    ring: ptr lfq_streambuffer_t,
+    requested_len: csize_t
+): lfq_iovec_pair_t {.exportc: "lfq_streambuffer_acquire_write_iov", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_acquire_write_iov(ring, requested_len)
+
+proc lfq_streambuffer_commit_write*(
+    ring: ptr lfq_streambuffer_t,
+    bytes_written: csize_t
+) {.exportc: "lfq_streambuffer_commit_write", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_commit_write(ring, bytes_written)
+
+proc lfq_streambuffer_acquire_read_iov*(
+    ring: ptr lfq_streambuffer_t,
+    requested_len: csize_t
+): lfq_iovec_pair_t {.exportc: "lfq_streambuffer_acquire_read_iov", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_acquire_read_iov(ring, requested_len)
+
+proc lfq_streambuffer_commit_read*(
+    ring: ptr lfq_streambuffer_t,
+    bytes_read: csize_t
+) {.exportc: "lfq_streambuffer_commit_read", cdecl, gcsafe, raises: [].} =
+  lfq_stream_ring_commit_read(ring, bytes_read)
+
+
+
+
+
+

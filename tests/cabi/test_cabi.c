@@ -16,7 +16,11 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <pthread.h>
+#include <time.h>
 #include "lockfree.h"
+#include "lockfree_ratelimit.h"
+#include "lockfree_streambuffer.h"
+#include <string.h>
 
 /* Nim runtime initialization symbol exported by liblockfree.a */
 extern void NimMain(void);
@@ -30,6 +34,22 @@ extern void NimMain(void);
         } \
     } while (0)
 
+/* Atomic primitives compatible with C99 builtins and C11 stdatomic */
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L && !defined(__STDC_NO_ATOMICS__)
+#include <stdatomic.h>
+typedef atomic_size_t test_atomic_size_t;
+typedef atomic_uint_least64_t test_atomic_uint64_t;
+#define ATOMIC_INC(p) atomic_fetch_add(p, 1)
+#define ATOMIC_ADD(p, v) atomic_fetch_add(p, (v))
+#define ATOMIC_LOAD(p) atomic_load(p)
+#else
+typedef size_t test_atomic_size_t;
+typedef uint64_t test_atomic_uint64_t;
+#define ATOMIC_INC(p) __sync_fetch_and_add((p), 1)
+#define ATOMIC_ADD(p, v) __sync_fetch_and_add((p), (v))
+#define ATOMIC_LOAD(p) __sync_fetch_and_add((p), 0)
+#endif
+
 /* Destructor tracking struct */
 typedef struct {
     uintptr_t sum_destroyed;
@@ -40,6 +60,21 @@ static void test_destructor_fn(void* item, void* user_data) {
     destructor_tracker_t* tracker = (destructor_tracker_t*)user_data;
     if (tracker != NULL) {
         tracker->sum_destroyed += (uintptr_t)item;
+        tracker->count_destroyed++;
+    }
+}
+
+typedef struct {
+    uintptr_t sum_keys;
+    uintptr_t sum_vals;
+    size_t count_destroyed;
+} destructor_entry_tracker_t;
+
+static void test_entry_destructor_fn(void* key, void* val, void* user_data) {
+    destructor_entry_tracker_t* tracker = (destructor_entry_tracker_t*)user_data;
+    if (tracker != NULL) {
+        tracker->sum_keys += (uintptr_t)key;
+        tracker->sum_vals += (uintptr_t)val;
         tracker->count_destroyed++;
     }
 }
@@ -276,7 +311,623 @@ static void test_cabi_deque(void) {
 }
 
 /* -------------------------------------------------------------------------
- * Test 5: Concurrent Multithreaded MPMC Queue Test via pthreads
+ * Test 5: Table (MPMC Ordered Key-Value Map) Lifecycle, Put, Get, Del, Contains
+ * ------------------------------------------------------------------------- */
+static void test_cabi_table(void) {
+    printf("Running test_cabi_table...\n");
+    destructor_entry_tracker_t tracker = {0, 0, 0};
+    lfq_table_t* table = NULL;
+    lfq_status_t status = lfq_table_create(test_entry_destructor_fn, &tracker, &table);
+    TEST_ASSERT(status == LFQ_OK && table != NULL, "lfq_table_create failed");
+    TEST_ASSERT(lfq_table_is_empty(table), "New table should be empty");
+    TEST_ASSERT(lfq_table_len(table) == 0, "New table len should be 0");
+
+    void* val = NULL;
+    status = lfq_table_get(table, (void*)(uintptr_t)1, &val);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY, "Get on empty table should return LFQ_ERR_EMPTY");
+    TEST_ASSERT(!lfq_table_contains(table, (void*)(uintptr_t)1), "Empty table should not contain key 1");
+
+    /* Put 3 items: (1 -> 100), (2 -> 200), (3 -> 300) */
+    bool inserted = false;
+    status = lfq_table_put(table, (void*)(uintptr_t)1, (void*)(uintptr_t)100, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_table_put 1 failed");
+    status = lfq_table_put(table, (void*)(uintptr_t)2, (void*)(uintptr_t)200, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_table_put 2 failed");
+    status = lfq_table_put(table, (void*)(uintptr_t)3, (void*)(uintptr_t)300, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_table_put 3 failed");
+
+    TEST_ASSERT(!lfq_table_is_empty(table), "Table should not be empty");
+    TEST_ASSERT(lfq_table_len(table) == 3, "Table len should be 3");
+    TEST_ASSERT(lfq_table_contains(table, (void*)(uintptr_t)1), "Table should contain key 1");
+    TEST_ASSERT(lfq_table_contains(table, (void*)(uintptr_t)2), "Table should contain key 2");
+    TEST_ASSERT(lfq_table_contains(table, (void*)(uintptr_t)3), "Table should contain key 3");
+
+    /* Get items */
+    status = lfq_table_get(table, (void*)(uintptr_t)1, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 100, "Get key 1 failed or wrong val");
+    status = lfq_table_get(table, (void*)(uintptr_t)2, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 200, "Get key 2 failed or wrong val");
+    status = lfq_table_get(table, (void*)(uintptr_t)3, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 300, "Get key 3 failed or wrong val");
+
+    /* Update existing key 2 -> 250 */
+    status = lfq_table_put(table, (void*)(uintptr_t)2, (void*)(uintptr_t)250, &inserted);
+    TEST_ASSERT(status == LFQ_OK && !inserted, "Update key 2 should return inserted == false");
+    TEST_ASSERT(lfq_table_len(table) == 3, "Table len should remain 3 after update");
+    status = lfq_table_get(table, (void*)(uintptr_t)2, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 250, "Get updated key 2 failed or wrong val");
+
+    /* Delete key 2 */
+    bool deleted = false;
+    status = lfq_table_delete(table, (void*)(uintptr_t)2, &deleted);
+    TEST_ASSERT(status == LFQ_OK && deleted, "lfq_table_delete 2 failed");
+    TEST_ASSERT(lfq_table_len(table) == 2, "Table len should be 2 after delete");
+    TEST_ASSERT(!lfq_table_contains(table, (void*)(uintptr_t)2), "Key 2 should no longer be present");
+
+    /* Delete non-existent key returns LFQ_ERR_EMPTY */
+    status = lfq_table_delete(table, (void*)(uintptr_t)999, &deleted);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY && !deleted, "Delete non-existent key should return LFQ_ERR_EMPTY");
+
+    /* Remove key 1 via alias lfq_table_remove */
+    bool removed = false;
+    status = lfq_table_remove(table, (void*)(uintptr_t)1, &removed);
+    TEST_ASSERT(status == LFQ_OK && removed, "lfq_table_remove 1 failed");
+    TEST_ASSERT(lfq_table_len(table) == 1, "Table len should be 1 after remove");
+
+    /* Destroy table with remaining entry (3 -> 300): destructor should be invoked! */
+    status = lfq_table_destroy(table);
+    TEST_ASSERT(status == LFQ_OK, "lfq_table_destroy failed");
+    TEST_ASSERT(tracker.count_destroyed == 1, "Table destructor count should be 1");
+    TEST_ASSERT(tracker.sum_keys == 3 && tracker.sum_vals == 300, "Table destructor key/val sum mismatch");
+    printf("test_cabi_table PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
+ * Test 6: Set (MPMC Ordered Set) Lifecycle, Insert, Remove, Contains
+ * ------------------------------------------------------------------------- */
+static void test_cabi_set(void) {
+    printf("Running test_cabi_set...\n");
+    destructor_tracker_t tracker = {0, 0};
+    lfq_set_t* set = NULL;
+    lfq_status_t status = lfq_set_create(test_destructor_fn, &tracker, &set);
+    TEST_ASSERT(status == LFQ_OK && set != NULL, "lfq_set_create failed");
+    TEST_ASSERT(lfq_set_is_empty(set), "New set should be empty");
+    TEST_ASSERT(lfq_set_len(set) == 0, "New set len should be 0");
+    TEST_ASSERT(!lfq_set_contains(set, (void*)(uintptr_t)42), "Empty set should not contain 42");
+
+    /* Insert 3 items: 10, 20, 30 */
+    bool inserted = false;
+    status = lfq_set_insert(set, (void*)(uintptr_t)10, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_set_insert 10 failed");
+    status = lfq_set_insert(set, (void*)(uintptr_t)20, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_set_insert 20 failed");
+    status = lfq_set_insert(set, (void*)(uintptr_t)30, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_set_insert 30 failed");
+
+    TEST_ASSERT(!lfq_set_is_empty(set), "Set should not be empty");
+    TEST_ASSERT(lfq_set_len(set) == 3, "Set len should be 3");
+    TEST_ASSERT(lfq_set_contains(set, (void*)(uintptr_t)10), "Set should contain 10");
+    TEST_ASSERT(lfq_set_contains(set, (void*)(uintptr_t)20), "Set should contain 20");
+    TEST_ASSERT(lfq_set_contains(set, (void*)(uintptr_t)30), "Set should contain 30");
+
+    /* Insert duplicate 20 */
+    status = lfq_set_insert(set, (void*)(uintptr_t)20, &inserted);
+    TEST_ASSERT(status == LFQ_OK && !inserted, "Duplicate insert should return inserted == false");
+    TEST_ASSERT(lfq_set_len(set) == 3, "Set len should remain 3 after duplicate insert");
+
+    /* Remove 20 */
+    bool removed = false;
+    status = lfq_set_remove(set, (void*)(uintptr_t)20, &removed);
+    TEST_ASSERT(status == LFQ_OK && removed, "lfq_set_remove 20 failed");
+    TEST_ASSERT(lfq_set_len(set) == 2, "Set len should be 2 after remove");
+    TEST_ASSERT(!lfq_set_contains(set, (void*)(uintptr_t)20), "Set should not contain 20 after remove");
+
+    /* Remove non-existent item returns LFQ_ERR_EMPTY */
+    status = lfq_set_remove(set, (void*)(uintptr_t)999, &removed);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY && !removed, "Remove non-existent item should return LFQ_ERR_EMPTY");
+
+    /* Destroy set with remaining items (10, 30): destructor should clean them up! */
+    status = lfq_set_destroy(set);
+    TEST_ASSERT(status == LFQ_OK, "lfq_set_destroy failed");
+    TEST_ASSERT(tracker.count_destroyed == 2, "Set destructor count should be 2");
+    TEST_ASSERT(tracker.sum_destroyed == (10 + 30), "Set destructor sum mismatch");
+    printf("test_cabi_set PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
+ * Test 7: Ctrie (MPMC Concurrent Hash Trie) & Wait-Free Snapshots
+ * ------------------------------------------------------------------------- */
+static void test_cabi_ctrie(void) {
+    printf("Running test_cabi_ctrie...\n");
+    destructor_entry_tracker_t tracker = {0, 0, 0};
+    lfq_ctrie_t* ctrie = NULL;
+    lfq_status_t status = lfq_ctrie_create(test_entry_destructor_fn, &tracker, &ctrie);
+    TEST_ASSERT(status == LFQ_OK && ctrie != NULL, "lfq_ctrie_create failed");
+    TEST_ASSERT(lfq_ctrie_is_empty(ctrie), "New ctrie should be empty");
+    TEST_ASSERT(lfq_ctrie_len(ctrie) == 0, "New ctrie len should be 0");
+    TEST_ASSERT(!lfq_ctrie_contains(ctrie, (void*)(uintptr_t)42), "Empty ctrie should not contain 42");
+
+    /* Insert 4 entries: 10->100, 20->200, 30->300, 40->400 */
+    bool inserted = false;
+    status = lfq_ctrie_insert(ctrie, (void*)(uintptr_t)10, (void*)(uintptr_t)100, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_ctrie_insert 10 failed");
+    status = lfq_ctrie_insert(ctrie, (void*)(uintptr_t)20, (void*)(uintptr_t)200, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_ctrie_insert 20 failed");
+    status = lfq_ctrie_insert(ctrie, (void*)(uintptr_t)30, (void*)(uintptr_t)300, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_ctrie_insert 30 failed");
+    status = lfq_ctrie_insert(ctrie, (void*)(uintptr_t)40, (void*)(uintptr_t)400, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "lfq_ctrie_insert 40 failed");
+
+    TEST_ASSERT(!lfq_ctrie_is_empty(ctrie), "Ctrie should not be empty");
+    TEST_ASSERT(lfq_ctrie_len(ctrie) == 4, "Ctrie len should be 4");
+
+    void* val = NULL;
+    status = lfq_ctrie_lookup(ctrie, (void*)(uintptr_t)10, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 100, "Lookup 10 failed or wrong value");
+    status = lfq_ctrie_lookup(ctrie, (void*)(uintptr_t)20, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 200, "Lookup 20 failed or wrong value");
+    status = lfq_ctrie_lookup(ctrie, (void*)(uintptr_t)30, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 300, "Lookup 30 failed or wrong value");
+    status = lfq_ctrie_lookup(ctrie, (void*)(uintptr_t)40, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 400, "Lookup 40 failed or wrong value");
+
+    /* Lookup non-existent key returns LFQ_ERR_EMPTY */
+    status = lfq_ctrie_lookup(ctrie, (void*)(uintptr_t)999, &val);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY, "Lookup non-existent key should return LFQ_ERR_EMPTY");
+
+    /* Create Wait-Free Snapshot */
+    lfq_ctrie_snapshot_t* snap = NULL;
+    status = lfq_ctrie_snapshot(ctrie, &snap);
+    TEST_ASSERT(status == LFQ_OK && snap != NULL, "lfq_ctrie_snapshot failed");
+    TEST_ASSERT(!lfq_ctrie_snapshot_is_empty(snap), "Snapshot should not be empty");
+    TEST_ASSERT(lfq_ctrie_snapshot_len(snap) == 4, "Snapshot len should be 4");
+    TEST_ASSERT(lfq_ctrie_snapshot_contains(snap, (void*)(uintptr_t)10), "Snapshot should contain 10");
+    TEST_ASSERT(lfq_ctrie_snapshot_contains(snap, (void*)(uintptr_t)20), "Snapshot should contain 20");
+    TEST_ASSERT(lfq_ctrie_snapshot_contains(snap, (void*)(uintptr_t)30), "Snapshot should contain 30");
+    TEST_ASSERT(lfq_ctrie_snapshot_contains(snap, (void*)(uintptr_t)40), "Snapshot should contain 40");
+    void* snap_val = NULL;
+    status = lfq_ctrie_snapshot_lookup(snap, (void*)(uintptr_t)20, &snap_val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)snap_val == 200, "Snapshot lookup 20 failed");
+
+    /* Mutate active ctrie after snapshot: update 10, remove 20, insert 50 */
+    status = lfq_ctrie_put(ctrie, (void*)(uintptr_t)10, (void*)(uintptr_t)1000, &inserted);
+    TEST_ASSERT(status == LFQ_OK && !inserted, "Update 10 should return inserted == false");
+    bool removed = false;
+    status = lfq_ctrie_remove(ctrie, (void*)(uintptr_t)20, &removed);
+    TEST_ASSERT(status == LFQ_OK && removed, "lfq_ctrie_remove 20 failed");
+    status = lfq_ctrie_insert(ctrie, (void*)(uintptr_t)50, (void*)(uintptr_t)500, &inserted);
+    TEST_ASSERT(status == LFQ_OK && inserted, "Insert 50 failed");
+
+    /* Verify active ctrie state */
+    TEST_ASSERT(lfq_ctrie_len(ctrie) == 4, "Active ctrie len should be 4 (10, 30, 40, 50)");
+    TEST_ASSERT(!lfq_ctrie_contains(ctrie, (void*)(uintptr_t)20), "Active ctrie should not contain 20");
+    TEST_ASSERT(lfq_ctrie_contains(ctrie, (void*)(uintptr_t)50), "Active ctrie should contain 50");
+    status = lfq_ctrie_lookup(ctrie, (void*)(uintptr_t)10, &val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)val == 1000, "Active ctrie key 10 should be updated to 1000");
+
+    /* Verify Snapshot Isolation: snap must be unmodified point-in-time view */
+    TEST_ASSERT(lfq_ctrie_snapshot_len(snap) == 4, "Snapshot len must remain 4");
+    TEST_ASSERT(lfq_ctrie_snapshot_contains(snap, (void*)(uintptr_t)20), "Snapshot must still contain 20");
+    TEST_ASSERT(!lfq_ctrie_snapshot_contains(snap, (void*)(uintptr_t)50), "Snapshot must not contain 50");
+    status = lfq_ctrie_snapshot_lookup(snap, (void*)(uintptr_t)10, &snap_val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)snap_val == 100, "Snapshot key 10 must still be 100");
+    status = lfq_ctrie_snapshot_lookup(snap, (void*)(uintptr_t)20, &snap_val);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)snap_val == 200, "Snapshot key 20 must still be 200");
+
+    /* Destroy snapshot */
+    status = lfq_ctrie_snapshot_destroy(snap);
+    TEST_ASSERT(status == LFQ_OK, "lfq_ctrie_snapshot_destroy failed");
+
+    /* Destroy active ctrie: remaining items (10, 30, 40, 50) destructed */
+    status = lfq_ctrie_destroy(ctrie);
+    TEST_ASSERT(status == LFQ_OK, "lfq_ctrie_destroy failed");
+    TEST_ASSERT(tracker.count_destroyed == 4, "Ctrie destructor count should be 4");
+    TEST_ASSERT(tracker.sum_keys == (10 + 30 + 40 + 50), "Ctrie destructor key sum mismatch");
+    TEST_ASSERT(tracker.sum_vals == (1000 + 300 + 400 + 500), "Ctrie destructor val sum mismatch");
+    printf("test_cabi_ctrie PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
+ * Test 8: BroadcastRing (MPMC / SPMC Multicast Broadcast Ring)
+ * ------------------------------------------------------------------------- */
+static void test_cabi_broadcast(void) {
+    printf("Running test_cabi_broadcast...\n");
+    lfq_broadcast_t* ring = NULL;
+    lfq_status_t status = lfq_broadcast_create(16, LFQ_OVERFLOW_DROP_OLDEST, 8, &ring);
+    TEST_ASSERT(status == LFQ_OK && ring != NULL, "lfq_broadcast_create failed");
+    TEST_ASSERT(lfq_broadcast_capacity(ring) >= 16, "Capacity should be >= 16");
+    TEST_ASSERT(lfq_broadcast_len(ring) == 0, "Initial len should be 0");
+    TEST_ASSERT(lfq_broadcast_is_empty(ring), "Initial ring should be empty");
+    TEST_ASSERT(lfq_broadcast_subscriber_count(ring) == 0, "Initial subscriber count should be 0");
+
+    /* Subscribe 2 cursors from latest */
+    lfq_broadcast_cursor_t* cur1 = NULL;
+    lfq_broadcast_cursor_t* cur2 = NULL;
+    status = lfq_broadcast_subscribe(ring, LFQ_SUB_FROM_LATEST, &cur1);
+    TEST_ASSERT(status == LFQ_OK && cur1 != NULL, "Subscribe cur1 failed");
+    status = lfq_broadcast_subscribe(ring, LFQ_SUB_FROM_LATEST, &cur2);
+    TEST_ASSERT(status == LFQ_OK && cur2 != NULL, "Subscribe cur2 failed");
+    TEST_ASSERT(lfq_broadcast_subscriber_count(ring) == 2, "Subscriber count should be 2");
+
+    /* Publish 2 items: 100 and 200 */
+    status = lfq_broadcast_publish(ring, (void*)(uintptr_t)100);
+    TEST_ASSERT(status == LFQ_OK, "Publish 100 failed");
+    status = lfq_broadcast_publish(ring, (void*)(uintptr_t)200);
+    TEST_ASSERT(status == LFQ_OK, "Publish 200 failed");
+    TEST_ASSERT(lfq_broadcast_len(ring) == 2, "Ring len should be 2");
+    TEST_ASSERT(!lfq_broadcast_is_empty(ring), "Ring should not be empty");
+
+    /* Cursor 1 reads via try_read */
+    void* item1 = NULL;
+    status = lfq_broadcast_try_read(cur1, &item1);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)item1 == 100, "cur1 read 100 failed");
+    status = lfq_broadcast_try_read(cur1, &item1);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)item1 == 200, "cur1 read 200 failed");
+    status = lfq_broadcast_try_read(cur1, &item1);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY, "cur1 should be empty now");
+
+    /* Cursor 2 reads via poll */
+    void* item2 = NULL;
+    size_t skipped = 0;
+    lfq_poll_result_t poll_res;
+    status = lfq_broadcast_poll(cur2, &item2, &skipped, &poll_res);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)item2 == 100 && poll_res == LFQ_POLL_SUCCESS, "cur2 poll 100 failed");
+    status = lfq_broadcast_poll(cur2, &item2, &skipped, &poll_res);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)item2 == 200 && poll_res == LFQ_POLL_SUCCESS, "cur2 poll 200 failed");
+    status = lfq_broadcast_poll(cur2, &item2, &skipped, &poll_res);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY && poll_res == LFQ_POLL_EMPTY, "cur2 poll should be empty");
+
+    /* Subscribe Cursor 3 with FROM_EARLIEST: should replay existing messages */
+    lfq_broadcast_cursor_t* cur3 = NULL;
+    status = lfq_broadcast_subscribe(ring, LFQ_SUB_FROM_EARLIEST, &cur3);
+    TEST_ASSERT(status == LFQ_OK && cur3 != NULL, "Subscribe cur3 failed");
+    TEST_ASSERT(lfq_broadcast_subscriber_count(ring) == 3, "Subscriber count should be 3");
+
+    void* item3 = NULL;
+    status = lfq_broadcast_try_read(cur3, &item3);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)item3 == 100, "cur3 replay 100 failed");
+    status = lfq_broadcast_try_read(cur3, &item3);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)item3 == 200, "cur3 replay 200 failed");
+
+    /* Unsubscribe all cursors */
+    status = lfq_broadcast_unsubscribe(cur1);
+    TEST_ASSERT(status == LFQ_OK, "Unsubscribe cur1 failed");
+    status = lfq_broadcast_unsubscribe(cur2);
+    TEST_ASSERT(status == LFQ_OK, "Unsubscribe cur2 failed");
+    status = lfq_broadcast_unsubscribe(cur3);
+    TEST_ASSERT(status == LFQ_OK, "Unsubscribe cur3 failed");
+    TEST_ASSERT(lfq_broadcast_subscriber_count(ring) == 0, "Subscriber count should be 0");
+
+    /* Destroy ring */
+    status = lfq_broadcast_destroy(ring);
+    TEST_ASSERT(status == LFQ_OK, "lfq_broadcast_destroy failed");
+    printf("test_cabi_broadcast PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
+ * Test 9: RendezvousChannel (Zero-Buffer Synchronous Dual Channel)
+ * ------------------------------------------------------------------------- */
+
+typedef struct {
+    lfq_rendezvous_t* chan;
+    size_t count;
+    uintptr_t start_val;
+    uint64_t* corr_ids;
+} rz_thread_arg_t;
+
+static void* rz_sender_worker(void* raw_arg) {
+    rz_thread_arg_t* arg = (rz_thread_arg_t*)raw_arg;
+    for (size_t i = 0; i < arg->count; i++) {
+        uintptr_t val = arg->start_val + i;
+        uint64_t cid = 0;
+        lfq_status_t s = lfq_rendezvous_send(arg->chan, (void*)val, &cid);
+        TEST_ASSERT(s == LFQ_OK, "lfq_rendezvous_send failed in sender worker");
+        TEST_ASSERT(cid > 0, "Correlation ID should be positive");
+        if (arg->corr_ids != NULL) {
+            arg->corr_ids[i] = cid;
+        }
+    }
+    return NULL;
+}
+
+static void* rz_receiver_worker(void* raw_arg) {
+    rz_thread_arg_t* arg = (rz_thread_arg_t*)raw_arg;
+    for (size_t i = 0; i < arg->count; i++) {
+        void* item = NULL;
+        uint64_t cid = 0;
+        lfq_status_t s = lfq_rendezvous_recv(arg->chan, &item, &cid);
+        TEST_ASSERT(s == LFQ_OK, "lfq_rendezvous_recv failed in receiver worker");
+        uintptr_t val = (uintptr_t)item;
+        TEST_ASSERT(val == arg->start_val + i, "Received item mismatch");
+        TEST_ASSERT(cid > 0, "Correlation ID should be positive");
+        if (arg->corr_ids != NULL) {
+            arg->corr_ids[i] = cid;
+        }
+    }
+    return NULL;
+}
+
+typedef struct {
+    lfq_rendezvous_t* chan;
+    lfq_status_t result_status;
+} rz_close_waiter_arg_t;
+
+static void* rz_close_waiter_worker(void* raw_arg) {
+    rz_close_waiter_arg_t* arg = (rz_close_waiter_arg_t*)raw_arg;
+    void* item = NULL;
+    uint64_t cid = 0;
+    arg->result_status = lfq_rendezvous_recv(arg->chan, &item, &cid);
+    return NULL;
+}
+
+static void test_cabi_rendezvous(void) {
+    printf("Running test_cabi_rendezvous...\n");
+    lfq_rendezvous_t* chan = NULL;
+    lfq_status_t status = lfq_rendezvous_create(&chan);
+    TEST_ASSERT(status == LFQ_OK && chan != NULL, "lfq_rendezvous_create failed");
+    TEST_ASSERT(!lfq_rendezvous_is_closed(chan), "Channel should not be closed initially");
+
+    /* 1. Immediate non-blocking operations on empty channel */
+    uint64_t corr_id = 0;
+    void* item = NULL;
+    status = lfq_rendezvous_try_send(chan, (void*)(uintptr_t)42, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY, "try_send without receiver must return LFQ_ERR_EMPTY");
+    status = lfq_rendezvous_try_recv(chan, &item, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY, "try_recv without sender must return LFQ_ERR_EMPTY");
+
+    /* 2. Bounded timeout operations without matching peer */
+    status = lfq_rendezvous_send_timeout(chan, (void*)(uintptr_t)42, 10, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY, "send_timeout without receiver must return LFQ_ERR_EMPTY");
+    status = lfq_rendezvous_recv_timeout(chan, &item, 10, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY, "recv_timeout without sender must return LFQ_ERR_EMPTY");
+
+    /* 3. Bilateral handoff across threads with correlation ID identity */
+    const size_t NUM_HANDOFFS = 200;
+    uint64_t* sender_cids = (uint64_t*)calloc(NUM_HANDOFFS, sizeof(uint64_t));
+    uint64_t* receiver_cids = (uint64_t*)calloc(NUM_HANDOFFS, sizeof(uint64_t));
+    TEST_ASSERT(sender_cids != NULL && receiver_cids != NULL, "calloc failed");
+
+    rz_thread_arg_t sender_arg = {
+        chan,
+        NUM_HANDOFFS,
+        1000,
+        sender_cids
+    };
+    rz_thread_arg_t receiver_arg = {
+        chan,
+        NUM_HANDOFFS,
+        1000,
+        receiver_cids
+    };
+
+    pthread_t th_recv, th_send;
+    pthread_create(&th_recv, NULL, rz_receiver_worker, &receiver_arg);
+    pthread_create(&th_send, NULL, rz_sender_worker, &sender_arg);
+
+    pthread_join(th_send, NULL);
+    pthread_join(th_recv, NULL);
+
+    /* Verify 100% correlation ID identity between sender and receiver */
+    for (size_t i = 0; i < NUM_HANDOFFS; i++) {
+        TEST_ASSERT(sender_cids[i] != 0, "Sender cid must be non-zero");
+        TEST_ASSERT(receiver_cids[i] != 0, "Receiver cid must be non-zero");
+        TEST_ASSERT(sender_cids[i] == receiver_cids[i], "Sender and receiver corrId must match identically!");
+        if (i > 0) {
+            TEST_ASSERT(sender_cids[i] > sender_cids[i - 1], "Correlation IDs must be monotonically increasing");
+        }
+    }
+    free(sender_cids);
+    free(receiver_cids);
+
+    /* 4. Section 9.1 C-Style Functions */
+    lf_rendezvous_t* rchan = lf_rendezvous_create();
+    TEST_ASSERT(rchan != NULL, "lf_rendezvous_create failed");
+    TEST_ASSERT(!lf_rendezvous_try_send(rchan, (void*)(uintptr_t)99, NULL), "try_send empty should return false");
+    TEST_ASSERT(!lf_rendezvous_try_recv(rchan, &item, NULL), "try_recv empty should return false");
+    TEST_ASSERT(!lf_rendezvous_send_timeout(rchan, (void*)(uintptr_t)99, 10, NULL), "send_timeout empty should return false");
+    TEST_ASSERT(!lf_rendezvous_recv_timeout(rchan, &item, 10, NULL), "recv_timeout empty should return false");
+
+    rz_thread_arg_t rz_s_arg = {
+        (lfq_rendezvous_t*)rchan,
+        1,
+        777,
+        NULL
+    };
+    pthread_t th_s2;
+    pthread_create(&th_s2, NULL, rz_sender_worker, &rz_s_arg);
+    uint64_t r_cid = 0;
+    int recv_res = lf_rendezvous_recv(rchan, &item, &r_cid);
+    TEST_ASSERT(recv_res == 0, "lf_rendezvous_recv failed");
+    TEST_ASSERT((uintptr_t)item == 777, "Item payload mismatch in lf_rendezvous_recv");
+    TEST_ASSERT(r_cid > 0, "Correlation ID should be positive");
+    pthread_join(th_s2, NULL);
+
+    lf_rendezvous_close(rchan);
+    lf_rendezvous_destroy(rchan);
+
+    /* 5. Channel closure and cancellation of waiting threads */
+    lfq_rendezvous_t* chan_close = NULL;
+    status = lfq_rendezvous_create(&chan_close);
+    TEST_ASSERT(status == LFQ_OK && chan_close != NULL, "lfq_rendezvous_create failed");
+
+    rz_close_waiter_arg_t close_arg = {
+        chan_close,
+        LFQ_OK
+    };
+    pthread_t th_close;
+    pthread_create(&th_close, NULL, rz_close_waiter_worker, &close_arg);
+
+    /* Give thread time to park in recv */
+    struct timespec ts;
+    ts.tv_sec = 0;
+    ts.tv_nsec = 30000000; /* 30 ms */
+    nanosleep(&ts, NULL);
+
+    status = lfq_rendezvous_close(chan_close);
+    TEST_ASSERT(status == LFQ_OK, "lfq_rendezvous_close failed");
+    TEST_ASSERT(lfq_rendezvous_is_closed(chan_close), "Channel should be closed");
+
+    pthread_join(th_close, NULL);
+    TEST_ASSERT(close_arg.result_status == LFQ_ERR_CLOSED, "Waiting receiver should receive LFQ_ERR_CLOSED on channel close");
+
+    /* Subsequent operations on closed channel must return LFQ_ERR_CLOSED */
+    status = lfq_rendezvous_send(chan_close, (void*)(uintptr_t)1, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_CLOSED, "send on closed channel must return LFQ_ERR_CLOSED");
+    status = lfq_rendezvous_recv(chan_close, &item, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_CLOSED, "recv on closed channel must return LFQ_ERR_CLOSED");
+    status = lfq_rendezvous_try_send(chan_close, (void*)(uintptr_t)1, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_CLOSED, "try_send on closed channel must return LFQ_ERR_CLOSED");
+    status = lfq_rendezvous_try_recv(chan_close, &item, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_CLOSED, "try_recv on closed channel must return LFQ_ERR_CLOSED");
+    status = lfq_rendezvous_send_timeout(chan_close, (void*)(uintptr_t)1, 10, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_CLOSED, "send_timeout on closed channel must return LFQ_ERR_CLOSED");
+    status = lfq_rendezvous_recv_timeout(chan_close, &item, 10, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_CLOSED, "recv_timeout on closed channel must return LFQ_ERR_CLOSED");
+
+    status = lfq_rendezvous_destroy(chan_close);
+    TEST_ASSERT(status == LFQ_OK, "lfq_rendezvous_destroy on closed channel failed");
+
+    /* Destroy original channel */
+    status = lfq_rendezvous_destroy(chan);
+    TEST_ASSERT(status == LFQ_OK, "lfq_rendezvous_destroy failed");
+
+    printf("test_cabi_rendezvous PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
+ * Test 10: Rate Limiters (TokenBucket & LeakyBucket GCRA)
+ * ------------------------------------------------------------------------- */
+
+typedef struct {
+    lfq_token_bucket_t* bucket;
+    size_t iterations;
+    test_atomic_size_t* total_acquired;
+} tb_stress_arg_t;
+
+static void* tb_stress_worker(void* raw_arg) {
+    tb_stress_arg_t* arg = (tb_stress_arg_t*)raw_arg;
+    for (size_t i = 0; i < arg->iterations; i++) {
+        while (!lfq_token_bucket_try_acquire(arg->bucket, 1)) {
+            #if defined(__x86_64__) || defined(_M_X64)
+            __asm__ volatile("pause");
+            #elif defined(__aarch64__) || defined(_M_ARM64)
+            __asm__ volatile("yield");
+            #endif
+        }
+        ATOMIC_INC(arg->total_acquired);
+    }
+    return NULL;
+}
+
+static void test_cabi_ratelimit(void) {
+    printf("Running test_cabi_ratelimit...\n");
+
+    /* 1. Stack-Allocated TokenBucket */
+    lfq_token_bucket_t tb;
+    int rc = lfq_token_bucket_init(&tb, 50, 100);
+    TEST_ASSERT(rc == 0, "lfq_token_bucket_init failed");
+    TEST_ASSERT(lfq_token_bucket_available(&tb) == 50, "Available tokens should be 50");
+
+    bool ok = lfq_token_bucket_try_acquire(&tb, 20);
+    TEST_ASSERT(ok, "try_acquire 20 should succeed");
+    TEST_ASSERT(lfq_token_bucket_available(&tb) == 30, "Available tokens should be 30");
+
+    ok = lfq_token_bucket_try_acquire(&tb, 30);
+    TEST_ASSERT(ok, "try_acquire 30 should succeed");
+    TEST_ASSERT(lfq_token_bucket_available(&tb) == 0, "Available tokens should be 0");
+
+    ok = lfq_token_bucket_try_acquire(&tb, 1);
+    TEST_ASSERT(!ok, "try_acquire 1 from empty bucket should fail");
+
+    /* Reset */
+    lfq_token_bucket_reset(&tb, 50);
+    TEST_ASSERT(lfq_token_bucket_available(&tb) == 50, "Reset should restore tokens");
+
+    /* Timed Acquire */
+    ok = lfq_token_bucket_try_acquire(&tb, 50);
+    TEST_ASSERT(ok, "try_acquire 50 should succeed");
+    ok = lfq_token_bucket_acquire_timeout(&tb, 1, 50000000); /* 50ms timeout; 1 token refilled in 10ms */
+    TEST_ASSERT(ok, "acquire_timeout should succeed after refill");
+
+    /* Timed Acquire fail-fast */
+    ok = lfq_token_bucket_try_acquire(&tb, lfq_token_bucket_available(&tb));
+    ok = lfq_token_bucket_acquire_timeout(&tb, 50, 1000); /* 1us timeout for 50 tokens (needs 500ms) */
+    TEST_ASSERT(!ok, "acquire_timeout should fail fast when deficit exceeds timeout");
+
+    /* Null Resilience */
+    TEST_ASSERT(lfq_token_bucket_init(NULL, 10, 10) == -1, "Init NULL bucket should return -1");
+    TEST_ASSERT(!lfq_token_bucket_try_acquire(NULL, 1), "try_acquire NULL bucket should fail");
+    TEST_ASSERT(!lfq_token_bucket_acquire_timeout(NULL, 1, 100), "acquire_timeout NULL bucket should fail");
+    TEST_ASSERT(lfq_token_bucket_available(NULL) == 0, "available NULL bucket should return 0");
+    lfq_token_bucket_reset(NULL, 10);
+
+    /* 2. Heap-Allocated TokenBucket */
+    lfq_token_bucket_t* heap_tb = lfq_token_bucket_create(100, 200);
+    TEST_ASSERT(heap_tb != NULL, "lfq_token_bucket_create failed");
+    TEST_ASSERT(lfq_token_bucket_available(heap_tb) == 100, "Heap bucket available mismatch");
+    TEST_ASSERT(lfq_token_bucket_try_acquire(heap_tb, 40), "try_acquire on heap bucket failed");
+    TEST_ASSERT(lfq_token_bucket_available(heap_tb) == 60, "Heap bucket available after acquire mismatch");
+    lfq_token_bucket_destroy(heap_tb);
+    lfq_token_bucket_destroy(NULL);
+
+    /* 3. Concurrent Multithreaded Contention on TokenBucket */
+    lfq_token_bucket_t* shared_tb = lfq_token_bucket_create(1000, 50000);
+    TEST_ASSERT(shared_tb != NULL, "shared_tb create failed");
+    enum { TB_STRESS_THREADS = 4 };
+    const size_t ITERS_PER_TH = 500;
+    test_atomic_size_t total_acquired = 0;
+    pthread_t ths[TB_STRESS_THREADS];
+    tb_stress_arg_t args[TB_STRESS_THREADS];
+
+    for (size_t i = 0; i < TB_STRESS_THREADS; i++) {
+        args[i].bucket = shared_tb;
+        args[i].iterations = ITERS_PER_TH;
+        args[i].total_acquired = &total_acquired;
+        pthread_create(&ths[i], NULL, tb_stress_worker, &args[i]);
+    }
+    for (size_t i = 0; i < TB_STRESS_THREADS; i++) {
+        pthread_join(ths[i], NULL);
+    }
+    TEST_ASSERT(ATOMIC_LOAD(&total_acquired) == TB_STRESS_THREADS * ITERS_PER_TH, "Total acquired mismatch");
+    lfq_token_bucket_destroy(shared_tb);
+
+    /* 4. Stack-Allocated LeakyBucket (GCRA) */
+    lfq_leaky_bucket_t lb;
+    rc = lfq_leaky_bucket_init(&lb, 200000000, 10); /* burst tolerance 200ms, leak rate 10/sec */
+    TEST_ASSERT(rc == 0, "lfq_leaky_bucket_init failed");
+    ok = lfq_leaky_bucket_try_consume(&lb, 1);
+    TEST_ASSERT(ok, "cell 1 should conform");
+    ok = lfq_leaky_bucket_try_consume(&lb, 1);
+    TEST_ASSERT(ok, "cell 2 should conform");
+    TEST_ASSERT(lfq_leaky_bucket_water_level(&lb) > 0, "Water level should be positive");
+
+    /* Reset */
+    lfq_leaky_bucket_reset(&lb);
+    TEST_ASSERT(lfq_leaky_bucket_water_level(&lb) == 0, "Water level after reset should be 0");
+
+    /* Timed Consume */
+    ok = lfq_leaky_bucket_consume_timeout(&lb, 1, 50000000);
+    TEST_ASSERT(ok, "consume_timeout should succeed");
+
+    /* Null Resilience */
+    TEST_ASSERT(lfq_leaky_bucket_init(NULL, 0, 0) == -1, "Init NULL leaky bucket should return -1");
+    TEST_ASSERT(!lfq_leaky_bucket_try_consume(NULL, 1), "try_consume NULL leaky bucket should fail");
+    TEST_ASSERT(!lfq_leaky_bucket_consume_timeout(NULL, 1, 100), "consume_timeout NULL leaky bucket should fail");
+    TEST_ASSERT(lfq_leaky_bucket_water_level(NULL) == 0, "water_level NULL leaky bucket should return 0");
+    lfq_leaky_bucket_reset(NULL);
+
+    /* 5. Heap-Allocated LeakyBucket */
+    lfq_leaky_bucket_t* heap_lb = lfq_leaky_bucket_create(100000000, 50);
+    TEST_ASSERT(heap_lb != NULL, "lfq_leaky_bucket_create failed");
+    TEST_ASSERT(lfq_leaky_bucket_try_consume(heap_lb, 1), "try_consume heap leaky bucket failed");
+    lfq_leaky_bucket_destroy(heap_lb);
+    lfq_leaky_bucket_destroy(NULL);
+
+    printf("test_cabi_ratelimit PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
+ * Test 11: Concurrent Multithreaded MPMC Queue Test via pthreads
  * ------------------------------------------------------------------------- */
 #define NUM_PRODUCERS 4
 #define NUM_CONSUMERS 4
@@ -292,8 +943,8 @@ typedef struct {
 typedef struct {
     lfq_queue_t* queue;
     size_t target_count;
-    _Atomic size_t* total_popped;
-    _Atomic uint64_t* checksum;
+    test_atomic_size_t* total_popped;
+    test_atomic_uint64_t* checksum;
 } thread_cons_arg_t;
 
 static void* thread_prod_worker(void* raw_arg) {
@@ -323,11 +974,11 @@ static void* thread_cons_worker(void* raw_arg) {
     TEST_ASSERT(s == LFQ_OK && cons != NULL, "Thread consumer acquire failed");
 
     void* item = NULL;
-    while (*arg->total_popped < arg->target_count) {
+    while (ATOMIC_LOAD(arg->total_popped) < arg->target_count) {
         if (lfq_pop(cons, &item) == LFQ_OK) {
             uintptr_t val = (uintptr_t)item;
-            (*arg->total_popped)++;
-            *arg->checksum += val;
+            ATOMIC_INC(arg->total_popped);
+            ATOMIC_ADD(arg->checksum, (uint64_t)val);
         } else {
             #if defined(__x86_64__) || defined(_M_X64)
             __asm__ volatile("pause");
@@ -351,8 +1002,8 @@ static void test_cabi_concurrency(void) {
     thread_prod_arg_t prod_args[NUM_PRODUCERS];
     thread_cons_arg_t cons_args[NUM_CONSUMERS];
 
-    _Atomic size_t total_popped = 0;
-    _Atomic uint64_t checksum = 0;
+    test_atomic_size_t total_popped = 0;
+    test_atomic_uint64_t checksum = 0;
     uint64_t expected_checksum = 0;
 
     for (size_t i = 1; i <= TOTAL_ITEMS; i++) {
@@ -381,12 +1032,258 @@ static void test_cabi_concurrency(void) {
         pthread_join(cons_threads[i], NULL);
     }
 
-    TEST_ASSERT(total_popped == TOTAL_ITEMS, "Total popped count mismatch");
-    TEST_ASSERT(checksum == expected_checksum, "Checksum mismatch");
+    TEST_ASSERT(ATOMIC_LOAD(&total_popped) == TOTAL_ITEMS, "Total popped count mismatch");
+    TEST_ASSERT(ATOMIC_LOAD(&checksum) == expected_checksum, "Checksum mismatch");
 
     s = lfq_queue_destroy(queue);
     TEST_ASSERT(s == LFQ_OK, "lfq_queue_destroy failed");
     printf("test_cabi_concurrency PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
+ * Test 12: StreamRing / StreamBuffer C ABI (Zero-Copy Streaming I/O)
+ * ------------------------------------------------------------------------- */
+typedef struct {
+    lfq_stream_ring_t* ring;
+    size_t total_bytes;
+    test_atomic_uint64_t* checksum;
+} streambuffer_worker_arg_t;
+
+static void* streambuffer_producer_worker(void* raw_arg) {
+    streambuffer_worker_arg_t* arg = (streambuffer_worker_arg_t*)raw_arg;
+    size_t sent = 0;
+    uint8_t val = 0;
+    while (sent < arg->total_bytes) {
+        size_t chunk = 64;
+        if (sent + chunk > arg->total_bytes) {
+            chunk = arg->total_bytes - sent;
+        }
+        lfq_iovec_pair_t iov = lfq_stream_ring_acquire_write_iov(arg->ring, chunk);
+        size_t avail = iov.first.iov_len + iov.second.iov_len;
+        if (avail == 0) {
+            #if defined(__x86_64__) || defined(_M_X64)
+            __asm__ volatile("pause");
+            #elif defined(__aarch64__) || defined(_M_ARM64)
+            __asm__ volatile("yield");
+            #endif
+            continue;
+        }
+        /* Fill first slice */
+        uint8_t* p1 = (uint8_t*)iov.first.iov_base;
+        for (size_t i = 0; i < iov.first.iov_len; i++) {
+            p1[i] = val++;
+        }
+        /* Fill second slice if any */
+        uint8_t* p2 = (uint8_t*)iov.second.iov_base;
+        for (size_t i = 0; i < iov.second.iov_len; i++) {
+            p2[i] = val++;
+        }
+        lfq_stream_ring_commit_write(arg->ring, avail);
+        sent += avail;
+    }
+    return NULL;
+}
+
+static void* streambuffer_consumer_worker(void* raw_arg) {
+    streambuffer_worker_arg_t* arg = (streambuffer_worker_arg_t*)raw_arg;
+    size_t received = 0;
+    uint64_t local_checksum = 0;
+    while (received < arg->total_bytes) {
+        size_t chunk = 128;
+        if (received + chunk > arg->total_bytes) {
+            chunk = arg->total_bytes - received;
+        }
+        lfq_iovec_pair_t iov = lfq_stream_ring_acquire_read_iov(arg->ring, chunk);
+        size_t avail = iov.first.iov_len + iov.second.iov_len;
+        if (avail == 0) {
+            #if defined(__x86_64__) || defined(_M_X64)
+            __asm__ volatile("pause");
+            #elif defined(__aarch64__) || defined(_M_ARM64)
+            __asm__ volatile("yield");
+            #endif
+            continue;
+        }
+        const uint8_t* p1 = (const uint8_t*)iov.first.iov_base;
+        for (size_t i = 0; i < iov.first.iov_len; i++) {
+            local_checksum += p1[i];
+        }
+        const uint8_t* p2 = (const uint8_t*)iov.second.iov_base;
+        for (size_t i = 0; i < iov.second.iov_len; i++) {
+            local_checksum += p2[i];
+        }
+        lfq_stream_ring_commit_read(arg->ring, avail);
+        received += avail;
+    }
+    ATOMIC_ADD(arg->checksum, local_checksum);
+    return NULL;
+}
+
+static void test_cabi_streambuffer(void) {
+    printf("Running test_cabi_streambuffer...\n");
+
+    /* 1. Lifecycle and Metrics */
+    lfq_stream_ring_t* ring = lfq_stream_ring_create(1024, false);
+    TEST_ASSERT(ring != NULL, "lfq_stream_ring_create failed");
+    TEST_ASSERT(lfq_stream_ring_capacity(ring) == 1024, "Stream ring capacity mismatch");
+    TEST_ASSERT(lfq_stream_ring_available_read(ring) == 0, "Available read should be 0");
+    TEST_ASSERT(lfq_stream_ring_available_write(ring) == 1024, "Available write should be 1024");
+    TEST_ASSERT(lfq_stream_ring_is_empty(ring), "Should be empty");
+    TEST_ASSERT(!lfq_stream_ring_is_full(ring), "Should not be full");
+
+    /* 2. Basic Copy Read/Write */
+    const char* msg = "Hello, LockFree StreamRing C ABI!";
+    size_t msg_len = strlen(msg);
+    size_t written = lfq_stream_ring_try_write(ring, msg, msg_len);
+    TEST_ASSERT(written == msg_len, "try_write length mismatch");
+    TEST_ASSERT(lfq_stream_ring_available_read(ring) == msg_len, "Available read mismatch");
+    TEST_ASSERT(lfq_stream_ring_available_write(ring) == 1024 - msg_len, "Available write mismatch");
+    TEST_ASSERT(!lfq_stream_ring_is_empty(ring), "Should not be empty");
+
+    char buf[64];
+    memset(buf, 0, sizeof(buf));
+    size_t read_bytes = lfq_stream_ring_try_read(ring, buf, sizeof(buf));
+    TEST_ASSERT(read_bytes == msg_len, "try_read length mismatch");
+    TEST_ASSERT(memcmp(buf, msg, msg_len) == 0, "Read data content mismatch");
+    TEST_ASSERT(lfq_stream_ring_is_empty(ring), "Should be empty after read");
+
+    /* 3. Zero-Copy IOVec Wrap-Around Test */
+    lfq_stream_ring_destroy(ring);
+    ring = lfq_stream_ring_create(1024, false);
+    TEST_ASSERT(ring != NULL, "lfq_stream_ring_create failed");
+
+    /* Advance head and tail to offset 1000 */
+    uint8_t dummy[1000];
+    memset(dummy, 0xCC, sizeof(dummy));
+    written = lfq_stream_ring_try_write(ring, dummy, sizeof(dummy));
+    TEST_ASSERT(written == sizeof(dummy), "Dummy write failed");
+    read_bytes = lfq_stream_ring_try_read(ring, dummy, sizeof(dummy));
+    TEST_ASSERT(read_bytes == sizeof(dummy), "Dummy read failed");
+    TEST_ASSERT(lfq_stream_ring_is_empty(ring), "Should be empty after dummy read");
+
+    /* Now write cursor is at 1000. Request 100 bytes (24 bytes remaining to capacity 1024, 76 bytes wrap) */
+    lfq_iovec_pair_t w_iov = lfq_stream_ring_acquire_write_iov(ring, 100);
+    TEST_ASSERT(w_iov.first.iov_len == 24, "First write slice length should be 24");
+    TEST_ASSERT(w_iov.first.iov_base != NULL, "First write slice base should not be NULL");
+    TEST_ASSERT(w_iov.second.iov_len == 76, "Second write slice length should be 76");
+    TEST_ASSERT(w_iov.second.iov_base != NULL, "Second write slice base should not be NULL");
+
+    memset(w_iov.first.iov_base, 0xAA, 24);
+    memset(w_iov.second.iov_base, 0xBB, 76);
+    lfq_stream_ring_commit_write(ring, 100);
+    TEST_ASSERT(lfq_stream_ring_available_read(ring) == 100, "Available read should be 100");
+
+    /* Read via IOVec */
+    lfq_iovec_pair_t r_iov = lfq_stream_ring_acquire_read_iov(ring, 100);
+    TEST_ASSERT(r_iov.first.iov_len == 24, "First read slice length should be 24");
+    TEST_ASSERT(r_iov.second.iov_len == 76, "Second read slice length should be 76");
+    const uint8_t* r1 = (const uint8_t*)r_iov.first.iov_base;
+    for (size_t i = 0; i < 24; i++) {
+        TEST_ASSERT(r1[i] == 0xAA, "Slice 1 byte mismatch");
+    }
+    const uint8_t* r2 = (const uint8_t*)r_iov.second.iov_base;
+    for (size_t i = 0; i < 76; i++) {
+        TEST_ASSERT(r2[i] == 0xBB, "Slice 2 byte mismatch");
+    }
+    lfq_stream_ring_commit_read(ring, 100);
+    TEST_ASSERT(lfq_stream_ring_is_empty(ring), "Should be empty after commit read");
+
+    /* 4. Blocking I/O with Timeout */
+    /* Empty ring read with 1ms timeout should return 0 */
+    read_bytes = lfq_stream_ring_read_blocking(ring, buf, 10, 1000000);
+    TEST_ASSERT(read_bytes == 0, "read_blocking on empty ring should timeout with 0 bytes");
+
+    written = lfq_stream_ring_write_blocking(ring, "BLOCKING", 8, 10000000);
+    TEST_ASSERT(written == 8, "write_blocking failed");
+    read_bytes = lfq_stream_ring_read_blocking(ring, buf, 8, 10000000);
+    TEST_ASSERT(read_bytes == 8, "read_blocking failed");
+    TEST_ASSERT(memcmp(buf, "BLOCKING", 8) == 0, "read_blocking content mismatch");
+
+    lfq_stream_ring_destroy(ring);
+
+    /* 5. StreamBuffer Aliases & Creation */
+    lfq_streambuffer_t* sbuf = lfq_streambuffer_create(512, false);
+    TEST_ASSERT(sbuf != NULL, "lfq_streambuffer_create failed");
+    TEST_ASSERT(lfq_streambuffer_capacity(sbuf) == 512, "Capacity mismatch");
+    TEST_ASSERT(lfq_streambuffer_is_empty(sbuf), "Should be empty");
+    TEST_ASSERT(!lfq_streambuffer_is_full(sbuf), "Should not be full");
+    TEST_ASSERT(lfq_streambuffer_available_read(sbuf) == 0, "Available read mismatch");
+    TEST_ASSERT(lfq_streambuffer_available_write(sbuf) == 512, "Available write mismatch");
+
+    written = lfq_streambuffer_try_write(sbuf, "ALIASTEST", 9);
+    TEST_ASSERT(written == 9, "streambuffer try_write failed");
+    read_bytes = lfq_streambuffer_try_read(sbuf, buf, sizeof(buf));
+    TEST_ASSERT(read_bytes == 9, "streambuffer try_read failed");
+    TEST_ASSERT(memcmp(buf, "ALIASTEST", 9) == 0, "streambuffer content mismatch");
+
+    lfq_iovec_pair_t sb_iov = lfq_streambuffer_acquire_write_iov(sbuf, 32);
+    TEST_ASSERT(sb_iov.first.iov_len + sb_iov.second.iov_len == 32, "IOVec length mismatch");
+    lfq_streambuffer_commit_write(sbuf, 32);
+    lfq_iovec_pair_t sb_riov = lfq_streambuffer_acquire_read_iov(sbuf, 32);
+    TEST_ASSERT(sb_riov.first.iov_len + sb_riov.second.iov_len == 32, "Read IOVec length mismatch");
+    lfq_streambuffer_commit_read(sbuf, 32);
+
+    written = lfq_streambuffer_write_blocking(sbuf, "BLK", 3, 5000000);
+    TEST_ASSERT(written == 3, "streambuffer write_blocking failed");
+    read_bytes = lfq_streambuffer_read_blocking(sbuf, buf, 3, 5000000);
+    TEST_ASSERT(read_bytes == 3, "streambuffer read_blocking failed");
+
+    lfq_streambuffer_destroy(sbuf);
+
+    /* 6. Null Resilience */
+    lfq_stream_ring_destroy(NULL);
+    lfq_streambuffer_destroy(NULL);
+    TEST_ASSERT(lfq_stream_ring_capacity(NULL) == 0, "capacity(NULL) should be 0");
+    TEST_ASSERT(lfq_stream_ring_available_read(NULL) == 0, "available_read(NULL) should be 0");
+    TEST_ASSERT(lfq_stream_ring_available_write(NULL) == 0, "available_write(NULL) should be 0");
+    TEST_ASSERT(lfq_stream_ring_is_empty(NULL), "is_empty(NULL) should be true");
+    TEST_ASSERT(!lfq_stream_ring_is_full(NULL), "is_full(NULL) should be false");
+    TEST_ASSERT(lfq_stream_ring_try_write(NULL, "a", 1) == 0, "try_write(NULL) should be 0");
+    TEST_ASSERT(lfq_stream_ring_try_read(NULL, buf, 1) == 0, "try_read(NULL) should be 0");
+    TEST_ASSERT(lfq_stream_ring_write_blocking(NULL, "a", 1, 100) == 0, "write_blocking(NULL) should be 0");
+    TEST_ASSERT(lfq_stream_ring_read_blocking(NULL, buf, 1, 100) == 0, "read_blocking(NULL) should be 0");
+    lfq_iovec_pair_t null_iov = lfq_stream_ring_acquire_write_iov(NULL, 10);
+    TEST_ASSERT(null_iov.first.iov_len == 0 && null_iov.second.iov_len == 0, "acquire_write_iov(NULL) should return empty");
+    null_iov = lfq_stream_ring_acquire_read_iov(NULL, 10);
+    TEST_ASSERT(null_iov.first.iov_len == 0 && null_iov.second.iov_len == 0, "acquire_read_iov(NULL) should return empty");
+    lfq_stream_ring_commit_write(NULL, 10);
+    lfq_stream_ring_commit_read(NULL, 10);
+
+    /* 7. Concurrent SPSC Producer-Consumer Thread Test */
+    const size_t CONCURRENT_BYTES = 50000;
+    lfq_stream_ring_t* conc_ring = lfq_stream_ring_create(4096, false);
+    TEST_ASSERT(conc_ring != NULL, "Concurrent ring create failed");
+
+    test_atomic_uint64_t cons_checksum = 0;
+    streambuffer_worker_arg_t prod_arg = {
+        .ring = conc_ring,
+        .total_bytes = CONCURRENT_BYTES,
+        .checksum = NULL
+    };
+    streambuffer_worker_arg_t cons_arg = {
+        .ring = conc_ring,
+        .total_bytes = CONCURRENT_BYTES,
+        .checksum = &cons_checksum
+    };
+
+    pthread_t th_prod, th_cons;
+    pthread_create(&th_prod, NULL, streambuffer_producer_worker, &prod_arg);
+    pthread_create(&th_cons, NULL, streambuffer_consumer_worker, &cons_arg);
+
+    pthread_join(th_prod, NULL);
+    pthread_join(th_cons, NULL);
+
+    /* Calculate expected checksum */
+    uint64_t expected_checksum = 0;
+    uint8_t v = 0;
+    for (size_t i = 0; i < CONCURRENT_BYTES; i++) {
+        expected_checksum += v++;
+    }
+    TEST_ASSERT(ATOMIC_LOAD(&cons_checksum) == expected_checksum, "Concurrent stream checksum mismatch");
+    TEST_ASSERT(lfq_stream_ring_is_empty(conc_ring), "Concurrent ring should be empty after test");
+
+    lfq_stream_ring_destroy(conc_ring);
+
+    printf("test_cabi_streambuffer PASSED.\n");
 }
 
 /* -------------------------------------------------------------------------
@@ -401,7 +1298,24 @@ int main(void) {
     test_cabi_unbounded_queue();
     test_cabi_stack();
     test_cabi_deque();
+    test_cabi_table();
+    test_cabi_set();
+    test_cabi_ctrie();
+    test_cabi_broadcast();
+    test_cabi_rendezvous();
+    test_cabi_ratelimit();
+    test_cabi_streambuffer();
     test_cabi_concurrency();
+
+    /* TaskPool C ABI */
+    printf("Running test_cabi_taskpool...\n");
+    lfq_taskpool_t* pool = NULL;
+    lfq_status_t tp_status = lfq_taskpool_create(4, &pool);
+    TEST_ASSERT(tp_status == LFQ_OK && pool != NULL, "lfq_taskpool_create failed");
+    TEST_ASSERT(lfq_taskpool_num_workers(pool) == 4, "TaskPool worker count should be 4");
+    tp_status = lfq_taskpool_destroy(pool);
+    TEST_ASSERT(tp_status == LFQ_OK, "lfq_taskpool_destroy failed");
+    printf("test_cabi_taskpool PASSED.\n");
 
     printf("\n>>> ALL C ABI TESTS COMPLETED SUCCESSFULLY! <<<\n");
     return 0;

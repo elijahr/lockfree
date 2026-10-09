@@ -3,14 +3,14 @@
 ## Each cell holds the per-slot sequence counter alongside its data payload.
 ## Cells are aligned to CacheLineBytes so adjacent slots never share a cache
 ## line — eliminates false sharing between producer and consumer working on
-## neighbouring positions. See design doc §5 for the layout decision and
-## §10.2 for the recipe this module implements.
+## neighbouring positions. See design doc §5 for the layout decision and §10.2
+## for the recipe this module implements.
 ##
-## The protocol state (the `seq` counter) and the payload data live in the
-## same cell to ensure that a producer or consumer touching a slot incurs at
-## most one cache miss on the cold path. The {.align.} pragma alone is NOT
-## sufficient to keep cells on independent cache lines — see the comment on
-## the explicit `pad` field below.
+## The protocol state (the `seq` counter) and the payload data live in the same
+## cell to ensure that a producer or consumer touching a slot incurs at most one
+## cache miss on the cold path. The {.align.} pragma alone is NOT sufficient to
+## keep cells on independent cache lines — see the comment on the explicit
+## `pad` field below.
 
 import typestates
 import lockfree/atomics
@@ -20,8 +20,8 @@ type
   MPMCCellPayload*[T] = object
     ## Logical contents of a cell: the protocol counter and the user payload.
     ## Kept as a sub-object so `sizeof(MPMCCellPayload[T])` is well-defined
-    ## (independent of any outer alignment pragma) and can be used to size
-    ## the explicit tail padding on the wrapping `MPMCCell[T]`.
+    ## (independent of any outer alignment pragma) and can be used to size the
+    ## explicit tail padding on the wrapping `MPMCCell[T]`.
     seq*: Atomic[uint64]
     data*: T
 
@@ -37,10 +37,10 @@ type
     # Explicit tail padding. Nim's `{.align.}` pragma controls field/object
     # alignment ONLY — it does NOT round size up to a multiple of the
     # alignment. Without this explicit pad array, an `array[N, MPMCCell[T]]`
-    # would pack cells contiguously (e.g. 4 cells per cache line for
-    # T = int), defeating the false-sharing rationale. The pad-size formula
-    # uses `mod CacheLineBytes` so that small payloads round up to one line
-    # and larger payloads round up to the next line boundary.
+    # would pack cells contiguously (e.g. 4 cells per cache line for T = int),
+    # defeating the false-sharing rationale. The pad-size formula uses `mod
+    # CacheLineBytes` so that small payloads round up to one line and larger
+    # payloads round up to the next line boundary.
     pad*: array[
       (CacheLineBytes - (sizeof(MPMCCellPayload[T]) mod CacheLineBytes)) mod
         CacheLineBytes,
@@ -48,10 +48,10 @@ type
     ]
 
   MPMCCellArrayN*[N: static int, T] = object
-    ## Array of cells indexed by PhysicalSlotN[N]. Owned by a queue facade.
-    ## The `{.align.}` on `cells` aligns the first cell to a cache-line
-    ## boundary; combined with each cell's tail padding (see `MPMCCell.pad`),
-    ## every subsequent cell also lands on its own cache line.
+    ## Array of cells indexed by PhysicalSlotN[N]. Owned by a queue facade. The
+    ## `{.align.}` on `cells` aligns the first cell to a cache-line boundary;
+    ## combined with each cell's tail padding (see `MPMCCell.pad`), every
+    ## subsequent cell also lands on its own cache line.
     cells* {.align: CacheLineBytes.}: array[N, MPMCCell[T]]
 
 static:

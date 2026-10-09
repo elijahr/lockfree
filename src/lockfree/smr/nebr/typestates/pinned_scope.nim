@@ -3,48 +3,48 @@
 ## `PinnedScope[MT, CC]` is the recommended high-level entry point for the
 ## pin/retire/unpin cycle, replacing the now-deprecated block-form sugar.
 ## Construct via `pinScope(unpinned(handle))`; destruction (block exit, scope
-## end, explicit `=destroy`) drives the underlying `EpochGuardContext`
-## through `unpin` (and, if signaled, `acknowledge`) and finally `close`,
-## clearing the slot's `pinned` flag.
+## end, explicit `=destroy`) drives the underlying `EpochGuardContext` through
+## `unpin` (and, if signaled, `acknowledge`) and finally `close`, clearing the
+## slot's `pinned` flag.
 ##
 ## The typestate carries two static generic-param axes:
 ##
 ## - `MT: static int` — capacity of the manager's thread array.
 ## - `CC: static PinScopeCardinality = ccSingle` — consumer-cardinality
-##   phantom mirroring `DebraManager` / `ThreadHandle` / `EpochGuardContext`
-##   / `RetireContext`. Default `ccSingle` matches the 0.7.x call shape.
+##   phantom mirroring `DebraManager` / `ThreadHandle` / `EpochGuardContext` /
+##   `RetireContext`. Default `ccSingle` matches the 0.7.x call shape.
 ##
-## Codegen-emitted helpers (=copy hooks, `state()` procs, `$` overloads,
-## `match` macros) inherit `CC = ccSingle` via the typestate macro's
-## `defaults:` body section (typestates 0.9.2+).
+## Codegen-emitted helpers (=copy hooks, `state()` procs, `$` overloads, `match`
+## macros) inherit `CC = ccSingle` via the typestate macro's `defaults:` body
+## section (typestates 0.9.2+).
 ##
 ## ## States
 ##
 ## * `PinnedScopeAlive` — the scope holds a `Pinned[MT, CC]` value and is
 ##   eligible for `retireOnCAS` / `retireOnPublish`.
-## * `PinnedScopeDestroyed` — terminal state reached via `=destroy`. The
-##   inner `Pinned` was moved out and driven to `Closed` through the
-##   `unpin` / `acknowledge` / `close` chain.
+## * `PinnedScopeDestroyed` — terminal state reached via `=destroy`. The inner
+##   `Pinned` was moved out and driven to `Closed` through the `unpin` /
+##   `acknowledge` / `close` chain.
 ##
 ## ## Retire methods
 ##
-## * `retireOnCAS` — atomically swap a published pointer, retire the
-##   displaced value. Multi-writer safe (the CAS arbitrates).
-## * `retireOnPublish` — store-and-retire. **FOOT-GUN: single-writer
-##   required (DR-S4).** nim-debra cannot statically verify that the caller's
-##   atomic is single-writer. Under multi-writer use, the displaced value
-##   may be retired concurrently and double-freed on reclamation. Use
-##   `retireOnCAS` for the multi-writer-safe form.
+## * `retireOnCAS` — atomically swap a published pointer, retire the displaced
+##   value. Multi-writer safe (the CAS arbitrates).
+## * `retireOnPublish` — store-and-retire. **FOOT-GUN: single-writer required
+##   (DR-S4).** nim-debra cannot statically verify that the caller's atomic is
+##   single-writer. Under multi-writer use, the displaced value may be retired
+##   concurrently and double-freed on reclamation. Use `retireOnCAS` for the
+##   multi-writer-safe form.
 ##
 ## ## Pitfalls
 ##
 ## * Do NOT call `pinScope` while the thread is already pinned at the slot
 ##   level. A `doAssert` guards in release builds.
-## * `PinnedScope` is non-copyable (`=copy` is `{.error.}`). Move it
-##   between scopes if you must transfer ownership; the destructor runs
-##   exactly once at the final owner's scope end.
-## * `=wasMoved` marks the source as `consumed = true`; a re-entrant
-##   `=destroy` on a moved-from value is a no-op.
+## * `PinnedScope` is non-copyable (`=copy` is `{.error.}`). Move it between
+##   scopes if you must transfer ownership; the destructor runs exactly once at
+##   the final owner's scope end.
+## * `=wasMoved` marks the source as `consumed = true`; a re-entrant `=destroy`
+##   on a moved-from value is a no-op.
 ##
 ## ## See also
 ##
@@ -99,35 +99,34 @@ proc pinScope*[MT: static int, CC: static PinScopeCardinality](
 ): PinnedScope[MT, CC] {.raises: [].} =
   ## Construct a pinned scope. RAII-style: destruction unpins.
   ##
-  ## Renamed from `pin` (the plan's original spelling) to `pinScope` to
-  ## avoid a proc-name collision with `guard.pin` (both consume
-  ## `Unpinned[MT, CC]` but return different result typestates, and Nim
-  ## cannot disambiguate by return type at standard call sites).
+  ## Renamed from `pin` (the plan's original spelling) to `pinScope` to avoid a
+  ## proc-name collision with `guard.pin` (both consume `Unpinned[MT, CC]` but
+  ## return different result typestates, and Nim cannot disambiguate by return
+  ## type at standard call sites).
   ##
   ## ## Foot-gun: do NOT call `pinScope` while already pinned at the slot
-  ## level. A `doAssert` guards in release builds. Use `PinnedScope`
-  ## per-thread; the guard catches double-pin from re-entrant code.
+  ## level. A `doAssert` guards in release builds. Use `PinnedScope` per-thread;
+  ## the guard catches double-pin from re-entrant code.
   ##
   ## ## Cleanup contract
   ##
   ## Cleanup is destructor-driven (`=destroy`). Use a `PinnedScope[MT, CC]`
-  ## inside a normal Nim `block:` (or as a local in a proc); the destructor
-  ## runs at the closing brace and drives the inner `Pinned` through
-  ## `unpin` / `acknowledge` / `close`, clearing the slot's `pinned` flag.
+  ## inside a normal Nim `block:` (or as a local in a proc); the destructor runs
+  ## at the closing brace and drives the inner `Pinned` through `unpin` /
+  ## `acknowledge` / `close`, clearing the slot's `pinned` flag.
   ##
-  ## **No explicit `try/finally` is required at the caller site.** Raises
-  ## inside the scope — including chronos `CancelledError` and any other
+  ## **No explicit `try/finally` is required at the caller site.** Raises inside
+  ## the scope — including chronos `CancelledError` and any other
   ## `CatchableError` — unwind through the destructor automatically. The
-  ## cleanup runs on EVERY control-flow exit (normal return, `defer`,
-  ## raise, scope end), not just the happy path. See
-  ## `tests/t_pinscope_unwind.nim` for the regression test that exercises
-  ## the raise path across `arc / orc / atomicArc`.
+  ## cleanup runs on EVERY control-flow exit (normal return, `defer`, raise,
+  ## scope end), not just the happy path. See `tests/t_pinscope_unwind.nim` for
+  ## the regression test that exercises the raise path across `arc / orc /
+  ## atomicArc`.
   ##
-  ## Cancellation discipline (R10 / design §5.4.3) is still required for
-  ## async callers: do not hold a `PinnedScope` across an `await`. The
-  ## adapter in `src/lockfree/chronos.nim` already enforces this by
-  ## releasing the pin inside the inner sync pop before the
-  ## `await event.wait()` line.
+  ## Cancellation discipline (R10 / design §5.4.3) is still required for async
+  ## callers: do not hold a `PinnedScope` across an `await`. The adapter in
+  ## `src/lockfree/chronos.nim` already enforces this by releasing the pin
+  ## inside the inner sync pop before the `await event.wait()` line.
   runnableExamples:
     import lockfree/smr/nebr
     var manager = initDebraManager[4]()
@@ -139,16 +138,15 @@ proc pinScope*[MT: static int, CC: static PinScopeCardinality](
       discard scope.consumed
 
   # NOTE: not marked {.transition.} — typestates 0.9.2 forbids cross-module
-  # transitions, and EpochGuardContext belongs to guard.nim. The inner
-  # u.pin() drives EpochGuardContext.Unpinned -> Pinned in-module. This
-  # outer constructor produces a value in PinnedScopeLifecycle's initial
-  # state PinnedScopeAlive via the
-  # {.PinnedScopeLifecycle: PinnedScopeAlive.} attachment pragma.
-  # `u` (a sink param) is READ, not consumed, here: converting to
-  # EpochGuardContext is a non-destructive field read, and Nim's move
-  # analysis keeps `u` live because `u.pin()` below is its sole consumer. The
-  # handle must be read BEFORE pin(), since pin() sets the slot `pinned` flag
-  # that the re-entrancy doAssert checks.
+  # transitions, and EpochGuardContext belongs to guard.nim. The inner u.pin()
+  # drives EpochGuardContext.Unpinned -> Pinned in-module. This outer
+  # constructor produces a value in PinnedScopeLifecycle's initial state
+  # PinnedScopeAlive via the {.PinnedScopeLifecycle: PinnedScopeAlive.}
+  # attachment pragma. `u` (a sink param) is READ, not consumed, here:
+  # converting to EpochGuardContext is a non-destructive field read, and Nim's
+  # move analysis keeps `u` live because `u.pin()` below is its sole consumer.
+  # The handle must be read BEFORE pin(), since pin() sets the slot `pinned`
+  # flag that the re-entrancy doAssert checks.
   let handleVal = EpochGuardContext[MT, CC](u).handle
   let idx = handleVal.idx
   doAssert(
@@ -167,32 +165,32 @@ proc retireOnCAS*[MT: static int, CC: static PinScopeCardinality, T: ptr | point
   ## Atomically swap a published pointer and retire the displaced value.
   ##
   ## Returns true on CAS success (after rotating `scope.state` through
-  ## `RetireReady` -> `Retired` -> `Pinned`). Returns false on CAS
-  ## failure, leaving `scope.state` unchanged.
+  ## `RetireReady` -> `Retired` -> `Pinned`). Returns false on CAS failure,
+  ## leaving `scope.state` unchanged.
   ##
   ## Callable under any `CC` (DR-S3).
   ##
   ## `expected` is an in/out parameter: on CAS failure it is updated to the
-  ## value actually observed (as in stdlib `compareExchange`), so a retry
-  ## loop need not re-load before the next attempt.
+  ## value actually observed (as in stdlib `compareExchange`), so a retry loop
+  ## need not re-load before the next attempt.
   ##
   ## **`T` contract:** `T` is constrained to `ptr | pointer` (a raw pointer
   ## type, `ptr X` or `pointer`). The displaced value is `cast[pointer]` and
-  ## reclaimed via `dtor`, so instantiating over a `ref` is rejected at
-  ## compile time — refs are GC-managed and would double-free on manual
-  ## reclamation. Generic wrappers forwarding their own element type must
-  ## likewise admit only pointer-shaped types.
+  ## reclaimed via `dtor`, so instantiating over a `ref` is rejected at compile
+  ## time — refs are GC-managed and would double-free on manual reclamation.
+  ## Generic wrappers forwarding their own element type must likewise admit only
+  ## pointer-shaped types.
   # `expected` is an in/out param (matches stdlib `compareExchange`): on CAS
-  # failure `compareExchange` writes the observed value back into it so a
-  # caller retry loop need not re-load. On success it is unchanged and still
-  # holds the displaced value we retire below.
+  # failure `compareExchange` writes the observed value back into it so a caller
+  # retry loop need not re-load. On success it is unchanged and still holds the
+  # displaced value we retire below.
   if atomic.compareExchange(expected, desired, moAcquireRelease, moAcquire):
     # Rotate: Pinned -> RetireReady (BY-VALUE per DR-P3) -> Retired -> Pinned.
-    # retireReady is by-value over Pinned (does not consume scope.state in
-    # the typestate sense); the resulting RetireReady is the sink param for
-    # retire, which produces a fresh Retired. pinnedFromRetired rebuilds a
-    # Pinned in the same epoch so the scope remains usable for further
-    # retires inside the same pinned section.
+    # retireReady is by-value over Pinned (does not consume scope.state in the
+    # typestate sense); the resulting RetireReady is the sink param for retire,
+    # which produces a fresh Retired. pinnedFromRetired rebuilds a Pinned in the
+    # same epoch so the scope remains usable for further retires inside the same
+    # pinned section.
     let p = cast[pointer](expected)
     if p != nil:
       var ready = retireReady(scope.state)
@@ -207,18 +205,18 @@ proc retireOnPublish*[MT: static int, CC: static PinScopeCardinality, T: ptr | p
   ## **FOOT-GUN — single-writer required (DR-S4).**
   ##
   ## Stores ``desired`` into ``atomic`` and retires the displaced value.
-  ## nim-debra cannot statically verify that ``atomic`` is single-writer;
-  ## under multi-writer use, the displaced value may be retired
-  ## concurrently and double-freed on reclamation.
+  ## nim-debra cannot statically verify that ``atomic`` is single-writer; under
+  ## multi-writer use, the displaced value may be retired concurrently and
+  ## double-freed on reclamation.
   ##
   ## Use `retireOnCAS`_ for the multi-writer-safe form.
   ##
   ## **`T` contract:** `T` is constrained to `ptr | pointer` (a raw pointer
   ## type, `ptr X` or `pointer`). The displaced value is `cast[pointer]` and
-  ## reclaimed via `dtor`, so instantiating over a `ref` is rejected at
-  ## compile time — refs are GC-managed and would double-free on manual
-  ## reclamation. Generic wrappers forwarding their own element type must
-  ## likewise admit only pointer-shaped types.
+  ## reclaimed via `dtor`, so instantiating over a `ref` is rejected at compile
+  ## time — refs are GC-managed and would double-free on manual reclamation.
+  ## Generic wrappers forwarding their own element type must likewise admit only
+  ## pointer-shaped types.
   # Single-writer fast path (DR-S4): the plain acquire-load + release-store is
   # deliberate and cheaper than an `exchange` RMW. Under the documented
   # single-writer contract no other thread writes `atomic`, so the loaded
@@ -237,12 +235,12 @@ proc retireOnPublish*[MT: static int, CC: static PinScopeCardinality, T: ptr | p
 proc `=destroy`*[MT: static int, CC: static PinScopeCardinality](
     scope: var PinnedScope[MT, CC]
 ) {.destructorTransition: PinnedScopeAlive -> PinnedScopeDestroyed, raises: [].} =
-  ## Destructor: drives the inner `Pinned` through `unpin` (and, if the
-  ## thread was signaled, `acknowledge`) and finally `close`, clearing the
-  ## slot's `pinned` flag.
+  ## Destructor: drives the inner `Pinned` through `unpin` (and, if the thread
+  ## was signaled, `acknowledge`) and finally `close`, clearing the slot's
+  ## `pinned` flag.
   ##
-  ## A `=wasMoved`-marked scope (i.e. one whose value was moved into
-  ## another scope) is consumed; this destructor is a no-op for it.
+  ## A `=wasMoved`-marked scope (i.e. one whose value was moved into another
+  ## scope) is consumed; this destructor is a no-op for it.
   if not scope.consumed:
     var p = move(scope.state)
     var res = p.unpin()
@@ -260,6 +258,6 @@ proc `=wasMoved`*[MT: static int, CC: static PinScopeCardinality](
     scope: var PinnedScope[MT, CC]
 ) =
   ## Mark the moved-from value as consumed so a re-entrant `=destroy` is a
-  ## no-op. Do NOT touch `scope.state`; the move source is unreachable by
-  ## the type system, and the destination owns the underlying `Pinned`.
+  ## no-op. Do NOT touch `scope.state`; the move source is unreachable by the
+  ## type system, and the destination owns the underlying `Pinned`.
   scope.consumed = true

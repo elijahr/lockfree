@@ -3,18 +3,17 @@
 ##
 ## IMPORTANT: this typestate is a *compile-time marker only*. The state
 ## transitions (`claim`/`activate`/`drain`/`release`) perform NO atomic
-## operations and carry NO backing runtime state: each is a pure cast
-## between distinct wrappers of the same `SlotContext`. They do not touch
-## `manager.activeThreadMask`, `threadId`, or any per-slot flag, so an
-## `Active` value here has no relationship to whether the slot's bit is
-## actually set.
+## operations and carry NO backing runtime state: each is a pure cast between
+## distinct wrappers of the same `SlotContext`. They do not touch
+## `manager.activeThreadMask`, `threadId`, or any per-slot flag, so an `Active`
+## value here has no relationship to whether the slot's bit is actually set.
 ##
-## The authoritative slot state machine lives in `registration.nim`: a
-## slot is genuinely claimed by the `activeThreadMask` compare-exchange
-## (registration.nim, `register`) and released by the corresponding mask
-## clear. This typestate only documents/enforces the *legal ordering* of
-## those phases at compile time for callers that choose to model them; it
-## does not gate the underlying bitmask.
+## The authoritative slot state machine lives in `registration.nim`: a slot is
+## genuinely claimed by the `activeThreadMask` compare-exchange
+## (registration.nim, `register`) and released by the corresponding mask clear.
+## This typestate only documents/enforces the *legal ordering* of those phases
+## at compile time for callers that choose to model them; it does not gate the
+## underlying bitmask.
 ##
 ## The intended phase ordering it encodes:
 ## - Free: Slot is available for claiming
@@ -69,22 +68,22 @@ proc claim*[MaxThreads: static int, CC: static PinScopeCardinality](
 proc activate*[MaxThreads: static int, CC: static PinScopeCardinality](
     c: sink Claiming[MaxThreads, CC]
 ): Active[MaxThreads, CC] {.transition.} =
-  ## Complete slot claim. Transition to Active state.
-  ## This is where the slot becomes fully owned by a thread.
+  ## Complete slot claim. Transition to Active state. This is where the slot
+  ## becomes fully owned by a thread.
   Active[MaxThreads, CC](SlotContext[MaxThreads, CC](c))
 
 proc drain*[MaxThreads: static int, CC: static PinScopeCardinality](
     a: sink Active[MaxThreads, CC]
 ): Draining[MaxThreads, CC] {.transition.} =
-  ## Begin unregistration. Transition to Draining state.
-  ## Thread will drain its limbo bags before releasing the slot.
+  ## Begin unregistration. Transition to Draining state. Thread will drain its
+  ## limbo bags before releasing the slot.
   Draining[MaxThreads, CC](SlotContext[MaxThreads, CC](a))
 
 proc release*[MaxThreads: static int, CC: static PinScopeCardinality](
     d: sink Draining[MaxThreads, CC]
 ): Free[MaxThreads, CC] {.transition.} =
-  ## Release slot back to free pool. Transition back to Free state.
-  ## This completes the lifecycle, making the slot available for reuse.
+  ## Release slot back to free pool. Transition back to Free state. This
+  ## completes the lifecycle, making the slot available for reuse.
   Free[MaxThreads, CC](SlotContext[MaxThreads, CC](d))
 
 func idx*[MaxThreads: static int, CC: static PinScopeCardinality](

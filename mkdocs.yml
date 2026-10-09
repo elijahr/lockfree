@@ -85,6 +85,8 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Guide:
+    - User Guide: guides/user_guide.md
+    - SMR & NEBR Lifecycle: guides/smr_nebr_lifecycle.md
     - Overview: guide/index.md
     - Getting Started: guide/getting-started.md
     - Concepts:

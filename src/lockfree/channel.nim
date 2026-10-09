@@ -4,13 +4,14 @@
 ## ergonomic `Sender[T]`, `Receiver[T]`, and `Channel[T]` types.
 ##
 ## Features:
-##   - Bounded and unbounded channel flavours (`ChannelKind.ckBounded`, `ckUnbounded`).
-##   - Auto-registration for threads using thread-local storage (`{.threadvar.}`).
-##     Threads can simply call `tx.send(item)` and `rx.recv()` without manual
-##     `getProducer().bindToThread()` ceremonies.
-##   - Smart `withEndpoint*(queue, ep, body)` AST-inspecting macro that auto-infers
-##     whether to bind a producer or consumer based on whether `.push()` or `.pop()`
-##     is called.
+##   - Bounded and unbounded channel flavours (`ChannelKind.ckBounded`,
+##     `ckUnbounded`).
+##   - Auto-registration for threads using thread-local storage
+##     (`{.threadvar.}`). Threads can simply call `tx.send(item)` and
+##     `rx.recv()` without manual `getProducer().bindToThread()` ceremonies.
+##   - Smart `withEndpoint*(queue, ep, body)` AST-inspecting macro that
+##     auto-infers whether to bind a producer or consumer based on whether
+##     `.push()` or `.pop()` is called.
 
 import std/[options, macros]
 import ./atomics
@@ -53,7 +54,8 @@ proc allocChannelId(): uint64 =
   gNextChannelId.fetchAdd(1, moRelaxed) + 1
 
 const ChannelTlsMruCapacity* = 32
-  ## Maximum number of cached channel endpoints per thread to prevent unbounded TLS leakage.
+  ## Maximum number of cached channel endpoints per thread to prevent unbounded
+  ## TLS leakage.
 
 type
   ChannelCore[T] = object
@@ -370,7 +372,8 @@ proc newBoundedChannel*[T](capacity: static int = 1024): tuple[tx: Sender[T], rx
   newBoundedChannelImpl[T, capacity, 128, 128]()
 
 proc newBoundedChannel*[T](capacity: int): tuple[tx: Sender[T], rx: Receiver[T]] =
-  ## Creates a bounded channel with dynamic capacity coarse tiers (<= 64, <= 1024, else 65536).
+  ## Creates a bounded channel with dynamic capacity coarse tiers (<= 64, <=
+  ## 1024, else 65536).
   if capacity <= 64:
     newBoundedChannelImpl[T, 64, 128, 128]()
   elif capacity <= 1024:
@@ -387,7 +390,8 @@ proc newChannel*[T](capacity: static int = 1024): tuple[tx: Sender[T], rx: Recei
   newBoundedChannel[T](capacity)
 
 proc newChannel*[T](capacity: int): tuple[tx: Sender[T], rx: Receiver[T]] {.inline.} =
-  ## Creates a bounded channel with dynamic capacity coarse tiers (<= 64, <= 1024, else 65536).
+  ## Creates a bounded channel with dynamic capacity coarse tiers (<= 64, <=
+  ## 1024, else 65536).
   newBoundedChannel[T](capacity)
 
 proc newUnboundedChannel*[T, S: static int](): tuple[tx: Sender[T], rx: Receiver[T]] {.inline.} =
@@ -395,7 +399,8 @@ proc newUnboundedChannel*[T, S: static int](): tuple[tx: Sender[T], rx: Receiver
   newUnboundedChannelImpl[T, stEager, S, 128]()
 
 proc newUnboundedChannel*[T](segmentSize: static int = 64): tuple[tx: Sender[T], rx: Receiver[T]] {.inline.} =
-  ## Creates an unbounded lock-free channel with static segment size (defaults to 64).
+  ## Creates an unbounded lock-free channel with static segment size (defaults
+  ## to 64).
   newUnboundedChannelImpl[T, stEager, segmentSize, 128]()
 
 proc newUnboundedChannel*[T](segmentSize: int): tuple[tx: Sender[T], rx: Receiver[T]] =
@@ -453,9 +458,10 @@ converter toChannel*[T](t: tuple[tx: Sender[T], rx: Receiver[T]]): Channel[T] =
 # ---------------------------------------------------------------------------
 
 proc send*[T](s: Sender[T], item: sink T): bool {.inline.} =
-  ## Sends an item into the channel. Automatically registers the calling
-  ## thread on first call without manual binding ceremonies.
-  ## Returns true on success, false if channel is closed, all receivers dropped, or bounded channel is full.
+  ## Sends an item into the channel. Automatically registers the calling thread
+  ## on first call without manual binding ceremonies. Returns true on success,
+  ## false if channel is closed, all receivers dropped, or bounded channel is
+  ## full.
   assert s.core != nil, "Sender: nil channel core"
   if s.core.receivers.load(moAcquire) == 0:
     return false
@@ -481,8 +487,8 @@ proc trySend*[T](s: Sender[T], item: sink T): bool {.inline.} =
 
 proc recv*[T](r: Receiver[T]): Option[T] {.inline.} =
   ## Receives an item from the channel. Automatically registers the calling
-  ## thread on first call without manual binding ceremonies.
-  ## Returns some(item) on success, or none(T) if channel is empty.
+  ## thread on first call without manual binding ceremonies. Returns some(item)
+  ## on success, or none(T) if channel is empty.
   assert r.core != nil, "Receiver: nil channel core"
   r.core.recvProc(r.core)
 
@@ -597,9 +603,9 @@ macro withEndpoint*(queue, ep, body: untyped): untyped =
   ## Smart role-inferring RAII macro.
   ##
   ## Inspects `body` AST for `.push()` / `.pop()` calls on `ep` to auto-infer
-  ## whether to bind a producer or consumer endpoint.
-  ## Expands to `withBoundProducer(queue, ep, body)` or
-  ## `withBoundConsumer(queue, ep, body)`.
+  ## whether to bind a producer or consumer endpoint. Expands to
+  ## `withBoundProducer(queue, ep, body)` or `withBoundConsumer(queue, ep,
+  ## body)`.
   var foundProd = false
   var foundCons = false
   let epStr = if ep.kind in {nnkIdent, nnkSym}: ep.strVal else: ep.repr

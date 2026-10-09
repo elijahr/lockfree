@@ -1,29 +1,29 @@
 ## High-level convenience API for common DEBRA patterns.
 ##
-## These procs compose the low-level typestate API for frequent use cases.
-## For fine-grained control or batching, use the typestate API directly.
+## These procs compose the low-level typestate API for frequent use cases. For
+## fine-grained control or batching, use the typestate API directly.
 ##
 ## ## Pitfalls
 ##
 ## * `PinnedScope` (in `debra/typestates/pinned_scope`) does not allow
 ##   re-pinning the same handle inside its scope. A `doAssert` inside
-##   `pinScope(unpinned(handle))` catches direct nesting and fires in
-##   release builds too, because a second `pin` would silently corrupt
-##   the pinned-flag on the thread's slot — this is a safety guard, not
-##   just a debug aid. Different handles (multi-manager) are independent.
+##   `pinScope(unpinned(handle))` catches direct nesting and fires in release
+##   builds too, because a second `pin` would silently corrupt the pinned-flag
+##   on the thread's slot — this is a safety guard, not just a debug aid.
+##   Different handles (multi-manager) are independent.
 ## * Do not invoke explicit typestate transitions
-##   (`unpinned`/`pin`/`unpin`/`acknowledge`) inside a live `PinnedScope`.
-##   The scope's `=destroy` already manages the lifecycle; manual
-##   transitions on the same handle desync the slot's `pinned` flag.
-## * `retireReady(scope.state)` projects the inner `Pinned[MT, CC]` to a
-##   `var RetireReady[MT, CC]` that retires through the convenience
-##   `retire(var RetireReady, ...)` / `retireBatch(var RetireReady, ...)`
-##   procs below. Items retired via `ready.retire(...)` are added to the
-##   thread's limbo bag at the pinned epoch and are not reclaimed until a
-##   later reclamation pass observes a safe epoch.
-## * `reclaimNow` returns 0 when no epoch is safe to reclaim yet. That is
-##   normal at startup or when no thread has advanced the epoch since the
-##   last retire. It is not an error; reclamation is best-effort.
+##   (`unpinned`/`pin`/`unpin`/`acknowledge`) inside a live `PinnedScope`. The
+##   scope's `=destroy` already manages the lifecycle; manual transitions on the
+##   same handle desync the slot's `pinned` flag.
+## * `retireReady(scope.state)` projects the inner `Pinned[MT, CC]` to a `var
+##   RetireReady[MT, CC]` that retires through the convenience `retire(var
+##   RetireReady, ...)` / `retireBatch(var RetireReady, ...)` procs below. Items
+##   retired via `ready.retire(...)` are added to the thread's limbo bag at the
+##   pinned epoch and are not reclaimed until a later reclamation pass observes
+##   a safe epoch.
+## * `reclaimNow` returns 0 when no epoch is safe to reclaim yet. That is normal
+##   at startup or when no thread has advanced the epoch since the last retire.
+##   It is not an error; reclamation is best-effort.
 ## * `retireBatch` retires from the supplied `openArray` synchronously. The
 ##   array contents are copied into the limbo bag during the call, so the
 ##   caller's array does not need to outlive the reclamation pass.
@@ -31,20 +31,18 @@
 ## ## Naming convention
 ##
 ## This module is the **manager-level** layer: `retire`, `retireBatch`,
-## `reclaimNow`, `retireAndReclaim`, and `advanceEvery` (alongside
-## `PinnedScope` in `debra/typestates/pinned_scope`) coordinate
-## the epoch-based reclamation pipeline (deferred destruction until no thread
-## can observe an object). They take a `(pointer, Destructor)` pair and
-## decide *when* the destructor runs.
+## `reclaimNow`, `retireAndReclaim`, and `advanceEvery` (alongside `PinnedScope`
+## in `debra/typestates/pinned_scope`) coordinate the epoch-based reclamation
+## pipeline (deferred destruction until no thread can observe an object). They
+## take a `(pointer, Destructor)` pair and decide *when* the destructor runs.
 ##
 ## The **object-lifetime** layer in `debra/refptr` uses different verbs
-## (`retain`, `release`, `releaseDestructor`) because it operates on a
-## single object's GC refcount and has no awareness of epochs or threads.
-## The two layers compose: `releaseDestructor[T]()` from `debra/refptr` is
-## the destructor handed to `pin.retire(p, dtor)` so that `release` runs at
-## safe-epoch reclamation time. The verbs differ because the layers differ;
-## do not expect `retire` and `retain` (or `reclaim` and `release`) to be
-## synonyms.
+## (`retain`, `release`, `releaseDestructor`) because it operates on a single
+## object's GC refcount and has no awareness of epochs or threads. The two
+## layers compose: `releaseDestructor[T]()` from `debra/refptr` is the
+## destructor handed to `pin.retire(p, dtor)` so that `release` runs at
+## safe-epoch reclamation time. The verbs differ because the layers differ; do
+## not expect `retire` and `retain` (or `reclaim` and `release`) to be synonyms.
 ##
 ## ## See also
 ##
@@ -61,7 +59,8 @@ import ./typestates/retire
 import ./typestates/reclaim
 
 # ---------------------------------------------------------------------------
-# Batched retire/reclaim API (see docs/design/2026-04-25-batched-retire-reclaim.md)
+# Batched retire/reclaim API (see
+# docs/design/2026-04-25-batched-retire-reclaim.md)
 # ---------------------------------------------------------------------------
 
 proc retire*[MT: static int, CC: static PinScopeCardinality = ccSingle](
@@ -69,10 +68,10 @@ proc retire*[MT: static int, CC: static PinScopeCardinality = ccSingle](
 ) {.notATransition.} =
   ## Retire `p` inside an existing pinned epoch held by `pin`.
   ##
-  ## Wraps the sink-form `retire` from typestates/retire.nim so the caller
-  ## can chain `ready.retire(...)` repeatedly (e.g. on a `RetireReady`
-  ## projected from a `PinnedScope` via `retireReady(scope.state)`)
-  ## without manually rebuilding `RetireReady` from `Retired`.
+  ## Wraps the sink-form `retire` from typestates/retire.nim so the caller can
+  ## chain `ready.retire(...)` repeatedly (e.g. on a `RetireReady` projected
+  ## from a `PinnedScope` via `retireReady(scope.state)`) without manually
+  ## rebuilding `RetireReady` from `Retired`.
   runnableExamples:
     import lockfree/smr/nebr
     proc dtor(p: pointer) {.nimcall.} =
@@ -96,9 +95,8 @@ proc retireBatch*[MT: static int, CC: static PinScopeCardinality = ccSingle](
   ## Retire each `(p, dtor)` in `items` inside an existing pinned epoch.
   ##
   ## Must be called by a holder of a `var RetireReady[MT, CC]` (typically
-  ## projected from a `PinnedScope` via `retireReady(scope.state)`).
-  ## No pinning, no reclamation. Avoids one
-  ## pin/unpin per object when freeing chains.
+  ## projected from a `PinnedScope` via `retireReady(scope.state)`). No pinning,
+  ## no reclamation. Avoids one pin/unpin per object when freeing chains.
   runnableExamples:
     import lockfree/smr/nebr
     proc dtor(p: pointer) {.nimcall.} =
@@ -126,32 +124,31 @@ template withPin*[MT: static int, CC: static PinScopeCardinality = ccSingle](
   ## Pin the calling thread, run `body`, unpin on exit (including raises).
   ##
   ## Injects `it` as a `var RetireReady[MT, CC]` (matches the Nim convention
-  ## used by `filterIt`/`mapIt`). Body may call `it.retire(p, dtor)` zero
-  ## or more times. Using `it` avoids collisions with the exported `pin`
-  ## proc from `debra/typestates/guard`.
+  ## used by `filterIt`/`mapIt`). Body may call `it.retire(p, dtor)` zero or
+  ## more times. Using `it` avoids collisions with the exported `pin` proc from
+  ## `debra/typestates/guard`.
   ##
   ## Asserts the thread is not already pinned on the given handle. The check
-  ## uses `doAssert` and fires in release builds too — nested pins on the
-  ## same handle silently corrupt the EBR slot's `pinned` flag bookkeeping,
-  ## so this is a safety guard, not just a debug aid.
-  ## Different-handle nesting (multi-manager) is independent and legal.
+  ## uses `doAssert` and fires in release builds too — nested pins on the same
+  ## handle silently corrupt the EBR slot's `pinned` flag bookkeeping, so this
+  ## is a safety guard, not just a debug aid. Different-handle nesting
+  ## (multi-manager) is independent and legal.
   ##
   ## ## Pitfall — neutralization
   ##
   ## If another thread calls `neutralizeStalled` on this thread mid-body
-  ## (because we stalled long enough that other threads' reclamation was
-  ## blocked waiting on us), the SIGUSR1 handler force-unpins the slot
-  ## and `unpin` returns `Neutralized`. This template honours the typestate
-  ## by acknowledging the neutralization in its `finally`, but it does
-  ## **not** surface the fact to the caller. Code paths that need to
-  ## know whether their critical section was interrupted (for example
-  ## to roll back a non-idempotent side effect they performed inside the
-  ## body) must use the explicit `unpinned(handle).pin()` /
-  ## `pin.unpin()` form and branch on `UnpinResult.kind`. Code paths
-  ## that only read epoch-protected pointers do not need to — neutralization
-  ## only fires on threads that have already stalled long enough for
-  ## another thread to suspect them, which is a workload-level pathology,
-  ## not a normal operating condition.
+  ## (because we stalled long enough that other threads' reclamation was blocked
+  ## waiting on us), the SIGUSR1 handler force-unpins the slot and `unpin`
+  ## returns `Neutralized`. This template honours the typestate by acknowledging
+  ## the neutralization in its `finally`, but it does **not** surface the fact
+  ## to the caller. Code paths that need to know whether their critical section
+  ## was interrupted (for example to roll back a non-idempotent side effect they
+  ## performed inside the body) must use the explicit `unpinned(handle).pin()` /
+  ## `pin.unpin()` form and branch on `UnpinResult.kind`. Code paths that only
+  ## read epoch-protected pointers do not need to — neutralization only fires
+  ## on threads that have already stalled long enough for another thread to
+  ## suspect them, which is a workload-level pathology, not a normal operating
+  ## condition.
   ##
   ## See also: `debra/typestates/guard.pin`_ (explicit transition), `retire`_,
   ## `retireBatch`_, `debra/typestates/neutralize.neutralizeStalled`_.
@@ -178,10 +175,10 @@ template withPin*[MT: static int, CC: static PinScopeCardinality = ccSingle](
     try:
       body
     finally:
-      # Honour the `Pinned -> Unpinned | Neutralized` typestate. We do
-      # not surface neutralization to the caller (see Pitfall above);
-      # acknowledging here keeps the slot's `neutralized` flag tidy at
-      # unpin time instead of relying on the next `pin` to clear it.
+      # Honour the `Pinned -> Unpinned | Neutralized` typestate. We do not
+      # surface neutralization to the caller (see Pitfall above); acknowledging
+      # here keeps the slot's `neutralized` flag tidy at unpin time instead of
+      # relying on the next `pin` to clear it.
       var res = pinnedGuard.unpin()
       match res:
         Unpinned(_):
@@ -197,10 +194,10 @@ template withPin*[MT: static int, CC: static PinScopeCardinality = ccSingle](
 .} =
   ## Deprecated pin helper variant that injects a caller-supplied identifier
   ## `name` (instead of the default `it`). Use to disambiguate nested handles
-  ## across multiple managers. The neutralization pitfall described on
-  ## the unnamed deprecated template applies here too — see that
-  ## docstring before relying on this form for code paths that may be
-  ## interrupted by `neutralizeStalled`.
+  ## across multiple managers. The neutralization pitfall described on the
+  ## unnamed deprecated template applies here too — see that docstring before
+  ## relying on this form for code paths that may be interrupted by
+  ## `neutralizeStalled`.
   runnableExamples:
     {.push warning[Deprecated]: off.}
     import lockfree/smr/nebr
@@ -224,8 +221,8 @@ template withPin*[MT: static int, CC: static PinScopeCardinality = ccSingle](
     try:
       body
     finally:
-      # Honour the `Pinned -> Unpinned | Neutralized` typestate. Same
-      # rationale as the unnamed deprecated form above.
+      # Honour the `Pinned -> Unpinned | Neutralized` typestate. Same rationale
+      # as the unnamed deprecated form above.
       var res = pinnedGuard.unpin()
       match res:
         Unpinned(_):
@@ -237,8 +234,8 @@ template withEpoch*[MT: static int, CC: static PinScopeCardinality = ccSingle](
     th: ThreadHandle[MT, CC], body: untyped
 ) =
   ## RAII convenience block for pinning an epoch during a critical section.
-  ## Enters pinScope, executes body, and automatically unpins on scope exit
-  ## via PinnedScope's RAII destructor (including on exceptions and returns).
+  ## Enters pinScope, executes body, and automatically unpins on scope exit via
+  ## PinnedScope's RAII destructor (including on exceptions and returns).
   block:
     var debraScope {.used.} = pinScope(unpinned(th))
     body
@@ -246,8 +243,8 @@ template withEpoch*[MT: static int, CC: static PinScopeCardinality = ccSingle](
 template withEpoch*[MT: static int, CC: static PinScopeCardinality = ccSingle](
     th: ThreadHandle[MT, CC], scopeVar, body: untyped
 ) =
-  ## RAII convenience block binding `scopeVar` as `var RetireReady[MT, CC]`
-  ## for retiring objects inside the critical section. Automatically unpins on exit.
+  ## RAII convenience block binding `scopeVar` as `var RetireReady[MT, CC]` for
+  ## retiring objects inside the critical section. Automatically unpins on exit.
   block:
     var debraScope = pinScope(unpinned(th))
     var scopeVar {.inject.} = retireReady(debraScope.state)
@@ -256,22 +253,22 @@ template withEpoch*[MT: static int, CC: static PinScopeCardinality = ccSingle](
 proc advanceEvery*[MT: static int, CC: static PinScopeCardinality = ccSingle](
     handle: ThreadHandle[MT, CC], n: static int
 ): bool {.discardable.} =
-  ## Increment a per-handle counter; advance the global epoch once every
-  ## `n` calls. Returns `true` on the calls that actually advanced.
+  ## Increment a per-handle counter; advance the global epoch once every `n`
+  ## calls. Returns `true` on the calls that actually advanced.
   ##
   ## Cadence helper for the most common epoch advancement pattern: call this
-  ## from a hot path (e.g. after each retire, or once per pop) without paying
-  ## an atomic store on every invocation. Most calls are a single non-atomic
-  ## increment plus a branch; only every Nth call performs the atomic
-  ## `fetchAdd` on the global epoch.
+  ## from a hot path (e.g. after each retire, or once per pop) without paying an
+  ## atomic store on every invocation. Most calls are a single non-atomic
+  ## increment plus a branch; only every Nth call performs the atomic `fetchAdd`
+  ## on the global epoch.
   ##
   ## The counter lives on the handle's per-thread slot and is owned by the
-  ## registered thread. No synchronization is required; different handles
-  ## have independent counters.
+  ## registered thread. No synchronization is required; different handles have
+  ## independent counters.
   ##
   ## `n` must be `>= 1`. `n == 1` advances every call (equivalent to calling
-  ## `manager.advance()` directly). Larger `n` reduces atomic-store traffic
-  ## at the cost of letting the limbo bag fill more between advances.
+  ## `manager.advance()` directly). Larger `n` reduces atomic-store traffic at
+  ## the cost of letting the limbo bag fill more between advances.
   ##
   ## Typical cadences:
   ##
@@ -279,8 +276,8 @@ proc advanceEvery*[MT: static int, CC: static PinScopeCardinality = ccSingle](
   ## * `n = 32` to `n = 128`: good general default for queue hot paths.
   ## * `n = 1024+`: very low-overhead, but limbo bag may grow noticeably.
   ##
-  ## See also: `advance`_, `reclaimNow`_, the
-  ## `epoch advancement guide<../guide/epoch-advancement.md>`_.
+  ## See also: `advance`_, `reclaimNow`_, the `epoch advancement
+  ## guide<../guide/epoch-advancement.md>`_.
   runnableExamples:
     import lockfree/smr/nebr
     proc dtor(p: pointer) {.nimcall.} =
@@ -310,11 +307,11 @@ proc reclaimNow*[MT: static int, CC: static PinScopeCardinality = ccSingle](
     handle: ThreadHandle[MT, CC]
 ): int =
   ## Run one reclamation pass over the calling thread's own retired objects.
-  ## Returns the number of objects reclaimed, or 0 if no epoch is currently
-  ## safe to reclaim.
+  ## Returns the number of objects reclaimed, or 0 if no epoch is currently safe
+  ## to reclaim.
   ##
-  ## Pinning is not required: reclamation only inspects per-thread epochs.
-  ## Each thread reclaims only its own bags; cross-thread reclamation is not
+  ## Pinning is not required: reclamation only inspects per-thread epochs. Each
+  ## thread reclaims only its own bags; cross-thread reclamation is not
   ## supported because the bag list is mutated by the owning thread (via
   ## `retire`) without synchronization.
   ##
@@ -346,13 +343,13 @@ proc reclaimNow*[MT: static int, CC: static PinScopeCardinality = ccSingle](
 proc reclaimNow*[MT: static int, CC: static PinScopeCardinality = ccSingle](
     manager: var DebraManager[MT, CC]
 ): int =
-  ## Legacy wrapper: infers the calling thread's slot from `threadLocalIdx`
-  ## (set by `registerThread`). Prefer `reclaimNow(handle)` for clarity and
-  ## for safety from unregistered threads.
+  ## Legacy wrapper: infers the calling thread's slot from `threadLocalIdx` (set
+  ## by `registerThread`). Prefer `reclaimNow(handle)` for clarity and for
+  ## safety from unregistered threads.
   ##
   ## The `CC` parameter binds via the `manager` argument; callers that pass
-  ## `DebraManager[N]` (CC default `ccSingle`) keep the 0.7.x call shape,
-  ## while `DebraManager[N, ccMulti]` is also accepted.
+  ## `DebraManager[N]` (CC default `ccSingle`) keep the 0.7.x call shape, while
+  ## `DebraManager[N, ccMulti]` is also accepted.
   ##
   ## See also: `debra/typestates/reclaim.tryReclaim`_, `advance`_.
   let op = reclaimStart(addr manager).loadEpochs().checkSafe()
@@ -372,8 +369,8 @@ proc retireAndReclaim*[MT: static int, CC: static PinScopeCardinality = ccSingle
   ## 3. Unpins the thread
   ## 4. If eager=true (default), attempts to reclaim retired objects
   ##
-  ## For batching multiple retirements before reclaiming, use the
-  ## low-level typestate API directly or call with eager=false.
+  ## For batching multiple retirements before reclaiming, use the low-level
+  ## typestate API directly or call with eager=false.
   runnableExamples:
     import lockfree/smr/nebr
     proc destroyNode(p: pointer) {.nimcall.} =
