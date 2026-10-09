@@ -1,0 +1,4464 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Lock-free queues for Nim">
+      
+      
+      
+        <link rel="canonical" href="https://elijahr.github.io/lockfree/latest/guides/user_guide/">
+      
+      
+        <link rel="prev" href="../..">
+      
+      
+        <link rel="next" href="../smr_nebr_lifecycle/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>User Guide - lockfree</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../css/timeago.css">
+    
+      <link rel="stylesheet" href="../../css/custom.css">
+    
+      <link rel="stylesheet" href="../../assets/bench-charts.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#lock-free-data-structures-user-guide-from-colloquial-names-to-high-performance-concurrency" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden="">
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="lockfree" class="md-header__button md-logo" aria-label="lockfree" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            lockfree
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              User Guide
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan" aria-label="Switch to light mode" type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan" aria-label="Switch to dark mode" type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/elijahr/lockfree" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    elijahr/lockfree
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="lockfree" class="md-nav__button md-logo" aria-label="lockfree" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    lockfree
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/elijahr/lockfree" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    elijahr/lockfree
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" checked="">
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="true">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#1-quick-reference-the-colloquial-to-lockfree-bridge-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Quick Reference: The Colloquial-to-LockFree Bridge Matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-algorithmic-tradeoffs-architectural-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Algorithmic Tradeoffs &amp; Architectural Selection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Algorithmic Tradeoffs &amp; Architectural Selection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-associative-maps-ctriek-v-vs-skiplistmapk-v" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Associative Maps: Ctrie[K, V] vs SkipListMap[K, V]
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.1 Associative Maps: Ctrie[K, V] vs SkipListMap[K, V]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#architectural-recommendation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architectural Recommendation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-fifo-queues-bqueue-vyukov-bounded-vs-queue-lcrq-unbounded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 FIFO Queues: BQueue (Vyukov Bounded) vs Queue (LCRQ Unbounded)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.2 FIFO Queues: BQueue (Vyukov Bounded) vs Queue (LCRQ Unbounded)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#architectural-recommendation_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architectural Recommendation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-channel-communication-channelt-vs-rendezvouschannelt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Channel Communication: Channel[T] vs RendezvousChannel[T]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-work-distribution-treiberstackt-vs-chaselevdequet-vs-taskpool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Work Distribution: TreiberStack[T] vs ChaseLevDeque[T] vs TaskPool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-broadcast-multicast-broadcastringt-vs-queues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 Broadcast &amp; Multicast: BroadcastRing[T] vs Queues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-memory-management-lifetime-guidelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Memory Management &amp; Lifetime Guidelines
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Memory Management &amp; Lifetime Guidelines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-nim-arcorc-invariants-slotencodingt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Nim ARC/ORC Invariants &amp; SlotEncoding(T)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-debra-nebr-safe-memory-reclamation-smr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Debra / NEBR Safe Memory Reclamation (SMR)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.2 Debra / NEBR Safe Memory Reclamation (SMR)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-problem-use-after-free-in-lock-free-structures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Problem: Use-After-Free in Lock-Free Structures
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-solution-nebr-3-epoch-sliding-window" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Solution: NEBR 3-Epoch Sliding Window
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-practical-cookbooks-code-walkthroughs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Practical Cookbooks &amp; Code Walkthroughs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Practical Cookbooks &amp; Code Walkthroughs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-concurrent-table-table-ctrie" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Concurrent Table (Table / Ctrie)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-concurrent-sorted-table-sortedtable-skiplistmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Concurrent Sorted Table (SortedTable / SkipListMap)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-concurrent-set-set-skiplistset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Concurrent Set (Set / SkipListSet)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-concurrent-stack-stack-treiberstack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Concurrent Stack (Stack / TreiberStack)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-bounded-queue-boundedqueue-bqueue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Bounded Queue (BoundedQueue / BQueue)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#46-channel-facade-channelt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.6 Channel Facade (Channel[T])
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#47-synchronous-rendezvous-channel-rendezvouschannelt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.7 Synchronous Rendezvous Channel (RendezvousChannel[T])
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#48-work-stealing-taskpool-taskpool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.8 Work-Stealing TaskPool (TaskPool)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#49-broadcast-ring-topic-bus-broadcastringt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.9 Broadcast Ring &amp; Topic Bus (BroadcastRing[T])
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-performance-tuning-best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Performance Tuning &amp; Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-summary-checklist-which-structure-should-i-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Summary Checklist: Which Structure Should I Use?
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../smr_nebr_lifecycle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMR &amp; NEBR Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_5">
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/concepts/lock-freedom/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lock-freedom
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/concepts/smr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Safe memory reclamation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/concepts/memory-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_6">
+        
+          
+          <label class="md-nav__link" for="__nav_2_6" id="__nav_2_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queues
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Queues
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/bounded-vyukov/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounded (Vyukov)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/strict-lcrq-mpmc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unbounded MPMC (strict-LCRQ)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/legacy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy cardinalities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_7">
+        
+          
+          <label class="md-nav__link" for="__nav_2_7" id="__nav_2_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMR
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SMR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/smr/nebr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nebr
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/managed-ref/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ManagedRef
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/managed-slice/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ManagedSlice
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/typestates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Typestates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/nimony/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nimony
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_12">
+        
+          
+          <label class="md-nav__link" for="__nav_2_12" id="__nav_2_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Legacy guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/core-concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core concepts (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/bounded-vs-unbounded/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounded vs unbounded (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/slot-ownership-typestates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slot ownership typestates (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/safety-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Safety model (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/performance-tuning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lockfree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    lockfree (umbrella)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/compat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility (lockfreequeues)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/bqueue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounded Queue (BQueue)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unbounded Queue (Queue)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/managed_ref/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ManagedRef
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/managed_slice/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ManagedSlice
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/chronos/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chronos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/atomics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    atomics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_10">
+        
+          
+          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMR
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SMR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/smr/nebr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nebr
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_11">
+        
+          
+          <label class="md-nav__link" for="__nav_3_11" id="__nav_3_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Typestates
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Typestates
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typestates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Facade
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typestates/with_bound/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    with_bound
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typestates/slot_state/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    slot_state
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typestates/segment_state/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    segment_state
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_12">
+        
+          
+          <label class="md-nav__link" for="__nav_3_12" id="__nav_3_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Internal
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Internal
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/internal/slot_encoding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    slot_encoding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/internal/path_c_admit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    path_c_admit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/internal/path_c_wrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    path_c_wrap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4">
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migrations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Migrations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../transition_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transition Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migrations/from-lockfreequeues-v5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    From lockfreequeues v5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migrations/from-nim-debra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    From nim-debra
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Legacy
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_1">
+        
+          
+          <label class="md-nav__link" for="__nav_6_1" id="__nav_6_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nim-debra docs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    nim-debra docs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/PROVENANCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Provenance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/safety-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Safety model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/MIGRATION_v0.8.0/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration (v0.8.0)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_1_7">
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_7" id="__nav_6_1_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/atomics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atomics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/thread-registration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thread registration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/pin-unpin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pin / unpin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/retiring-objects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Retiring objects
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/reclamation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reclamation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/epoch-advancement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Epoch advancement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/neutralization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Neutralization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_1_8">
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_8" id="__nav_6_1_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/design/2026-04-25-batched-retire-reclaim/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batched retire/reclaim
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/design/2026-04-25-custom-atomics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom atomics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#1-quick-reference-the-colloquial-to-lockfree-bridge-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Quick Reference: The Colloquial-to-LockFree Bridge Matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-algorithmic-tradeoffs-architectural-selection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Algorithmic Tradeoffs &amp; Architectural Selection
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Algorithmic Tradeoffs &amp; Architectural Selection">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-associative-maps-ctriek-v-vs-skiplistmapk-v" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Associative Maps: Ctrie[K, V] vs SkipListMap[K, V]
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.1 Associative Maps: Ctrie[K, V] vs SkipListMap[K, V]">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#architectural-recommendation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architectural Recommendation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-fifo-queues-bqueue-vyukov-bounded-vs-queue-lcrq-unbounded" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 FIFO Queues: BQueue (Vyukov Bounded) vs Queue (LCRQ Unbounded)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.2 FIFO Queues: BQueue (Vyukov Bounded) vs Queue (LCRQ Unbounded)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#architectural-recommendation_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architectural Recommendation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-channel-communication-channelt-vs-rendezvouschannelt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 Channel Communication: Channel[T] vs RendezvousChannel[T]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-work-distribution-treiberstackt-vs-chaselevdequet-vs-taskpool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 Work Distribution: TreiberStack[T] vs ChaseLevDeque[T] vs TaskPool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-broadcast-multicast-broadcastringt-vs-queues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 Broadcast &amp; Multicast: BroadcastRing[T] vs Queues
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-memory-management-lifetime-guidelines" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Memory Management &amp; Lifetime Guidelines
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Memory Management &amp; Lifetime Guidelines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-nim-arcorc-invariants-slotencodingt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Nim ARC/ORC Invariants &amp; SlotEncoding(T)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-debra-nebr-safe-memory-reclamation-smr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 Debra / NEBR Safe Memory Reclamation (SMR)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.2 Debra / NEBR Safe Memory Reclamation (SMR)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-problem-use-after-free-in-lock-free-structures" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Problem: Use-After-Free in Lock-Free Structures
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-solution-nebr-3-epoch-sliding-window" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Solution: NEBR 3-Epoch Sliding Window
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-practical-cookbooks-code-walkthroughs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Practical Cookbooks &amp; Code Walkthroughs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Practical Cookbooks &amp; Code Walkthroughs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-concurrent-table-table-ctrie" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Concurrent Table (Table / Ctrie)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-concurrent-sorted-table-sortedtable-skiplistmap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Concurrent Sorted Table (SortedTable / SkipListMap)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-concurrent-set-set-skiplistset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 Concurrent Set (Set / SkipListSet)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-concurrent-stack-stack-treiberstack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 Concurrent Stack (Stack / TreiberStack)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-bounded-queue-boundedqueue-bqueue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Bounded Queue (BoundedQueue / BQueue)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#46-channel-facade-channelt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.6 Channel Facade (Channel[T])
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#47-synchronous-rendezvous-channel-rendezvouschannelt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.7 Synchronous Rendezvous Channel (RendezvousChannel[T])
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#48-work-stealing-taskpool-taskpool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.8 Work-Stealing TaskPool (TaskPool)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#49-broadcast-ring-topic-bus-broadcastringt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.9 Broadcast Ring &amp; Topic Bus (BroadcastRing[T])
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-performance-tuning-best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Performance Tuning &amp; Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-summary-checklist-which-structure-should-i-use" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Summary Checklist: Which Structure Should I Use?
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="lock-free-data-structures-user-guide-from-colloquial-names-to-high-performance-concurrency">Lock-Free Data Structures User Guide: From Colloquial Names to High-Performance Concurrency<a class="headerlink" href="#lock-free-data-structures-user-guide-from-colloquial-names-to-high-performance-concurrency" title="Permanent link">¶</a></h1>
+<p>Welcome to the definitive user guide for <code>lockfree</code>. Whether you are building an ultra-low latency financial order router, a high-throughput network service, a real-time audio pipeline, or a multi-threaded game engine in Nim, <code>lockfree</code> provides production-grade, non-blocking concurrent data structures designed for maximum scalability, deterministic latency, and zero mutual-exclusion overhead.</p>
+<p>This guide bridges everyday, colloquial data structure names (like <code>Table</code>, <code>Set</code>, <code>Stack</code>, <code>Queue</code>, <code>Channel</code>, <code>Deque</code>, and <code>BroadcastRing</code>) to their high-performance lock-free implementations in <code>lockfree</code>. It breaks down algorithmic tradeoffs, provides copy-pasteable code examples, and details the memory management foundations (ARC/ORC and Debra/NEBR Safe Memory Reclamation) that keep your multi-threaded systems leak-free and crash-proof.</p>
+<hr>
+<h2 id="1-quick-reference-the-colloquial-to-lockfree-bridge-matrix">1. Quick Reference: The Colloquial-to-LockFree Bridge Matrix<a class="headerlink" href="#1-quick-reference-the-colloquial-to-lockfree-bridge-matrix" title="Permanent link">¶</a></h2>
+<p>When designing concurrent systems, you typically know what abstract data type you need. The matrix below maps standard colloquial types directly to their corresponding <code>lockfree</code> types, exported aliases, underlying algorithms, and concurrency topologies.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Colloquial Name</th>
+<th style="text-align: left;">Canonical LockFree Type</th>
+<th style="text-align: left;">Ergonomic Aliases</th>
+<th style="text-align: left;">Underlying Algorithm</th>
+<th style="text-align: left;">Concurrency Topology</th>
+<th style="text-align: left;">Progress Guarantee</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Table / Map / Dict</strong></td>
+<td style="text-align: left;"><code>Ctrie[K, V]</code></td>
+<td style="text-align: left;"><code>Table[K, V]</code>, <code>ConcurrentTable[K, V]</code>, <code>ConcurrentMap[K, V]</code></td>
+<td style="text-align: left;">Aleksandar Prokopec Concurrent Hash Array Mapped Trie (HAMT)</td>
+<td style="text-align: left;">MPMC (Multi-Producer Multi-Consumer)</td>
+<td style="text-align: left;">Lookups: <strong>Wait-Free</strong><br>Mutations: <strong>Lock-Free</strong><br>Snapshots: <strong>Wait-Free $O(1)$</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>SortedTable / OrderedTable</strong></td>
+<td style="text-align: left;"><code>SkipListMap[K, V]</code></td>
+<td style="text-align: left;"><code>SortedTable[K, V]</code>, <code>OrderedTable[K, V]</code>, <code>ConcurrentSortedTable[K, V]</code></td>
+<td style="text-align: left;">Fraser &amp; Herlihy Lock-Free SkipList with Harris Logical Marking</td>
+<td style="text-align: left;">MPMC (Multi-Producer Multi-Consumer)</td>
+<td style="text-align: left;">Lookups: <strong>Wait-Free</strong><br>Mutations: <strong>Lock-Free</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Set / HashSet / OrderedSet</strong></td>
+<td style="text-align: left;"><code>SkipListSet[T]</code></td>
+<td style="text-align: left;"><code>Set[T]</code>, <code>ConcurrentSet[T]</code>, <code>OrderedSet[T]</code></td>
+<td style="text-align: left;">Fraser &amp; Herlihy Lock-Free SkipList with Harris Logical Marking</td>
+<td style="text-align: left;">MPMC (Multi-Producer Multi-Consumer)</td>
+<td style="text-align: left;">Contains: <strong>Wait-Free</strong><br>Insert/Remove: <strong>Lock-Free</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Stack / LIFO Buffer</strong></td>
+<td style="text-align: left;"><code>TreiberStack[T]</code></td>
+<td style="text-align: left;"><code>Stack[T]</code>, <code>ConcurrentStack[T]</code></td>
+<td style="text-align: left;">Treiber Stack with Hendler et al. Elimination-Backoff Array</td>
+<td style="text-align: left;">MPMC (Multi-Producer Multi-Consumer)</td>
+<td style="text-align: left;"><strong>Lock-Free</strong> (with direct exchange under contention)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Bounded Queue / Ring Buffer</strong></td>
+<td style="text-align: left;"><code>BQueue[T, ...]</code></td>
+<td style="text-align: left;"><code>BoundedQueue[T]</code>, <code>MpmcBoundedQueue[T]</code>, <code>SpscBoundedQueue[T]</code></td>
+<td style="text-align: left;">Dmitry Vyukov Bounded Ring Buffer with Per-Slot Sequence Counters</td>
+<td style="text-align: left;">SPSC, MPSC, SPMC, MPMC</td>
+<td style="text-align: left;">SPSC: <strong>Wait-Free</strong><br>MPMC: <strong>Lock-Free</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Unbounded Queue / Dynamic FIFO</strong></td>
+<td style="text-align: left;"><code>Queue[T, ...]</code></td>
+<td style="text-align: left;"><code>UnboundedQueue[T]</code>, <code>MpmcQueue[T]</code>, <code>SpscQueue[T]</code></td>
+<td style="text-align: left;">Morrison &amp; Afek Linked Concurrent Ring Queue (LCRQ) with DWCAS</td>
+<td style="text-align: left;">SPSC, MPSC, SPMC, MPMC</td>
+<td style="text-align: left;">SPSC: <strong>Wait-Free</strong><br>MPMC: <strong>Lock-Free</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Channel / CSP / Go-style chan</strong></td>
+<td style="text-align: left;"><code>Channel[T]</code></td>
+<td style="text-align: left;"><code>Sender[T]</code>, <code>Receiver[T]</code></td>
+<td style="text-align: left;">Ergonomic Channel Facade over <code>BQueue</code> or <code>Queue</code> with TLS Auto-Registration</td>
+<td style="text-align: left;">MPMC (Multi-Producer Multi-Consumer)</td>
+<td style="text-align: left;"><strong>Lock-Free</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Synchronous Channel / Rendezvous</strong></td>
+<td style="text-align: left;"><code>RendezvousChannel[T]</code></td>
+<td style="text-align: left;"><code>RendezvousChannel[T]</code></td>
+<td style="text-align: left;">Scherer &amp; Scott Synchronous Dual Queue with Futex Wait/Wake</td>
+<td style="text-align: left;">MPMC (Multi-Producer Multi-Consumer)</td>
+<td style="text-align: left;">Match: <strong>Lock-Free</strong><br>Wait: <strong>OS Futex Park</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Deque / Work-Stealing</strong></td>
+<td style="text-align: left;"><code>ChaseLevDeque[T]</code></td>
+<td style="text-align: left;"><code>Deque[T]</code>, <code>ConcurrentDeque[T]</code></td>
+<td style="text-align: left;">Chase-Lev Dynamic Circular Deque with C11 Fences &amp; Bulk Stealing</td>
+<td style="text-align: left;">Single-Worker / Multi-Thief</td>
+<td style="text-align: left;">Worker: <strong>Lock-Free</strong><br>Thieves: <strong>Lock-Free</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Task Pool / Fork-Join Scheduler</strong></td>
+<td style="text-align: left;"><code>TaskPool</code></td>
+<td style="text-align: left;"><code>ThreadPool</code>, <code>ConcurrentTaskPool</code></td>
+<td style="text-align: left;">Work-Stealing Scheduler over <code>ChaseLevDeque</code> and <code>TreiberStack</code></td>
+<td style="text-align: left;">Multi-Worker Work-Stealing</td>
+<td style="text-align: left;"><strong>Lock-Free Scheduling</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Broadcast / Pub-Sub Ring Buffer</strong></td>
+<td style="text-align: left;"><code>BroadcastRing[T]</code></td>
+<td style="text-align: left;"><code>BroadcastCursor[T]</code>, <code>TopicBus[T]</code></td>
+<td style="text-align: left;">Lock-Free Multicast Ring with Dynamic Reader Cursors &amp; Slow-Consumer Policies</td>
+<td style="text-align: left;">SPMC / MPMC Multicast Fan-Out</td>
+<td style="text-align: left;">Readers: <strong>Wait-Free / Lock-Free</strong><br>Writers: <strong>Lock-Free</strong></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="2-algorithmic-tradeoffs-architectural-selection">2. Algorithmic Tradeoffs &amp; Architectural Selection<a class="headerlink" href="#2-algorithmic-tradeoffs-architectural-selection" title="Permanent link">¶</a></h2>
+<p>Choosing the optimal concurrent data structure requires understanding the underlying hardware and algorithmic tradeoffs. Below are comprehensive comparisons of complementary structures.</p>
+<h3 id="21-associative-maps-ctriek-v-vs-skiplistmapk-v">2.1 Associative Maps: <code>Ctrie[K, V]</code> vs <code>SkipListMap[K, V]</code><a class="headerlink" href="#21-associative-maps-ctriek-v-vs-skiplistmapk-v" title="Permanent link">¶</a></h3>
+<p>Both <code>Ctrie</code> and <code>SkipListMap</code> provide thread-safe, lock-free key-value mapping with Debra Safe Memory Reclamation. However, their internal structures and operational profiles differ substantially:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Dimension</th>
+<th style="text-align: left;"><code>Ctrie[K, V]</code> (<code>Table</code>)</th>
+<th style="text-align: left;"><code>SkipListMap[K, V]</code> (<code>SortedTable</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Core Architecture</strong></td>
+<td style="text-align: left;">Aleksandar Prokopec 32-way Branching Hash Array Mapped Trie (HAMT)</td>
+<td style="text-align: left;">Maurice Herlihy &amp; Keir Fraser Multi-Level Probabilistic SkipList</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Key Ordering</strong></td>
+<td style="text-align: left;"><strong>Unordered</strong> (partitioned by 32-bit Murmur3-finalized hash bits)</td>
+<td style="text-align: left;"><strong>Strict Total Key Order</strong> (sorted ascending traversal via level 0)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Lookup Traversal</strong></td>
+<td style="text-align: left;"><strong>Bounded Depth</strong>: At most 7 levels for 32-bit hashes; lookup is <strong>Wait-Free</strong></td>
+<td style="text-align: left;"><strong>Probabilistic $O(\log N)$</strong>: Average $\log_2(N)$ skip steps; lookup is <strong>Wait-Free</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Point-in-Time Snapshots</strong></td>
+<td style="text-align: left;"><strong>$O(1)$ Time and Work</strong>: Generational root swing creates an isolated read-only snapshot</td>
+<td style="text-align: left;"><strong>$O(N)$ Iterative Copy</strong>: Requires traversing level-0 elements</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Key Requirements</strong></td>
+<td style="text-align: left;"><code>hash(K): Hash</code> and <code>==</code> equality</td>
+<td style="text-align: left;"><code>cmp(K, K): int</code> or <code>&lt;</code> strict weak ordering</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Memory Footprint</strong></td>
+<td style="text-align: left;">Dynamic node compression using 32-bit bitmasks (<code>countBits32</code>)</td>
+<td style="text-align: left;">Tower nodes with array of atomic next pointers up to <code>MaxLevel</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Best Used For</strong></td>
+<td style="text-align: left;">General high-throughput associative caching, symbol tables, dictionary lookups, frequent snapshot queries</td>
+<td style="text-align: left;">Sorted indexing, range queries, ordered iteration (<code>keys</code>, <code>pairs</code>), time-series keys</td>
+</tr>
+</tbody>
+</table>
+<h4 id="architectural-recommendation">Architectural Recommendation<a class="headerlink" href="#architectural-recommendation" title="Permanent link">¶</a></h4>
+<ul>
+<li>Use <strong><code>Ctrie</code> (or <code>Table</code>)</strong> if you need an unordered, high-performance concurrent map with standard dictionary semantics, or if your application frequently takes point-in-time snapshots under concurrent mutations without blocking writers.</li>
+<li>Use <strong><code>SkipListMap</code> (or <code>SortedTable</code>)</strong> if your application requires ordered traversal (<code>for (k, v) in tbl.pairs(): ...</code>), prefix scans, or range-bounded iterations.</li>
+</ul>
+<hr>
+<h3 id="22-fifo-queues-bqueue-vyukov-bounded-vs-queue-lcrq-unbounded">2.2 FIFO Queues: <code>BQueue</code> (Vyukov Bounded) vs <code>Queue</code> (LCRQ Unbounded)<a class="headerlink" href="#22-fifo-queues-bqueue-vyukov-bounded-vs-queue-lcrq-unbounded" title="Permanent link">¶</a></h3>
+<p>The two primary queue engines in <code>lockfree</code> represent two distinct architectural paradigms: static zero-allocation bounded ring buffers versus dynamic linked-segment unbounded queues.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Dimension</th>
+<th style="text-align: left;"><code>BQueue[T, ...]</code> (<code>BoundedQueue</code>)</th>
+<th style="text-align: left;"><code>Queue[T, ...]</code> (<code>UnboundedQueue</code>)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Algorithm</strong></td>
+<td style="text-align: left;">Dmitry Vyukov Bounded MPMC with Per-Slot Sequence Counters</td>
+<td style="text-align: left;">Morrison &amp; Afek Linked Concurrent Ring Queue (LCRQ)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Hardware Atomics</strong></td>
+<td style="text-align: left;">Single-word atomic sequence loads and stores</td>
+<td style="text-align: left;">128-bit Double-Word Compare-And-Swap (DWCAS: <code>cmpxchg16b</code> / <code>casp</code>)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Allocation Profile</strong></td>
+<td style="text-align: left;"><strong>Zero Runtime Allocations</strong>: Ring buffer of size $N$ is preallocated once upfront</td>
+<td style="text-align: left;"><strong>Dynamic Linked Segments</strong>: Allocates 64-element segments on demand; reclaims via Debra</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Capacity Handling</strong></td>
+<td style="text-align: left;"><strong>Bounded</strong>: Returns <code>false</code> or raises when full (<code>push</code> rejects saturation)</td>
+<td style="text-align: left;"><strong>Unbounded</strong>: Grows dynamically until physical memory exhaustion</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Latency Profile</strong></td>
+<td style="text-align: left;"><strong>Sub-Microsecond Deterministic Latency</strong>: Optimal for real-time and audio systems</td>
+<td style="text-align: left;"><strong>High Throughput Burst Handling</strong>: Absorbs massive bursts without dropping messages</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Cache Behavior</strong></td>
+<td style="text-align: left;">Contiguous power-of-two array with cacheline padding between producer and consumer</td>
+<td style="text-align: left;">Linked segments with cacheline-padded atomic head and tail pointers</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Direct Push/Pop API</strong></td>
+<td style="text-align: left;">SPSC supports bare <code>q.push(x)</code> / <code>q.pop()</code>; MPMC uses <code>getProducer()</code> / <code>getConsumer()</code></td>
+<td style="text-align: left;">Always routes via thread-bound endpoints (<code>getProducer().bindToThread()</code>)</td>
+</tr>
+</tbody>
+</table>
+<h4 id="architectural-recommendation_1">Architectural Recommendation<a class="headerlink" href="#architectural-recommendation_1" title="Permanent link">¶</a></h4>
+<ul>
+<li>Use <strong><code>BQueue</code> (or <code>BoundedQueue</code>)</strong> when your workload has known maximum throughput bounds, requires strict zero-allocation steady-state guarantees, or operates in hard real-time environments (e.g. audio rendering, network packet processing, financial market feeds).</li>
+<li>Use <strong><code>Queue</code> (or <code>UnboundedQueue</code>)</strong> for general-purpose inter-thread worker pools where queue depth may surge unpredictably and producers must never be rejected due to capacity limits.</li>
+</ul>
+<hr>
+<h3 id="23-channel-communication-channelt-vs-rendezvouschannelt">2.3 Channel Communication: <code>Channel[T]</code> vs <code>RendezvousChannel[T]</code><a class="headerlink" href="#23-channel-communication-channelt-vs-rendezvouschannelt" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Feature</th>
+<th style="text-align: left;"><code>Channel[T]</code> (<code>Sender[T]</code> / <code>Receiver[T]</code>)</th>
+<th style="text-align: left;"><code>RendezvousChannel[T]</code></th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Buffer Geometry</strong></td>
+<td style="text-align: left;">Bounded ring buffer (<code>ckBounded</code>) or unbounded linked segments (<code>ckUnbounded</code>)</td>
+<td style="text-align: left;"><strong>Strictly Zero Buffer</strong> (Capacity = 0)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Handoff Mechanism</strong></td>
+<td style="text-align: left;">Asynchronous / buffered: producers push and return immediately if buffer has space</td>
+<td style="text-align: left;">Synchronous: Sender and receiver must meet in real time</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Thread Suspension</strong></td>
+<td style="text-align: left;">Non-blocking spin/backoff or try-based returns (<code>send</code> / <code>recv</code>)</td>
+<td style="text-align: left;">Native OS Futex (<code>ulock_wait</code> on macOS, <code>WaitOnAddress</code> on Windows, Linux futex)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Correlation Tracing</strong></td>
+<td style="text-align: left;">FIFO stream ordering</td>
+<td style="text-align: left;">Monotonic 64-bit correlation IDs shared bilaterally by sender and receiver</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Auto-Registration</strong></td>
+<td style="text-align: left;">Yes: Thread-local storage (<code>{.threadvar.}</code>) caches thread endpoints automatically</td>
+<td style="text-align: left;">Thread-safe direct object handles</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Typical Use Cases</strong></td>
+<td style="text-align: left;">Actor systems, worker thread pools, asynchronous pipelines</td>
+<td style="text-align: left;">Bilateral rendezvous, synchronous request-reply RPC handoff, CSP pipelines</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h3 id="24-work-distribution-treiberstackt-vs-chaselevdequet-vs-taskpool">2.4 Work Distribution: <code>TreiberStack[T]</code> vs <code>ChaseLevDeque[T]</code> vs <code>TaskPool</code><a class="headerlink" href="#24-work-distribution-treiberstackt-vs-chaselevdequet-vs-taskpool" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong><code>TreiberStack[T]</code> (Centralized LIFO Work-Sharing)</strong>:</li>
+<li>Best for: Free-lists, memory node recycling, and thread pools where the newest work item is most likely hot in CPU cache.</li>
+<li>Features an <strong>Elimination-Backoff Array</strong>: Under extreme multi-threaded contention, colliding pushers and poppers exchange items directly in backoff slots without touching the central top pointer, scaling throughput where traditional Treiber stacks collapse.</li>
+<li><strong><code>ChaseLevDeque[T]</code> (Asymmetric Work-Stealing)</strong>:</li>
+<li>Best for: Divide-and-conquer parallelism (e.g. recursive tree search, quicksort, ray tracing).</li>
+<li>The worker thread operates at the <code>bottom</code> using LIFO order (<code>pushBottom</code> / <code>popBottom</code>), keeping local cachelines hot. Starving thief threads operate at the <code>top</code> using FIFO order (<code>steal</code> / <code>stealBatch</code>), stealing the largest remaining grains of work.</li>
+<li><strong><code>TaskPool</code> (Coordinated Scheduler)</strong>:</li>
+<li>A production work-stealing thread pool coordinating pinned <code>ChaseLevDeque</code> workers, TreiberStack external injection, <code>forkJoin</code> recursion, and <code>parallelFor</code> chunking.</li>
+</ul>
+<hr>
+<h3 id="25-broadcast-multicast-broadcastringt-vs-queues">2.5 Broadcast &amp; Multicast: <code>BroadcastRing[T]</code> vs Queues<a class="headerlink" href="#25-broadcast-multicast-broadcastringt-vs-queues" title="Permanent link">¶</a></h3>
+<p>Traditional queues deliver each item to <strong>exactly one</strong> consumer (competing consumers). In contrast, <code>BroadcastRing[T]</code> delivers every message to <strong>all active subscriber cursors</strong> (1-to-N fan-out).</p>
+<ul>
+<li><strong><code>BroadcastCursor[T]</code></strong>: Each subscriber thread registers its own independent cursor that reads monotonically forward through the shared ring.</li>
+<li><strong>Overflow Policies</strong>:</li>
+<li><code>omDropOldest</code>: Lossy real-time ring. If a subscriber falls behind the writer by more than the ring capacity, its cursor automatically leaps forward to the oldest unread valid element and logs lag. Ideal for high-frequency telemetry, live audio streams, and financial market tickers.</li>
+<li><code>omBackoff</code>: Lossless backpressure. The publisher slows down and waits if it is about to overwrite the slowest registered subscriber cursor.</li>
+<li><strong><code>TopicBus[T]</code></strong>: A topic multiplexer backed by <code>Ctrie</code> that dynamically instantiates and routes messages to dedicated broadcast rings identified by string keys.</li>
+</ul>
+<hr>
+<h2 id="3-memory-management-lifetime-guidelines">3. Memory Management &amp; Lifetime Guidelines<a class="headerlink" href="#3-memory-management-lifetime-guidelines" title="Permanent link">¶</a></h2>
+<p>Writing lock-free data structures in modern Nim requires strict adherence to two critical memory models: <strong>ARC/ORC Lifecycle Semantics</strong> and <strong>Safe Memory Reclamation (SMR)</strong>.</p>
+<h3 id="31-nim-arcorc-invariants-slotencodingt">3.1 Nim ARC/ORC Invariants &amp; <code>SlotEncoding(T)</code><a class="headerlink" href="#31-nim-arcorc-invariants-slotencodingt" title="Permanent link">¶</a></h3>
+<p>Nim's ARC (Automatic Reference Counting) and ORC (Cyclic Garbage Collector) manage memory deterministically via compiler-injected hooks: <code>=copy</code>, <code>=dup</code>, and <code>=destroy</code>. In lock-free shared memory, naïve slot assignments would cause data races on reference count headers.</p>
+<p><code>lockfree</code> handles payload lifecycles via three distinct storage pathways:</p>
+<ol>
+<li><strong>Path-A (Primitive Types)</strong>:
+   Scalar primitives (<code>int</code>, <code>uint64</code>, <code>float</code>, <code>pointer</code>, <code>ptr</code>) fit into machine words and are copied or CAS-exchanged directly with zero heap allocation.</li>
+<li><strong>Path-B (Value Objects)</strong>:
+   Fixed-size value objects whose bitwise representations can be stored directly within slot records.</li>
+<li><strong>Path-C (Managed Types: <code>ref T</code>, <code>string</code>, <code>seq[T]</code>)</strong>:
+   Managed objects require atomic ownership transfer. <code>lockfree</code> uses <code>wrapOrIdentity</code> and <code>unwrapOrIdentity</code> combined with Nim's <code>wasMoved()</code> primitive:</li>
+<li>When pushing a <code>ref T</code> into a queue, ownership is transferred into the queue slot, and <code>wasMoved()</code> clears the local variable so the compiler-injected destructor does not decrement the reference count prematurely.</li>
+<li>When popping, ownership is transferred back to the receiving thread.</li>
+<li>In associative structures (<code>Ctrie</code>, <code>SkipListMap</code>, <code>SkipListSet</code>, <code>BroadcastRing</code>, <code>RendezvousChannel</code>), payloads are managed via an atomic reference-counted indirect container (<code>VBox[V]</code>). Memory is only released when all active threads have unpinned their epoch or dropped their references.</li>
+</ol>
+<hr>
+<h3 id="32-debra-nebr-safe-memory-reclamation-smr">3.2 Debra / NEBR Safe Memory Reclamation (SMR)<a class="headerlink" href="#32-debra-nebr-safe-memory-reclamation-smr" title="Permanent link">¶</a></h3>
+<h4 id="the-problem-use-after-free-in-lock-free-structures">The Problem: Use-After-Free in Lock-Free Structures<a class="headerlink" href="#the-problem-use-after-free-in-lock-free-structures" title="Permanent link">¶</a></h4>
+<p>In a lock-free queue or skiplist, when thread $A$ unlinks node $N$, concurrent reader thread $B$ may already hold a pointer to $N$ and be about to read its fields. If thread $A$ frees $N$ immediately to the OS heap, thread $B$ will suffer a fatal <strong>Use-After-Free (UAF)</strong> or memory corruption.</p>
+<h4 id="the-solution-nebr-3-epoch-sliding-window">The Solution: NEBR 3-Epoch Sliding Window<a class="headerlink" href="#the-solution-nebr-3-epoch-sliding-window" title="Permanent link">¶</a></h4>
+<p><code>lockfree</code> integrates <strong>NEBR (Neutralization-Enhanced Bounded Reclamation)</strong>, based on Trevor Brown's DEBRA+ algorithm:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>       Global Epoch (E)
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>              │
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  ┌───────────┼───────────┐
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>  ▼           ▼           ▼
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>Epoch E-2   Epoch E-1   Epoch E (Current)
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a> [RECLAIM]   [PENDING]   [ALLOC &amp; RETIRE]
+</code></pre></div>
+<ol>
+<li><strong>Epoch Registration</strong>: Threads register a slot with the <code>DebraManager</code> via <code>registerThread()</code>.</li>
+<li><strong>Critical Section Pinning</strong>: When accessing shared nodes, a thread enters a critical section (<code>pin()</code> or <code>withEpoch(manager)</code>).</li>
+<li><strong>Deferred Retirement</strong>: When a node is physically unlinked at epoch $E$, it is placed on the thread's local <strong>limbo bag</strong> tagged with epoch $E$.</li>
+<li><strong>Safe Reclamation</strong>: A node retired at epoch $E$ is only freed when all active threads have moved to epoch $E+1$ or are unpinned. At epoch $E+2$, it is guaranteed that no thread in the system holds a pointer to that node.</li>
+<li><strong>Signal-Driven Neutralization (<code>SIGUSR1</code>)</strong>: In standard EBR, if a thread stalls or sleeps while pinned, reclamation halts for the entire system, leading to memory exhaustion. NEBR solves this by sending a <code>SIGUSR1</code> signal to stalled threads, atomically neutralizing their pin state and allowing the global epoch to advance safely.</li>
+</ol>
+<blockquote>
+<p>[!TIP]
+High-level collections like <code>Ctrie</code>, <code>SkipListMap</code>, <code>SkipListSet</code>, <code>Channel</code>, and <code>Queue</code> handle Debra SMR automatically behind the scenes. You only need explicit SMR ceremonies if you are writing custom low-level lock-free algorithms.</p>
+</blockquote>
+<hr>
+<h2 id="4-practical-cookbooks-code-walkthroughs">4. Practical Cookbooks &amp; Code Walkthroughs<a class="headerlink" href="#4-practical-cookbooks-code-walkthroughs" title="Permanent link">¶</a></h2>
+<p>All code snippets below are self-contained, idiomatic, and ready to run with <code>nim c --threads:on -r &lt;file&gt;.nim</code>.</p>
+<h3 id="41-concurrent-table-table-ctrie">4.1 Concurrent Table (<code>Table</code> / <code>Ctrie</code>)<a class="headerlink" href="#41-concurrent-table-table-ctrie" title="Permanent link">¶</a></h3>
+<p>High-throughput, lock-free key-value mapping with wait-free lookups and point-in-time snapshots:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">std</span><span class="o">/[</span><span class="n">options</span><span class="p">,</span><span class="w"> </span><span class="n">os</span><span class="o">]</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfree</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c"># Initialize a concurrent table (default 64 thread slots)</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="kd">var</span><span class="w"> </span><span class="n">users</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newTable</span><span class="o">[</span><span class="nb">int</span><span class="p">,</span><span class="w"> </span><span class="nb">string</span><span class="o">]</span><span class="p">()</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c"># Put and index assignment syntax</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">users</span><span class="o">[</span><span class="mi">101</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"Alice"</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">users</span><span class="o">[</span><span class="mi">102</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"Bob"</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="k">discard</span><span class="w"> </span><span class="n">users</span><span class="p">.</span><span class="n">put</span><span class="p">(</span><span class="mi">103</span><span class="p">,</span><span class="w"> </span><span class="s">"Charlie"</span><span class="p">)</span>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="c"># Thread-safe lookups</span>
+<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="n">echo</span><span class="w"> </span><span class="s">"User 101: "</span><span class="p">,</span><span class="w"> </span><span class="n">users</span><span class="o">[</span><span class="mi">101</span><span class="o">]</span><span class="w"> </span><span class="c"># "Alice"</span>
+<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="k">if</span><span class="w"> </span><span class="n">users</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="mi">102</span><span class="p">):</span>
+<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">  </span><span class="n">echo</span><span class="w"> </span><span class="s">"User 102 found: "</span><span class="p">,</span><span class="w"> </span><span class="n">users</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="mi">102</span><span class="p">).</span><span class="n">get</span><span class="p">()</span>
+<a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>
+<a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="c"># Atomic computeIfAbsent: closure runs only if key is not yet present</span>
+<a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a><span class="k">let</span><span class="w"> </span><span class="n">score</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">users</span><span class="p">.</span><span class="n">computeIfAbsent</span><span class="p">(</span><span class="mi">104</span><span class="p">,</span><span class="w"> </span><span class="n">proc</span><span class="p">(</span><span class="n">id</span><span class="p">:</span><span class="w"> </span><span class="nb">int</span><span class="p">):</span><span class="w"> </span><span class="nb">string</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="w">  </span><span class="s">"ComputedUser_"</span><span class="w"> </span><span class="o">&amp;</span><span class="w"> </span><span class="o">$</span><span class="n">id</span>
+<a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="p">)</span>
+<a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="n">echo</span><span class="w"> </span><span class="s">"User 104: "</span><span class="p">,</span><span class="w"> </span><span class="n">score</span>
+<a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>
+<a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="c"># O(1) Wait-Free Generational Snapshot:</span>
+<a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="c"># Captures a frozen point-in-time view without blocking concurrent mutations</span>
+<a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a><span class="k">let</span><span class="w"> </span><span class="n">snapshot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">users</span><span class="p">.</span><span class="n">snapshot</span><span class="p">()</span>
+<a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a>
+<a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="c"># Modify live table after snapshot</span>
+<a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="n">users</span><span class="o">[</span><span class="mi">101</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"Alice Updated"</span>
+<a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a><span class="n">users</span><span class="p">.</span><span class="n">del</span><span class="p">(</span><span class="mi">102</span><span class="p">)</span>
+<a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a>
+<a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a><span class="c"># Snapshot retains original state!</span>
+<a id="__codelineno-1-32" name="__codelineno-1-32" href="#__codelineno-1-32"></a><span class="n">echo</span><span class="w"> </span><span class="s">"Snapshot len: "</span><span class="p">,</span><span class="w"> </span><span class="n">snapshot</span><span class="p">.</span><span class="n">len</span><span class="w"> </span><span class="c"># 4</span>
+<a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a><span class="n">echo</span><span class="w"> </span><span class="s">"Snapshot 101: "</span><span class="p">,</span><span class="w"> </span><span class="n">snapshot</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="mi">101</span><span class="p">).</span><span class="n">get</span><span class="p">()</span><span class="w"> </span><span class="c"># "Alice"</span>
+<a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a><span class="n">echo</span><span class="w"> </span><span class="s">"Live table 101: "</span><span class="p">,</span><span class="w"> </span><span class="n">users</span><span class="o">[</span><span class="mi">101</span><span class="o">]</span><span class="w"> </span><span class="c"># "Alice Updated"</span>
+</code></pre></div>
+<hr>
+<h3 id="42-concurrent-sorted-table-sortedtable-skiplistmap">4.2 Concurrent Sorted Table (<code>SortedTable</code> / <code>SkipListMap</code>)<a class="headerlink" href="#42-concurrent-sorted-table-sortedtable-skiplistmap" title="Permanent link">¶</a></h3>
+<p>Strictly ordered key-value storage with ascending range iterations:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">std</span><span class="o">/</span><span class="n">options</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfree</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c"># Initialize a concurrent sorted table</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="kd">var</span><span class="w"> </span><span class="n">leaderboard</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newSortedTable</span><span class="o">[</span><span class="nb">int</span><span class="p">,</span><span class="w"> </span><span class="nb">string</span><span class="o">]</span><span class="p">()</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="c"># Insert scores in scrambled order</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="n">leaderboard</span><span class="o">[</span><span class="mi">500</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"Player Five"</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="n">leaderboard</span><span class="o">[</span><span class="mi">100</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"Player One"</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="n">leaderboard</span><span class="o">[</span><span class="mi">800</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"Player Eight"</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="n">leaderboard</span><span class="o">[</span><span class="mi">300</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">"Player Three"</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="c"># Lookups</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="n">echo</span><span class="w"> </span><span class="s">"Leader at 800: "</span><span class="p">,</span><span class="w"> </span><span class="n">leaderboard</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="mi">800</span><span class="p">).</span><span class="n">get</span><span class="p">()</span>
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="c"># Strictly ascending traversal over level-0 skiplist chain</span>
+<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="n">echo</span><span class="w"> </span><span class="s">"--- Ascending Order ---"</span>
+<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">score</span><span class="p">,</span><span class="w"> </span><span class="n">player</span><span class="p">)</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">leaderboard</span><span class="p">.</span><span class="n">pairs</span><span class="p">():</span>
+<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="w">  </span><span class="n">echo</span><span class="w"> </span><span class="s">"Score: "</span><span class="p">,</span><span class="w"> </span><span class="n">score</span><span class="p">,</span><span class="w"> </span><span class="s">" -&gt; "</span><span class="p">,</span><span class="w"> </span><span class="n">player</span>
+<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>
+<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="c"># Iterate strictly ascending over keys</span>
+<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="k">for</span><span class="w"> </span><span class="n">score</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">leaderboard</span><span class="p">.</span><span class="n">keys</span><span class="p">():</span>
+<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="w">  </span><span class="n">echo</span><span class="w"> </span><span class="s">"Key: "</span><span class="p">,</span><span class="w"> </span><span class="n">score</span>
+</code></pre></div>
+<hr>
+<h3 id="43-concurrent-set-set-skiplistset">4.3 Concurrent Set (<code>Set</code> / <code>SkipListSet</code>)<a class="headerlink" href="#43-concurrent-set-set-skiplistset" title="Permanent link">¶</a></h3>
+<p>Thread-safe unique membership and lock-free set algebra:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfree</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kd">var</span><span class="w"> </span><span class="n">setA</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newSet</span><span class="o">[</span><span class="nb">int</span><span class="o">]</span><span class="p">()</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="kd">var</span><span class="w"> </span><span class="n">setB</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newSet</span><span class="o">[</span><span class="nb">int</span><span class="o">]</span><span class="p">()</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="c"># Insert elements</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">setA</span><span class="p">.</span><span class="n">incl</span><span class="p">(</span><span class="mi">10</span><span class="p">)</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">setA</span><span class="p">.</span><span class="n">incl</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">setA</span><span class="p">.</span><span class="n">incl</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="n">setB</span><span class="p">.</span><span class="n">incl</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="n">setB</span><span class="p">.</span><span class="n">incl</span><span class="p">(</span><span class="mi">30</span><span class="p">)</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="n">setB</span><span class="p">.</span><span class="n">incl</span><span class="p">(</span><span class="mi">40</span><span class="p">)</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="n">echo</span><span class="w"> </span><span class="s">"Contains 20 in A: "</span><span class="p">,</span><span class="w"> </span><span class="n">setA</span><span class="p">.</span><span class="n">contains</span><span class="p">(</span><span class="mi">20</span><span class="p">)</span><span class="w"> </span><span class="c"># true</span>
+<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>
+<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="c"># Concurrent Set Algebra</span>
+<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a><span class="k">let</span><span class="w"> </span><span class="n">common</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">setA</span><span class="p">.</span><span class="n">intersect</span><span class="p">(</span><span class="n">setB</span><span class="p">)</span>
+<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a><span class="n">echo</span><span class="w"> </span><span class="s">"Intersection: "</span><span class="p">,</span><span class="w"> </span><span class="n">common</span><span class="p">.</span><span class="n">toSeq</span><span class="p">()</span><span class="w"> </span><span class="c"># @[20, 30]</span>
+<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>
+<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a><span class="k">let</span><span class="w"> </span><span class="n">allItems</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">setA</span><span class="p">.</span><span class="n">union</span><span class="p">(</span><span class="n">setB</span><span class="p">)</span>
+<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a><span class="n">echo</span><span class="w"> </span><span class="s">"Union: "</span><span class="p">,</span><span class="w"> </span><span class="n">allItems</span><span class="p">.</span><span class="n">toSeq</span><span class="p">()</span><span class="w"> </span><span class="c"># @[10, 20, 30, 40]</span>
+<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>
+<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a><span class="k">let</span><span class="w"> </span><span class="n">diff</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">setA</span><span class="p">.</span><span class="n">difference</span><span class="p">(</span><span class="n">setB</span><span class="p">)</span>
+<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a><span class="n">echo</span><span class="w"> </span><span class="s">"Difference (A - B): "</span><span class="p">,</span><span class="w"> </span><span class="n">diff</span><span class="p">.</span><span class="n">toSeq</span><span class="p">()</span><span class="w"> </span><span class="c"># @[10]</span>
+<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>
+<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a><span class="n">echo</span><span class="w"> </span><span class="s">"Is common subset of A? "</span><span class="p">,</span><span class="w"> </span><span class="n">common</span><span class="p">.</span><span class="n">isSubsetOf</span><span class="p">(</span><span class="n">setA</span><span class="p">)</span><span class="w"> </span><span class="c"># true</span>
+</code></pre></div>
+<hr>
+<h3 id="44-concurrent-stack-stack-treiberstack">4.4 Concurrent Stack (<code>Stack</code> / <code>TreiberStack</code>)<a class="headerlink" href="#44-concurrent-stack-stack-treiberstack" title="Permanent link">¶</a></h3>
+<p>LIFO stack with elimination-backoff array for extreme contention:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">std</span><span class="o">/</span><span class="n">options</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfree</span>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="kd">var</span><span class="w"> </span><span class="n">stack</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">initStack</span><span class="o">[</span><span class="nb">string</span><span class="o">]</span><span class="p">()</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="c"># Push elements</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="n">stack</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="s">"Item A"</span><span class="p">)</span>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="n">stack</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="s">"Item B"</span><span class="p">)</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="n">stack</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="s">"Item C"</span><span class="p">)</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="n">echo</span><span class="w"> </span><span class="s">"Stack length: "</span><span class="p">,</span><span class="w"> </span><span class="n">stack</span><span class="p">.</span><span class="n">len</span><span class="w"> </span><span class="c"># 3</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="n">echo</span><span class="w"> </span><span class="s">"Peek top: "</span><span class="p">,</span><span class="w"> </span><span class="n">stack</span><span class="p">.</span><span class="n">peek</span><span class="p">().</span><span class="n">get</span><span class="p">()</span><span class="w"> </span><span class="c"># "Item C" (does not pop)</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="c"># LIFO Pop order</span>
+<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="k">while</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">stack</span><span class="p">.</span><span class="n">isEmpty</span><span class="p">:</span>
+<a id="__codelineno-4-16" name="__codelineno-4-16" href="#__codelineno-4-16"></a><span class="w">  </span><span class="n">echo</span><span class="w"> </span><span class="s">"Popped: "</span><span class="p">,</span><span class="w"> </span><span class="n">stack</span><span class="p">.</span><span class="n">pop</span><span class="p">().</span><span class="n">get</span><span class="p">()</span>
+<a id="__codelineno-4-17" name="__codelineno-4-17" href="#__codelineno-4-17"></a><span class="c"># Output:</span>
+<a id="__codelineno-4-18" name="__codelineno-4-18" href="#__codelineno-4-18"></a><span class="c"># Popped: Item C</span>
+<a id="__codelineno-4-19" name="__codelineno-4-19" href="#__codelineno-4-19"></a><span class="c"># Popped: Item B</span>
+<a id="__codelineno-4-20" name="__codelineno-4-20" href="#__codelineno-4-20"></a><span class="c"># Popped: Item A</span>
+</code></pre></div>
+<hr>
+<h3 id="45-bounded-queue-boundedqueue-bqueue">4.5 Bounded Queue (<code>BoundedQueue</code> / <code>BQueue</code>)<a class="headerlink" href="#45-bounded-queue-boundedqueue-bqueue" title="Permanent link">¶</a></h3>
+<p>Preallocated, zero-allocation ring buffer. Perfect for real-time streaming:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">std</span><span class="o">/</span><span class="n">options</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfree</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c"># 1. Single-Producer Single-Consumer (Wait-Free SPSC)</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="kd">var</span><span class="w"> </span><span class="n">spsc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newSpscBoundedQueue</span><span class="o">[</span><span class="nb">int</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="o">]</span><span class="p">()</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="n">check</span><span class="w"> </span><span class="n">spsc</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="mi">100</span><span class="p">)</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="n">check</span><span class="w"> </span><span class="n">spsc</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="mi">200</span><span class="p">)</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="n">echo</span><span class="w"> </span><span class="s">"SPSC pop: "</span><span class="p">,</span><span class="w"> </span><span class="n">spsc</span><span class="p">.</span><span class="n">pop</span><span class="p">().</span><span class="n">get</span><span class="p">()</span><span class="w"> </span><span class="c"># 100</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="c"># 2. Multi-Producer Multi-Consumer (Lock-Free MPMC)</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="c"># Capacity = 64, Max 4 Producers, Max 4 Consumers</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="kd">var</span><span class="w"> </span><span class="n">mpmc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newMpmcBoundedQueue</span><span class="o">[</span><span class="nb">string</span><span class="p">,</span><span class="w"> </span><span class="mi">64</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="o">]</span><span class="p">()</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a><span class="c"># Bind producer slot 0 and consumer slot 0 to current thread</span>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="kd">var</span><span class="w"> </span><span class="n">producer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mpmc</span><span class="p">.</span><span class="n">getProducer</span><span class="p">(</span><span class="mi">0</span><span class="p">).</span><span class="n">bindToThread</span><span class="p">()</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="kd">var</span><span class="w"> </span><span class="n">consumer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">mpmc</span><span class="p">.</span><span class="n">getConsumer</span><span class="p">(</span><span class="mi">0</span><span class="p">).</span><span class="n">bindToThread</span><span class="p">()</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="n">check</span><span class="w"> </span><span class="n">producer</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="s">"Message 1"</span><span class="p">)</span>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a><span class="n">check</span><span class="w"> </span><span class="n">producer</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="s">"Message 2"</span><span class="p">)</span>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a>
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="n">echo</span><span class="w"> </span><span class="s">"MPMC pop: "</span><span class="p">,</span><span class="w"> </span><span class="n">consumer</span><span class="p">.</span><span class="n">pop</span><span class="p">().</span><span class="n">get</span><span class="p">()</span><span class="w"> </span><span class="c"># "Message 1"</span>
+</code></pre></div>
+<hr>
+<h3 id="46-channel-facade-channelt">4.6 Channel Facade (<code>Channel[T]</code>)<a class="headerlink" href="#46-channel-facade-channelt" title="Permanent link">¶</a></h3>
+<p>Go/Rust-style channels with automatic thread-local registration and graceful shutdown:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">std</span><span class="o">/</span><span class="n">options</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfree</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c"># Create a bounded channel with capacity 32</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="k">let</span><span class="w"> </span><span class="p">(</span><span class="n">tx</span><span class="p">,</span><span class="w"> </span><span class="n">rx</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newChannel</span><span class="o">[</span><span class="nb">int</span><span class="o">]</span><span class="p">(</span><span class="n">capacity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="p">)</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="k">type</span><span class="w"> </span><span class="n">WorkerCtx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">object</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">  </span><span class="n">tx</span><span class="p">:</span><span class="w"> </span><span class="n">Sender</span><span class="o">[</span><span class="nb">int</span><span class="o">]</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">  </span><span class="n">rx</span><span class="p">:</span><span class="w"> </span><span class="n">Receiver</span><span class="o">[</span><span class="nb">int</span><span class="o">]</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="c"># Producer thread</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="k">proc</span><span class="w"> </span><span class="nf">producerThread</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span><span class="w"> </span><span class="k">ptr</span><span class="w"> </span><span class="n">WorkerCtx</span><span class="p">)</span><span class="w"> </span><span class="sx">{.thread.}</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="p">..</span><span class="w"> </span><span class="mi">10</span><span class="p">:</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">    </span><span class="k">discard</span><span class="w"> </span><span class="n">ctx</span><span class="p">.</span><span class="n">tx</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">  </span><span class="n">ctx</span><span class="p">.</span><span class="n">tx</span><span class="p">.</span><span class="n">close</span><span class="p">()</span><span class="w"> </span><span class="c"># Close channel when producer is done</span>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="c"># Consumer thread</span>
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="k">proc</span><span class="w"> </span><span class="nf">consumerThread</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span><span class="w"> </span><span class="k">ptr</span><span class="w"> </span><span class="n">WorkerCtx</span><span class="p">)</span><span class="w"> </span><span class="sx">{.thread.}</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="kp">true</span><span class="p">:</span>
+<a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="w">    </span><span class="k">let</span><span class="w"> </span><span class="n">item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ctx</span><span class="p">.</span><span class="n">rx</span><span class="p">.</span><span class="n">recv</span><span class="p">()</span>
+<a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">item</span><span class="p">.</span><span class="n">isSome</span><span class="p">:</span>
+<a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="w">      </span><span class="n">echo</span><span class="w"> </span><span class="s">"Received: "</span><span class="p">,</span><span class="w"> </span><span class="n">item</span><span class="p">.</span><span class="n">get</span><span class="p">()</span>
+<a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a><span class="w">    </span><span class="k">elif</span><span class="w"> </span><span class="n">ctx</span><span class="p">.</span><span class="n">rx</span><span class="p">.</span><span class="n">isClosed</span><span class="p">:</span>
+<a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a><span class="w">      </span><span class="n">echo</span><span class="w"> </span><span class="s">"Channel closed and drained. Exiting worker."</span>
+<a id="__codelineno-6-25" name="__codelineno-6-25" href="#__codelineno-6-25"></a><span class="w">      </span><span class="k">break</span>
+<a id="__codelineno-6-26" name="__codelineno-6-26" href="#__codelineno-6-26"></a>
+<a id="__codelineno-6-27" name="__codelineno-6-27" href="#__codelineno-6-27"></a><span class="kd">var</span><span class="w"> </span><span class="n">ctx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">WorkerCtx</span><span class="p">(</span><span class="n">tx</span><span class="p">:</span><span class="w"> </span><span class="n">tx</span><span class="p">,</span><span class="w"> </span><span class="n">rx</span><span class="p">:</span><span class="w"> </span><span class="n">rx</span><span class="p">)</span>
+<a id="__codelineno-6-28" name="__codelineno-6-28" href="#__codelineno-6-28"></a><span class="kd">var</span><span class="w"> </span><span class="n">thProd</span><span class="p">,</span><span class="w"> </span><span class="n">thCons</span><span class="p">:</span><span class="w"> </span><span class="n">Thread</span><span class="o">[</span><span class="k">ptr</span><span class="w"> </span><span class="n">WorkerCtx</span><span class="o">]</span>
+<a id="__codelineno-6-29" name="__codelineno-6-29" href="#__codelineno-6-29"></a>
+<a id="__codelineno-6-30" name="__codelineno-6-30" href="#__codelineno-6-30"></a><span class="n">createThread</span><span class="p">(</span><span class="n">thCons</span><span class="p">,</span><span class="w"> </span><span class="n">consumerThread</span><span class="p">,</span><span class="w"> </span><span class="k">addr</span><span class="w"> </span><span class="n">ctx</span><span class="p">)</span>
+<a id="__codelineno-6-31" name="__codelineno-6-31" href="#__codelineno-6-31"></a><span class="n">createThread</span><span class="p">(</span><span class="n">thProd</span><span class="p">,</span><span class="w"> </span><span class="n">producerThread</span><span class="p">,</span><span class="w"> </span><span class="k">addr</span><span class="w"> </span><span class="n">ctx</span><span class="p">)</span>
+<a id="__codelineno-6-32" name="__codelineno-6-32" href="#__codelineno-6-32"></a>
+<a id="__codelineno-6-33" name="__codelineno-6-33" href="#__codelineno-6-33"></a><span class="n">joinThread</span><span class="p">(</span><span class="n">thProd</span><span class="p">)</span>
+<a id="__codelineno-6-34" name="__codelineno-6-34" href="#__codelineno-6-34"></a><span class="n">joinThread</span><span class="p">(</span><span class="n">thCons</span><span class="p">)</span>
+</code></pre></div>
+<hr>
+<h3 id="47-synchronous-rendezvous-channel-rendezvouschannelt">4.7 Synchronous Rendezvous Channel (<code>RendezvousChannel[T]</code>)<a class="headerlink" href="#47-synchronous-rendezvous-channel-rendezvouschannelt" title="Permanent link">¶</a></h3>
+<p>Zero-buffer synchronous dual channel with OS futex parking and correlation IDs:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfree</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">let</span><span class="w"> </span><span class="n">syncChan</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">initRendezvousChannel</span><span class="o">[</span><span class="nb">string</span><span class="o">]</span><span class="p">()</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="k">type</span><span class="w"> </span><span class="n">SyncCtx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">object</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">  </span><span class="n">ch</span><span class="p">:</span><span class="w"> </span><span class="n">RendezvousChannel</span><span class="o">[</span><span class="nb">string</span><span class="o">]</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="k">proc</span><span class="w"> </span><span class="nf">waiterThread</span><span class="p">(</span><span class="n">ctx</span><span class="p">:</span><span class="w"> </span><span class="k">ptr</span><span class="w"> </span><span class="n">SyncCtx</span><span class="p">)</span><span class="w"> </span><span class="sx">{.thread.}</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="n">msg</span><span class="p">:</span><span class="w"> </span><span class="nb">string</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">  </span><span class="c"># Blocks until a sender delivers</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">correlationId</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ctx</span><span class="p">.</span><span class="n">ch</span><span class="p">.</span><span class="n">recv</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+<a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">  </span><span class="n">echo</span><span class="w"> </span><span class="s">"Receiver got: '"</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="p">,</span><span class="w"> </span><span class="s">"' with Correlation ID: "</span><span class="p">,</span><span class="w"> </span><span class="n">correlationId</span>
+<a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a>
+<a id="__codelineno-7-14" name="__codelineno-7-14" href="#__codelineno-7-14"></a><span class="kd">var</span><span class="w"> </span><span class="n">ctx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">SyncCtx</span><span class="p">(</span><span class="n">ch</span><span class="p">:</span><span class="w"> </span><span class="n">syncChan</span><span class="p">)</span>
+<a id="__codelineno-7-15" name="__codelineno-7-15" href="#__codelineno-7-15"></a><span class="kd">var</span><span class="w"> </span><span class="n">th</span><span class="p">:</span><span class="w"> </span><span class="n">Thread</span><span class="o">[</span><span class="k">ptr</span><span class="w"> </span><span class="n">SyncCtx</span><span class="o">]</span>
+<a id="__codelineno-7-16" name="__codelineno-7-16" href="#__codelineno-7-16"></a><span class="n">createThread</span><span class="p">(</span><span class="n">th</span><span class="p">,</span><span class="w"> </span><span class="n">waiterThread</span><span class="p">,</span><span class="w"> </span><span class="k">addr</span><span class="w"> </span><span class="n">ctx</span><span class="p">)</span>
+<a id="__codelineno-7-17" name="__codelineno-7-17" href="#__codelineno-7-17"></a>
+<a id="__codelineno-7-18" name="__codelineno-7-18" href="#__codelineno-7-18"></a><span class="c"># Sender delivers directly to receiver with zero intermediate queueing</span>
+<a id="__codelineno-7-19" name="__codelineno-7-19" href="#__codelineno-7-19"></a><span class="k">let</span><span class="w"> </span><span class="n">sendCid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">syncChan</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s">"Direct handoff payload"</span><span class="p">)</span>
+<a id="__codelineno-7-20" name="__codelineno-7-20" href="#__codelineno-7-20"></a><span class="n">echo</span><span class="w"> </span><span class="s">"Sender delivered with Correlation ID: "</span><span class="p">,</span><span class="w"> </span><span class="n">sendCid</span>
+<a id="__codelineno-7-21" name="__codelineno-7-21" href="#__codelineno-7-21"></a>
+<a id="__codelineno-7-22" name="__codelineno-7-22" href="#__codelineno-7-22"></a><span class="n">joinThread</span><span class="p">(</span><span class="n">th</span><span class="p">)</span>
+</code></pre></div>
+<hr>
+<h3 id="48-work-stealing-taskpool-taskpool">4.8 Work-Stealing TaskPool (<code>TaskPool</code>)<a class="headerlink" href="#48-work-stealing-taskpool-taskpool" title="Permanent link">¶</a></h3>
+<p>Parallel fork-join recursion and parallel-for loops:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfree</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="c"># Initialize a work-stealing pool with 4 worker threads</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="kd">var</span><span class="w"> </span><span class="n">pool</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">initTaskPool</span><span class="p">(</span><span class="mi">4</span><span class="p">)</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="c"># 1. Fire-and-forget asynchronous spawn</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="n">pool</span><span class="p">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">proc</span><span class="p">()</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">  </span><span class="n">echo</span><span class="w"> </span><span class="s">"Running background task on work-stealing pool!"</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="p">)</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a>
+<a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="c"># 2. Parallel For loop: processes slices concurrently across workers</span>
+<a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="kd">var</span><span class="w"> </span><span class="n">numbers</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newSeq</span><span class="o">[</span><span class="nb">int</span><span class="o">]</span><span class="p">(</span><span class="mi">1000</span><span class="p">)</span>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="k">let</span><span class="w"> </span><span class="n">arrPtr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">cast</span><span class="o">[</span><span class="k">ptr</span><span class="w"> </span><span class="n">UncheckedArray</span><span class="o">[</span><span class="nb">int</span><span class="o">]]</span><span class="p">(</span><span class="k">addr</span><span class="w"> </span><span class="n">numbers</span><span class="o">[</span><span class="mi">0</span><span class="o">]</span><span class="p">)</span>
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a>
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="n">pool</span><span class="p">.</span><span class="n">parallelFor</span><span class="p">(</span><span class="mi">0</span><span class="w"> </span><span class="p">..</span><span class="w"> </span><span class="mi">999</span><span class="p">,</span><span class="w"> </span><span class="n">proc</span><span class="p">(</span><span class="n">i</span><span class="p">:</span><span class="w"> </span><span class="nb">int</span><span class="p">)</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="w">  </span><span class="n">arrPtr</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">2</span>
+<a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="p">,</span><span class="w"> </span><span class="n">chunkSize</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">64</span><span class="p">)</span>
+<a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a>
+<a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a><span class="c"># 3. Two-way and Recursive Fork-Join</span>
+<a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a><span class="kd">var</span><span class="w"> </span><span class="n">leftResult</span><span class="p">:</span><span class="w"> </span><span class="n">Atomic</span><span class="o">[</span><span class="nb">int</span><span class="o">]</span>
+<a id="__codelineno-8-21" name="__codelineno-8-21" href="#__codelineno-8-21"></a><span class="kd">var</span><span class="w"> </span><span class="n">rightResult</span><span class="p">:</span><span class="w"> </span><span class="n">Atomic</span><span class="o">[</span><span class="nb">int</span><span class="o">]</span>
+<a id="__codelineno-8-22" name="__codelineno-8-22" href="#__codelineno-8-22"></a><span class="n">leftResult</span><span class="p">.</span><span class="n">store</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">moRelaxed</span><span class="p">)</span>
+<a id="__codelineno-8-23" name="__codelineno-8-23" href="#__codelineno-8-23"></a><span class="n">rightResult</span><span class="p">.</span><span class="n">store</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">moRelaxed</span><span class="p">)</span>
+<a id="__codelineno-8-24" name="__codelineno-8-24" href="#__codelineno-8-24"></a>
+<a id="__codelineno-8-25" name="__codelineno-8-25" href="#__codelineno-8-25"></a><span class="n">pool</span><span class="p">.</span><span class="n">forkJoin</span><span class="p">(</span>
+<a id="__codelineno-8-26" name="__codelineno-8-26" href="#__codelineno-8-26"></a><span class="w">  </span><span class="n">proc</span><span class="p">()</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-8-27" name="__codelineno-8-27" href="#__codelineno-8-27"></a><span class="w">    </span><span class="n">leftResult</span><span class="p">.</span><span class="n">store</span><span class="p">(</span><span class="mi">42</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="n">moRelease</span><span class="p">),</span>
+<a id="__codelineno-8-28" name="__codelineno-8-28" href="#__codelineno-8-28"></a><span class="w">  </span><span class="n">proc</span><span class="p">()</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-8-29" name="__codelineno-8-29" href="#__codelineno-8-29"></a><span class="w">    </span><span class="n">rightResult</span><span class="p">.</span><span class="n">store</span><span class="p">(</span><span class="mi">100</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="n">moRelease</span><span class="p">)</span>
+<a id="__codelineno-8-30" name="__codelineno-8-30" href="#__codelineno-8-30"></a><span class="p">)</span>
+<a id="__codelineno-8-31" name="__codelineno-8-31" href="#__codelineno-8-31"></a>
+<a id="__codelineno-8-32" name="__codelineno-8-32" href="#__codelineno-8-32"></a><span class="n">echo</span><span class="w"> </span><span class="s">"Fork-join results: "</span><span class="p">,</span><span class="w"> </span><span class="n">leftResult</span><span class="p">.</span><span class="n">load</span><span class="p">(</span><span class="n">moAcquire</span><span class="p">),</span><span class="w"> </span><span class="s">", "</span><span class="p">,</span><span class="w"> </span><span class="n">rightResult</span><span class="p">.</span><span class="n">load</span><span class="p">(</span><span class="n">moAcquire</span><span class="p">)</span>
+<a id="__codelineno-8-33" name="__codelineno-8-33" href="#__codelineno-8-33"></a>
+<a id="__codelineno-8-34" name="__codelineno-8-34" href="#__codelineno-8-34"></a><span class="c"># Sync all work and clean shutdown</span>
+<a id="__codelineno-8-35" name="__codelineno-8-35" href="#__codelineno-8-35"></a><span class="n">pool</span><span class="p">.</span><span class="n">sync</span><span class="p">()</span>
+<a id="__codelineno-8-36" name="__codelineno-8-36" href="#__codelineno-8-36"></a><span class="n">pool</span><span class="p">.</span><span class="n">shutdown</span><span class="p">(</span><span class="n">wait</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kp">true</span><span class="p">)</span>
+</code></pre></div>
+<hr>
+<h3 id="49-broadcast-ring-topic-bus-broadcastringt">4.9 Broadcast Ring &amp; Topic Bus (<code>BroadcastRing[T]</code>)<a class="headerlink" href="#49-broadcast-ring-topic-bus-broadcastringt" title="Permanent link">¶</a></h3>
+<p>1-to-N fan-out pub-sub where every message reaches all registered subscribers:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfree</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="c"># Create a broadcast ring with capacity 64</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="k">let</span><span class="w"> </span><span class="n">bus</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">initBroadcastRing</span><span class="o">[</span><span class="nb">string</span><span class="o">]</span><span class="p">(</span><span class="n">capacity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">64</span><span class="p">,</span><span class="w"> </span><span class="n">overflowMode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">omDropOldest</span><span class="p">)</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>
+<a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="c"># Register two independent reader cursors</span>
+<a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="kd">var</span><span class="w"> </span><span class="n">cursorA</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">bus</span><span class="p">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">soFromLatest</span><span class="p">)</span>
+<a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a><span class="kd">var</span><span class="w"> </span><span class="n">cursorB</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">bus</span><span class="p">.</span><span class="n">subscribe</span><span class="p">(</span><span class="n">soFromLatest</span><span class="p">)</span>
+<a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a>
+<a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="c"># Publish messages to the ring</span>
+<a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="n">bus</span><span class="p">.</span><span class="n">publish</span><span class="p">(</span><span class="s">"Event 1: System Boot"</span><span class="p">)</span>
+<a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="n">bus</span><span class="p">.</span><span class="n">publish</span><span class="p">(</span><span class="s">"Event 2: Network Ready"</span><span class="p">)</span>
+<a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a>
+<a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="c"># Both subscribers read all messages independently</span>
+<a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="kd">var</span><span class="w"> </span><span class="n">msgA</span><span class="p">,</span><span class="w"> </span><span class="n">msgB</span><span class="p">:</span><span class="w"> </span><span class="nb">string</span>
+<a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a><span class="k">if</span><span class="w"> </span><span class="n">cursorA</span><span class="p">.</span><span class="n">tryRead</span><span class="p">(</span><span class="n">msgA</span><span class="p">):</span>
+<a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="w">  </span><span class="n">echo</span><span class="w"> </span><span class="s">"Cursor A: "</span><span class="p">,</span><span class="w"> </span><span class="n">msgA</span><span class="w"> </span><span class="c"># "Event 1: System Boot"</span>
+<a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="k">if</span><span class="w"> </span><span class="n">cursorB</span><span class="p">.</span><span class="n">tryRead</span><span class="p">(</span><span class="n">msgB</span><span class="p">):</span>
+<a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="w">  </span><span class="n">echo</span><span class="w"> </span><span class="s">"Cursor B: "</span><span class="p">,</span><span class="w"> </span><span class="n">msgB</span><span class="w"> </span><span class="c"># "Event 1: System Boot"</span>
+<a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a>
+<a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a><span class="n">cursorA</span><span class="p">.</span><span class="n">unsubscribe</span><span class="p">()</span>
+<a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a><span class="n">cursorB</span><span class="p">.</span><span class="n">unsubscribe</span><span class="p">()</span>
+</code></pre></div>
+<hr>
+<h2 id="5-performance-tuning-best-practices">5. Performance Tuning &amp; Best Practices<a class="headerlink" href="#5-performance-tuning-best-practices" title="Permanent link">¶</a></h2>
+<ol>
+<li><strong>Enable Threads &amp; Release Optimization</strong>:
+   Always compile with:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>nim<span class="w"> </span>c<span class="w"> </span>-d:release<span class="w"> </span>--threads:on<span class="w"> </span>-r<span class="w"> </span>app.nim
+</code></pre></div>
+   For maximum performance where assertion overhead is eliminated, use <code>-d:danger</code>.</li>
+<li><strong>False Sharing Elimination</strong>:
+   <code>lockfree</code> aligns all central counters, root pointers, and thread slots to <code>CacheLineBytes</code> (64 bytes on x86_64, 128 bytes on Apple Silicon M-series). When designing your own structs to pass through channels, avoid packing hot mutable counters in the same cache line.</li>
+<li><strong>Power-of-Two Sizing</strong>:
+   Bounded queues (<code>BQueue</code>, <code>BroadcastRing</code>, <code>ChaseLevDeque</code>) require capacities that are powers of two ($2^k$). This allows the internal pointer arithmetic to use blazing-fast bitwise masking (<code>idx and mask</code>) instead of expensive integer modulo division (<code>idx mod cap</code>).</li>
+<li><strong>Choose the Right Backoff Strategy</strong>:
+   Under high thread contention, tight busy-waiting burns CPU cycles and saturates memory interconnects. All <code>lockfree</code> structures integrate adaptive exponential backoff (<code>lockfree/backoff</code>) utilizing CPU pause hints (<code>pause</code> on x86, <code>isb</code>/<code>yield</code> on ARM) before falling back to OS scheduler yields.</li>
+</ol>
+<hr>
+<h2 id="6-summary-checklist-which-structure-should-i-use">6. Summary Checklist: Which Structure Should I Use?<a class="headerlink" href="#6-summary-checklist-which-structure-should-i-use" title="Permanent link">¶</a></h2>
+<ul>
+<li>Need an <strong>unordered key-value dictionary</strong> with $O(1)$ snapshots? $\rightarrow$ <strong><code>Table[K, V]</code> / <code>Ctrie</code></strong></li>
+<li>Need a <strong>sorted key-value map</strong> with ordered iteration and range queries? $\rightarrow$ <strong><code>SortedTable[K, V]</code> / <code>SkipListMap</code></strong></li>
+<li>Need a <strong>concurrent set</strong> with intersection, union, and difference? $\rightarrow$ <strong><code>Set[T]</code> / <code>SkipListSet</code></strong></li>
+<li>Need a <strong>LIFO stack</strong> that scales linearly under contention? $\rightarrow$ <strong><code>Stack[T]</code> / <code>TreiberStack</code></strong></li>
+<li>Need a <strong>bounded FIFO queue</strong> with deterministic zero-allocation latency? $\rightarrow$ <strong><code>BoundedQueue[T]</code> / <code>BQueue</code></strong></li>
+<li>Need an <strong>unbounded FIFO queue</strong> that dynamically handles surges? $\rightarrow$ <strong><code>UnboundedQueue[T]</code> / <code>Queue</code></strong></li>
+<li>Need <strong>idiomatic Go/Rust channels</strong> with <code>tx.send</code> / <code>rx.recv</code>? $\rightarrow$ <strong><code>Channel[T]</code></strong></li>
+<li>Need <strong>synchronous zero-buffer handoff</strong> with futex parking? $\rightarrow$ <strong><code>RendezvousChannel[T]</code></strong></li>
+<li>Need <strong>work-stealing divide-and-conquer</strong> task parallelism? $\rightarrow$ <strong><code>Deque[T]</code> / <code>ChaseLevDeque</code> or <code>TaskPool</code></strong></li>
+<li>Need <strong>1-to-N broadcast messaging</strong> where every consumer sees every event? $\rightarrow$ <strong><code>BroadcastRing[T]</code> / <code>TopicBus[T]</code></strong></li>
+</ul>
+
+
+
+
+
+
+
+  
+    
+  
+  
+    
+  
+
+
+  <aside class="md-source-file">
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Last update">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 9, 2026 04:50:46 UTC"><span class="timeago" datetime="2026-10-09T04:50:46+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 9, 2026 04:50:46 UTC">2026-10-09</span>
+  </span>
+
+    
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Created">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"></path></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 9, 2026 04:50:14 UTC"><span class="timeago" datetime="2026-10-09T04:50:14+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 9, 2026 04:50:14 UTC">2026-10-09</span>
+  </span>
+
+    
+    
+    
+  </aside>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/elijahr/lockfree" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.code.annotate", "navigation.instant", "navigation.sections", "navigation.expand", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../js/timeago.min.js"></script>
+      
+        <script src="../../js/timeago_mkdocs_material.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>
