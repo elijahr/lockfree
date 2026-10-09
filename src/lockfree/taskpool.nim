@@ -67,6 +67,7 @@ type
     id: int
     pool: ptr TaskPoolCore
     deque: ChaseLevDeque[Task]
+    pad: array[CacheLineBytes - (sizeof(int) + sizeof(pointer) + sizeof(ChaseLevDeque[Task])), byte]
 
   TaskPoolCore = object
     numWorkers: int
@@ -133,6 +134,8 @@ proc newTask(fn: ClosureProc, barrier: ptr Atomic[int64] = nil): Task =
   let r = cast[ClosureRepr](fn)
   result.rawClosureFn = r.fn
   result.rawClosureEnv = r.env
+  if r.env != nil:
+    GC_ref(cast[ref int](r.env))
   result.barrier = barrier
 
 proc newTask(fn: TaskProc, arg: pointer, barrier: ptr Atomic[int64] = nil): Task =
@@ -149,26 +152,31 @@ proc newTask(fn: CdeclTaskProc, arg: pointer, barrier: ptr Atomic[int64] = nil):
   result.arg = arg
   result.barrier = barrier
 
-proc executeAndFree(task: Task, core: ptr TaskPoolCore) =
+proc executeAndFree(task: Task, core: ptr TaskPoolCore) {.gcsafe.} =
   if task == nil: return
-  try:
-    case task.kind
-    of tkNimcall:
-      if task.nimcallFn != nil:
-        task.nimcallFn(task.arg)
-    of tkCdecl:
-      if task.cdeclFn != nil:
-        task.cdeclFn(task.arg)
-    of tkClosure:
-      if task.rawClosureFn != nil:
-        let rawFn = cast[proc(env: pointer) {.nimcall, gcsafe.}](task.rawClosureFn)
-        rawFn(task.rawClosureEnv)
-  finally:
-    if task.barrier != nil:
-      discard task.barrier[].fetchSub(1'i64, moRelease)
-    deallocShared(task)
-    if core != nil:
-      discard core.pendingTasks.fetchSub(1'i64, moRelease)
+  {.cast(gcsafe).}:
+    try:
+      case task.kind
+      of tkNimcall:
+        if task.nimcallFn != nil:
+          task.nimcallFn(task.arg)
+      of tkCdecl:
+        if task.cdeclFn != nil:
+          task.cdeclFn(task.arg)
+      of tkClosure:
+        try:
+          if task.rawClosureFn != nil:
+            let rawFn = cast[proc(env: pointer) {.nimcall, gcsafe.}](task.rawClosureFn)
+            rawFn(task.rawClosureEnv)
+        finally:
+          if task.rawClosureEnv != nil:
+            GC_unref(cast[ref int](task.rawClosureEnv))
+    finally:
+      if task.barrier != nil:
+        discard task.barrier[].fetchSub(1'i64, moRelease)
+      deallocShared(task)
+      if core != nil:
+        discard core.pendingTasks.fetchSub(1'i64, moRelease)
 
 proc spawnTask(core: ptr TaskPoolCore, task: Task) =
   discard core.pendingTasks.fetchAdd(1'i64, moRelaxed)

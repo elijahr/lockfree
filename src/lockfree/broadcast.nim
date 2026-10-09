@@ -130,7 +130,8 @@ type
   BroadcastSlot*[T] = object
     seq*: Atomic[uint64]               ## Monotonic sequence number published into this slot
     vbox*: Atomic[ptr VBox[T]]         ## Pointer to heap-allocated payload box
-    pad: array[CacheLine - sizeof(Atomic[uint64]) - sizeof(Atomic[pointer]), byte]
+    retiredBox*: Atomic[ptr VBox[T]]   ## Quarantined previous box from prior lap
+    pad: array[CacheLine - sizeof(Atomic[uint64]) - 2 * sizeof(Atomic[pointer]), byte]
 
   BroadcastSlotBuffer[T] = ptr UncheckedArray[BroadcastSlot[T]]
 
@@ -141,7 +142,8 @@ type
   CursorDescriptor = object
     state*: Atomic[CursorState]
     currentSeq*: Atomic[uint64]        ## Monotonic sequence reader is waiting to consume
-    pad: array[CacheLine - sizeof(Atomic[CursorState]) - sizeof(Atomic[uint64]), byte]
+    readingBox*: Atomic[pointer]       ## Hazard pointer protecting VBox during poll
+    pad: array[CacheLine - sizeof(Atomic[CursorState]) - sizeof(Atomic[uint64]) - sizeof(Atomic[pointer]), byte]
 
   CursorDescriptorBuffer = ptr UncheckedArray[CursorDescriptor]
 
@@ -203,6 +205,7 @@ proc initBroadcastRing*[T](
   for i in 0 ..< cap:
     core.slots[i].seq.store(0, moRelaxed)
     core.slots[i].vbox.store(nil, moRelaxed)
+    core.slots[i].retiredBox.store(nil, moRelaxed)
 
   # Allocate cache-aligned cursor table
   let cursorsSize = maxR * sizeof(CursorDescriptor)
@@ -210,6 +213,7 @@ proc initBroadcastRing*[T](
   for i in 0 ..< maxR:
     core.cursors[i].state.store(csUnused, moRelaxed)
     core.cursors[i].currentSeq.store(0, moRelaxed)
+    core.cursors[i].readingBox.store(nil, moRelaxed)
 
   result.core = core
 
@@ -222,6 +226,10 @@ proc `=destroy`*[T](self: var BroadcastRing[T]) {.gcsafe.} =
         if vb != nil:
           decRef(vb)
           self.core.slots[i].vbox.store(nil, moRelaxed)
+        let rb = self.core.slots[i].retiredBox.load(moRelaxed)
+        if rb != nil:
+          decRef(rb)
+          self.core.slots[i].retiredBox.store(nil, moRelaxed)
       freeAligned(self.core.slots)
       freeAligned(self.core.cursors)
       deallocShared(self.core)
@@ -280,7 +288,7 @@ proc publish*[T](self: BroadcastRing[T], item: sink T) =
           let cseq = core.cursors[i].currentSeq.load(moAcquire)
           if cseq < slowestSeq:
             slowestSeq = cseq
-      if not hasActive or (targetSeq - slowestSeq < cap):
+      if not hasActive or (targetSeq >= slowestSeq and targetSeq - slowestSeq < cap):
         break
       cpuRelax()
 
@@ -291,11 +299,15 @@ proc publish*[T](self: BroadcastRing[T], item: sink T) =
 
   # Allocate new VBox and store into slot
   let newBox = allocVBox(item)
-  let oldBox = slot.vbox.load(moRelaxed)
+  let oldActive = slot.vbox.load(moRelaxed)
+  let oldRetired = slot.retiredBox.load(moRelaxed)
+
+  # Quarantine oldActive into retiredBox, install newBox into vbox
+  slot.retiredBox.store(oldActive, moRelaxed)
   slot.vbox.store(newBox, moRelaxed)
 
-  # Publish sequence number with release ordering
-  slot.seq.store(targetSeq + 1, moRelease)
+  # Publish sequence number with moSeqCst for Dekker synchronization with readers
+  slot.seq.store(targetSeq + 1, moSeqCst)
 
   # Advance publishedHead if this write reaches head
   var curHead = core.publishedHead.load(moRelaxed)
@@ -303,9 +315,30 @@ proc publish*[T](self: BroadcastRing[T], item: sink T) =
     if core.publishedHead.compareExchangeWeak(curHead, targetSeq + 1, moRelease, moRelaxed):
       break
 
-  # Clean up overwritten VBox
-  if oldBox != nil:
-    decRef(oldBox)
+  # Safe cleanup of oldRetired from 2 full laps ago:
+  if oldRetired != nil:
+    # Ensure no active reader holds a hazard pointer to oldRetired
+    var canFree = true
+    for i in 0 ..< core.maxReaders:
+      if core.cursors[i].state.load(moAcquire) == csActive:
+        if core.cursors[i].readingBox.load(moSeqCst) == cast[pointer](oldRetired):
+          canFree = false
+          break
+    if canFree:
+      decRef(oldRetired)
+    else:
+      # Reader still holding hazard pointer from 2 laps ago; retry after a brief pause
+      while true:
+        canFree = true
+        for i in 0 ..< core.maxReaders:
+          if core.cursors[i].state.load(moAcquire) == csActive:
+            if core.cursors[i].readingBox.load(moSeqCst) == cast[pointer](oldRetired):
+              canFree = false
+              break
+        if canFree:
+          decRef(oldRetired)
+          break
+        cpuRelax()
 
 proc tryPublish*[T](self: BroadcastRing[T], item: sink T): bool =
   ## Non-blocking publish attempt. Returns true if published. In `omBackoff`,
@@ -323,7 +356,7 @@ proc tryPublish*[T](self: BroadcastRing[T], item: sink T): bool =
         let cseq = core.cursors[i].currentSeq.load(moAcquire)
         if cseq < slowestSeq:
           slowestSeq = cseq
-    if hasActive and (curTail - slowestSeq >= cap):
+    if hasActive and (curTail >= slowestSeq and curTail - slowestSeq >= cap):
       return false
 
   self.publish(item)
@@ -359,7 +392,7 @@ proc subscribe*[T](
     initialSeq = tail
   of soFromEarliest:
     let cap = core.capacity.uint64
-    initialSeq = if tail > cap: tail - cap else: 0
+    initialSeq = if tail >= cap: tail - cap else: 0'u64
 
   core.cursors[allocatedId].currentSeq.store(initialSeq, moRelease)
   discard core.activeCursorCount.fetchAdd(1, moRelaxed)
@@ -377,6 +410,7 @@ proc unsubscribe*[T](cursor: var BroadcastCursor[T]) =
     let core = cursor.ring.core
     let id = cursor.cursorId
     cursor.cursorId = -1
+    core.cursors[id].readingBox.store(nil, moRelease)
     core.cursors[id].state.store(csUnused, moRelease)
     discard core.activeCursorCount.fetchSub(1, moRelaxed)
 
@@ -408,22 +442,27 @@ proc poll*[T](cursor: var BroadcastCursor[T]): PollResult[T] =
     # 1. Normal path: slot contains the exact expected sequence
     let vbox = slot.vbox.load(moAcquire)
     if vbox != nil:
-      incRef(vbox)
-      # Optimistic verification: ensure slot was not overwritten during load
-      if slot.seq.load(moAcquire) == targetSeq + 1:
+      # Publish hazard pointer under moSeqCst before verifying sequence
+      core.cursors[cursor.cursorId].readingBox.store(cast[pointer](vbox), moSeqCst)
+      # Re-verify sequence number under moSeqCst (Dekker duality with publisher's moSeqCst store)
+      if slot.seq.load(moSeqCst) == targetSeq + 1:
+        incRef(vbox)
+        core.cursors[cursor.cursorId].readingBox.store(nil, moRelease)
         let val = vbox.val
         decRef(vbox)
         inc cursor.readSeq
         core.cursors[cursor.cursorId].currentSeq.store(cursor.readSeq, moRelease)
         return PollResult[T](kind: prSuccess, val: val)
       else:
-        # Overwritten concurrently; drop ref and fall through to lag handling
-        decRef(vbox)
+        # Overwritten concurrently; clear hazard pointer and DO NOT touch vbox!
+        core.cursors[cursor.cursorId].readingBox.store(nil, moRelease)
 
-  if slotSeq > targetSeq + 1:
+  # Check if slot sequence moved past our target
+  let currentSeq = slot.seq.load(moAcquire)
+  if currentSeq > targetSeq + 1:
     # 2. Overrun path: publisher has overwritten this slot
-    let newestInSlot = slotSeq - 1
-    let skipped = newestInSlot - targetSeq
+    let newestInSlot = currentSeq - 1
+    let skipped = if newestInSlot >= targetSeq: newestInSlot - targetSeq else: 0'u64
     cursor.lagCount += skipped
     cursor.readSeq = newestInSlot
     core.cursors[cursor.cursorId].currentSeq.store(cursor.readSeq, moRelease)
@@ -508,7 +547,7 @@ proc getOrCreateRing[T](bus: TopicBus[T], topic: string): BroadcastRing[T] =
     overflowMode = bus.core.config.defaultOverflowMode,
     maxReaders = bus.core.config.defaultMaxReaders
   )
-  let prev = bus.core.topics.put(topic, newRing)
+  let prev = bus.core.topics.putIfAbsent(topic, newRing)
   if prev.isSome:
     return prev.get
   return newRing
