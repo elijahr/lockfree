@@ -204,21 +204,42 @@ suite "Wave 4A 128-Bit DWCAS Rate Limiters":
     check lb.waterLevelAt(t0 + 100_000_000'u64) == 100_000_000'u64
 
   test "LeakyBucket (GCRA) burst tolerance governance":
-    # Rate: 10/sec, burst tolerance: 300ms (permits up to 3 cells burst)
+    # Rate: 10/sec (T = 100ms), burst tolerance: 300ms (permits 1 + tau/T = 4 cells burst)
     var lb = initLeakyBucket(burstToleranceNs = 300_000_000, leakRatePerSec = 10)
     let t0 = 1_000_000_000'u64
 
-    # Concurrently burst 3 cells
+    # Concurrently burst 4 cells (1 initial + 3 tolerance)
     check lb.tryConsumeAt(t0, 1) == true # cell 1
     check lb.tryConsumeAt(t0, 1) == true # cell 2
     check lb.tryConsumeAt(t0, 1) == true # cell 3
+    check lb.tryConsumeAt(t0, 1) == true # cell 4
 
-    # 4th cell exceeds burst limit
+    # 5th cell exceeds burst limit
     check lb.tryConsumeAt(t0, 1) == false
 
-    # After 100ms, 1 cell leaked out: 4th cell can now be admitted
+    # After 100ms, 1 cell leaked out: 5th cell can now be admitted
     check lb.tryConsumeAt(t0 + 100_000_000'u64, 1) == true
     check lb.tryConsumeAt(t0 + 100_000_000'u64, 1) == false
+
+  test "LeakyBucket (GCRA) burst tolerance smaller than increment (tau < T)":
+    # Rate: 10 tokens/sec => T = 100ms. burstToleranceNs = 50ms (tau < T).
+    # Under buggy code, increment (100ms) > limit (50ms) caused permanent rejection of ALL arrivals.
+    # Under canonical GCRA:
+    # First arrival at t0 has TAT = t0 <= t0 + 50ms, so it MUST conform and set TAT = t0 + 100ms.
+    var lb = initLeakyBucket(burstToleranceNs = 50_000_000, leakRatePerSec = 10)
+    let t0 = 1_000_000_000'u64
+
+    # 1. First arrival at t0 conforms
+    check lb.tryConsumeAt(t0, 1) == true
+
+    # 2. Immediate second arrival at t0 fails (TAT is t0 + 100ms > t0 + 50ms)
+    check lb.tryConsumeAt(t0, 1) == false
+
+    # 3. Arrival at t0 + 49ms fails (TAT t0 + 100ms > t0 + 49ms + 50ms = t0 + 99ms)
+    check lb.tryConsumeAt(t0 + 49_000_000'u64, 1) == false
+
+    # 4. Arrival at t0 + 50ms conforms (TAT t0 + 100ms <= t0 + 50ms + 50ms = t0 + 100ms)
+    check lb.tryConsumeAt(t0 + 50_000_000'u64, 1) == true
 
   test "LeakyBucket consumeWithTimeout":
     var lb = initLeakyBucket(burstToleranceNs = 0, leakRatePerSec = 100) # 10ms per cell
