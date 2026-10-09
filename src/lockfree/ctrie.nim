@@ -93,7 +93,7 @@ proc incRef(gen: ptr Generation) {.inline.} =
 
 proc decRef(gen: ptr Generation) {.inline.} =
   if gen != nil:
-    if gen.rc.fetchSub(1, moRelease) == 1:
+    if gen.rc.fetchSub(1, moAcquireRelease) == 1:
       deallocShared(gen)
 
 # ---------------------------------------------------------------------------
@@ -122,6 +122,7 @@ template unpinGuard[MaxThreads: static int, CC: static PinScopeCardinality](
 
 type
   VBox*[V] = object
+    rc*: Atomic[int]
     val*: V
 
   MainNodeKind* = enum
@@ -163,6 +164,7 @@ type
   INode*[K, V] = object
     main*: Atomic[ptr MainNode[K, V]]
     gen*: ptr Generation
+    rc*: Atomic[int]
 
   CtrieCore*[K, V; MaxThreads: static int] = object
     id*: uint64
@@ -223,24 +225,30 @@ template makeBranchNode*[K, V](p: ptr INode[K, V]): BranchNode[K, V] =
 
 proc newVBox[V](val: sink V): ptr VBox[V] {.inline.} =
   result = cast[ptr VBox[V]](allocShared0(sizeof(VBox[V])))
+  result.rc.store(1, moRelaxed)
   wasMoved(result.val)
   result.val = val
 
-proc freeVBox[V](box: ptr VBox[V]) {.inline, gcsafe.} =
+proc incRef[V](box: ptr VBox[V]) {.inline.} =
   if box != nil:
-    when not (V is SomeNumber or V is bool or V is char or V is pointer or V is ptr):
-      `=destroy`(box.val)
-    deallocShared(box)
+    discard box.rc.fetchAdd(1, moRelaxed)
+
+proc decRef[V](box: ptr VBox[V]) {.inline.} =
+  if box != nil:
+    if box.rc.fetchSub(1, moAcquireRelease) == 1:
+      try:
+        when not (V is SomeNumber or V is bool or V is char or V is pointer or V is ptr):
+          `=destroy`(box.val)
+      except:
+        discard
+      deallocShared(box)
+
+proc freeVBox[V](box: ptr VBox[V]) {.inline, gcsafe.} =
+  decRef(box)
 
 proc destroyVBoxCallback[V](p: pointer) {.nimcall, raises: [].} =
   let box = cast[ptr VBox[V]](p)
-  if box != nil:
-    try:
-      when not (V is SomeNumber or V is bool or V is char or V is pointer or V is ptr):
-        `=destroy`(box.val)
-    except:
-      discard
-    deallocShared(box)
+  decRef(box)
 
 proc allocSNode[K, V](key: sink K, val: sink V, h: uint32): ptr SNode[K, V] {.inline.} =
   result = cast[ptr SNode[K, V]](allocShared0(sizeof(SNode[K, V])))
@@ -260,7 +268,7 @@ proc destroySNodeCallback[K, V](p: pointer) {.nimcall, raises: [].} =
   let sn = cast[ptr SNode[K, V]](p)
   if sn != nil:
     if sn.vbox != nil:
-      destroyVBoxCallback[V](cast[pointer](sn.vbox))
+      decRef(sn.vbox)
     try:
       when not (K is SomeNumber or K is bool or K is char or K is pointer or K is ptr):
         `=destroy`(sn.key)
@@ -313,7 +321,7 @@ proc destroyLNodeCallback[K, V](p: pointer) {.nimcall, raises: [].} =
     while curr != nil:
       let nxt = curr.next
       if curr.vbox != nil:
-        destroyVBoxCallback[V](cast[pointer](curr.vbox))
+        decRef(curr.vbox)
       try:
         when not (K is SomeNumber or K is bool or K is char or K is pointer or K is ptr):
           `=destroy`(curr.key)
@@ -327,7 +335,18 @@ proc allocINode[K, V](main: ptr MainNode[K, V], gen: ptr Generation): ptr INode[
   result = allocAligned[INode[K, V]]()
   result.main.store(main, moRelaxed)
   result.gen = gen
+  result.rc.store(1, moRelaxed)
   incRef(gen)
+
+proc incRef[K, V](inode: ptr INode[K, V]) {.inline.} =
+  if inode != nil:
+    discard inode.rc.fetchAdd(1, moRelaxed)
+
+proc decRef[K, V](inode: ptr INode[K, V]): bool {.inline.} =
+  if inode != nil:
+    result = inode.rc.fetchSub(1, moAcquireRelease) == 1
+  else:
+    result = false
 
 proc destroyINodeCallback[K, V](p: pointer) {.nimcall, raises: [].} =
   let inode = cast[ptr INode[K, V]](p)
@@ -347,18 +366,28 @@ type
 const MaxCachedTlsHandles = 32
 var gCtrieTlsHandles {.threadvar.}: seq[TlsHandleEntry]
 
-proc getOrRegisterHandle*[K, V; MaxThreads: static int](
-    self: Ctrie[K, V, MaxThreads]
-): ThreadHandle[MaxThreads, ccMulti] =
-  let trieId = self.core.id
+proc getOrRegisterHandleCore[MaxThreads: static int](
+    trieId: uint64,
+    manager: ptr DebraManager[MaxThreads, ccMulti]
+): ThreadHandle[MaxThreads, ccMulti] {.inline.} =
   for entry in gCtrieTlsHandles:
     if entry.trieId == trieId:
-      return ThreadHandle[MaxThreads, ccMulti](idx: entry.handleIdx, manager: self.core.manager)
-  let h = registerThread(self.core.manager[])
+      return ThreadHandle[MaxThreads, ccMulti](idx: entry.handleIdx, manager: manager)
+  let h = registerThread(manager[])
   if gCtrieTlsHandles.len >= MaxCachedTlsHandles:
     gCtrieTlsHandles.delete(0)
   gCtrieTlsHandles.add(TlsHandleEntry(trieId: trieId, handleIdx: h.idx))
   return h
+
+proc getOrRegisterHandle*[K, V; MaxThreads: static int](
+    self: Ctrie[K, V, MaxThreads]
+): ThreadHandle[MaxThreads, ccMulti] {.inline.} =
+  getOrRegisterHandleCore[MaxThreads](self.core.id, self.core.manager)
+
+proc getOrRegisterHandle*[K, V; MaxThreads: static int](
+    snap: Snapshot[K, V, MaxThreads]
+): ThreadHandle[MaxThreads, ccMulti] {.inline.} =
+  getOrRegisterHandleCore[MaxThreads](snap.core.id, snap.core.manager)
 
 # ---------------------------------------------------------------------------
 # Sub-INode / Branch Generation Helper
@@ -371,6 +400,15 @@ proc createSubINode[K, V](
 ): ptr INode[K, V] =
   let h1 = sn1.hash
   let h2 = sn2.hash
+  if level >= MaxLevel or h1 == h2:
+    # All 32 hash bits exhausted: construct immutable LNode
+    incRef(sn1.vbox)
+    incRef(sn2.vbox)
+    let e1 = allocLNodeEntry(sn1.key, sn1.vbox, nil)
+    let e2 = allocLNodeEntry(sn2.key, sn2.vbox, e1)
+    let ln = allocLNode[K, V](h1, e2)
+    return allocINode[K, V](cast[ptr MainNode[K, V]](ln), gen)
+
   let p1 = (h1 shr level) and 0x1F'u32
   let p2 = (h2 shr level) and 0x1F'u32
   if p1 != p2:
@@ -384,20 +422,47 @@ proc createSubINode[K, V](
       cn.children[1] = makeBranchNode(sn1)
     return allocINode[K, V](cast[ptr MainNode[K, V]](cn), gen)
   else:
-    # Hash matches at this level
-    if level >= MaxLevel or h1 == h2:
-      # True hash collision: construct LNode
-      let e1 = allocLNodeEntry(sn1.key, sn1.vbox, nil)
-      let e2 = allocLNodeEntry(sn2.key, sn2.vbox, e1)
-      let ln = allocLNode[K, V](h1, e2)
-      return allocINode[K, V](cast[ptr MainNode[K, V]](ln), gen)
-    else:
-      # Recurse down to next level
-      let nextSub = createSubINode(sn1, sn2, level + 5, gen)
-      let bmp = 1'u32 shl p1
-      let cn = allocCNode[K, V](bmp, gen, 1)
-      cn.children[0] = makeBranchNode(nextSub)
-      return allocINode[K, V](cast[ptr MainNode[K, V]](cn), gen)
+    # Recurse down to next level
+    let nextSub = createSubINode(sn1, sn2, level + 5, gen)
+    let bmp = 1'u32 shl p1
+    let cn = allocCNode[K, V](bmp, gen, 1)
+    cn.children[0] = makeBranchNode(nextSub)
+    return allocINode[K, V](cast[ptr MainNode[K, V]](cn), gen)
+
+proc isLNodeSubtree[K, V](inode: ptr INode[K, V]): bool {.inline.} =
+  if inode == nil: return false
+  var cur = inode
+  while true:
+    let m = cur.main.load(moRelaxed)
+    if m == nil: return false
+    case m.kind
+    of mnkLNode: return true
+    of mnkCNode:
+      let cn = cast[ptr CNode[K, V]](m)
+      if cn.csize == 1 and cn.children[0].isINode:
+        cur = cn.children[0].toINode
+      else:
+        return false
+    else: return false
+
+proc freeUnlinkedSubTree[K, V](inode: ptr INode[K, V]) =
+  if inode == nil: return
+  let m = inode.main.load(moRelaxed)
+  if m != nil:
+    case m.kind
+    of mnkCNode:
+      let cn = cast[ptr CNode[K, V]](m)
+      for i in 0 ..< cn.csize:
+        if cn.children[i].isINode:
+          freeUnlinkedSubTree[K, V](cn.children[i].toINode)
+      decRef(cn.gen)
+      deallocShared(cn)
+    of mnkLNode:
+      destroyLNodeCallback[K, V](cast[pointer](m))
+    of mnkTNode:
+      destroyTNodeCallback[K, V](cast[pointer](m))
+  decRef(inode.gen)
+  freeAligned(inode)
 
 # ---------------------------------------------------------------------------
 # Lazy Generational Copy (GCopy)
@@ -530,15 +595,19 @@ proc clean[K, V; MaxThreads: static int](
       if parent.main.compareExchangeStrong(expPMain, cast[ptr MainNode[K, V]](newPcn), moAcquireRelease, moAcquire):
         if pcn.gen == parent.gen:
           ready.retire(cast[pointer](pcn), destroyCNodeCallback[K, V])
+        let curMain = cur.main.load(moRelaxed)
+        if curMain != nil and curMain.kind == mnkTNode:
+          ready.retire(cast[pointer](curMain), destroyTNodeCallback[K, V])
+        ready.retire(cast[pointer](cur), destroyINodeCallback[K, V])
       else:
         destroyCNodeCallback[K, V](cast[pointer](newPcn))
 
-proc put*[K, V; MaxThreads: static int](
+proc putInternal[K, V; MaxThreads: static int](
     self: Ctrie[K, V, MaxThreads],
     key: K,
-    val: V
+    val: V,
+    onlyIfAbsent: bool
 ): Option[V] {.discardable.} =
-  ## Inserts or updates `key` with `val`. Returns previous value if replaced. Lock-free.
   if unlikely(self.core == nil): return none(V)
   let h = getHash(key)
   let th = self.getOrRegisterHandle()
@@ -610,6 +679,9 @@ proc put*[K, V; MaxThreads: static int](
               # SNode leaf
               let sn = child.toSNode
               if sn.key == key:
+                if onlyIfAbsent:
+                  return some(sn.vbox.val)
+
                 # Key match: update value
                 let oldVal = sn.vbox.val
                 let newSn = allocSNode(key, val, h)
@@ -635,6 +707,7 @@ proc put*[K, V; MaxThreads: static int](
                 # Collision: expand branch into sub-INode
                 let newSn = allocSNode(key, val, h)
                 let subINode = createSubINode(sn, newSn, level + 5, root.gen)
+                let convertedToLNode = isLNodeSubtree(subINode)
                 let newCn = allocCNode[K, V](cn.bmp, root.gen, cn.csize)
                 for i in 0 ..< cn.csize:
                   if i == idx:
@@ -646,17 +719,27 @@ proc put*[K, V; MaxThreads: static int](
                 if cur.main.compareExchangeStrong(expMain, cast[ptr MainNode[K, V]](newCn), moAcquireRelease, moAcquire):
                   if cn.gen == root.gen:
                     ready.retire(cast[pointer](cn), destroyCNodeCallback[K, V])
+                  if convertedToLNode:
+                    ready.retire(cast[pointer](sn), destroySNodeCallback[K, V])
+                    destroySNodeCallback[K, V](cast[pointer](newSn))
                   discard self.core.count.fetchAdd(1, moRelaxed)
                   return none(V)
                 else:
                   destroyCNodeCallback[K, V](cast[pointer](newCn))
-                  destroyINodeCallback[K, V](cast[pointer](subINode))
+                  freeUnlinkedSubTree[K, V](subINode)
                   destroySNodeCallback[K, V](cast[pointer](newSn))
                   restarted = true
                   break
 
         of mnkLNode:
           let ln = cast[ptr LNode[K, V]](main)
+          if onlyIfAbsent:
+            var checkCurr = ln.head
+            while checkCurr != nil:
+              if checkCurr.key == key:
+                return some(checkCurr.vbox.val)
+              checkCurr = checkCurr.next
+
           var found = false
           var oldVal: V
           var curr = ln.head
@@ -668,6 +751,7 @@ proc put*[K, V; MaxThreads: static int](
               let vb = newVBox(val)
               newHead = allocLNodeEntry(key, vb, newHead)
             else:
+              incRef(curr.vbox)
               newHead = allocLNodeEntry(curr.key, curr.vbox, newHead)
             curr = curr.next
 
@@ -696,6 +780,23 @@ proc put*[K, V; MaxThreads: static int](
           break
   finally:
     unpinGuard(toPinned(ready))
+
+proc put*[K, V; MaxThreads: static int](
+    self: Ctrie[K, V, MaxThreads],
+    key: K,
+    val: V
+): Option[V] {.discardable.} =
+  ## Inserts or updates `key` with `val`. Returns previous value if replaced. Lock-free.
+  self.putInternal(key, val, onlyIfAbsent = false)
+
+proc putIfAbsent*[K, V; MaxThreads: static int](
+    self: Ctrie[K, V, MaxThreads],
+    key: K,
+    val: V
+): Option[V] {.discardable.} =
+  ## Inserts `key` with `val` if not already present.
+  ## Returns `none(V)` if inserted, or `some(existingVal)` if already present. Lock-free.
+  self.putInternal(key, val, onlyIfAbsent = true)
 
 proc `[]=`*[K, V; MaxThreads: static int](
     self: Ctrie[K, V, MaxThreads],
@@ -811,26 +912,37 @@ proc delete*[K, V; MaxThreads: static int](
 
         of mnkLNode:
           let ln = cast[ptr LNode[K, V]](main)
-          var found = false
+          var checkCurr = ln.head
+          var keyFound = false
+          while checkCurr != nil:
+            if checkCurr.key == key:
+              keyFound = true
+              break
+            checkCurr = checkCurr.next
+
+          if not keyFound:
+            return none(V)
+
           var val: V
           var count = 0
           var newHead: ptr LNodeEntry[K, V] = nil
           var curr = ln.head
           while curr != nil:
             if curr.key == key:
-              found = true
               val = curr.vbox.val
             else:
+              incRef(curr.vbox)
               newHead = allocLNodeEntry(curr.key, curr.vbox, newHead)
               inc count
             curr = curr.next
 
-          if not found:
-            return none(V)
-
           if count == 1:
             # Contract to SNode and TNode
             let sn = allocSNodeWithVBox(newHead.key, newHead.vbox, ln.hash)
+            wasMoved(newHead.key)
+            deallocShared(newHead)
+            newHead = nil
+
             let tn = allocTNode(sn)
             var expMain = main
             if cur.main.compareExchangeStrong(expMain, cast[ptr MainNode[K, V]](tn), moAcquireRelease, moAcquire):
@@ -879,7 +991,7 @@ proc computeIfAbsent*[K, V; MaxThreads: static int](
   if existing.isSome:
     return existing.get
   let computed = computeFn(key)
-  let prev = self.put(key, computed)
+  let prev = self.putIfAbsent(key, computed)
   if prev.isSome:
     return prev.get
   return computed
@@ -908,10 +1020,11 @@ proc snapshot*[K, V; MaxThreads: static int](
       let newRoot = allocINode[K, V](curMain, freshGen)
       var expCurRoot = curRoot
       if self.core.root.compareExchangeStrong(expCurRoot, newRoot, moSequentiallyConsistent, moAcquire):
+        decRef(freshGen)
         discard self.core.rc.fetchAdd(1, moRelaxed)
         return Snapshot[K, V, MaxThreads](core: self.core, root: curRoot)
       else:
-        freeAligned(newRoot)
+        destroyINodeCallback[K, V](cast[pointer](newRoot))
         decRef(freshGen)
   finally:
     unpinGuard(pinned)
@@ -925,44 +1038,49 @@ proc get*[K, V; MaxThreads: static int](
     key: K
 ): Option[V] =
   ## Wait-free read from snapshot generation.
-  if unlikely(snap.root == nil): return none(V)
-  let h = getHash(key)
-  var cur = snap.root
-  var level = 0
-  while true:
-    let main = cur.main.load(moAcquire)
-    if unlikely(main == nil): return none(V)
-    case main.kind
-    of mnkCNode:
-      let cn = cast[ptr CNode[K, V]](main)
-      let pos = (h shr level) and 0x1F'u32
-      let flag = 1'u32 shl pos
-      if (cn.bmp and flag) == 0:
+  if unlikely(snap.root == nil or snap.core == nil): return none(V)
+  let th = snap.getOrRegisterHandle()
+  let pinned = unpinned(th).pin()
+  try:
+    let h = getHash(key)
+    var cur = snap.root
+    var level = 0
+    while true:
+      let main = cur.main.load(moAcquire)
+      if unlikely(main == nil): return none(V)
+      case main.kind
+      of mnkCNode:
+        let cn = cast[ptr CNode[K, V]](main)
+        let pos = (h shr level) and 0x1F'u32
+        let flag = 1'u32 shl pos
+        if (cn.bmp and flag) == 0:
+          return none(V)
+        let idx = countBits32(cn.bmp and (flag - 1'u32))
+        let child = cn.children[idx]
+        if child.isSNode:
+          let sn = child.toSNode
+          if sn.hash == h and sn.key == key:
+            return some(sn.vbox.val)
+          return none(V)
+        else:
+          cur = child.toINode
+          level += 5
+      of mnkLNode:
+        let ln = cast[ptr LNode[K, V]](main)
+        if ln.hash != h: return none(V)
+        var curr = ln.head
+        while curr != nil:
+          if curr.key == key:
+            return some(curr.vbox.val)
+          curr = curr.next
         return none(V)
-      let idx = countBits32(cn.bmp and (flag - 1'u32))
-      let child = cn.children[idx]
-      if child.isSNode:
-        let sn = child.toSNode
-        if sn.hash == h and sn.key == key:
-          return some(sn.vbox.val)
+      of mnkTNode:
+        let tn = cast[ptr TNode[K, V]](main)
+        if tn.snode != nil and tn.snode.hash == h and tn.snode.key == key:
+          return some(tn.snode.vbox.val)
         return none(V)
-      else:
-        cur = child.toINode
-        level += 5
-    of mnkLNode:
-      let ln = cast[ptr LNode[K, V]](main)
-      if ln.hash != h: return none(V)
-      var curr = ln.head
-      while curr != nil:
-        if curr.key == key:
-          return some(curr.vbox.val)
-        curr = curr.next
-      return none(V)
-    of mnkTNode:
-      let tn = cast[ptr TNode[K, V]](main)
-      if tn.snode != nil and tn.snode.hash == h and tn.snode.key == key:
-        return some(tn.snode.vbox.val)
-      return none(V)
+  finally:
+    unpinGuard(pinned)
 
 proc contains*[K, V; MaxThreads: static int](
     snap: Snapshot[K, V, MaxThreads],
@@ -974,32 +1092,37 @@ iterator pairs*[K, V; MaxThreads: static int](
     snap: Snapshot[K, V, MaxThreads]
 ): (K, V) =
   ## Iterates across all (key, val) entries in this snapshot view.
-  if snap.root != nil:
-    var stack: seq[ptr INode[K, V]] = @[snap.root]
-    while stack.len > 0:
-      let inode = stack.pop()
-      let main = inode.main.load(moAcquire)
-      if main != nil:
-        case main.kind
-        of mnkCNode:
-          let cn = cast[ptr CNode[K, V]](main)
-          for i in 0 ..< cn.csize:
-            let child = cn.children[i]
-            if child.isSNode:
-              let sn = child.toSNode
-              yield (sn.key, sn.vbox.val)
-            else:
-              stack.add(child.toINode)
-        of mnkLNode:
-          let ln = cast[ptr LNode[K, V]](main)
-          var curr = ln.head
-          while curr != nil:
-            yield (curr.key, curr.vbox.val)
-            curr = curr.next
-        of mnkTNode:
-          let tn = cast[ptr TNode[K, V]](main)
-          if tn.snode != nil:
-            yield (tn.snode.key, tn.snode.vbox.val)
+  if snap.root != nil and snap.core != nil:
+    let th = snap.getOrRegisterHandle()
+    let pinned = unpinned(th).pin()
+    try:
+      var stack: seq[ptr INode[K, V]] = @[snap.root]
+      while stack.len > 0:
+        let inode = stack.pop()
+        let main = inode.main.load(moAcquire)
+        if main != nil:
+          case main.kind
+          of mnkCNode:
+            let cn = cast[ptr CNode[K, V]](main)
+            for i in 0 ..< cn.csize:
+              let child = cn.children[i]
+              if child.isSNode:
+                let sn = child.toSNode
+                yield (sn.key, sn.vbox.val)
+              else:
+                stack.add(child.toINode)
+          of mnkLNode:
+            let ln = cast[ptr LNode[K, V]](main)
+            var curr = ln.head
+            while curr != nil:
+              yield (curr.key, curr.vbox.val)
+              curr = curr.next
+          of mnkTNode:
+            let tn = cast[ptr TNode[K, V]](main)
+            if tn.snode != nil:
+              yield (tn.snode.key, tn.snode.vbox.val)
+    finally:
+      unpinGuard(pinned)
 
 iterator keys*[K, V; MaxThreads: static int](
     snap: Snapshot[K, V, MaxThreads]
@@ -1092,7 +1215,7 @@ proc `=copy`*[K, V; MaxThreads: static int](
 ) =
   if dest.core != src.core:
     if dest.core != nil:
-      if dest.core.rc.fetchSub(1, moRelease) == 1:
+      if dest.core.rc.fetchSub(1, moAcquireRelease) == 1:
         destroyCore[K, V, MaxThreads](dest.core)
     dest.core = src.core
     if dest.core != nil:
@@ -1100,7 +1223,7 @@ proc `=copy`*[K, V; MaxThreads: static int](
 
 proc `=destroy`*[K, V; MaxThreads: static int](self: var Ctrie[K, V, MaxThreads]) =
   if self.core != nil:
-    if self.core.rc.fetchSub(1, moRelease) == 1:
+    if self.core.rc.fetchSub(1, moAcquireRelease) == 1:
       destroyCore[K, V, MaxThreads](self.core)
     self.core = nil
 
@@ -1110,7 +1233,7 @@ proc `=copy`*[K, V; MaxThreads: static int](
 ) =
   if dest.core != src.core:
     if dest.core != nil:
-      if dest.core.rc.fetchSub(1, moRelease) == 1:
+      if dest.core.rc.fetchSub(1, moAcquireRelease) == 1:
         destroyCore[K, V, MaxThreads](dest.core)
     dest.core = src.core
     dest.root = src.root
@@ -1119,7 +1242,7 @@ proc `=copy`*[K, V; MaxThreads: static int](
 
 proc `=destroy`*[K, V; MaxThreads: static int](self: var Snapshot[K, V, MaxThreads]) =
   if self.core != nil:
-    if self.core.rc.fetchSub(1, moRelease) == 1:
+    if self.core.rc.fetchSub(1, moAcquireRelease) == 1:
       destroyCore[K, V, MaxThreads](self.core)
     self.core = nil
     self.root = nil

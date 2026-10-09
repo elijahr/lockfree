@@ -1,6 +1,6 @@
 ## Unit and multi-threaded stress tests for Ctrie, Table, ConcurrentTable, and Debra SMR integration.
 
-import std/[options, os]
+import std/[options, os, hashes]
 import unittest2
 import lockfree
 import lockfree/ctrie
@@ -264,3 +264,170 @@ suite "Ctrie Multi-Threaded Concurrency":
     check map.len == NumThreads * ItemsPerThread
     for i in 0 ..< NumThreads * ItemsPerThread:
       check map.get(i) == some(i * 2)
+
+type
+  CollidingKey = object
+    id: int
+
+proc hash(k: CollidingKey): Hash {.inline.} =
+  # All keys force identical hash to test LNode chains and deep collisions
+  hash(42)
+
+proc `==`(a, b: CollidingKey): bool {.inline.} =
+  a.id == b.id
+
+suite "Ctrie Remediations: CRIT-01, MED-01 & LNode Collisions":
+  test "LNode collision chain inserts, updates, and contraction":
+    var map = newCtrie[CollidingKey, string]()
+    # Insert 10 keys that share identical hash
+    for i in 1 .. 10:
+      let k = CollidingKey(id: i)
+      check map.put(k, "val_" & $i).isNone
+
+    check map.len == 10
+    for i in 1 .. 10:
+      check map.get(CollidingKey(id: i)) == some("val_" & $i)
+
+    # Overwrite half of them to test VBox refcounting on LNode (CRIT-01)
+    for i in 1 .. 5:
+      let k = CollidingKey(id: i)
+      let prev = map.put(k, "UPDATED_" & $i)
+      check prev == some("val_" & $i)
+
+    check map.len == 10
+    for i in 1 .. 5:
+      check map.get(CollidingKey(id: i)) == some("UPDATED_" & $i)
+    for i in 6 .. 10:
+      check map.get(CollidingKey(id: i)) == some("val_" & $i)
+
+    # Delete down to 1 element to trigger contraction from LNode to SNode
+    for i in 1 .. 9:
+      let k = CollidingKey(id: i)
+      let deleted = map.delete(k)
+      check deleted.isSome
+
+    check map.len == 1
+    # 10 is the surviving key
+    check map.get(CollidingKey(id: 10)) == some("val_10")
+    check map.contains(CollidingKey(id: 10))
+
+    # Delete the final key
+    check map.delete(CollidingKey(id: 10)) == some("val_10")
+    check map.len == 0
+    check map.isEmpty
+
+suite "Ctrie Remediations: HIGH-02 putIfAbsent & computeIfAbsent Concurrency":
+  test "putIfAbsent unit semantics":
+    var map = newCtrie[string, string]()
+    check map.putIfAbsent("k1", "v1").isNone
+    check map.len == 1
+    check map.get("k1") == some("v1")
+
+    # Second putIfAbsent must return existing and not overwrite
+    check map.putIfAbsent("k1", "v2") == some("v1")
+    check map.len == 1
+    check map.get("k1") == some("v1")
+
+  type
+    ComputeContext = object
+      map: ptr Ctrie[string, int, 64]
+      results: ptr array[8, int]
+      threadId: int
+
+  proc computeWorker(ctx: ptr ComputeContext) {.thread.} =
+    let res = ctx.map[].computeIfAbsent("shared_counter", proc(k: string): int =
+      # Thread-specific compute attempt
+      (ctx.threadId + 1) * 100
+    )
+    ctx.results[ctx.threadId] = res
+
+  test "8 threads concurrent computeIfAbsent on single key":
+    var map = newCtrie[string, int, 64]()
+    const NumThreads = 8
+    var threads: array[NumThreads, Thread[ptr ComputeContext]]
+    var ctxs: array[NumThreads, ComputeContext]
+    var results: array[NumThreads, int]
+
+    for i in 0 ..< NumThreads:
+      ctxs[i] = ComputeContext(
+        map: addr map,
+        results: addr results,
+        threadId: i
+      )
+      createThread(threads[i], computeWorker, addr ctxs[i])
+
+    for i in 0 ..< NumThreads:
+      joinThread(threads[i])
+
+    check map.len == 1
+    let winner = map.get("shared_counter")
+    check winner.isSome
+    # Every thread must observe the exact same value without lost updates
+    for i in 0 ..< NumThreads:
+      check results[i] == winner.get
+
+suite "Ctrie Remediations: CRIT-02 Snapshot SMR Pinning & Concurrent Mutation":
+  type
+    MutatorContext = object
+      map: ptr Ctrie[int, string, 64]
+      stopFlag: ptr Atomic[bool]
+
+    ReaderContext = object
+      snap: Snapshot[int, string, 64]
+      stopFlag: ptr Atomic[bool]
+      readCount: int
+
+  proc mutatorThread(ctx: ptr MutatorContext) {.thread.} =
+    var iter = 0
+    while not ctx.stopFlag[].load(moAcquire):
+      inc iter
+      # Overwrite existing keys to retire nodes
+      for k in 1 .. 50:
+        ctx.map[].put(k, "mutated_" & $iter & "_" & $k)
+      # Delete and reinsert
+      for k in 26 .. 50:
+        discard ctx.map[].delete(k)
+      for k in 26 .. 50:
+        ctx.map[].put(k, "reinserted_" & $iter & "_" & $k)
+
+  proc readerThread(ctx: ptr ReaderContext) {.thread.} =
+    while not ctx.stopFlag[].load(moAcquire):
+      for k, v in ctx.snap.pairs:
+        inc ctx.readCount
+        if k in 1 .. 50:
+          # In the snapshot, all keys 1..50 must have their original snapshot values!
+          assert v == "snap_init_" & $k
+      let v1 = ctx.snap.get(1)
+      assert v1 == some("snap_init_1")
+
+  test "concurrent mutator and snapshot reader under SMR epoch transitions":
+    var map = newCtrie[int, string, 64]()
+    for i in 1 .. 50:
+      map[i] = "snap_init_" & $i
+
+    let snap = map.snapshot()
+    var stopFlag: Atomic[bool]
+    stopFlag.store(false, moRelaxed)
+
+    var mutCtx = MutatorContext(map: addr map, stopFlag: addr stopFlag)
+    var readCtx = ReaderContext(snap: snap, stopFlag: addr stopFlag, readCount: 0)
+
+    var tMut: Thread[ptr MutatorContext]
+    var tRead: Thread[ptr ReaderContext]
+
+    createThread(tMut, mutatorThread, addr mutCtx)
+    createThread(tRead, readerThread, addr readCtx)
+
+    # Let threads run concurrently for 200ms
+    sleep(200)
+    stopFlag.store(true, moRelease)
+
+    joinThread(tMut)
+    joinThread(tRead)
+
+    check readCtx.readCount > 0
+    # Final check: snapshot must still be 100% intact
+    check snap.len == 50
+    for i in 1 .. 50:
+      check snap.get(i) == some("snap_init_" & $i)
+
