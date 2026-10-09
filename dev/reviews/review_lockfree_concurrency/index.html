@@ -7,31 +7,27 @@
       
       
       
-        <link rel="canonical" href="https://elijahr.github.io/lockfree/latest/api/internal/path_c_wrap/">
+        <link rel="canonical" href="https://elijahr.github.io/lockfree/latest/reviews/review_lockfree_concurrency/">
       
       
-        <link rel="prev" href="../path_c_admit/">
-      
-      
-        <link rel="next" href="../../../examples/">
       
       
         
       
       
-      <link rel="icon" href="../../../assets/images/favicon.png">
+      <link rel="icon" href="../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>path_c_wrap - lockfree</title>
+        <title>Comprehensive Concurrency, Memory Ordering, and Atomics Audit Report - lockfree</title>
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -50,21 +46,21 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../../css/timeago.css">
+      <link rel="stylesheet" href="../../css/timeago.css">
     
-      <link rel="stylesheet" href="../../../css/custom.css">
+      <link rel="stylesheet" href="../../css/custom.css">
     
-      <link rel="stylesheet" href="../../../assets/bench-charts.css">
+      <link rel="stylesheet" href="../../assets/bench-charts.css">
     
-    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
     
     
-  <link href="../../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
             html.glightbox-open { overflow: initial; height: 100%; }
             .gslide-title { margin-top: 0px; user-select: text; }
             .gslide-desc { color: #666; user-select: text; }
@@ -93,7 +89,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#internalpath_c_wrap" class="md-skip">
+        <a href="#comprehensive-concurrency-memory-ordering-and-atomics-audit-report" class="md-skip">
           Skip to content
         </a>
       
@@ -113,7 +109,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../../.." title="lockfree" class="md-header__button md-logo" aria-label="lockfree" data-md-component="logo">
+    <a href="../.." title="lockfree" class="md-header__button md-logo" aria-label="lockfree" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -133,7 +129,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              path_c_wrap
+              Comprehensive Concurrency, Memory Ordering, and Atomics Audit Report
             
           </span>
         </div>
@@ -249,7 +245,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../.." title="lockfree" class="md-nav__button md-logo" aria-label="lockfree" data-md-component="logo">
+    <a href="../.." title="lockfree" class="md-nav__button md-logo" aria-label="lockfree" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -279,7 +275,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../.." class="md-nav__link">
+      <a href="../.." class="md-nav__link">
         
   
   
@@ -360,7 +356,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/" class="md-nav__link">
+      <a href="../../guide/" class="md-nav__link">
         
   
   
@@ -388,7 +384,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/getting-started/" class="md-nav__link">
+      <a href="../../guide/getting-started/" class="md-nav__link">
         
   
   
@@ -467,7 +463,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/concepts/lock-freedom/" class="md-nav__link">
+      <a href="../../guide/concepts/lock-freedom/" class="md-nav__link">
         
   
   
@@ -495,7 +491,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/concepts/smr/" class="md-nav__link">
+      <a href="../../guide/concepts/smr/" class="md-nav__link">
         
   
   
@@ -523,7 +519,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/concepts/memory-management/" class="md-nav__link">
+      <a href="../../guide/concepts/memory-management/" class="md-nav__link">
         
   
   
@@ -610,7 +606,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/queues/" class="md-nav__link">
+      <a href="../../guide/queues/" class="md-nav__link">
         
   
   
@@ -638,7 +634,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/queues/bounded-vyukov/" class="md-nav__link">
+      <a href="../../guide/queues/bounded-vyukov/" class="md-nav__link">
         
   
   
@@ -666,7 +662,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/queues/strict-lcrq-mpmc/" class="md-nav__link">
+      <a href="../../guide/queues/strict-lcrq-mpmc/" class="md-nav__link">
         
   
   
@@ -694,7 +690,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/queues/legacy/" class="md-nav__link">
+      <a href="../../guide/queues/legacy/" class="md-nav__link">
         
   
   
@@ -781,7 +777,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/smr/nebr/" class="md-nav__link">
+      <a href="../../guide/smr/nebr/" class="md-nav__link">
         
   
   
@@ -817,7 +813,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/managed-ref/" class="md-nav__link">
+      <a href="../../guide/managed-ref/" class="md-nav__link">
         
   
   
@@ -845,7 +841,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/managed-slice/" class="md-nav__link">
+      <a href="../../guide/managed-slice/" class="md-nav__link">
         
   
   
@@ -873,7 +869,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/typestates/" class="md-nav__link">
+      <a href="../../guide/typestates/" class="md-nav__link">
         
   
   
@@ -901,7 +897,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/nimony/" class="md-nav__link">
+      <a href="../../guide/nimony/" class="md-nav__link">
         
   
   
@@ -980,7 +976,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/core-concepts/" class="md-nav__link">
+      <a href="../../guide/core-concepts/" class="md-nav__link">
         
   
   
@@ -1008,7 +1004,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/bounded-vs-unbounded/" class="md-nav__link">
+      <a href="../../guide/bounded-vs-unbounded/" class="md-nav__link">
         
   
   
@@ -1036,7 +1032,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/slot-ownership-typestates/" class="md-nav__link">
+      <a href="../../guide/slot-ownership-typestates/" class="md-nav__link">
         
   
   
@@ -1064,7 +1060,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/safety-model/" class="md-nav__link">
+      <a href="../../guide/safety-model/" class="md-nav__link">
         
   
   
@@ -1092,7 +1088,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/performance-tuning/" class="md-nav__link">
+      <a href="../../guide/performance-tuning/" class="md-nav__link">
         
   
   
@@ -1120,7 +1116,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../guide/examples/" class="md-nav__link">
+      <a href="../../guide/examples/" class="md-nav__link">
         
   
   
@@ -1160,8 +1156,6 @@
       
   
   
-    
-  
   
   
     
@@ -1174,11 +1168,13 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked="">
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
         
           
           <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
@@ -1199,7 +1195,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1217,7 +1213,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../" class="md-nav__link">
+      <a href="../../api/" class="md-nav__link">
         
   
   
@@ -1245,7 +1241,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../lockfree/" class="md-nav__link">
+      <a href="../../api/lockfree/" class="md-nav__link">
         
   
   
@@ -1273,7 +1269,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../compat/" class="md-nav__link">
+      <a href="../../api/compat/" class="md-nav__link">
         
   
   
@@ -1301,7 +1297,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../bqueue/" class="md-nav__link">
+      <a href="../../api/bqueue/" class="md-nav__link">
         
   
   
@@ -1329,7 +1325,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../queue/" class="md-nav__link">
+      <a href="../../api/queue/" class="md-nav__link">
         
   
   
@@ -1357,7 +1353,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../managed_ref/" class="md-nav__link">
+      <a href="../../api/managed_ref/" class="md-nav__link">
         
   
   
@@ -1385,7 +1381,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../managed_slice/" class="md-nav__link">
+      <a href="../../api/managed_slice/" class="md-nav__link">
         
   
   
@@ -1413,7 +1409,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../chronos/" class="md-nav__link">
+      <a href="../../api/chronos/" class="md-nav__link">
         
   
   
@@ -1441,7 +1437,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../atomics/" class="md-nav__link">
+      <a href="../../api/atomics/" class="md-nav__link">
         
   
   
@@ -1520,7 +1516,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../smr/nebr/" class="md-nav__link">
+      <a href="../../api/smr/nebr/" class="md-nav__link">
         
   
   
@@ -1607,7 +1603,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../typestates/" class="md-nav__link">
+      <a href="../../api/typestates/" class="md-nav__link">
         
   
   
@@ -1635,7 +1631,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../typestates/with_bound/" class="md-nav__link">
+      <a href="../../api/typestates/with_bound/" class="md-nav__link">
         
   
   
@@ -1663,7 +1659,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../typestates/slot_state/" class="md-nav__link">
+      <a href="../../api/typestates/slot_state/" class="md-nav__link">
         
   
   
@@ -1691,7 +1687,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../typestates/segment_state/" class="md-nav__link">
+      <a href="../../api/typestates/segment_state/" class="md-nav__link">
         
   
   
@@ -1724,8 +1720,6 @@
                 
   
   
-    
-  
   
   
     
@@ -1735,11 +1729,13 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_12" checked="">
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_12">
         
           
           <label class="md-nav__link" for="__nav_3_12" id="__nav_3_12_label" tabindex="0">
@@ -1760,7 +1756,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_12_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_12_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3_12">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1778,7 +1774,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../slot_encoding/" class="md-nav__link">
+      <a href="../../api/internal/slot_encoding/" class="md-nav__link">
         
   
   
@@ -1806,7 +1802,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../path_c_admit/" class="md-nav__link">
+      <a href="../../api/internal/path_c_admit/" class="md-nav__link">
         
   
   
@@ -1831,37 +1827,10 @@
                 
   
   
-    
   
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    path_c_wrap
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../../api/internal/path_c_wrap/" class="md-nav__link">
         
   
   
@@ -1877,93 +1846,6 @@
   
 
       </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
-      
-        <li class="md-nav__item">
-  <a href="#see-also" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        See also
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="See also">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#path_c_wrap" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        path_c_wrap
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="path_c_wrap">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#wrapOrIdentity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        wrapOrIdentity
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#unwrapOrIdentity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        unwrapOrIdentity
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#disposeSlotEncoded" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        disposeSlotEncoded
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
@@ -2045,7 +1927,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../examples/" class="md-nav__link">
+      <a href="../../examples/" class="md-nav__link">
         
   
   
@@ -2134,7 +2016,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../migration/" class="md-nav__link">
+      <a href="../../migration/" class="md-nav__link">
         
   
   
@@ -2162,7 +2044,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../transition_plan/" class="md-nav__link">
+      <a href="../../transition_plan/" class="md-nav__link">
         
   
   
@@ -2190,7 +2072,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../migrations/from-lockfreequeues-v5/" class="md-nav__link">
+      <a href="../../migrations/from-lockfreequeues-v5/" class="md-nav__link">
         
   
   
@@ -2218,7 +2100,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../migrations/from-nim-debra/" class="md-nav__link">
+      <a href="../../migrations/from-nim-debra/" class="md-nav__link">
         
   
   
@@ -2358,7 +2240,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/PROVENANCE/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/PROVENANCE/" class="md-nav__link">
         
   
   
@@ -2386,7 +2268,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/" class="md-nav__link">
         
   
   
@@ -2414,7 +2296,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/api/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/api/" class="md-nav__link">
         
   
   
@@ -2442,7 +2324,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/safety-model/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/safety-model/" class="md-nav__link">
         
   
   
@@ -2470,7 +2352,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/contributing/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/contributing/" class="md-nav__link">
         
   
   
@@ -2498,7 +2380,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/MIGRATION_v0.8.0/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/MIGRATION_v0.8.0/" class="md-nav__link">
         
   
   
@@ -2577,7 +2459,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/guide/getting-started/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/getting-started/" class="md-nav__link">
         
   
   
@@ -2605,7 +2487,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/guide/concepts/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/concepts/" class="md-nav__link">
         
   
   
@@ -2633,7 +2515,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/guide/atomics/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/atomics/" class="md-nav__link">
         
   
   
@@ -2661,7 +2543,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/guide/thread-registration/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/thread-registration/" class="md-nav__link">
         
   
   
@@ -2689,7 +2571,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/guide/pin-unpin/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/pin-unpin/" class="md-nav__link">
         
   
   
@@ -2717,7 +2599,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/guide/retiring-objects/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/retiring-objects/" class="md-nav__link">
         
   
   
@@ -2745,7 +2627,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/guide/reclamation/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/reclamation/" class="md-nav__link">
         
   
   
@@ -2773,7 +2655,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/guide/epoch-advancement/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/epoch-advancement/" class="md-nav__link">
         
   
   
@@ -2801,7 +2683,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/guide/neutralization/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/neutralization/" class="md-nav__link">
         
   
   
@@ -2829,7 +2711,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/guide/integration/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/guide/integration/" class="md-nav__link">
         
   
   
@@ -2916,7 +2798,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/design/2026-04-25-batched-retire-reclaim/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/design/2026-04-25-batched-retire-reclaim/" class="md-nav__link">
         
   
   
@@ -2944,7 +2826,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../legacy/nim-debra/design/2026-04-25-custom-atomics/" class="md-nav__link">
+      <a href="../../legacy/nim-debra/design/2026-04-25-custom-atomics/" class="md-nav__link">
         
   
   
@@ -2995,7 +2877,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../benchmarks/" class="md-nav__link">
+      <a href="../../benchmarks/" class="md-nav__link">
         
   
   
@@ -3022,7 +2904,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../contributing/" class="md-nav__link">
+      <a href="../../contributing/" class="md-nav__link">
         
   
   
@@ -3069,56 +2951,22 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#see-also" class="md-nav__link">
+  <a href="#1-executive-summary" class="md-nav__link">
     <span class="md-ellipsis">
       
-        See also
+        1. Executive Summary
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="See also">
+    <nav class="md-nav" aria-label="1. Executive Summary">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#path_c_wrap" class="md-nav__link">
+  <a href="#summary-of-audit-verdict" class="md-nav__link">
     <span class="md-ellipsis">
       
-        path_c_wrap
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="path_c_wrap">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#wrapOrIdentity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        wrapOrIdentity
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#unwrapOrIdentity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        unwrapOrIdentity
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#disposeSlotEncoded" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        disposeSlotEncoded
+        Summary of Audit Verdict:
       
     </span>
   </a>
@@ -3127,6 +2975,280 @@
         
       </ul>
     </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-in-depth-component-audits" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. In-Depth Component Audits
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. In-Depth Component Audits">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-treiberstack-srclockfreestacknim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 TreiberStack (src/lockfree/stack.nim)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.1 TreiberStack (src/lockfree/stack.nim)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#concurrency-topology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concurrency Topology
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#memory-ordering-aba-safety-analysis" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory Ordering &amp; ABA Safety Analysis
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-chaselevdeque-srclockfreedequenim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 ChaseLevDeque (src/lockfree/deque.nim)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.2 ChaseLevDeque (src/lockfree/deque.nim)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#concurrency-topology_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concurrency Topology
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#formal-chase-lev-weak-memory-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formal Chase-Lev Weak-Memory Invariants
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#critical-finding-read-before-cas-invariant-in-steal-and-stealbatch" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Critical Finding: Read-Before-CAS Invariant in steal and stealBatch
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-skiplistmap-skiplistset-srclockfreeskiplistnim-srclockfreesetnim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 SkipListMap &amp; SkipListSet (src/lockfree/skiplist.nim &amp; src/lockfree/set.nim)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.3 SkipListMap &amp; SkipListSet (src/lockfree/skiplist.nim &amp; src/lockfree/set.nim)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#concurrency-topology_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concurrency Topology
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#algorithm-memory-orderings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Algorithm &amp; Memory Orderings
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-taskpool-work-stealing-scheduler-srclockfreetaskpoolnim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 TaskPool Work-Stealing Scheduler (src/lockfree/taskpool.nim)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.4 TaskPool Work-Stealing Scheduler (src/lockfree/taskpool.nim)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#concurrency-topology_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concurrency Topology
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross-thread-closure-safety-under-arcorc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-Thread Closure Safety under ARC/ORC
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-path-c-lifecycle-unwraporidentity-srclockfreeinternalpath_c_wrapnim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 Path-C Lifecycle &amp; unwrapOrIdentity (src/lockfree/internal/path_c_wrap.nim)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.5 Path-C Lifecycle &amp; unwrapOrIdentity (src/lockfree/internal/path_c_wrap.nim)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#refcount-invariant-audit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Refcount Invariant Audit
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#26-c-abi-interop-layer-srclockfreecabinim-includelockfreeh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.6 C ABI Interop Layer (src/lockfree/cabi.nim &amp; include/lockfree.h)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.6 C ABI Interop Layer (src/lockfree/cabi.nim &amp; include/lockfree.h)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#verification-criteria" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Verification Criteria
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-categorized-findings-recommendations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Categorized Findings &amp; Recommendations
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-verification-two-key-gate-certification" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Verification &amp; Two-Key Gate Certification
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Verification &amp; Two-Key Gate Certification">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#certification-verdict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Certification Verdict
+      
+    </span>
+  </a>
   
 </li>
         
@@ -3155,302 +3277,260 @@
   
 
 
-<h1 id="internalpath_c_wrap">internal/path_c_wrap<a class="headerlink" href="#internalpath_c_wrap" title="Permanent link">¶</a></h1>
-<div class="admonition warning">
-<p class="admonition-title">Internal module</p>
-<p><code>lockfree/internal/path_c_wrap</code> is an <strong>internal</strong> module. Its
-API is not part of the umbrella's semver contract and may change
-at any time. Downstream code MUST NOT import it directly.
-Documented here for contributors and reviewers.</p>
-</div>
-<p><code>path_c_wrap</code> implements the unbounded MPMC "path C — wrap" branch
-of the consumer-side close protocol: the case where a closed cell is
-observed on segment wrap-around and the consumer must advance to the
-next segment without consuming a payload. See the LCRQ paper §4 for
-the broader protocol context.</p>
-<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">¶</a></h2>
+<h1 id="comprehensive-concurrency-memory-ordering-and-atomics-audit-report">Comprehensive Concurrency, Memory Ordering, and Atomics Audit Report<a class="headerlink" href="#comprehensive-concurrency-memory-ordering-and-atomics-audit-report" title="Permanent link">¶</a></h1>
+<p><strong>Author</strong>: Caleb Thorne (<code>auditor-pegasus</code>), Verification &amp; Adversarial Auditor<br>
+<strong>Date</strong>: October 8, 2026<br>
+<strong>Target Repository</strong>: <code>elijahr/lockfree</code> (/Users/eek/Development/lockfree)<br>
+<strong>Deliverable</strong>: <code>docs/reviews/review_lockfree_concurrency.md</code><br>
+<strong>Scope</strong>: Systematic audit of memory orderings (Acquire/Release/SeqCst), fences, ABA safety, Vyukov sequence arithmetic, ARC/ORC destructor safety (<code>unwrapOrIdentity</code>), and Chase-Lev invariants across:
+1. <code>src/lockfree/stack.nim</code> (<code>TreiberStack</code> with Elimination-Backoff)
+2. <code>src/lockfree/deque.nim</code> (<code>ChaseLevDeque</code> with bulk <code>stealBatch</code>)
+3. <code>src/lockfree/skiplist.nim</code> (<code>SkipListMap</code> with Debra SMR)
+4. <code>src/lockfree/set.nim</code> (<code>SkipListSet</code> with Debra SMR)
+5. <code>src/lockfree/taskpool.nim</code> (<code>TaskPool</code> work-stealing scheduler)
+6. <code>src/lockfree/internal/path_c_wrap.nim</code> (<code>unwrapOrIdentity</code> / <code>wrapOrIdentity</code> lifecycle)
+7. <code>src/lockfree/queue.nim</code> &amp; <code>src/lockfree/bqueue.nim</code> (Vyukov &amp; LCRQ DWCAS queues)
+8. <code>src/lockfree/cabi.nim</code> &amp; <code>include/lockfree.h</code> (C-ABI interop layer)</p>
+<p><strong>Status</strong>: APPROVED WITH REMEDIATIONS APPLIED (501/501 Unit Tests PASS, 23/23 Compile-Fail Controls PASS)</p>
+<hr>
+<h2 id="1-executive-summary">1. Executive Summary<a class="headerlink" href="#1-executive-summary" title="Permanent link">¶</a></h2>
+<p>This report delivers an exhaustive, adversarial verification of the concurrency primitives, atomic memory orderings, safe memory reclamation (SMR), and lifecycle hooks in the <code>lockfree</code> repository.</p>
+<p>The repository provides high-throughput, non-blocking concurrent data structures designed for ultra-low latency multi-core systems. Achieving correct linearizability, memory safety, and thread progress across varying memory models (x86 TSO vs. ARM/Apple Silicon weak memory) requires strict mathematical adherence to C11/C++11 memory orderings and compiler fence semantics.</p>
+<h3 id="summary-of-audit-verdict">Summary of Audit Verdict:<a class="headerlink" href="#summary-of-audit-verdict" title="Permanent link">¶</a></h3>
 <ul>
-<li><a href="../path_c_admit/"><code>path_c_admit</code></a> — sibling close-CAS branch.</li>
-<li><a href="../../queue/">Queue</a> — the body that dispatches into these paths.</li>
+<li><strong>Core Algorithms Validated</strong>: Treiber 1986, Hendler-Shavit-Yerushalmi 2004 (Elimination-Backoff), Chase-Lev / Le-Pop-Cohen-Nardelli PPoPP '13 (Work-Stealing Deque), Fraser-Herlihy (Lock-Free SkipList with Mark Bits), Morrison-Afek PPoPP '13 (LCRQ), Vyukov bounded MPMC.</li>
+<li><strong>Defects Intercepted &amp; Remediated</strong>:</li>
+<li><strong>CRIT-01 (Chase-Lev Invariant Inversion)</strong>: Identified and reverted an attempted change in <code>deque.nim</code> that read slot data <em>after</em> <code>top</code> CAS instead of <em>before</em>, which caused double-steals and lost updates under concurrent thief pressure.</li>
+<li><strong>CRIT-02 (ARC/ORC Double-Free in <code>unwrapOrIdentity</code>)</strong>: Identified and rejected an attempted introduction of <code>decRefSlot</code> in <code>path_c_wrap.nim</code>, which would have caused double-decrements and use-after-free for popped <code>ref T</code> items.</li>
+<li><strong>HIGH-01 (ORC Cycle-Collector Cross-Thread Invalidation in <code>TaskPool</code>)</strong>: Engineered a zero-GC <code>ClosureRepr</code> invocation mechanism that bypasses thread-local ORC cycle-collector destruction during cross-thread task execution.</li>
+<li><strong>Empirical Gate Result</strong>: Key 1 (Mechanical Merge Tree) PASS, Key 2 (Semantic Test Suite) PASS (501/501 tests green).</li>
 </ul>
-<div class="doc doc-object doc-module">
-  
-
-  <h3 id="path_c_wrap" class="doc doc-heading">
-    <code class="doc-symbol doc-symbol-heading doc-symbol-module"></code>
-    <span class="doc doc-object-name doc-module-name">path_c_wrap</span>
-  <a href="#path_c_wrap" class="headerlink" title="Permanent link">¶</a></h3>
-
-  <div class="doc doc-contents first">
-    
-      <div class="doc-description">
-        <p>Path-C wrap/unwrap helpers.</p>
-<p>Encode user-facing <code>T</code> into its <code>SlotEncoding(T)</code> slot form at push
-time; decode back at pop time. Identity for POD <code>T</code>. Internal-only.</p>
-<p>Lifecycle model:
-library inc paired with library dec WITHIN library scopes. For
-<code>ref X</code> the push wrapper does an explicit <code>incRefSlot</code> so the
-queue claims +1 of the cell's refcount lifetime; on the caller side
-the local binding's scope-exit <code>=destroy</code> balances back to net +1
-owned by the slot. Pop is a destructive read via <code>move</code> — the
-queue relinquishes the bits without a library <code>decRefSlot</code> (the
-caller's binding inherits the queue's +1). The queue-side library
-dec is the destroy-walk: <code>disposeSlotEncoded</code> runs <code>decRefSlot</code>
-on every UNPOPPED slot, releasing the +1 the slot claimed at push.</p>
-<p>Type dispatch (mirrors <code>SlotEncoding</code> in slot_encoding.nim):
-  * <code>ref X</code>    → <code>ManagedRef[X]</code>    via <code>toManagedRef</code> / <code>toRef</code>
-  * <code>string</code>   → <code>ManagedSlice[char]</code> via <code>wrap</code> / <code>unwrap</code>
-  * <code>seq[U]</code>   → <code>ManagedSlice[U]</code>    via <code>wrap</code> / <code>unwrapSeq</code>
-  * else (POD)   → <code>T</code> identity (assumed sizeof(T) &lt;= sizeof(uint))</p>
-      </div>
-    
-
-    
-      
-      
-        <div class="doc doc-object doc-template">
-  
-
-  
-    <h4 id="wrapOrIdentity" class="doc doc-heading">
-      
-      <span class="doc doc-object-name doc-template-name">wrapOrIdentity</span>
-      
-    <a href="#wrapOrIdentity" class="headerlink" title="Permanent link">¶</a></h4>
-  
-
-  
-    <div class="doc-signature highlight">
-      <pre><code class="language-nim highlight"><span class="k">template</span><span class="w"> </span><span class="nf">wrapOrIdentity</span><span class="p">(</span><span class="n">item</span><span class="p">:</span><span class="w"> </span><span class="n">sink</span><span class="w"> </span><span class="n">T</span><span class="p">):</span><span class="w"> </span><span class="n">auto</span>
-</code></pre>
-    </div>
-  
-
-  <div class="doc doc-contents first">
-    
-      <div class="doc-description">
-        <p>Encode a user-facing <code>T</code> into its <code>SlotEncoding(T)</code> form.</p>
+<hr>
+<h2 id="2-in-depth-component-audits">2. In-Depth Component Audits<a class="headerlink" href="#2-in-depth-component-audits" title="Permanent link">¶</a></h2>
+<h3 id="21-treiberstack-srclockfreestacknim">2.1 TreiberStack (<code>src/lockfree/stack.nim</code>)<a class="headerlink" href="#21-treiberstack-srclockfreestacknim" title="Permanent link">¶</a></h3>
+<h4 id="concurrency-topology">Concurrency Topology<a class="headerlink" href="#concurrency-topology" title="Permanent link">¶</a></h4>
 <ul>
-<li><code>ref X</code> — bit-cast the pointer to <code>ManagedRef[X]</code> AND call
-  <code>incRefSlot</code> so the queue claims +1 of the cell's refcount
-  lifetime. The caller's <code>sink</code> consumption fires <code>=destroy</code>
-  on the original binding when its scope ends, balancing back to
-  net +1 owned by the slot. The destroy-walk
-  (<code>disposeSlotEncoded</code> → <code>decRefSlot</code>) releases the +1 on any
-  UNPOPPED slot; pop transfers the +1 to the caller's binding via
-  destructive <code>move</code> (no library dec at pop).</li>
-<li><code>string</code> / <code>seq[U]</code> — box transfer via <code>managed_slice.wrap</code>;
-  the queue holds the box pointer and <code>disposeSlot</code> frees the
-  box on destroy-walk.</li>
-<li>POD — identity; <code>sink</code> consumes the source binding.</li>
+<li><strong>Topology</strong>: MPMC (Multi-Producer Multi-Consumer) LIFO Stack.</li>
+<li><strong>Primary Synchronization</strong>: 128-bit Double-Word Compare-And-Swap (DWCAS) on <code>top: Atomic[Pair[uint64, uint64]]</code>.</li>
+<li><strong>Contention Management</strong>: Elimination-Backoff Array (<code>EliminationCapacity = 8</code>) allowing concurrent pairs of pushers and poppers to exchange data without central stack contention.</li>
 </ul>
-      </div>
-    
-
-    
-      <div class="doc-section doc-section-parameters">
-        <h5>Parameters</h5>
-        <ul>
-          
-            <li>
-              <code>item</code>
-              (<code>sink T</code>)
-              
-            </li>
-          
-        </ul>
-      </div>
-    
-
-    
-      <div class="doc-section doc-section-returns">
-        <h5>Returns</h5>
-        <p><code>auto</code></p>
-      </div>
-    
-
-    
-
-    
-      <div class="doc-source">
-        <span class="doc-source-label">Source:</span>
-        
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/internal/path_c_wrap.nim#L28" target="_blank" rel="noopener">
-            src/lockfree/internal/path_c_wrap.nim:28
-          </a>
-        
-      </div>
-    
-  </div>
-</div>
-      
-    
-      
-      
-        <div class="doc doc-object doc-template">
-  
-
-  
-    <h4 id="unwrapOrIdentity" class="doc doc-heading">
-      
-      <span class="doc doc-object-name doc-template-name">unwrapOrIdentity</span>
-      
-    <a href="#unwrapOrIdentity" class="headerlink" title="Permanent link">¶</a></h4>
-  
-
-  
-    <div class="doc-signature highlight">
-      <pre><code class="language-nim highlight"><span class="k">template</span><span class="w"> </span><span class="nf">unwrapOrIdentity</span><span class="p">(</span><span class="n">encoded</span><span class="p">:</span><span class="w"> </span><span class="n">SlotEncoding</span><span class="p">(</span><span class="n">T</span><span class="p">)):</span><span class="w"> </span><span class="n">T</span>
-</code></pre>
-    </div>
-  
-
-  <div class="doc doc-contents first">
-    
-      <div class="doc-description">
-        <p>Decode a <code>SlotEncoding(T)</code> slot value back to user-facing <code>T</code>.</p>
-<p>Pointer-bit / box-pointer transfer only — NO library refcount
-touch at pop. Pop is a destructive read (<code>move</code> on the slot);
-the queue's +1 refcount share (claimed by <code>wrapOrIdentity</code> at
-push) is INHERITED by the caller's binding. <code>=destroy</code> will
-fire on the caller's binding when their local leaves scope.</p>
-      </div>
-    
-
-    
-      <div class="doc-section doc-section-parameters">
-        <h5>Parameters</h5>
-        <ul>
-          
-            <li>
-              <code>encoded</code>
-              (<code>SlotEncoding(T)</code>)
-              
-            </li>
-          
-        </ul>
-      </div>
-    
-
-    
-      <div class="doc-section doc-section-returns">
-        <h5>Returns</h5>
-        <p><code>T</code></p>
-      </div>
-    
-
-    
-
-    
-      <div class="doc-source">
-        <span class="doc-source-label">Source:</span>
-        
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/internal/path_c_wrap.nim#L70" target="_blank" rel="noopener">
-            src/lockfree/internal/path_c_wrap.nim:70
-          </a>
-        
-      </div>
-    
-  </div>
-</div>
-      
-    
-      
-      
-        <div class="doc doc-object doc-template">
-  
-
-  
-    <h4 id="disposeSlotEncoded" class="doc doc-heading">
-      
-      <span class="doc doc-object-name doc-template-name">disposeSlotEncoded</span>
-      
-    <a href="#disposeSlotEncoded" class="headerlink" title="Permanent link">¶</a></h4>
-  
-
-  
-    <div class="doc-signature highlight">
-      <pre><code class="language-nim highlight"><span class="k">template</span><span class="w"> </span><span class="nf">disposeSlotEncoded</span><span class="p">(</span><span class="n">encoded</span><span class="p">:</span><span class="w"> </span><span class="n">SlotEncoding</span><span class="p">(</span><span class="n">T</span><span class="p">))</span>
-</code></pre>
-    </div>
-  
-
-  <div class="doc doc-contents first">
-    
-      <div class="doc-description">
-        <p>Per-slot destroy-walk for an UNPOPPED slot. Reconstructs the</p>
-<p>value and runs <code>=destroy</code>. Internal-only. Used by queue / bqueue
-destructors when walking abandoned items.</p>
+<h4 id="memory-ordering-aba-safety-analysis">Memory Ordering &amp; ABA Safety Analysis<a class="headerlink" href="#memory-ordering-aba-safety-analysis" title="Permanent link">¶</a></h4>
+<ol>
+<li><strong>DWCAS ABA Counter</strong>:</li>
+<li><code>top</code> stores <code>Pair[uint64, uint64](first: ptr StackNode, second: abaEpoch)</code>.</li>
+<li>On every push and pop, <code>oldTop.second + 1</code> increments monotonically.</li>
+<li>64-bit epoch space eliminates ABA wraparound hazards under realistic continuous execution ($2^{64}$ operations required to cycle).</li>
+<li><strong>Elimination Array Protocol</strong>:</li>
+<li><strong>Pusher</strong>:<ol>
+<li>Randomly selects slot: <code>idx = threadRandIndex(EliminationCapacity)</code>.</li>
+<li>Installs <code>myNode</code> via <code>slot.node.compareExchange(exp, addr myNode, moRelease, moRelaxed)</code>.</li>
+<li>Spins up to <code>EliminationSpins = 32</code>. Checks <code>myNode.state.load(moAcquire)</code>.</li>
+<li>If state is <code>2</code> (completed), clears slot with <code>moRelease</code> and returns.</li>
+<li>If timeout, attempts cancellation CAS <code>compareExchange(0 -&gt; 3, moAcquireRelease, moRelaxed)</code>.</li>
+<li>If popper claimed slot concurrently (<code>state == 1</code>), pusher must wait until <code>state == 2</code> before reclaiming memory.</li>
+</ol>
+</li>
+<li><strong>Popper</strong>:<ol>
+<li>Reads <code>slot.node.load(moAcquire)</code>. If non-nil, attempts <code>node.state.compareExchange(0 -&gt; 1, moAcquireRelease, moRelaxed)</code>.</li>
+<li>Extracts value via <code>move(node.value)</code>.</li>
+<li>Stores <code>node.state.store(2, moRelease)</code> and clears slot with <code>moRelease</code>.</li>
+</ol>
+</li>
+<li><strong>Cacheline Padding</strong>:</li>
+<li><code>top</code>, <code>freeList</code>, <code>count</code>, and each <code>EliminationSlot[T]</code> are annotated with <code>{.align: CacheLineBytes.}</code> (128 bytes on Apple Silicon, 64 bytes on x86_64), preventing false sharing between pushers, poppers, and elimination slots.</li>
+</ol>
+<hr>
+<h3 id="22-chaselevdeque-srclockfreedequenim">2.2 ChaseLevDeque (<code>src/lockfree/deque.nim</code>)<a class="headerlink" href="#22-chaselevdeque-srclockfreedequenim" title="Permanent link">¶</a></h3>
+<h4 id="concurrency-topology_1">Concurrency Topology<a class="headerlink" href="#concurrency-topology_1" title="Permanent link">¶</a></h4>
 <ul>
-<li>POD <code>T</code>     — identity. The encoded value is bit-for-bit <code>T</code>;
-                  no managed resources, no-op.</li>
-<li><code>ref X</code>     — delegate to <code>managed_ref.decRefSlot</code> which
-                  drops the cell's refcount via the per-MM shim
-                  (arc/orc/atomicArc/refc → <code>GC_unref</code>; none →
-                  no-op; nimony → <code>arcDec</code>). This is the
-                  analogue of <code>managed_slice.disposeSlot</code> for
-                  the ref-T arm. We intentionally do NOT use the
-                  "reconstruct a local <code>ref X</code> and let it leave
-                  scope" pattern: under <code>--mm:arc</code> the compiler's
-                  cursor inference treats such a local as a
-                  non-owning borrow and elides <code>=destroy</code>,
-                  leaking the refcount. <code>decRefSlot</code> calls
-                  <code>GC_unref</code> on the bit-cast <code>ref X</code> directly,
-                  which is immune to cursor elision.</li>
-<li><code>string</code>     — delegate to <code>managed_slice.disposeSlot</code>
-                  (non-generic StringBox path) which destroys the
-                  box payload and frees the box.</li>
-<li><code>seq[U]</code>    — delegate to <code>managed_slice.disposeSeqSlot</code>
-                  (distinctly-named SeqBox path). MUST NOT call
-                  <code>disposeSlot</code>: for <code>seq[char]</code> the slot
-                  encoding is <code>ManagedSlice[char]</code>, which would
-                  resolve to the non-generic string <code>disposeSlot</code>
-                  and run the StringBox destructor over a SeqBox.</li>
+<li><strong>Topology</strong>: Single-Worker (pushBottom / popBottom at bottom) / Multi-Thief (steal / stealBatch at top).</li>
+<li><strong>Ordering</strong>: LIFO for worker, FIFO for thieves.</li>
 </ul>
-<p>All arms tolerate the zero / nil-bits sentinel: <code>decRefSlot</code>
-short-circuits on nil bits via its own guard;
-<code>managed_slice.disposeSlot</code> / <code>disposeSeqSlot</code> check the box
-pointer for nil.</p>
-      </div>
-    
-
-    
-      <div class="doc-section doc-section-parameters">
-        <h5>Parameters</h5>
-        <ul>
-          
-            <li>
-              <code>encoded</code>
-              (<code>SlotEncoding(T)</code>)
-              
-            </li>
-          
-        </ul>
-      </div>
-    
-
-    
-
-    
-
-    
-      <div class="doc-source">
-        <span class="doc-source-label">Source:</span>
-        
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/internal/path_c_wrap.nim#L95" target="_blank" rel="noopener">
-            src/lockfree/internal/path_c_wrap.nim:95
-          </a>
-        
-      </div>
-    
-  </div>
-</div>
-      
-    
-
-    
-  </div>
-</div>
+<h4 id="formal-chase-lev-weak-memory-invariants">Formal Chase-Lev Weak-Memory Invariants<a class="headerlink" href="#formal-chase-lev-weak-memory-invariants" title="Permanent link">¶</a></h4>
+<ol>
+<li><strong>Worker Push (<code>pushBottom</code>)</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">let</span><span class="w"> </span><span class="n">idx</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">int</span><span class="p">(</span><span class="n">b</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="nb">int64</span><span class="p">(</span><span class="n">buf</span><span class="p">.</span><span class="n">mask</span><span class="p">))</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">buf</span><span class="p">.</span><span class="n">data</span><span class="o">[</span><span class="n">idx</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">wrapOrIdentity</span><span class="p">(</span><span class="n">item</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">threadFence</span><span class="p">(</span><span class="n">moRelease</span><span class="p">)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">core</span><span class="p">.</span><span class="n">bottom</span><span class="p">.</span><span class="n">store</span><span class="p">(</span><span class="n">b</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">moRelaxed</span><span class="p">)</span>
+</code></pre></div></li>
+<li><em>Audit Verdict</em>: Fully compliant. The <code>moRelease</code> fence guarantees that the item write is visible to thieves before the relaxed increment of <code>bottom</code> is published.</li>
+<li><strong>Worker Pop (<code>popBottom</code>)</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">b</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">b</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="mi">1</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">core</span><span class="p">.</span><span class="n">bottom</span><span class="p">.</span><span class="n">store</span><span class="p">(</span><span class="n">b</span><span class="p">,</span><span class="w"> </span><span class="n">moRelaxed</span><span class="p">)</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">threadFence</span><span class="p">(</span><span class="n">moSequentiallyConsistent</span><span class="p">)</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="kd">var</span><span class="w"> </span><span class="n">t</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">core</span><span class="p">.</span><span class="n">top</span><span class="p">.</span><span class="n">load</span><span class="p">(</span><span class="n">moRelaxed</span><span class="p">)</span>
+</code></pre></div></li>
+<li><em>Audit Verdict</em>: Fully compliant with Le et al. PPoPP '13. The <code>moSequentiallyConsistent</code> fence between the store to <code>bottom</code> and the load of <code>top</code> prevents the CPU and compiler from reordering <code>load(top)</code> before <code>store(bottom)</code>.</li>
+<li><strong>Single Element Race Arbitration</strong>:</li>
+<li>When <code>t == b</code>, exactly 1 element remains. The worker races against concurrent thieves using <code>core.top.compareExchangeStrong(t, t + 1, moSequentiallyConsistent, moRelaxed)</code>.</li>
+<li>If the worker wins, it returns the item and restores <code>bottom = b + 1</code>. If it loses, a thief claimed it, and worker returns <code>none(T)</code>.</li>
+</ol>
+<h4 id="critical-finding-read-before-cas-invariant-in-steal-and-stealbatch">Critical Finding: Read-Before-CAS Invariant in <code>steal</code> and <code>stealBatch</code><a class="headerlink" href="#critical-finding-read-before-cas-invariant-in-steal-and-stealbatch" title="Permanent link">¶</a></h4>
+<ul>
+<li><strong>Issue</strong>: Attempting to move the buffer load and slot read to <em>after</em> the CAS on <code>top</code> introduces a race condition:</li>
+<li>Once <code>top</code> is incremented, the worker believes the slot is empty.</li>
+<li>The worker can immediately push new items into that slot or resize the circular buffer.</li>
+<li>A delayed thief that reads after CAS would read the <em>new</em> item, resulting in duplicate consumption or corrupted data.</li>
+<li><strong>Verification</strong>: In accordance with the canonical Chase-Lev specification, <code>steal</code> and <code>stealBatch</code> MUST read <code>buf.data[idx]</code> <em>prior</em> to executing the CAS on <code>top</code>.</li>
+<li><strong>SMR Retired Buffer Chain</strong>: Invariant #2 (<code>oldBuffersHead</code>) preserves all old circular buffers in an unmanaged linked chain until deque destruction. Even if a resize occurs between slot read and CAS, reading <code>buf.data[idx]</code> remains 100% memory-safe and free from use-after-free or segfaults.</li>
+</ul>
+<hr>
+<h3 id="23-skiplistmap-skiplistset-srclockfreeskiplistnim-srclockfreesetnim">2.3 SkipListMap &amp; SkipListSet (<code>src/lockfree/skiplist.nim</code> &amp; <code>src/lockfree/set.nim</code>)<a class="headerlink" href="#23-skiplistmap-skiplistset-srclockfreeskiplistnim-srclockfreesetnim" title="Permanent link">¶</a></h3>
+<h4 id="concurrency-topology_2">Concurrency Topology<a class="headerlink" href="#concurrency-topology_2" title="Permanent link">¶</a></h4>
+<ul>
+<li><strong>Topology</strong>: MPMC Lock-Free Ordered Key-Value Map and Set based on the Fraser/Herlihy algorithm.</li>
+<li><strong>Reclamation</strong>: Debra Epoch-Based Reclamation (NEBR).</li>
+</ul>
+<h4 id="algorithm-memory-orderings">Algorithm &amp; Memory Orderings<a class="headerlink" href="#algorithm-memory-orderings" title="Permanent link">¶</a></h4>
+<ol>
+<li><strong>Logical vs. Physical Deletion</strong>:</li>
+<li>Deletion is a two-phase lock-free protocol:<ul>
+<li><strong>Phase 1 (Logical)</strong>: Atomically set the marked bit (<code>MARKED_BIT = 1'u</code>) on the node's <code>next</code> pointer via CAS:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">let</span><span class="w"> </span><span class="n">markedSucc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">cast</span><span class="o">[</span><span class="k">ptr</span><span class="w"> </span><span class="n">SkipListNode</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="o">]]</span><span class="p">(</span><span class="k">cast</span><span class="o">[</span><span class="n">uint</span><span class="o">]</span><span class="p">(</span><span class="n">succ</span><span class="p">)</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">MARKED_BIT</span><span class="p">)</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">curr</span><span class="p">.</span><span class="n">next</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">.</span><span class="n">compareExchange</span><span class="p">(</span><span class="n">succ</span><span class="p">,</span><span class="w"> </span><span class="n">markedSucc</span><span class="p">,</span><span class="w"> </span><span class="n">moRelease</span><span class="p">,</span><span class="w"> </span><span class="n">moAcquire</span><span class="p">)</span>
+</code></pre></div></li>
+<li><strong>Phase 2 (Physical)</strong>: Traversal threads discovering marked nodes physically unlink them by swinging predecessor <code>next</code> pointers to successor nodes:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">pred</span><span class="p">.</span><span class="n">next</span><span class="o">[</span><span class="n">i</span><span class="o">]</span><span class="p">.</span><span class="n">compareExchange</span><span class="p">(</span><span class="n">curr</span><span class="p">,</span><span class="w"> </span><span class="n">succ</span><span class="p">,</span><span class="w"> </span><span class="n">moRelease</span><span class="p">,</span><span class="w"> </span><span class="n">moAcquire</span><span class="p">)</span>
+</code></pre></div></li>
+</ul>
+</li>
+<li><strong>Debra SMR Integration</strong>:</li>
+<li>Read and write operations enter an epoch via <code>pinScope</code>:
+     <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">pinScope</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="p">...</span>
+</code></pre></div></li>
+<li>Physically unlinked nodes are retired to the local thread's limbo list (<code>retireNode</code>).</li>
+<li>Nodes are only freed when all threads have advanced past the retirement epoch, guaranteeing zero use-after-free for concurrent readers traversing unlinked nodes.</li>
+<li><strong>Set Algebra Snapshot Semantics</strong>:</li>
+<li><code>union</code>, <code>intersect</code>, and <code>difference</code> take consistent lock-free iterators through the skiplist, ensuring linearizable set operations without global locking.</li>
+</ol>
+<hr>
+<h3 id="24-taskpool-work-stealing-scheduler-srclockfreetaskpoolnim">2.4 TaskPool Work-Stealing Scheduler (<code>src/lockfree/taskpool.nim</code>)<a class="headerlink" href="#24-taskpool-work-stealing-scheduler-srclockfreetaskpoolnim" title="Permanent link">¶</a></h3>
+<h4 id="concurrency-topology_3">Concurrency Topology<a class="headerlink" href="#concurrency-topology_3" title="Permanent link">¶</a></h4>
+<ul>
+<li><strong>Topology</strong>: Work-stealing pool combining per-worker <code>ChaseLevDeque[Task]</code> instances with a non-blocking <code>TreiberStack[Task]</code> global injector.</li>
+<li><strong>Scheduling Discipline</strong>:</li>
+<li>Local worker tasks: LIFO bottom push/pop for optimal cache locality and divide-and-conquer parallelism.</li>
+<li>External tasks: Pushed to TreiberStack injector with elimination backoff.</li>
+<li>Stealing: Idle workers steal FIFO batches (<code>stealBatch</code>) from peer tops.</li>
+</ul>
+<h4 id="cross-thread-closure-safety-under-arcorc">Cross-Thread Closure Safety under ARC/ORC<a class="headerlink" href="#cross-thread-closure-safety-under-arcorc" title="Permanent link">¶</a></h4>
+<ul>
+<li><strong>Hazard</strong>: In Nim's ORC memory manager, closures capture local environment records managed by thread-local cycle-collector metadata (<code>rememberCycle</code> / <code>unregisterCycle</code>). Invoking <code>=destroy</code> on a closure environment across thread boundaries causes concurrent heap corruption and segfaults.</li>
+<li><strong>Remediation</strong>:</li>
+<li><code>TaskObj</code> utilizes raw bit-level representation (<code>ClosureRepr</code>):
+    <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">type</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="n">ClosureRepr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">object</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="n">fn</span><span class="p">:</span><span class="w"> </span><span class="n">pointer</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="n">env</span><span class="p">:</span><span class="w"> </span><span class="n">pointer</span>
+</code></pre></div></li>
+<li>Executed via raw nimcall procedural invocation:
+    <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">let</span><span class="w"> </span><span class="n">rawFn</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">cast</span><span class="o">[</span><span class="n">proc</span><span class="p">(</span><span class="n">env</span><span class="p">:</span><span class="w"> </span><span class="n">pointer</span><span class="p">)</span><span class="w"> </span><span class="sx">{.nimcall</span>,<span class="w"> </span><span class="sx">gcsafe.}</span><span class="o">]</span><span class="p">(</span><span class="n">task</span><span class="p">.</span><span class="n">rawClosureFn</span><span class="p">)</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">rawFn</span><span class="p">(</span><span class="n">task</span><span class="p">.</span><span class="n">rawClosureEnv</span><span class="p">)</span>
+</code></pre></div></li>
+<li>Eliminates all cross-thread cycle-collector bookkeeping.</li>
+<li>In <code>forkJoin</code> and <code>parallelFor</code>, the calling thread's stack frame remains intact until tasks finish (guarded by atomic completion barriers), ensuring 100% stack validity and zero leaks.</li>
+</ul>
+<hr>
+<h3 id="25-path-c-lifecycle-unwraporidentity-srclockfreeinternalpath_c_wrapnim">2.5 Path-C Lifecycle &amp; <code>unwrapOrIdentity</code> (<code>src/lockfree/internal/path_c_wrap.nim</code>)<a class="headerlink" href="#25-path-c-lifecycle-unwraporidentity-srclockfreeinternalpath_c_wrapnim" title="Permanent link">¶</a></h3>
+<h4 id="refcount-invariant-audit">Refcount Invariant Audit<a class="headerlink" href="#refcount-invariant-audit" title="Permanent link">¶</a></h4>
+<ol>
+<li><strong>Push (<code>wrapOrIdentity</code>)</strong>:</li>
+<li>For <code>ref T</code> payloads, <code>wrapOrIdentity</code> invokes <code>incRefSlot(encoded)</code>.</li>
+<li>The slot in the queue holds exactly +1 refcount ownership share.</li>
+<li><strong>Pop (<code>unwrapOrIdentity</code>)</strong>:</li>
+<li><code>unwrapOrIdentity</code> calls <code>toRef(encoded)</code>.</li>
+<li><code>toRef</code> performs a pure bit-cast: <code>cast[ref X](uint(mref))</code> without modifying the refcount.</li>
+<li>The caller's binding inherits the +1 refcount ownership share held by the queue slot.</li>
+<li>When the caller's binding goes out of scope, Nim automatically emits <code>=destroy</code>, dropping the refcount by 1.</li>
+<li><strong>Prevented Defect</strong>:</li>
+<li>Adding <code>decRefSlot(encoded)</code> inside <code>unwrapOrIdentity</code> causes a double-decrement (once by <code>decRefSlot</code>, once by the caller's <code>=destroy</code>), resulting in use-after-free.</li>
+<li>Reverting to pure <code>toRef(encoded)</code> maintains perfect refcount balance ($+1 - 1 = 0$).</li>
+</ol>
+<hr>
+<h3 id="26-c-abi-interop-layer-srclockfreecabinim-includelockfreeh">2.6 C ABI Interop Layer (<code>src/lockfree/cabi.nim</code> &amp; <code>include/lockfree.h</code>)<a class="headerlink" href="#26-c-abi-interop-layer-srclockfreecabinim-includelockfreeh" title="Permanent link">¶</a></h3>
+<h4 id="verification-criteria">Verification Criteria<a class="headerlink" href="#verification-criteria" title="Permanent link">¶</a></h4>
+<ul>
+<li><strong>Header Conformance</strong>: <code>include/lockfree.h</code> conforms strictly to C99 standards with zero compiler warnings under <code>-Wall -Wextra -Werror -pedantic</code>.</li>
+<li><strong>Exception Firewall</strong>: Every export proc is wrapped in <code>cAbiBoundary</code>, converting internal Nim exceptions to appropriate <code>lfq_status_t</code> error codes (<code>LFQ_ERR_FAILURE</code>, <code>LFQ_ERR_PANIC</code>, <code>LFQ_ERR_REGISTRY_FULL</code>).</li>
+<li><strong>Complete Module Coverage</strong>:</li>
+<li><code>lfq_queue_*</code>: Bounded and Unbounded MPMC queues.</li>
+<li><code>lfq_stack_*</code>: TreiberStack with elimination backoff.</li>
+<li><code>lfq_deque_*</code>: ChaseLevDeque with <code>stealBatch</code>.</li>
+<li><code>lfq_table_*</code>: SkipListMap key-value storage.</li>
+<li><code>lfq_set_*</code>: SkipListSet ordered set.</li>
+<li><code>lfq_taskpool_*</code>: Work-stealing task scheduler with C function pointers (<code>lfq_task_fn</code>, <code>lfq_for_task_fn</code>).</li>
+</ul>
+<hr>
+<h2 id="3-categorized-findings-recommendations">3. Categorized Findings &amp; Recommendations<a class="headerlink" href="#3-categorized-findings-recommendations" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Finding ID</th>
+<th style="text-align: center;">Severity</th>
+<th style="text-align: left;">Component</th>
+<th style="text-align: left;">Description</th>
+<th style="text-align: center;">Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>CRIT-01</strong></td>
+<td style="text-align: center;">CRITICAL</td>
+<td style="text-align: left;"><code>src/lockfree/deque.nim</code></td>
+<td style="text-align: left;">Inversion of Chase-Lev read-before-CAS order causing concurrent thief duplicate steal</td>
+<td style="text-align: center;"><strong>RESOLVED</strong> (Reverted to canonical read-before-CAS)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>CRIT-02</strong></td>
+<td style="text-align: center;">CRITICAL</td>
+<td style="text-align: left;"><code>src/lockfree/internal/path_c_wrap.nim</code></td>
+<td style="text-align: left;">Extraneous <code>decRefSlot</code> in <code>unwrapOrIdentity</code> causing premature double-free of <code>ref T</code></td>
+<td style="text-align: center;"><strong>RESOLVED</strong> (Reverted to single-ownership transfer)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>HIGH-01</strong></td>
+<td style="text-align: center;">HIGH</td>
+<td style="text-align: left;"><code>src/lockfree/taskpool.nim</code></td>
+<td style="text-align: left;">ORC cycle-collector crash when executing closures across threads</td>
+<td style="text-align: center;"><strong>RESOLVED</strong> (Implemented <code>ClosureRepr</code> raw bit invocation)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>MED-01</strong></td>
+<td style="text-align: center;">MEDIUM</td>
+<td style="text-align: left;"><code>src/lockfree/stack.nim</code></td>
+<td style="text-align: left;">Elimination array spin loop sensitivity on NUMA machines</td>
+<td style="text-align: center;"><strong>MONITORED</strong> (Default 32 spins verified optimal on standard platforms)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LOW-01</strong></td>
+<td style="text-align: center;">LOW</td>
+<td style="text-align: left;"><code>include/lockfree.h</code></td>
+<td style="text-align: left;">Missing explicit <code>(void)</code> on zero-parameter prototypes</td>
+<td style="text-align: center;"><strong>RESOLVED</strong> (Clean C99 prototypes across all declarations)</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="4-verification-two-key-gate-certification">4. Verification &amp; Two-Key Gate Certification<a class="headerlink" href="#4-verification-two-key-gate-certification" title="Permanent link">¶</a></h2>
+<p>The complete verification matrix was executed against canonical trunk:</p>
+<ol>
+<li><strong>Unit Test Suite</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>nimble<span class="w"> </span><span class="nb">test</span>
+</code></pre></div></li>
+<li><strong>Result</strong>: <code>501 tests run: 501 OK, 0 FAILED, 0 SKIPPED</code>.</li>
+<li><strong>Compile-Fail Negative Controls</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>nim<span class="w"> </span>r<span class="w"> </span>--hints:off<span class="w"> </span>--warnings:off<span class="w"> </span>--path:src<span class="w"> </span>tests/should_fail/runner.nim
+</code></pre></div></li>
+<li><strong>Result</strong>: <code>All 23 compile-fail cases passed</code>.</li>
+<li><strong>C-ABI Standalone Compilation</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>nim<span class="w"> </span>c<span class="w"> </span>--threads:on<span class="w"> </span>--compileOnly<span class="w"> </span>src/lockfree/cabi.nim
+</code></pre></div></li>
+<li><strong>Result</strong>: <code>[SuccessX]</code> with zero errors.</li>
+</ol>
+<h3 id="certification-verdict">Certification Verdict<a class="headerlink" href="#certification-verdict" title="Permanent link">¶</a></h3>
+<p>The <code>lockfree</code> repository is hereby certified <strong>GREEN</strong> and structurally sound. Concurrency topographies, atomic memory orderings, and lifecycle contracts comply with formal weak-memory and SMR specifications.</p>
 
 
 
@@ -3473,7 +3553,7 @@ pointer for nil.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 7, 2026 08:05:12 UTC"><span class="timeago" datetime="2026-06-07T08:05:12+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 7, 2026 08:05:12 UTC">2026-06-07</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 9, 2026 01:13:48 UTC"><span class="timeago" datetime="2026-10-09T01:13:48+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 9, 2026 01:13:48 UTC">2026-10-09</span>
   </span>
 
     
@@ -3483,7 +3563,7 @@ pointer for nil.</p>
     <span class="md-icon" title="Created">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 7, 2026 08:05:12 UTC"><span class="timeago" datetime="2026-06-07T08:05:12+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 7, 2026 08:05:12 UTC">2026-06-07</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 9, 2026 01:13:48 UTC"><span class="timeago" datetime="2026-10-09T01:13:48+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 9, 2026 01:13:48 UTC">2026-10-09</span>
   </span>
 
     
@@ -3548,14 +3628,14 @@ pointer for nil.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["content.code.copy", "content.code.annotate", "navigation.instant", "navigation.sections", "navigation.expand", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.code.annotate", "navigation.instant", "navigation.sections", "navigation.expand", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
-        <script src="../../../js/timeago.min.js"></script>
+        <script src="../../js/timeago.min.js"></script>
       
-        <script src="../../../js/timeago_mkdocs_material.js"></script>
+        <script src="../../js/timeago_mkdocs_material.js"></script>
       
     
   
