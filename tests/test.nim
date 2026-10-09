@@ -86,6 +86,7 @@ import ./t_channel
 import ./t_user_guide_snippets
 import ./t_ratelimit
 import ./t_streambuffer
+import ./t_associative
 
 # chronos adapter tests gated on chronos availability
 # (chronos is NOT in lockfree.nimble requires). When chronos

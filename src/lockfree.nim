@@ -28,11 +28,11 @@ const LockfreeVersion* {.strdefine.} = "0.1.0"
 ##   - **Concurrent Map Surface** (`lockfree/skiplist`):
 ##     - Core type: `SkipListMap[K, V, MaxThreads, MaxLevel]`
 ##     - Ergonomic aliases: `SortedTable`, `OrderedTable`, `ConcurrentSortedTable`
-##     - Implementation: Fraser / Herlihy MPMC Lock-Free SkipList with Debra SMR.
+##     - Implementation: Fraser / Herlihy MPMC Lock-Free SkipList with Debra SMR and atomic associative operations (computeIfAbsent, atomicUpdate, upsert, snapshotPairs).
 ##   - **Concurrent Hash Trie Surface** (`lockfree/ctrie`):
 ##     - Core type: `Ctrie[K, V, MaxThreads]`
 ##     - Ergonomic aliases: `Table`, `ConcurrentTable`, `ConcurrentMap`, `ConcurrentTrie`
-##     - Implementation: Aleksandar Prokopec MPMC Lock-Free Concurrent Hash Array Mapped Trie with O(1) Wait-Free Snapshots and Debra SMR.
+##     - Implementation: Aleksandar Prokopec MPMC Lock-Free Concurrent Hash Array Mapped Trie with O(1) Wait-Free Snapshots, Debra SMR, and atomic associative operations (computeIfAbsent, atomicUpdate, upsert, snapshotPairs).
 ##   - **Channel Facade** (`lockfree/channel`):
 ##     - `Channel[T]`, `Sender[T]`, `Receiver[T]` with automatic thread-local registration.
 ##   - **Rate Limiting Surface** (`lockfree/ratelimit`):
