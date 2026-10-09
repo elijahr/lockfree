@@ -136,7 +136,10 @@ bool lfq_deque_is_empty(const lfq_deque_t* deque);
  * 4. Table (MPMC Ordered Key-Value Map based on SkipListMap)
  * ------------------------------------------------------------------------- */
 
+#ifndef LFQ_TABLE_DEFINED
+#define LFQ_TABLE_DEFINED
 typedef struct lfq_table lfq_table_t;
+#endif
 
 typedef void (*lfq_entry_destructor_fn)(void* key, void* val, void* user_data);
 
@@ -219,7 +222,10 @@ size_t lfq_taskpool_num_workers(const lfq_taskpool_t* pool);
  * 7. Ctrie (MPMC Lock-Free Concurrent Hash Trie with Wait-Free Snapshots)
  * ------------------------------------------------------------------------- */
 
+#ifndef LFQ_CTRIE_DEFINED
+#define LFQ_CTRIE_DEFINED
 typedef struct lfq_ctrie lfq_ctrie_t;
+#endif
 typedef struct lfq_ctrie_snapshot lfq_ctrie_snapshot_t;
 
 /* Ctrie Lifecycle */
@@ -437,6 +443,12 @@ bool lf_rendezvous_recv_timeout(lf_rendezvous_t* chan, void** out_payload, int t
  * ------------------------------------------------------------------------- */
 
 #include "lockfree_streambuffer.h"
+
+/* -------------------------------------------------------------------------
+ * 12. Atomic Associative Map Operations (Ctrie & SkipListMap)
+ * ------------------------------------------------------------------------- */
+
+#include "lockfree_associative.h"
 
 #ifdef __cplusplus
 }
