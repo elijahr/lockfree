@@ -871,22 +871,22 @@ static void test_cabi_ratelimit(void) {
     /* 3. Concurrent Multithreaded Contention on TokenBucket */
     lfq_token_bucket_t* shared_tb = lfq_token_bucket_create(1000, 50000);
     TEST_ASSERT(shared_tb != NULL, "shared_tb create failed");
-    const size_t STRESS_THREADS = 4;
+    enum { TB_STRESS_THREADS = 4 };
     const size_t ITERS_PER_TH = 500;
     test_atomic_size_t total_acquired = 0;
-    pthread_t ths[STRESS_THREADS];
-    tb_stress_arg_t args[STRESS_THREADS];
+    pthread_t ths[TB_STRESS_THREADS];
+    tb_stress_arg_t args[TB_STRESS_THREADS];
 
-    for (size_t i = 0; i < STRESS_THREADS; i++) {
+    for (size_t i = 0; i < TB_STRESS_THREADS; i++) {
         args[i].bucket = shared_tb;
         args[i].iterations = ITERS_PER_TH;
         args[i].total_acquired = &total_acquired;
         pthread_create(&ths[i], NULL, tb_stress_worker, &args[i]);
     }
-    for (size_t i = 0; i < STRESS_THREADS; i++) {
+    for (size_t i = 0; i < TB_STRESS_THREADS; i++) {
         pthread_join(ths[i], NULL);
     }
-    TEST_ASSERT(ATOMIC_LOAD(&total_acquired) == STRESS_THREADS * ITERS_PER_TH, "Total acquired mismatch");
+    TEST_ASSERT(ATOMIC_LOAD(&total_acquired) == TB_STRESS_THREADS * ITERS_PER_TH, "Total acquired mismatch");
     lfq_token_bucket_destroy(shared_tb);
 
     /* 4. Stack-Allocated LeakyBucket (GCRA) */
