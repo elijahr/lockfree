@@ -50,6 +50,10 @@ when compileOption("threads"):
   export bqueue, broadcast, cardinality, channel, ctrie, deque, endpoint, exceptions, queue, reclamation, rendezvous, set, skiplist, stack, strategy, taskpool
   export pinscope_stub
   export with_bound
+
+  when defined(lockfreeAsyncdispatch):
+    import ./lockfree/async_bridge
+    export async_bridge
 else:
   # threading off, only provide the unified Queue + its supporting enums
   # (Queue SPSC works without threads).

@@ -125,6 +125,10 @@ export
   t_seq_char_dispose,
   t_systems_opt, t_batch_pop, t_dwcas, t_queue_aliases, t_stack, t_deque, t_skiplist, t_set, t_taskpool, t_ctrie, t_broadcast, t_rendezvous, t_channel, t_user_guide_snippets
 
+when defined(lockfreeAsyncdispatch):
+  import ./t_async_bridge
+  export t_async_bridge
+
 when (
   compiles do:
     import chronos/asyncsync
