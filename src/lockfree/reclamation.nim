@@ -4,14 +4,13 @@
 ##
 ## - `rkNone` — bounded family. Vyukov-style seq counters; no debra, no
 ##   segments.
-## - `rkEbr`  — unbounded family. LCRQ-style segmented body + nebr
-##   epoch-based reclamation.
+## - `rkEbr` — unbounded family. LCRQ-style segmented body + nebr epoch-based
+##   reclamation.
 ##
-## No default is supplied: the choice of `rkNone` vs `rkEbr` is
-## semantically load-bearing — bounded queues have no segments to retire,
-## and the unbounded SPSC shape is committed-flag-free, so the right
-## reclamation kind is part of the queue's identity, not a configuration
-## dial.
+## No default is supplied: the choice of `rkNone` vs `rkEbr` is semantically
+## load-bearing — bounded queues have no segments to retire, and the unbounded
+## SPSC shape is committed-flag-free, so the right reclamation kind is part of
+## the queue's identity, not a configuration dial.
 
 type ReclamationKind* = enum
   rkNone ## Bounded queues: no reclamation machinery (Vyukov seqlocks).

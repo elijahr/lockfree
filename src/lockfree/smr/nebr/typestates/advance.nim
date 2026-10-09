@@ -2,13 +2,13 @@
 ##
 ## Ensures atomic increment of the global epoch counter.
 ##
-## The typestate carries a `CC: static PinScopeCardinality = ccSingle`
-## param so that ccMulti managers built by `initDebraManager[N, ccMulti]()`
-## can flow through this surface. The advance ALGORITHM is intentionally
-## CC-agnostic (pure atomic epoch arithmetic, no cardinality-dependent
-## branching), but the type system has to thread `CC` to accept a
-## `ptr DebraManager[MT, CC]` field for both cardinalities. The default
-## `ccSingle` preserves the 0.7.x-style call shape unchanged.
+## The typestate carries a `CC: static PinScopeCardinality = ccSingle` param so
+## that ccMulti managers built by `initDebraManager[N, ccMulti]()` can flow
+## through this surface. The advance ALGORITHM is intentionally CC-agnostic
+## (pure atomic epoch arithmetic, no cardinality-dependent branching), but the
+## type system has to thread `CC` to accept a `ptr DebraManager[MT, CC]` field
+## for both cardinalities. The default `ccSingle` preserves the 0.7.x-style call
+## shape unchanged.
 
 import ../../../atomics
 import typestates
@@ -66,11 +66,11 @@ proc complete*[MaxThreads: static int, CC: static PinScopeCardinality](
   ## Complete epoch advance by atomically incrementing globalEpoch.
   let ctx = AdvanceContext[MaxThreads, CC](a)
 
-  # Atomically increment the global epoch using fetchAdd. `fetchAdd`
-  # returns the prior value, so `newEpoch` is THIS advance's produced
-  # epoch (oldEpoch + 1) — a local report of this RMW's result, not a
-  # re-read of the global counter, which a concurrent advancer may have
-  # already pushed past oldEpoch + 1.
+  # Atomically increment the global epoch using fetchAdd. `fetchAdd` returns the
+  # prior value, so `newEpoch` is THIS advance's produced epoch (oldEpoch + 1)
+  # — a local report of this RMW's result, not a re-read of the global
+  # counter, which a concurrent advancer may have already pushed past oldEpoch +
+  # 1.
   let oldEpoch = ctx.manager.globalEpoch.fetchAdd(1'u64, moRelease)
   let newEpoch = oldEpoch + 1'u64
 

@@ -1,39 +1,37 @@
 ##
 ## Endpoint types for static thread-affinity.
 ##
-## **Lifecycle vs role — orthogonal layers.** `Endpoint` is the typestate
-## for endpoint LIFECYCLE only: `Unbound -> Bound -> Closed`. ROLE is
-## carried via the `Tag` generic parameter — one of `SpscProducerTag`,
-## `SpscConsumerTag`, `MpmcProducerTag`, `MpmcConsumerTag` (all in
-## `role_tags.nim`), or `AnyThreadTag` for the same-thread shortcut path
-## explicitly chosen by `getProducerHere` / `getConsumerHere` call sites.
-## `Tag` distinctness is enforced at compile time via the
-## `{.tags: [TagType, TypestateOp].}` effect pragma on `push`/`pop` procs
-## plus `{.forbids: [...].}` regions; the typestate FSM here
-## carries no role information.
+## **Lifecycle vs role — orthogonal layers.** `Endpoint` is the typestate for
+## endpoint LIFECYCLE only: `Unbound -> Bound -> Closed`. ROLE is carried via
+## the `Tag` generic parameter — one of `SpscProducerTag`, `SpscConsumerTag`,
+## `MpmcProducerTag`, `MpmcConsumerTag` (all in `role_tags.nim`), or
+## `AnyThreadTag` for the same-thread shortcut path explicitly chosen by
+## `getProducerHere` / `getConsumerHere` call sites. `Tag` distinctness is
+## enforced at compile time via the `{.tags: [TagType, TypestateOp].}` effect
+## pragma on `push`/`pop` procs plus `{.forbids: [...].}` regions; the typestate
+## FSM here carries no role information.
 ##
-## **Backend specialisation via type-class overloads.**
-## Gating `handle: ThreadHandle[...]` and the
-## `registerThread`/`unregisterThread` calls via `when queueT is Queue:`
-## does not work: Nim 2.2's eager generic resolution rejects
-## `is Queue` on the 6-static-param `Queue[T, ccProd, ccCons, ST, S, MaxThreads]`
-## without bound arguments. Instead, `concept BQueueType` / `QueueType`
-## type-class match on overloaded helper procs. The handle storage lives
-## unconditionally on `Bound` and `Closed` (opaque `manager: pointer` +
+## **Backend specialisation via type-class overloads.** Gating `handle:
+## ThreadHandle[...]` and the `registerThread`/`unregisterThread` calls via
+## `when queueT is Queue:` does not work: Nim 2.2's eager generic resolution
+## rejects `is Queue` on the 6-static-param `Queue[T, ccProd, ccCons, ST, S,
+## MaxThreads]` without bound arguments. Instead, `concept BQueueType` /
+## `QueueType` type-class match on overloaded helper procs. The handle storage
+## lives unconditionally on `Bound` and `Closed` (opaque `manager: pointer` +
 ## `handleIdx: int`), with the Queue overloads casting back to
-## `ThreadHandle[MaxThreads, CC]` at the call site where queueT is
-## concrete. The 16-byte cost on BQueue endpoints is the tradeoff for
-## keeping the typestate axis at 3 generic params and the API uniform.
+## `ThreadHandle[MaxThreads, CC]` at the call site where queueT is concrete. The
+## 16-byte cost on BQueue endpoints is the tradeoff for keeping the typestate
+## axis at 3 generic params and the API uniform.
 ##
-## **Single Endpoint typestate.** Two parallel typestates
-## `ProducerEndpoint` + `ConsumerEndpoint` with identical state sets are
-## not viable: typestates 0.12.0 TA-004 forbids sharing state types
-## across typestates. The typestates are merged into a single `Endpoint`
-## — role lives in `Tag`, lifecycle in `Endpoint`.
+## **Single Endpoint typestate.** Two parallel typestates `ProducerEndpoint` +
+## `ConsumerEndpoint` with identical state sets are not viable: typestates
+## 0.12.0 TA-004 forbids sharing state types across typestates. The typestates
+## are merged into a single `Endpoint` — role lives in `Tag`, lifecycle in
+## `Endpoint`.
 ##
 ## **Fallback:** if the three-axis generic typestate trips a further
-## nim-typestates corner case, drop `queueT` from the typestate axis and
-## store it as a non-typestate field.
+## nim-typestates corner case, drop `queueT` from the typestate axis and store
+## it as a non-typestate field.
 
 {.experimental: "strictEffects".}
 
@@ -55,15 +53,14 @@ from lockfree/smr/nebr/types import ThreadHandle
 type
   BQueueType* = concept x
     x is BQueue
-    ## Type class matching any `BQueue[...]` instantiation. Used to
-    ## dispatch the no-op backend overloads (BQueue endpoints carry no
-    ## debra registration).
+    ## Type class matching any `BQueue[...]` instantiation. Used to dispatch the
+    ## no-op backend overloads (BQueue endpoints carry no debra registration).
 
   QueueType* = concept x
     x is Queue
-    ## Type class matching any `Queue[...]` instantiation. Used to
-    ## dispatch the debra-integrated backend overloads (Queue endpoints
-    ## call `registerThread` / `unregisterThread`).
+    ## Type class matching any `Queue[...]` instantiation. Used to dispatch the
+    ## debra-integrated backend overloads (Queue endpoints call `registerThread`
+    ## / `unregisterThread`).
 
 typestate Endpoint[T, Tag, queueT]:
   consumeOnTransition = false
@@ -86,19 +83,18 @@ proc onBind[T; Tag; queueT: BQueueType](
 proc onBind[T; Tag; queueT: QueueType](
     b: var Bound[T, Tag, queueT]
 ) {.gcsafe, raises: [], notATransition.} =
-  ## Queue endpoints register the calling thread with the queue's debra
-  ## manager. `queueT` is a concrete `Queue[T, ccProd, ccCons, ST, S, MaxThreads]`
-  ## at this overload's call site. The SPSC-absorbed Queue branch
-  ## (`ccProd == ccSingle and ccCons == ccSingle`) is debra-free; the
-  ## `when compiles(b.queue.manager)` feature
-  ## test gates the `registerThread` call to the debra-integrated
-  ## cardinalities only.
+  ## Queue endpoints register the calling thread with the queue's debra manager.
+  ## `queueT` is a concrete `Queue[T, ccProd, ccCons, ST, S, MaxThreads]` at
+  ## this overload's call site. The SPSC-absorbed Queue branch (`ccProd ==
+  ## ccSingle and ccCons == ccSingle`) is debra-free; the `when
+  ## compiles(b.queue.manager)` feature test gates the `registerThread` call to
+  ## the debra-integrated cardinalities only.
   ##
-  ## `DebraRegistrationError` from a saturated registry is converted to
-  ## a `Defect` here — typestates 0.12.0 requires `{.transition.}` procs
-  ## to have empty `raises:`. The user contract is "do not bind more
-  ## threads than the queue's `MaxThreads`"; a saturated registry is
-  ## misuse, not a recoverable runtime error.
+  ## `DebraRegistrationError` from a saturated registry is converted to a
+  ## `Defect` here — typestates 0.12.0 requires `{.transition.}` procs to have
+  ## empty `raises:`. The user contract is "do not bind more threads than the
+  ## queue's `MaxThreads`"; a saturated registry is misuse, not a recoverable
+  ## runtime error.
   when compiles(b.queue.manager):
     try:
       let h = registerThread(b.queue.manager[])
@@ -118,13 +114,11 @@ proc onClose[T; Tag; queueT: BQueueType](
 proc onClose[T; Tag; queueT: QueueType](
     c: var EndpointClosed[T, Tag, queueT]
 ) {.gcsafe, raises: [], notATransition.} =
-  ## Queue endpoints unregister the thread from the queue's debra
-  ## manager. The opaque handle storage is cast back to the typed
-  ## `ThreadHandle` at this overload's call site. SPSC-absorbed Queue
-  ## variants are debra-free; the
-  ## `when compiles(c.queue.manager)` feature test probes the queue's
-  ## body split at the concrete instantiation site and short-circuits
-  ## for those.
+  ## Queue endpoints unregister the thread from the queue's debra manager. The
+  ## opaque handle storage is cast back to the typed `ThreadHandle` at this
+  ## overload's call site. SPSC-absorbed Queue variants are debra-free; the
+  ## `when compiles(c.queue.manager)` feature test probes the queue's body split
+  ## at the concrete instantiation site and short-circuits for those.
   when compiles(c.queue.manager):
     if c.handleManager == nil:
       return
@@ -147,10 +141,10 @@ proc bindToThread*[T; Tag; queueT](
 .} =
   ## Bind the endpoint to the calling thread.
   ##
-  ## The sugar pragma `{.transition(tag: ...).}` is not usable here: the
-  ## Nim parser rejects the `nkObjConstr` pragma form and it conflates
-  ## value-typestate with proc-effect. The explicit composed form above
-  ## is the only available shape.
+  ## The sugar pragma `{.transition(tag: ...).}` is not usable here: the Nim
+  ## parser rejects the `nkObjConstr` pragma form and it conflates
+  ## value-typestate with proc-effect. The explicit composed form above is the
+  ## only available shape.
   let consumed = move(u)
   result = Bound[T, Tag, queueT](
     queue: consumed.queue, idx: consumed.idx, handleManager: nil, handleIdx: 0
@@ -164,8 +158,8 @@ proc close*[T; Tag; queueT](
 ): EndpointClosed[T, Tag, queueT] {.
     transition, tags: [Tag, TypestateOp, RootEffect], gcsafe, raises: []
 .} =
-  ## Release the endpoint. Queue endpoints call `unregisterThread`;
-  ## BQueue endpoints are a no-op.
+  ## Release the endpoint. Queue endpoints call `unregisterThread`; BQueue
+  ## endpoints are a no-op.
   when defined(debug):
     assert getThreadId() == b.attachedTid,
       "close from wrong thread (must match bindToThread thread)"
@@ -179,14 +173,14 @@ proc close*[T; Tag; queueT](
 
 # ---------------------------------------------------------------------------
 # Endpoint factories (per-flavour). The factory lives in endpoint.nim rather
-# than in bqueue.nim / queue.nim to break the import cycle: endpoint.nim
-# imports `./bqueue` and `./queue` for the BQueueType/QueueType concepts;
-# putting factories the other direction would re-introduce the cycle.
+# than in bqueue.nim / queue.nim to break the import cycle: endpoint.nim imports
+# `./bqueue` and `./queue` for the BQueueType/QueueType concepts; putting
+# factories the other direction would re-introduce the cycle.
 #
-# Each factory reserves a per-thread slot on the underlying queue (CAS over
-# the queue's producerThreadIds / consumerThreadIds table) and wraps the
-# slot index in an `Unbound` endpoint. The caller transitions via
-# `bindToThread()` before any `push`/`pop` (lifecycle FSM above).
+# Each factory reserves a per-thread slot on the underlying queue (CAS over the
+# queue's producerThreadIds / consumerThreadIds table) and wraps the slot index
+# in an `Unbound` endpoint. The caller transitions via `bindToThread()` before
+# any `push`/`pop` (lifecycle FSM above).
 # ---------------------------------------------------------------------------
 
 proc getProducer*[T; ccCons: static PinScopeCardinality, N, P, C: static int](
@@ -194,13 +188,13 @@ proc getProducer*[T; ccCons: static PinScopeCardinality, N, P, C: static int](
 ): Unbound[T, AnyThreadTag, BQueue[T, ccMulti, ccCons, N, P, C]] {.
     raises: [NoProducersAvailableError]
 .} =
-  ## Reserve a per-thread producer slot on a multi-producer `BQueue` and
-  ## return an `Unbound` endpoint owning that slot. The caller transitions
-  ## the endpoint to `Bound` via `bindToThread()` before any `push`.
+  ## Reserve a per-thread producer slot on a multi-producer `BQueue` and return
+  ## an `Unbound` endpoint owning that slot. The caller transitions the endpoint
+  ## to `Bound` via `bindToThread()` before any `push`.
   ##
-  ## When `idx >= 0`, the caller pins a specific slot (testing). When
-  ## `idx == -1`, the calling thread's `getThreadId()` claims the first
-  ## free slot via CAS over `producerThreadIds`.
+  ## When `idx >= 0`, the caller pins a specific slot (testing). When `idx ==
+  ## -1`, the calling thread's `getThreadId()` claims the first free slot via
+  ## CAS over `producerThreadIds`.
   result.queue = addr(self)
 
   if idx >= 0:
@@ -234,9 +228,9 @@ proc getConsumer*[T; ccProd: static PinScopeCardinality, N, P, C: static int](
 ): Unbound[T, AnyThreadTag, BQueue[T, ccProd, ccMulti, N, P, C]] {.
     raises: [NoConsumersAvailableError]
 .} =
-  ## Reserve a per-thread consumer slot on a multi-consumer `BQueue` and
-  ## return an `Unbound` endpoint. Symmetric to `getProducer`; the caller
-  ## must `bindToThread()` before any `pop`.
+  ## Reserve a per-thread consumer slot on a multi-consumer `BQueue` and return
+  ## an `Unbound` endpoint. Symmetric to `getProducer`; the caller must
+  ## `bindToThread()` before any `pop`.
   result.queue = addr(self)
 
   if idx >= 0:
@@ -269,14 +263,13 @@ proc getProducer*[
 ](
     self: var Queue[T, ccProd, ccCons, ST, S, MaxThreads]
 ): Unbound[T, AnyThreadTag, Queue[T, ccProd, ccCons, ST, S, MaxThreads]] {.raises: [].} =
-  ## Queue-flavour producer factory. For `ccProd == ccMulti` the
-  ## endpoint reserves a producer index against the queue's
-  ## `producerCount` atomic; debra registration happens later at
-  ## `bindToThread()` via the QueueType overload of `onBind`. For
-  ## `ccProd == ccSingle` (SPSC / SPMC) the endpoint carries no
-  ## meaningful index (set to `-1`) and `bindToThread()` is a no-op
-  ## (debra-free SPSC absorbed body has no manager — gated by
-  ## `when compiles(b.queue.manager)`).
+  ## Queue-flavour producer factory. For `ccProd == ccMulti` the endpoint
+  ## reserves a producer index against the queue's `producerCount` atomic; debra
+  ## registration happens later at `bindToThread()` via the QueueType overload
+  ## of `onBind`. For `ccProd == ccSingle` (SPSC / SPMC) the endpoint carries no
+  ## meaningful index (set to `-1`) and `bindToThread()` is a no-op (debra-free
+  ## SPSC absorbed body has no manager — gated by `when
+  ## compiles(b.queue.manager)`).
   result.queue = addr(self)
   when ccProd == ccMulti:
     let idx = self.producerCount.fetchAdd(1, moAcquire)
@@ -292,9 +285,9 @@ proc getConsumer*[
 ](
     self: var Queue[T, ccProd, ccCons, ST, S, MaxThreads]
 ): Unbound[T, AnyThreadTag, Queue[T, ccProd, ccCons, ST, S, MaxThreads]] {.raises: [].} =
-  ## Queue-flavour consumer factory. Symmetric to `getProducer`; for
-  ## `ccCons == ccMulti` reserves a slot via `consumerCount`; for
-  ## `ccCons == ccSingle` the endpoint carries no meaningful index.
+  ## Queue-flavour consumer factory. Symmetric to `getProducer`; for `ccCons ==
+  ## ccMulti` reserves a slot via `consumerCount`; for `ccCons == ccSingle` the
+  ## endpoint carries no meaningful index.
   result.queue = addr(self)
   when ccCons == ccMulti:
     let idx = self.consumerCount.fetchAdd(1, moAcquire)
@@ -305,11 +298,10 @@ proc getConsumer*[
 ## ----------------------------------------------------------------------
 ## Same-thread shortcut helpers + bindConsumer one-shot wrapper.
 ##
-## These templates/procs live here (next to getProducer/getConsumer)
-## so they bind against THIS module's factories rather than any
-## locally-shadowing factory the user's expansion site might have
-## declared (e.g. bench-adapter modules define their own `getConsumer`
-## returning adapter-local view types).
+## These templates/procs live here (next to getProducer/getConsumer) so they
+## bind against THIS module's factories rather than any locally-shadowing
+## factory the user's expansion site might have declared (e.g. bench-adapter
+## modules define their own `getConsumer` returning adapter-local view types).
 ## ----------------------------------------------------------------------
 
 template getProducerHere*[T; ccCons: static PinScopeCardinality, N, P, C: static int](
@@ -358,22 +350,21 @@ proc bindConsumer*[
 ](
     self: var Queue[T, ccProd, ccSingle, ST, S, MaxThreads]
 ): Bound[T, AnyThreadTag, Queue[T, ccProd, ccSingle, ST, S, MaxThreads]] {.raises: [].} =
-  ## One-shot bind for the SC consumer of an MPSC-style Queue.
-  ## Replaces the deleted v4.x `attachConsumer`.
+  ## One-shot bind for the SC consumer of an MPSC-style Queue. Replaces the
+  ## deleted v4.x `attachConsumer`.
   ##
-  ## This is the proc-form equivalent of the `getConsumerHere` template
-  ## for the SC consumer case; it is kept as a proc (not a template
-  ## alias) so it can carry the `{.raises: [].}` effect annotation that
-  ## replaced v4.x `attachConsumer`.
+  ## This is the proc-form equivalent of the `getConsumerHere` template for the
+  ## SC consumer case; it is kept as a proc (not a template alias) so it can
+  ## carry the `{.raises: [].}` effect annotation that replaced v4.x
+  ## `attachConsumer`.
   var u = self.getConsumer()
   u.bindToThread()
 
 ## ----------------------------------------------------------------------
-## Alias-analysis constraint (Nim Issue #19013):
-## `Unbound` MUST be a thin `ptr` wrapper over the queue with no
-## ref/string/seq/closure subgraph. `system.supportsCopyMem` returns
-## `true` iff the type has no GC'd subgraph; static-assert that the
-## actual queue families pass.
+## Alias-analysis constraint (Nim Issue #19013): `Unbound` MUST be a thin `ptr`
+## wrapper over the queue with no ref/string/seq/closure subgraph.
+## `system.supportsCopyMem` returns `true` iff the type has no GC'd subgraph;
+## static-assert that the actual queue families pass.
 ## ----------------------------------------------------------------------
 
 static:

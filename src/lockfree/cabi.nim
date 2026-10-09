@@ -370,7 +370,8 @@ proc unboundedProducerRelease[S, MaxThreads: static int](prod: ptr lfq_producer_
 
               let slot = addr q.rawQueue[].manager.threads[hIdx]
               if slot.limboBagTail == nil and slot.currentBag == nil:
-                # Restore NEBR threadvars for this manager so unregisterThread passes contract
+                # Restore NEBR threadvars for this manager so unregisterThread
+                # passes contract
                 threadLocalManager = mgrPtr
                 threadLocalIdx = hIdx
                 threadLocalRegistered = true
@@ -414,7 +415,8 @@ proc unboundedConsumerRelease[S, MaxThreads: static int](cons: ptr lfq_consumer_
 
               let slot = addr q.rawQueue[].manager.threads[hIdx]
               if slot.limboBagTail == nil and slot.currentBag == nil:
-                # Restore NEBR threadvars for this manager so unregisterThread passes contract
+                # Restore NEBR threadvars for this manager so unregisterThread
+                # passes contract
                 threadLocalManager = mgrPtr
                 threadLocalIdx = hIdx
                 threadLocalRegistered = true

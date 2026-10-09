@@ -17,19 +17,20 @@
 ## ## Overview
 ##
 ## `Ctrie[K, V]` is an MPMC lock-free concurrent hash array mapped trie (HAMT)
-## implementing Aleksandar Prokopec's Ctrie algorithm with generational stamping,
-## non-blocking lazy copy-on-write (`GCopy`), bottom-up tombstone contraction,
-## and in-tree Debra Safe Memory Reclamation (SMR).
+## implementing Aleksandar Prokopec's Ctrie algorithm with generational
+## stamping, non-blocking lazy copy-on-write (`GCopy`), bottom-up tombstone
+## contraction, and in-tree Debra Safe Memory Reclamation (SMR).
 ##
 ## Key capabilities:
-## - **O(1) Wait-Free Snapshots**: `snapshot()` creates an isolated point-in-time
-##   read-only view in O(1) time and work by atomically swinging the root to a new
-##   generation.
-## - **Wait-Free Lookups**: `get`, `contains`, `[]` traverse at most 7 levels without CAS.
-## - **Lock-Free Mutations**: `put`, `delete`, `computeIfAbsent` use per-node CAS and
-##   lazy generational expansion without global locks.
-## - **Memory Reclaiming**: Nodes and displaced values are safely deferred-reclaimed
-##   via Debra SMR.
+## - **O(1) Wait-Free Snapshots**: `snapshot()` creates an isolated
+##   point-in-time read-only view in O(1) time and work by atomically swinging
+##   the root to a new generation.
+## - **Wait-Free Lookups**: `get`, `contains`, `[]` traverse at most 7 levels
+##   without CAS.
+## - **Lock-Free Mutations**: `put`, `delete`, `computeIfAbsent` use per-node
+##   CAS and lazy generational expansion without global locks.
+## - **Memory Reclaiming**: Nodes and displaced values are safely
+##   deferred-reclaimed via Debra SMR.
 
 when not compileOption("threads"):
   {.error: "lockfree/ctrie requires --threads:on".}
@@ -176,7 +177,8 @@ type
 
   Ctrie*[K, V; MaxThreads: static int = DefaultMaxThreads] = object
     ## # Concurrency Topology: MPMC (Multi-Producer Multi-Consumer)
-    ## Aleksandar Prokopec Lock-Free Concurrent Hash Array Mapped Trie with O(1) Snapshots.
+    ## Aleksandar Prokopec Lock-Free Concurrent Hash Array Mapped Trie with O(1)
+    ## Snapshots.
     core*: ptr CtrieCore[K, V, MaxThreads]
 
   Table*[K, V; MaxThreads: static int = DefaultMaxThreads] = Ctrie[K, V, MaxThreads]
@@ -786,7 +788,8 @@ proc put*[K, V; MaxThreads: static int](
     key: K,
     val: V
 ): Option[V] {.discardable.} =
-  ## Inserts or updates `key` with `val`. Returns previous value if replaced. Lock-free.
+  ## Inserts or updates `key` with `val`. Returns previous value if replaced.
+  ## Lock-free.
   self.putInternal(key, val, onlyIfAbsent = false)
 
 proc putIfAbsent*[K, V; MaxThreads: static int](
@@ -794,8 +797,8 @@ proc putIfAbsent*[K, V; MaxThreads: static int](
     key: K,
     val: V
 ): Option[V] {.discardable.} =
-  ## Inserts `key` with `val` if not already present.
-  ## Returns `none(V)` if inserted, or `some(existingVal)` if already present. Lock-free.
+  ## Inserts `key` with `val` if not already present. Returns `none(V)` if
+  ## inserted, or `some(existingVal)` if already present. Lock-free.
   self.putInternal(key, val, onlyIfAbsent = true)
 
 proc `[]=`*[K, V; MaxThreads: static int](
@@ -809,7 +812,8 @@ proc delete*[K, V; MaxThreads: static int](
     self: Ctrie[K, V, MaxThreads],
     key: K
 ): Option[V] {.discardable.} =
-  ## Removes `key` from the Ctrie, executing bottom-up contraction if appropriate. Lock-free.
+  ## Removes `key` from the Ctrie, executing bottom-up contraction if
+  ## appropriate. Lock-free.
   if unlikely(self.core == nil): return none(V)
   let h = getHash(key)
   let th = self.getOrRegisterHandle()
@@ -986,7 +990,8 @@ proc computeIfAbsent*[K, V; MaxThreads: static int](
     key: K,
     computeFn: proc(k: K): V {.closure, gcsafe.}
 ): V =
-  ## Returns the existing value mapped to `key`, or atomically computes and inserts it.
+  ## Returns the existing value mapped to `key`, or atomically computes and
+  ## inserts it.
   let existing = self.get(key)
   if existing.isSome:
     return existing.get

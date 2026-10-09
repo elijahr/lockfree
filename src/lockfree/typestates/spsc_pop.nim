@@ -1,7 +1,7 @@
 ## SPSC Pop operation lifecycle typestate.
 ##
-## Enforces correct sequencing for single-consumer pop:
-## Start -> LoadPointers -> CheckEmpty -> Complete
+## Enforces correct sequencing for single-consumer pop: Start -> LoadPointers ->
+## CheckEmpty -> Complete
 ##
 ## Key invariant: Once NotEmpty is reached, we MUST read and advance head.
 ##
