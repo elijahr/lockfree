@@ -27,6 +27,7 @@ import lockfree/set
 import lockfree/taskpool
 import lockfree/ctrie
 import lockfree/broadcast
+import lockfree/rendezvous
 import std/options
 
 # ------------------------------------------------------------------------------
@@ -57,6 +58,8 @@ template cAbiBoundary(body: untyped): lfq_status_t =
     body
   except NoProducersAvailableError, NoConsumersAvailableError:
     LFQ_ERR_REGISTRY_FULL
+  except ChannelClosedDefect:
+    LFQ_ERR_CLOSED
   except Defect:
     LFQ_ERR_PANIC
   except Exception:
@@ -1788,6 +1791,245 @@ proc lfq_broadcast_cursor_lag*(
     csize_t(cursor.raw[].lag)
   except:
     0
+
+# ------------------------------------------------------------------------------
+# 9. RendezvousChannel (Zero-Buffer Synchronous Dual Channel)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_rendezvous_handle {.exportc: "lfq_rendezvous_t".} = object
+    raw*: ptr RendezvousChannel[pointer]
+
+  lfq_rendezvous_t* = lfq_rendezvous_handle
+  lf_rendezvous_t* = lfq_rendezvous_handle
+
+proc lfq_rendezvous_create*(
+    out_chan: ptr ptr lfq_rendezvous_t
+): lfq_status_t {.exportc: "lfq_rendezvous_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_chan == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let handle = cast[ptr lfq_rendezvous_t](allocShared0(sizeof(lfq_rendezvous_t)))
+    let raw = cast[ptr RendezvousChannel[pointer]](allocShared0(sizeof(RendezvousChannel[pointer])))
+    raw[] = initRendezvousChannel[pointer]()
+    handle.raw = raw
+    out_chan[] = handle
+    LFQ_OK
+
+proc lfq_rendezvous_destroy*(
+    chan: ptr lfq_rendezvous_t
+): lfq_status_t {.exportc: "lfq_rendezvous_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    {.cast(gcsafe).}:
+      `=destroy`(chan.raw[])
+    deallocShared(chan.raw)
+    deallocShared(chan)
+    LFQ_OK
+
+proc lfq_rendezvous_close*(
+    chan: ptr lfq_rendezvous_t
+): lfq_status_t {.exportc: "lfq_rendezvous_close", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    chan.raw[].close()
+    LFQ_OK
+
+proc lfq_rendezvous_is_closed*(
+    chan: ptr lfq_rendezvous_t
+): bool {.exportc: "lfq_rendezvous_is_closed", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil):
+    return true
+  try:
+    chan.raw[].isClosed()
+  except:
+    true
+
+proc lfq_rendezvous_send*(
+    chan: ptr lfq_rendezvous_t,
+    payload: pointer,
+    out_corr_id: ptr uint64
+): lfq_status_t {.exportc: "lfq_rendezvous_send", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  if unlikely(chan.raw[].isClosed()):
+    return LFQ_ERR_CLOSED
+  cAbiBoundary:
+    let cid = chan.raw[].send(payload)
+    if out_corr_id != nil:
+      out_corr_id[] = cid
+    LFQ_OK
+
+proc lfq_rendezvous_recv*(
+    chan: ptr lfq_rendezvous_t,
+    out_payload: ptr pointer,
+    out_corr_id: ptr uint64
+): lfq_status_t {.exportc: "lfq_rendezvous_recv", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil or out_payload == nil):
+    return LFQ_ERR_INVALID_ARG
+  if unlikely(chan.raw[].isClosed()):
+    return LFQ_ERR_CLOSED
+  cAbiBoundary:
+    var val: pointer = nil
+    let cid = chan.raw[].recv(val)
+    out_payload[] = val
+    if out_corr_id != nil:
+      out_corr_id[] = cid
+    LFQ_OK
+
+proc lfq_rendezvous_try_send*(
+    chan: ptr lfq_rendezvous_t,
+    payload: pointer,
+    out_corr_id: ptr uint64
+): lfq_status_t {.exportc: "lfq_rendezvous_try_send", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  if unlikely(chan.raw[].isClosed()):
+    return LFQ_ERR_CLOSED
+  cAbiBoundary:
+    var cid: uint64 = 0
+    if chan.raw[].trySend(payload, cid):
+      if out_corr_id != nil:
+        out_corr_id[] = cid
+      LFQ_OK
+    else:
+      if chan.raw[].isClosed():
+        LFQ_ERR_CLOSED
+      else:
+        LFQ_ERR_EMPTY
+
+proc lfq_rendezvous_try_recv*(
+    chan: ptr lfq_rendezvous_t,
+    out_payload: ptr pointer,
+    out_corr_id: ptr uint64
+): lfq_status_t {.exportc: "lfq_rendezvous_try_recv", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil or out_payload == nil):
+    return LFQ_ERR_INVALID_ARG
+  if unlikely(chan.raw[].isClosed()):
+    return LFQ_ERR_CLOSED
+  cAbiBoundary:
+    var val: pointer = nil
+    var cid: uint64 = 0
+    if chan.raw[].tryRecv(val, cid):
+      out_payload[] = val
+      if out_corr_id != nil:
+        out_corr_id[] = cid
+      LFQ_OK
+    else:
+      if chan.raw[].isClosed():
+        LFQ_ERR_CLOSED
+      else:
+        LFQ_ERR_EMPTY
+
+proc lfq_rendezvous_send_timeout*(
+    chan: ptr lfq_rendezvous_t,
+    payload: pointer,
+    timeout_ms: int32,
+    out_corr_id: ptr uint64
+): lfq_status_t {.exportc: "lfq_rendezvous_send_timeout", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  if unlikely(chan.raw[].isClosed()):
+    return LFQ_ERR_CLOSED
+  cAbiBoundary:
+    var cid: uint64 = 0
+    if chan.raw[].sendWithTimeout(payload, int(timeout_ms), cid):
+      if out_corr_id != nil:
+        out_corr_id[] = cid
+      LFQ_OK
+    else:
+      if chan.raw[].isClosed():
+        LFQ_ERR_CLOSED
+      else:
+        LFQ_ERR_EMPTY
+
+proc lfq_rendezvous_recv_timeout*(
+    chan: ptr lfq_rendezvous_t,
+    out_payload: ptr pointer,
+    timeout_ms: int32,
+    out_corr_id: ptr uint64
+): lfq_status_t {.exportc: "lfq_rendezvous_recv_timeout", cdecl, gcsafe, raises: [].} =
+  if unlikely(chan == nil or chan.raw == nil or out_payload == nil):
+    return LFQ_ERR_INVALID_ARG
+  if unlikely(chan.raw[].isClosed()):
+    return LFQ_ERR_CLOSED
+  cAbiBoundary:
+    var val: pointer = nil
+    var cid: uint64 = 0
+    if chan.raw[].recvWithTimeout(val, int(timeout_ms), cid):
+      out_payload[] = val
+      if out_corr_id != nil:
+        out_corr_id[] = cid
+      LFQ_OK
+    else:
+      if chan.raw[].isClosed():
+        LFQ_ERR_CLOSED
+      else:
+        LFQ_ERR_EMPTY
+
+# ------------------------------------------------------------------------------
+# Section 9.1 C-Style API Functions
+# ------------------------------------------------------------------------------
+
+proc lf_rendezvous_create*(): ptr lfq_rendezvous_t {.exportc: "lf_rendezvous_create", cdecl, gcsafe, raises: [].} =
+  var res: ptr lfq_rendezvous_t = nil
+  if lfq_rendezvous_create(addr res) == LFQ_OK:
+    res
+  else:
+    nil
+
+proc lf_rendezvous_destroy*(chan: ptr lfq_rendezvous_t) {.exportc: "lf_rendezvous_destroy", cdecl, gcsafe, raises: [].} =
+  discard lfq_rendezvous_destroy(chan)
+
+proc lf_rendezvous_close*(chan: ptr lfq_rendezvous_t) {.exportc: "lf_rendezvous_close", cdecl, gcsafe, raises: [].} =
+  discard lfq_rendezvous_close(chan)
+
+proc lf_rendezvous_send*(
+    chan: ptr lfq_rendezvous_t,
+    payload: pointer,
+    out_corr_id: ptr uint64
+): cint {.exportc: "lf_rendezvous_send", cdecl, gcsafe, raises: [].} =
+  cint(lfq_rendezvous_send(chan, payload, out_corr_id))
+
+proc lf_rendezvous_recv*(
+    chan: ptr lfq_rendezvous_t,
+    out_payload: ptr pointer,
+    out_corr_id: ptr uint64
+): cint {.exportc: "lf_rendezvous_recv", cdecl, gcsafe, raises: [].} =
+  cint(lfq_rendezvous_recv(chan, out_payload, out_corr_id))
+
+proc lf_rendezvous_try_send*(
+    chan: ptr lfq_rendezvous_t,
+    payload: pointer,
+    out_corr_id: ptr uint64
+): bool {.exportc: "lf_rendezvous_try_send", cdecl, gcsafe, raises: [].} =
+  lfq_rendezvous_try_send(chan, payload, out_corr_id) == LFQ_OK
+
+proc lf_rendezvous_try_recv*(
+    chan: ptr lfq_rendezvous_t,
+    out_payload: ptr pointer,
+    out_corr_id: ptr uint64
+): bool {.exportc: "lf_rendezvous_try_recv", cdecl, gcsafe, raises: [].} =
+  lfq_rendezvous_try_recv(chan, out_payload, out_corr_id) == LFQ_OK
+
+proc lf_rendezvous_send_timeout*(
+    chan: ptr lfq_rendezvous_t,
+    payload: pointer,
+    timeout_ms: cint,
+    out_corr_id: ptr uint64
+): bool {.exportc: "lf_rendezvous_send_timeout", cdecl, gcsafe, raises: [].} =
+  lfq_rendezvous_send_timeout(chan, payload, int32(timeout_ms), out_corr_id) == LFQ_OK
+
+proc lf_rendezvous_recv_timeout*(
+    chan: ptr lfq_rendezvous_t,
+    out_payload: ptr pointer,
+    timeout_ms: cint,
+    out_corr_id: ptr uint64
+): bool {.exportc: "lf_rendezvous_recv_timeout", cdecl, gcsafe, raises: [].} =
+  lfq_rendezvous_recv_timeout(chan, out_payload, int32(timeout_ms), out_corr_id) == LFQ_OK
+
 
 
 

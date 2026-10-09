@@ -361,6 +361,68 @@ size_t lfq_broadcast_subscriber_count(const lfq_broadcast_t* broadcast);
 bool lfq_broadcast_is_empty(const lfq_broadcast_t* broadcast);
 size_t lfq_broadcast_cursor_lag(const lfq_broadcast_cursor_t* cursor);
 
+/* -------------------------------------------------------------------------
+ * 9. RendezvousChannel (Zero-Buffer Synchronous Dual Channel)
+ * ------------------------------------------------------------------------- */
+
+typedef struct lfq_rendezvous lfq_rendezvous_t;
+typedef struct lfq_rendezvous lf_rendezvous_t;
+
+/* RendezvousChannel Lifecycle */
+lfq_status_t lfq_rendezvous_create(lfq_rendezvous_t** out_chan);
+lfq_status_t lfq_rendezvous_destroy(lfq_rendezvous_t* chan);
+lfq_status_t lfq_rendezvous_close(lfq_rendezvous_t* chan);
+bool lfq_rendezvous_is_closed(const lfq_rendezvous_t* chan);
+
+/* Blocking Synchronous Handoff */
+lfq_status_t lfq_rendezvous_send(
+    lfq_rendezvous_t* chan,
+    void* payload,
+    uint64_t* out_corr_id
+);
+lfq_status_t lfq_rendezvous_recv(
+    lfq_rendezvous_t* chan,
+    void** out_payload,
+    uint64_t* out_corr_id
+);
+
+/* Non-Blocking Synchronous Handoff (0 timeout) */
+lfq_status_t lfq_rendezvous_try_send(
+    lfq_rendezvous_t* chan,
+    void* payload,
+    uint64_t* out_corr_id
+);
+lfq_status_t lfq_rendezvous_try_recv(
+    lfq_rendezvous_t* chan,
+    void** out_payload,
+    uint64_t* out_corr_id
+);
+
+/* Bounded Timeout Synchronous Handoff (milliseconds) */
+lfq_status_t lfq_rendezvous_send_timeout(
+    lfq_rendezvous_t* chan,
+    void* payload,
+    int32_t timeout_ms,
+    uint64_t* out_corr_id
+);
+lfq_status_t lfq_rendezvous_recv_timeout(
+    lfq_rendezvous_t* chan,
+    void** out_payload,
+    int32_t timeout_ms,
+    uint64_t* out_corr_id
+);
+
+/* Section 9.1 C-Style Functions */
+lf_rendezvous_t* lf_rendezvous_create(void);
+void lf_rendezvous_destroy(lf_rendezvous_t* chan);
+void lf_rendezvous_close(lf_rendezvous_t* chan);
+int lf_rendezvous_send(lf_rendezvous_t* chan, void* payload, uint64_t* out_corr_id);
+int lf_rendezvous_recv(lf_rendezvous_t* chan, void** out_payload, uint64_t* out_corr_id);
+bool lf_rendezvous_try_send(lf_rendezvous_t* chan, void* payload, uint64_t* out_corr_id);
+bool lf_rendezvous_try_recv(lf_rendezvous_t* chan, void** out_payload, uint64_t* out_corr_id);
+bool lf_rendezvous_send_timeout(lf_rendezvous_t* chan, void* payload, int timeout_ms, uint64_t* out_corr_id);
+bool lf_rendezvous_recv_timeout(lf_rendezvous_t* chan, void** out_payload, int timeout_ms, uint64_t* out_corr_id);
+
 #ifdef __cplusplus
 }
 #endif
