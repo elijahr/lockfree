@@ -2388,6 +2388,137 @@ proc lfq_streambuffer_commit_read*(
 ) {.exportc: "lfq_streambuffer_commit_read", cdecl, gcsafe, raises: [].} =
   lfq_stream_ring_commit_read(ring, bytes_read)
 
+# ------------------------------------------------------------------------------
+# 12. Atomic Associative Map Operations (Ctrie & SkipListMap)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_skiplist_t* = lfq_table_t
+
+  lfq_mapping_fn* = proc(key: pointer, key_len: csize_t, user_data: pointer): pointer {.cdecl, gcsafe.}
+  lfq_update_fn* = proc(old_val: pointer, old_val_len: csize_t, user_data: pointer): pointer {.cdecl, gcsafe.}
+
+proc lfq_ctrie_compute_if_absent*(
+    trie: ptr lfq_ctrie_t,
+    key: pointer,
+    key_len: csize_t,
+    mapping_fn: lfq_mapping_fn,
+    user_data: pointer,
+    out_val: ptr pointer,
+    out_val_len: ptr csize_t
+): bool {.exportc: "lfq_ctrie_compute_if_absent", cdecl, gcsafe, raises: [].} =
+  if unlikely(trie == nil or trie.raw == nil or mapping_fn == nil):
+    return false
+  try:
+    let res = trie.raw[].computeIfAbsent(key, proc(k: pointer): pointer =
+      mapping_fn(k, key_len, user_data)
+    )
+    if out_val != nil:
+      out_val[] = res
+    if out_val_len != nil:
+      out_val_len[] = csize_t(sizeof(pointer))
+    true
+  except:
+    false
+
+proc lfq_ctrie_atomic_update*(
+    trie: ptr lfq_ctrie_t,
+    key: pointer,
+    key_len: csize_t,
+    update_fn: lfq_update_fn,
+    user_data: pointer,
+    out_val: ptr pointer,
+    out_val_len: ptr csize_t
+): bool {.exportc: "lfq_ctrie_atomic_update", cdecl, gcsafe, raises: [].} =
+  if unlikely(trie == nil or trie.raw == nil or update_fn == nil):
+    return false
+  try:
+    let opt = trie.raw[].atomicUpdate(key, proc(oldVal: pointer): pointer =
+      update_fn(oldVal, csize_t(sizeof(pointer)), user_data)
+    )
+    if opt.isSome:
+      if out_val != nil:
+        out_val[] = opt.get
+      if out_val_len != nil:
+        out_val_len[] = csize_t(sizeof(pointer))
+      true
+    else:
+      false
+  except:
+    false
+
+proc lfq_skiplist_compute_if_absent*(
+    map: ptr lfq_table_t,
+    key: pointer,
+    key_len: csize_t,
+    mapping_fn: lfq_mapping_fn,
+    user_data: pointer,
+    out_val: ptr pointer,
+    out_val_len: ptr csize_t
+): bool {.exportc: "lfq_skiplist_compute_if_absent", cdecl, gcsafe, raises: [].} =
+  if unlikely(map == nil or map.raw == nil or mapping_fn == nil):
+    return false
+  try:
+    let res = map.raw[].computeIfAbsent(key, proc(k: pointer): pointer =
+      mapping_fn(k, key_len, user_data)
+    )
+    if out_val != nil:
+      out_val[] = res
+    if out_val_len != nil:
+      out_val_len[] = csize_t(sizeof(pointer))
+    true
+  except:
+    false
+
+proc lfq_skiplist_atomic_update*(
+    map: ptr lfq_table_t,
+    key: pointer,
+    key_len: csize_t,
+    update_fn: lfq_update_fn,
+    user_data: pointer,
+    out_val: ptr pointer,
+    out_val_len: ptr csize_t
+): bool {.exportc: "lfq_skiplist_atomic_update", cdecl, gcsafe, raises: [].} =
+  if unlikely(map == nil or map.raw == nil or update_fn == nil):
+    return false
+  try:
+    let opt = map.raw[].atomicUpdate(key, proc(oldVal: pointer): pointer =
+      update_fn(oldVal, csize_t(sizeof(pointer)), user_data)
+    )
+    if opt.isSome:
+      if out_val != nil:
+        out_val[] = opt.get
+      if out_val_len != nil:
+        out_val_len[] = csize_t(sizeof(pointer))
+      true
+    else:
+      false
+  except:
+    false
+
+proc lfq_table_compute_if_absent*(
+    map: ptr lfq_table_t,
+    key: pointer,
+    key_len: csize_t,
+    mapping_fn: lfq_mapping_fn,
+    user_data: pointer,
+    out_val: ptr pointer,
+    out_val_len: ptr csize_t
+): bool {.exportc: "lfq_table_compute_if_absent", cdecl, gcsafe, raises: [].} =
+  lfq_skiplist_compute_if_absent(map, key, key_len, mapping_fn, user_data, out_val, out_val_len)
+
+proc lfq_table_atomic_update*(
+    map: ptr lfq_table_t,
+    key: pointer,
+    key_len: csize_t,
+    update_fn: lfq_update_fn,
+    user_data: pointer,
+    out_val: ptr pointer,
+    out_val_len: ptr csize_t
+): bool {.exportc: "lfq_table_atomic_update", cdecl, gcsafe, raises: [].} =
+  lfq_skiplist_atomic_update(map, key, key_len, update_fn, user_data, out_val, out_val_len)
+
+
 
 
 
