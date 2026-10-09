@@ -1083,6 +1083,50 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check lfq_leaky_bucket_try_consume(heapLb, 1) == true
     lfq_leaky_bucket_destroy(heapLb)
 
+  test "StreamRing / StreamBuffer C ABI":
+    let ring = lfq_stream_ring_create(1024, false)
+    check ring != nil
+    check lfq_stream_ring_capacity(ring) == 1024
+    check lfq_stream_ring_available_read(ring) == 0
+    check lfq_stream_ring_available_write(ring) == 1024
+    check lfq_stream_ring_is_empty(ring) == true
+    check lfq_stream_ring_is_full(ring) == false
+
+    var msg = "StreamRing Nim C ABI Test"
+    let written = lfq_stream_ring_try_write(ring, cast[pointer](addr msg[0]), csize_t(msg.len))
+    check written == csize_t(msg.len)
+    check lfq_stream_ring_available_read(ring) == csize_t(msg.len)
+
+    var readBuf = newString(64)
+    let readBytes = lfq_stream_ring_try_read(ring, cast[pointer](addr readBuf[0]), csize_t(readBuf.len))
+    check readBytes == csize_t(msg.len)
+    readBuf.setLen(int(readBytes))
+    check readBuf == msg
+    check lfq_stream_ring_is_empty(ring) == true
+
+    # Zero-copy IOVec test
+    let iovW = lfq_stream_ring_acquire_write_iov(ring, 100)
+    check iovW.first.iov_len + iovW.second.iov_len == 100
+    lfq_stream_ring_commit_write(ring, 100)
+    check lfq_stream_ring_available_read(ring) == 100
+
+    let iovR = lfq_stream_ring_acquire_read_iov(ring, 100)
+    check iovR.first.iov_len + iovR.second.iov_len == 100
+    lfq_stream_ring_commit_read(ring, 100)
+    check lfq_stream_ring_is_empty(ring) == true
+
+    lfq_stream_ring_destroy(ring)
+
+    # StreamBuffer alias test
+    let sbuf = lfq_streambuffer_create(512, false)
+    check sbuf != nil
+    check lfq_streambuffer_capacity(sbuf) == 512
+    check lfq_streambuffer_available_read(sbuf) == 0
+    check lfq_streambuffer_available_write(sbuf) == 512
+    check lfq_streambuffer_is_empty(sbuf) == true
+    check lfq_streambuffer_is_full(sbuf) == false
+    lfq_streambuffer_destroy(sbuf)
+
   test "Direct C99 Header Interoperability":
     let code1 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree.h"))
     check code1 == 0
@@ -1090,6 +1134,8 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check code2 == 0
     let code3 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_ratelimit.h"))
     check code3 == 0
+    let code4 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_streambuffer.h"))
+    check code4 == 0
 
   test "Compiled C99 test harness execution (clang + liblockfree.a)":
     let rootDir = currentSourcePath().parentDir() / ".."
