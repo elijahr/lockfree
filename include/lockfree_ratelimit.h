@@ -37,6 +37,14 @@ typedef enum {
 } lfq_status_t;
 #endif
 
+#ifndef LFQ_CACHELINE_BYTES
+  #if (defined(__APPLE__) && (defined(__arm64__) || defined(__aarch64__))) || defined(__powerpc__) || defined(__ppc__)
+    #define LFQ_CACHELINE_BYTES 128
+  #else
+    #define LFQ_CACHELINE_BYTES 64
+  #endif
+#endif
+
 /* 128-bit packed atomic state */
 typedef struct {
     uint64_t last_timestamp_ns;
@@ -45,7 +53,7 @@ typedef struct {
 
 /* TokenBucket structure */
 typedef struct {
-    alignas(64) lfq_rate_limit_state_t state;
+    alignas(LFQ_CACHELINE_BYTES) lfq_rate_limit_state_t state;
     uint64_t capacity;
     uint64_t refill_rate_per_sec;
     uint64_t scale_factor;
@@ -53,7 +61,7 @@ typedef struct {
 
 /* LeakyBucket (GCRA) structure */
 typedef struct {
-    alignas(64) lfq_rate_limit_state_t state;
+    alignas(LFQ_CACHELINE_BYTES) lfq_rate_limit_state_t state;
     uint64_t burst_tolerance_ns;
     uint64_t leak_rate_per_sec;
     uint64_t scale_factor;
