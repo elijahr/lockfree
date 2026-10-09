@@ -61,12 +61,18 @@ typedef struct {
 
 /* TokenBucket API */
 int lfq_token_bucket_init(lfq_token_bucket_t* bucket, uint64_t capacity, uint64_t refill_rate);
+lfq_token_bucket_t* lfq_token_bucket_create(uint64_t capacity, uint64_t refill_rate);
+void lfq_token_bucket_destroy(lfq_token_bucket_t* bucket);
+void lfq_token_bucket_reset(lfq_token_bucket_t* bucket, uint64_t tokens);
 bool lfq_token_bucket_try_acquire(lfq_token_bucket_t* bucket, uint64_t tokens);
 bool lfq_token_bucket_acquire_timeout(lfq_token_bucket_t* bucket, uint64_t tokens, int64_t timeout_ns);
 uint64_t lfq_token_bucket_available(const lfq_token_bucket_t* bucket);
 
 /* LeakyBucket (GCRA) API */
 int lfq_leaky_bucket_init(lfq_leaky_bucket_t* bucket, uint64_t burst_tolerance_ns, uint64_t leak_rate);
+lfq_leaky_bucket_t* lfq_leaky_bucket_create(uint64_t burst_tolerance_ns, uint64_t leak_rate);
+void lfq_leaky_bucket_destroy(lfq_leaky_bucket_t* bucket);
+void lfq_leaky_bucket_reset(lfq_leaky_bucket_t* bucket);
 bool lfq_leaky_bucket_try_consume(lfq_leaky_bucket_t* bucket, uint64_t weight);
 bool lfq_leaky_bucket_consume_timeout(lfq_leaky_bucket_t* bucket, uint64_t weight, int64_t timeout_ns);
 uint64_t lfq_leaky_bucket_water_level(const lfq_leaky_bucket_t* bucket);

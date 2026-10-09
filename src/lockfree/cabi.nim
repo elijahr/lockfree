@@ -28,6 +28,8 @@ import lockfree/taskpool
 import lockfree/ctrie
 import lockfree/broadcast
 import lockfree/rendezvous
+import lockfree/ratelimit
+export ratelimit
 import std/options
 
 # ------------------------------------------------------------------------------
@@ -2031,6 +2033,70 @@ proc lf_rendezvous_recv_timeout*(
     out_corr_id: ptr uint64
 ): bool {.exportc: "lf_rendezvous_recv_timeout", cdecl, gcsafe, raises: [].} =
   lfq_rendezvous_recv_timeout(chan, out_payload, int32(timeout_ms), out_corr_id) == LFQ_OK
+
+# ------------------------------------------------------------------------------
+# 10. Rate Limiters (Hardware 128-Bit DWCAS TokenBucket & LeakyBucket)
+# ------------------------------------------------------------------------------
+
+proc lfq_token_bucket_create*(
+    capacity: uint64,
+    refill_rate: uint64
+): ptr lfq_token_bucket_t {.exportc: "lfq_token_bucket_create", cdecl, gcsafe, raises: [].} =
+  try:
+    let p = cast[ptr lfq_token_bucket_t](allocShared0(sizeof(lfq_token_bucket_t)))
+    if lfq_token_bucket_init(p, capacity, refill_rate) != 0:
+      deallocShared(p)
+      return nil
+    p
+  except:
+    nil
+
+proc lfq_token_bucket_destroy*(
+    bucket: ptr lfq_token_bucket_t
+) {.exportc: "lfq_token_bucket_destroy", cdecl, gcsafe, raises: [].} =
+  if bucket != nil:
+    deallocShared(bucket)
+
+proc lfq_token_bucket_reset*(
+    bucket: ptr lfq_token_bucket_t,
+    tokens: uint64
+) {.exportc: "lfq_token_bucket_reset", cdecl, gcsafe, raises: [].} =
+  if bucket != nil:
+    try:
+      let tb = cast[ptr TokenBucket](bucket)
+      tb[].reset(tokens)
+    except:
+      discard
+
+proc lfq_leaky_bucket_create*(
+    burst_tolerance_ns: uint64,
+    leak_rate: uint64
+): ptr lfq_leaky_bucket_t {.exportc: "lfq_leaky_bucket_create", cdecl, gcsafe, raises: [].} =
+  try:
+    let p = cast[ptr lfq_leaky_bucket_t](allocShared0(sizeof(lfq_leaky_bucket_t)))
+    if lfq_leaky_bucket_init(p, burst_tolerance_ns, leak_rate) != 0:
+      deallocShared(p)
+      return nil
+    p
+  except:
+    nil
+
+proc lfq_leaky_bucket_destroy*(
+    bucket: ptr lfq_leaky_bucket_t
+) {.exportc: "lfq_leaky_bucket_destroy", cdecl, gcsafe, raises: [].} =
+  if bucket != nil:
+    deallocShared(bucket)
+
+proc lfq_leaky_bucket_reset*(
+    bucket: ptr lfq_leaky_bucket_t
+) {.exportc: "lfq_leaky_bucket_reset", cdecl, gcsafe, raises: [].} =
+  if bucket != nil:
+    try:
+      let lb = cast[ptr LeakyBucket](bucket)
+      lb[].reset()
+    except:
+      discard
+
 
 
 
