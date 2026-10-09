@@ -92,6 +92,19 @@ proc uniqueConsumerWorker(arg: ptr UniqueConsumerArg) {.thread.} =
         cpuPause()
     discard lfq_consumer_release(cons)
 
+type
+  RzSyncArg = object
+    chan: ptr lfq_rendezvous_t
+    recvVal: ptr Atomic[int]
+    recvCid: ptr Atomic[uint64]
+
+proc rzSyncWorker(arg: ptr RzSyncArg) {.thread.} =
+  var item: pointer = nil
+  var cid: uint64 = 0
+  if lfq_rendezvous_recv(arg.chan, addr item, addr cid) == LFQ_OK:
+    arg.recvVal[].store(cast[int](item), moRelaxed)
+    arg.recvCid[].store(cid, moRelaxed)
+
 suite "lockfree C ABI Specification & Cross-Language Interop":
 
   test "Bounded MPMC lifecycle & FIFO ordering":
@@ -984,16 +997,69 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
 
     check lfq_broadcast_destroy(ring) == LFQ_OK
 
+  test "RendezvousChannel C ABI Lifecycle & Synchronous Handoff":
+    var chan: ptr lfq_rendezvous_t = nil
+    check lfq_rendezvous_create(addr chan) == LFQ_OK
+    check chan != nil
+    check lfq_rendezvous_is_closed(chan) == false
+
+    var corrId: uint64 = 0
+    var item: pointer = nil
+    check lfq_rendezvous_try_send(chan, cast[pointer](42), addr corrId) == LFQ_ERR_EMPTY
+    check lfq_rendezvous_try_recv(chan, addr item, addr corrId) == LFQ_ERR_EMPTY
+
+    check lfq_rendezvous_send_timeout(chan, cast[pointer](42), 5, addr corrId) == LFQ_ERR_EMPTY
+    check lfq_rendezvous_recv_timeout(chan, addr item, 5, addr corrId) == LFQ_ERR_EMPTY
+
+    # Cross-thread bilateral handoff
+    var rcvVal: Atomic[int]
+    var rcvCid: Atomic[uint64]
+    rcvVal.store(0, moRelaxed)
+    rcvCid.store(0, moRelaxed)
+
+    var rzArg = RzSyncArg(
+      chan: chan,
+      recvVal: addr rcvVal,
+      recvCid: addr rcvCid
+    )
+
+    var th: Thread[ptr RzSyncArg]
+    createThread(th, rzSyncWorker, addr rzArg)
+
+    var scid: uint64 = 0
+    check lfq_rendezvous_send(chan, cast[pointer](888), addr scid) == LFQ_OK
+    joinThread(th)
+
+    check rcvVal.load(moRelaxed) == 888
+    check scid > 0'u64
+    check rcvCid.load(moRelaxed) == scid
+
+    # Section 9.1 C API functions
+    let rchan = lf_rendezvous_create()
+    check rchan != nil
+    check lf_rendezvous_try_send(rchan, cast[pointer](99), nil) == false
+    check lf_rendezvous_try_recv(rchan, addr item, nil) == false
+    lf_rendezvous_close(rchan)
+    lf_rendezvous_destroy(rchan)
+
+    # Close & destroy
+    check lfq_rendezvous_close(chan) == LFQ_OK
+    check lfq_rendezvous_is_closed(chan) == true
+    check lfq_rendezvous_send(chan, cast[pointer](1), addr corrId) == LFQ_ERR_CLOSED
+    check lfq_rendezvous_recv(chan, addr item, addr corrId) == LFQ_ERR_CLOSED
+    check lfq_rendezvous_destroy(chan) == LFQ_OK
+
   test "Direct C99 Header Interoperability":
-    let code = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -I" & includeDir & " " & (includeDir / "lockfree.h"))
-    check code == 0
+    let code1 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree.h"))
+    check code1 == 0
+    let code2 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_rendezvous.h"))
+    check code2 == 0
 
   test "Compiled C99 test harness execution (clang + liblockfree.a)":
     let rootDir = currentSourcePath().parentDir() / ".."
     let staticLib = rootDir / ".tmp/liblockfree.a"
-    if not fileExists(staticLib):
-      let buildCode = execShellCmd("nim c --app:staticlib -d:danger --threads:on -o:" & staticLib & " " & (rootDir / "src/lockfree/cabi.nim"))
-      check buildCode == 0
+    let buildCode = execShellCmd("nim c --app:staticlib -d:danger --threads:on -o:" & staticLib & " " & (rootDir / "src/lockfree/cabi.nim"))
+    check buildCode == 0
     let cTestSrc = rootDir / "tests/cabi/test_cabi.c"
     let cTestBin = rootDir / ".tmp/test_cabi"
     let compileCmd = "clang -std=c99 -Wall -Wextra -Werror -I" & includeDir & " " & cTestSrc & " -L" & (rootDir / ".tmp") & " -llockfree -o " & cTestBin
