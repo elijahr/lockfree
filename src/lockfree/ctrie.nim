@@ -38,6 +38,7 @@ when not compileOption("threads"):
 import std/[options, hashes, bitops]
 import pkg/typestates
 import ./atomics
+import ./backoff
 import ./smr/nebr
 import ./internal/aligned_alloc
 
@@ -1001,6 +1002,319 @@ proc computeIfAbsent*[K, V; MaxThreads: static int](
     return prev.get
   return computed
 
+proc computeIfAbsent*[K, V; MaxThreads: static int](
+    self: Ctrie[K, V, MaxThreads],
+    key: K,
+    computeFn: proc(): V {.closure, gcsafe.}
+): V {.inline.} =
+  ## Parameterless computation overload for `computeIfAbsent`.
+  self.computeIfAbsent(key, proc(k: K): V = computeFn())
+
+proc atomicUpdate*[K, V; MaxThreads: static int](
+    self: Ctrie[K, V, MaxThreads],
+    key: K,
+    updateProc: proc(v: V): V {.closure, gcsafe.}
+): Option[V] {.discardable.} =
+  ## Atomically updates the value associated with `key` using `updateProc`.
+  ## If `key` is absent, returns `none(V)`.
+  ## If `key` is present, replaces `oldVal` with `newVal = updateProc(oldVal)`
+  ## and returns `some(newVal)`.
+  ## Lock-free.
+  if unlikely(self.core == nil): return none(V)
+  let h = getHash(key)
+  let th = self.getOrRegisterHandle()
+  let pinned = unpinned(th).pin()
+  var ready = retireReady(pinned)
+  var spins = InitialSpin
+  try:
+    while true:
+      let root = self.core.root.load(moAcquire)
+      var cur = root
+      var parent: ptr INode[K, V] = nil
+      var level = 0
+      var restarted = false
+
+      while not restarted:
+        let main = cur.main.load(moAcquire)
+        if unlikely(main == nil): return none(V)
+        case main.kind
+        of mnkCNode:
+          let cn = cast[ptr CNode[K, V]](main)
+          if cn.gen != root.gen:
+            let newCn = gcopy(cn, root.gen)
+            var expMain = main
+            if cur.main.compareExchangeStrong(expMain, cast[ptr MainNode[K, V]](newCn), moAcquireRelease, moAcquire):
+              discard
+            else:
+              freeUnlinkedCNode[K, V](newCn, root.gen)
+            restarted = true
+            break
+
+          let pos = (h shr level) and 0x1F'u32
+          let flag = 1'u32 shl pos
+          if (cn.bmp and flag) == 0:
+            return none(V) # Key absent
+
+          let idx = countBits32(cn.bmp and (flag - 1'u32))
+          let child = cn.children[idx]
+          if child.isINode:
+            parent = cur
+            cur = child.toINode
+            level += 5
+          else:
+            let sn = child.toSNode
+            if sn.key != key:
+              return none(V) # Key absent
+
+            let oldVal = sn.vbox.val
+            let newVal = updateProc(oldVal)
+            let newSn = allocSNode(key, newVal, h)
+            let newCn = allocCNode[K, V](cn.bmp, root.gen, cn.csize)
+            for i in 0 ..< cn.csize:
+              if i == idx:
+                newCn.children[i] = makeBranchNode(newSn)
+              else:
+                newCn.children[i] = cn.children[i]
+
+            var expMain = main
+            if cur.main.compareExchangeStrong(expMain, cast[ptr MainNode[K, V]](newCn), moAcquireRelease, moAcquire):
+              ready.retire(cast[pointer](sn), destroySNodeCallback[K, V])
+              if cn.gen == root.gen:
+                ready.retire(cast[pointer](cn), destroyCNodeCallback[K, V])
+              return some(newVal)
+            else:
+              destroyCNodeCallback[K, V](cast[pointer](newCn))
+              destroySNodeCallback[K, V](cast[pointer](newSn))
+              backoffOnRetry(spins)
+              restarted = true
+              break
+
+        of mnkLNode:
+          let ln = cast[ptr LNode[K, V]](main)
+          var checkCurr = ln.head
+          var found = false
+          while checkCurr != nil:
+            if checkCurr.key == key:
+              found = true
+              break
+            checkCurr = checkCurr.next
+
+          if not found:
+            return none(V)
+
+          var newVal: V
+          var newHead: ptr LNodeEntry[K, V] = nil
+          var curr = ln.head
+          while curr != nil:
+            if curr.key == key:
+              newVal = updateProc(curr.vbox.val)
+              let vb = newVBox(newVal)
+              newHead = allocLNodeEntry(key, vb, newHead)
+            else:
+              incRef(curr.vbox)
+              newHead = allocLNodeEntry(curr.key, curr.vbox, newHead)
+            curr = curr.next
+
+          let newLn = allocLNode[K, V](ln.hash, newHead)
+          var expMain = main
+          if cur.main.compareExchangeStrong(expMain, cast[ptr MainNode[K, V]](newLn), moAcquireRelease, moAcquire):
+            ready.retire(cast[pointer](ln), destroyLNodeCallback[K, V])
+            return some(newVal)
+          else:
+            destroyLNodeCallback[K, V](cast[pointer](newLn))
+            backoffOnRetry(spins)
+            restarted = true
+            break
+
+        of mnkTNode:
+          let tn = cast[ptr TNode[K, V]](main)
+          self.clean(parent, cur, tn.snode, ready)
+          restarted = true
+          break
+  finally:
+    unpinGuard(toPinned(ready))
+
+proc upsert*[K, V; MaxThreads: static int](
+    self: Ctrie[K, V, MaxThreads],
+    key: K,
+    insertVal: V,
+    updateProc: proc(oldVal: V): V {.closure, gcsafe.}
+): V {.discardable.} =
+  ## Atomically inserts `insertVal` if `key` is absent, or updates `key`
+  ## with `updateProc(oldVal)` if present.
+  ## Returns the settled value.
+  ## Lock-free.
+  if unlikely(self.core == nil): return insertVal
+  let h = getHash(key)
+  let th = self.getOrRegisterHandle()
+  let pinned = unpinned(th).pin()
+  var ready = retireReady(pinned)
+  var spins = InitialSpin
+  try:
+    while true:
+      let root = self.core.root.load(moAcquire)
+      var cur = root
+      var parent: ptr INode[K, V] = nil
+      var level = 0
+      var restarted = false
+
+      while not restarted:
+        let main = cur.main.load(moAcquire)
+        if unlikely(main == nil):
+          restarted = true
+          break
+        case main.kind
+        of mnkCNode:
+          let cn = cast[ptr CNode[K, V]](main)
+          if cn.gen != root.gen:
+            let newCn = gcopy(cn, root.gen)
+            var expMain = main
+            if cur.main.compareExchangeStrong(expMain, cast[ptr MainNode[K, V]](newCn), moAcquireRelease, moAcquire):
+              discard
+            else:
+              freeUnlinkedCNode[K, V](newCn, root.gen)
+            restarted = true
+            break
+
+          let pos = (h shr level) and 0x1F'u32
+          let flag = 1'u32 shl pos
+          let present = (cn.bmp and flag) != 0
+
+          if not present:
+            # Key absent: insert insertVal
+            let sn = allocSNode(key, insertVal, h)
+            let idx = countBits32(cn.bmp and (flag - 1'u32))
+            let newCn = allocCNode[K, V](cn.bmp or flag, root.gen, cn.csize + 1)
+            for i in 0 ..< idx:
+              newCn.children[i] = cn.children[i]
+            newCn.children[idx] = makeBranchNode(sn)
+            for i in idx ..< cn.csize:
+              newCn.children[i + 1] = cn.children[i]
+
+            var expMain = main
+            if cur.main.compareExchangeStrong(expMain, cast[ptr MainNode[K, V]](newCn), moAcquireRelease, moAcquire):
+              if cn.gen == root.gen:
+                ready.retire(cast[pointer](cn), destroyCNodeCallback[K, V])
+              discard self.core.count.fetchAdd(1, moRelaxed)
+              return insertVal
+            else:
+              destroyCNodeCallback[K, V](cast[pointer](newCn))
+              destroySNodeCallback[K, V](cast[pointer](sn))
+              backoffOnRetry(spins)
+              restarted = true
+              break
+          else:
+            let idx = countBits32(cn.bmp and (flag - 1'u32))
+            let child = cn.children[idx]
+            if child.isINode:
+              parent = cur
+              cur = child.toINode
+              level += 5
+            else:
+              let sn = child.toSNode
+              if sn.key == key:
+                # Key present: update with updateProc
+                let oldVal = sn.vbox.val
+                let newVal = updateProc(oldVal)
+                let newSn = allocSNode(key, newVal, h)
+                let newCn = allocCNode[K, V](cn.bmp, root.gen, cn.csize)
+                for i in 0 ..< cn.csize:
+                  if i == idx:
+                    newCn.children[i] = makeBranchNode(newSn)
+                  else:
+                    newCn.children[i] = cn.children[i]
+
+                var expMain = main
+                if cur.main.compareExchangeStrong(expMain, cast[ptr MainNode[K, V]](newCn), moAcquireRelease, moAcquire):
+                  ready.retire(cast[pointer](sn), destroySNodeCallback[K, V])
+                  if cn.gen == root.gen:
+                    ready.retire(cast[pointer](cn), destroyCNodeCallback[K, V])
+                  return newVal
+                else:
+                  destroyCNodeCallback[K, V](cast[pointer](newCn))
+                  destroySNodeCallback[K, V](cast[pointer](newSn))
+                  backoffOnRetry(spins)
+                  restarted = true
+                  break
+              else:
+                # Key absent at this branch: collision expand with insertVal
+                let newSn = allocSNode(key, insertVal, h)
+                let subINode = createSubINode(sn, newSn, level + 5, root.gen)
+                let convertedToLNode = isLNodeSubtree(subINode)
+                let newCn = allocCNode[K, V](cn.bmp, root.gen, cn.csize)
+                for i in 0 ..< cn.csize:
+                  if i == idx:
+                    newCn.children[i] = makeBranchNode(subINode)
+                  else:
+                    newCn.children[i] = cn.children[i]
+
+                var expMain = main
+                if cur.main.compareExchangeStrong(expMain, cast[ptr MainNode[K, V]](newCn), moAcquireRelease, moAcquire):
+                  if cn.gen == root.gen:
+                    ready.retire(cast[pointer](cn), destroyCNodeCallback[K, V])
+                  if convertedToLNode:
+                    ready.retire(cast[pointer](sn), destroySNodeCallback[K, V])
+                    destroySNodeCallback[K, V](cast[pointer](newSn))
+                  discard self.core.count.fetchAdd(1, moRelaxed)
+                  return insertVal
+                else:
+                  destroyCNodeCallback[K, V](cast[pointer](newCn))
+                  freeUnlinkedSubTree[K, V](subINode)
+                  destroySNodeCallback[K, V](cast[pointer](newSn))
+                  backoffOnRetry(spins)
+                  restarted = true
+                  break
+
+        of mnkLNode:
+          let ln = cast[ptr LNode[K, V]](main)
+          var found = false
+          var oldVal: V
+          var curr = ln.head
+          while curr != nil:
+            if curr.key == key:
+              found = true
+              oldVal = curr.vbox.val
+              break
+            curr = curr.next
+
+          let settledVal = if found: updateProc(oldVal) else: insertVal
+
+          var newHead: ptr LNodeEntry[K, V] = nil
+          curr = ln.head
+          while curr != nil:
+            if curr.key == key:
+              let vb = newVBox(settledVal)
+              newHead = allocLNodeEntry(key, vb, newHead)
+            else:
+              incRef(curr.vbox)
+              newHead = allocLNodeEntry(curr.key, curr.vbox, newHead)
+            curr = curr.next
+
+          if not found:
+            let vb = newVBox(settledVal)
+            newHead = allocLNodeEntry(key, vb, newHead)
+
+          let newLn = allocLNode[K, V](ln.hash, newHead)
+          var expMain = main
+          if cur.main.compareExchangeStrong(expMain, cast[ptr MainNode[K, V]](newLn), moAcquireRelease, moAcquire):
+            ready.retire(cast[pointer](ln), destroyLNodeCallback[K, V])
+            if not found:
+              discard self.core.count.fetchAdd(1, moRelaxed)
+            return settledVal
+          else:
+            destroyLNodeCallback[K, V](cast[pointer](newLn))
+            backoffOnRetry(spins)
+            restarted = true
+            break
+
+        of mnkTNode:
+          let tn = cast[ptr TNode[K, V]](main)
+          self.clean(parent, cur, tn.snode, ready)
+          restarted = true
+          break
+  finally:
+    unpinGuard(toPinned(ready))
+
 proc len*[K, V; MaxThreads: static int](self: Ctrie[K, V, MaxThreads]): int {.inline.} =
   if self.core == nil: 0 else: max(0, self.core.count.load(moRelaxed))
 
@@ -1169,6 +1483,51 @@ iterator values*[K, V; MaxThreads: static int](
 ): V =
   for _, v in self.pairs:
     yield v
+
+proc snapshotPairs*[K, V; MaxThreads: static int](
+    snap: Snapshot[K, V, MaxThreads]
+): seq[(K, V)] =
+  ## Returns a materialized sequence of (key, value) pairs from this snapshot view.
+  result = @[]
+  for p in snap.pairs:
+    result.add(p)
+
+proc snapshotPairs*[K, V; MaxThreads: static int](
+    self: Ctrie[K, V, MaxThreads]
+): seq[(K, V)] =
+  ## Returns a materialized sequence of (key, value) pairs from an O(1) wait-free snapshot.
+  let snap = self.snapshot()
+  snap.snapshotPairs()
+
+proc snapshotKeys*[K, V; MaxThreads: static int](
+    snap: Snapshot[K, V, MaxThreads]
+): seq[K] =
+  ## Returns a materialized sequence of keys from this snapshot view.
+  result = @[]
+  for k in snap.keys:
+    result.add(k)
+
+proc snapshotKeys*[K, V; MaxThreads: static int](
+    self: Ctrie[K, V, MaxThreads]
+): seq[K] =
+  ## Returns a materialized sequence of keys from an O(1) wait-free snapshot.
+  let snap = self.snapshot()
+  snap.snapshotKeys()
+
+proc snapshotValues*[K, V; MaxThreads: static int](
+    snap: Snapshot[K, V, MaxThreads]
+): seq[V] =
+  ## Returns a materialized sequence of values from this snapshot view.
+  result = @[]
+  for v in snap.values:
+    result.add(v)
+
+proc snapshotValues*[K, V; MaxThreads: static int](
+    self: Ctrie[K, V, MaxThreads]
+): seq[V] =
+  ## Returns a materialized sequence of values from an O(1) wait-free snapshot.
+  let snap = self.snapshot()
+  snap.snapshotValues()
 
 # ---------------------------------------------------------------------------
 # Destruction & Lifecycle

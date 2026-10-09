@@ -29,6 +29,7 @@ when not compileOption("threads"):
 import std/[options]
 import pkg/typestates
 import ./atomics
+import ./backoff
 import ./smr/nebr
 import ./internal/aligned_alloc
 
@@ -149,7 +150,10 @@ proc freeVBox[V](box: ptr VBox[V]) {.inline, gcsafe.} =
   if box != nil:
     when not (V is SomeNumber or V is bool or V is char or V is pointer or V is ptr):
       {.cast(gcsafe).}:
-        `=destroy`(box.val)
+        try:
+          `=destroy`(box.val)
+        except:
+          discard
     deallocShared(box)
 
 proc destroyVBoxCallback[V](p: pointer) {.nimcall, raises: [].} =
@@ -184,7 +188,10 @@ proc freeNodeDirect[K, V; MaxLevel: static int](n: ptr SkipListNode[K, V, MaxLev
       freeVBox[V](box)
     when not (K is SomeNumber or K is bool or K is char or K is pointer or K is ptr):
       {.cast(gcsafe).}:
-        `=destroy`(n.key)
+        try:
+          `=destroy`(n.key)
+        except:
+          discard
     deallocShared(n)
 
 # ---------------------------------------------------------------------------
@@ -755,6 +762,173 @@ proc computeIfAbsent*[K, V; MaxThreads, MaxLevel: static int](
 ): V {.inline.} =
   self.computeIfAbsent(key, proc(k: K): V = fn())
 
+proc atomicUpdate*[K, V; MaxThreads, MaxLevel: static int](
+    self: var SkipListMap[K, V, MaxThreads, MaxLevel],
+    key: K,
+    updateProc: proc(v: V): V {.closure, gcsafe.},
+    handle: ThreadHandle[MaxThreads, ccMulti]
+): Option[V] =
+  ## Atomically transforms an existing value associated with `key` via in-place
+  ## CAS on `node.valPtr`. If `key` is absent, returns `none(V)`.
+  ## If `key` is present, updates `val` to `newVal = updateProc(oldVal)` and returns `some(newVal)`.
+  ## Lock-free, O(log N) search + O(1) in-place value CAS.
+  if unlikely(self.core == nil): return none(V)
+  let pinned = unpinned(handle).pin()
+  var ready = retireReady(pinned)
+  var spins = InitialSpin
+  try:
+    var preds: array[MaxLevel, ptr SkipListNode[K, V, MaxLevel]]
+    var succs: array[MaxLevel, ptr SkipListNode[K, V, MaxLevel]]
+
+    while true:
+      let found = self.find(key, preds, succs, ready)
+      if not found:
+        return none(V)
+
+      let existingNode = succs[0]
+      if isMarked(existingNode.next[0].load(moAcquire)):
+        backoffOnRetry(spins)
+        continue
+
+      let oldBox = existingNode.valPtr.load(moAcquire)
+      if oldBox == nil:
+        backoffOnRetry(spins)
+        continue
+
+      let newVal = updateProc(oldBox.val)
+      let newBox = newVBox(newVal)
+
+      if isMarked(existingNode.next[0].load(moAcquire)):
+        freeVBox(newBox)
+        backoffOnRetry(spins)
+        continue
+
+      var expected = oldBox
+      if existingNode.valPtr.compareExchange(expected, newBox, moAcquireRelease, moAcquire):
+        ready.retire(cast[pointer](oldBox), destroyVBoxCallback[V])
+        handle.advanceEvery(32)
+        return some(newVal)
+      else:
+        freeVBox(newBox)
+        backoffOnRetry(spins)
+        continue
+  finally:
+    unpinGuard(toPinned(ready))
+
+proc atomicUpdate*[K, V; MaxThreads, MaxLevel: static int](
+    self: var SkipListMap[K, V, MaxThreads, MaxLevel],
+    key: K,
+    updateProc: proc(v: V): V {.closure, gcsafe.}
+): Option[V] {.inline.} =
+  let h = self.getOrRegisterHandle()
+  self.atomicUpdate(key, updateProc, h)
+
+proc upsert*[K, V; MaxThreads, MaxLevel: static int](
+    self: var SkipListMap[K, V, MaxThreads, MaxLevel],
+    key: K,
+    insertVal: V,
+    updateProc: proc(oldVal: V): V {.closure, gcsafe.},
+    handle: ThreadHandle[MaxThreads, ccMulti]
+): V =
+  ## Atomically inserts `insertVal` if `key` is absent, or updates `key`
+  ## with `updateProc(oldVal)` via in-place CAS if present.
+  ## Returns the settled value.
+  ## Lock-free.
+  if unlikely(self.core == nil): return insertVal
+  let pinned = unpinned(handle).pin()
+  var ready = retireReady(pinned)
+  var spins = InitialSpin
+  try:
+    var preds: array[MaxLevel, ptr SkipListNode[K, V, MaxLevel]]
+    var succs: array[MaxLevel, ptr SkipListNode[K, V, MaxLevel]]
+    let topLevel = randomLevel(MaxLevel)
+
+    while true:
+      let found = self.find(key, preds, succs, ready)
+      if found:
+        let existingNode = succs[0]
+        if isMarked(existingNode.next[0].load(moAcquire)):
+          backoffOnRetry(spins)
+          continue
+
+        let oldBox = existingNode.valPtr.load(moAcquire)
+        if oldBox == nil:
+          backoffOnRetry(spins)
+          continue
+
+        let newVal = updateProc(oldBox.val)
+        let newBox = newVBox(newVal)
+
+        if isMarked(existingNode.next[0].load(moAcquire)):
+          freeVBox(newBox)
+          backoffOnRetry(spins)
+          continue
+
+        var expected = oldBox
+        if existingNode.valPtr.compareExchange(expected, newBox, moAcquireRelease, moAcquire):
+          ready.retire(cast[pointer](oldBox), destroyVBoxCallback[V])
+          handle.advanceEvery(32)
+          return newVal
+        else:
+          freeVBox(newBox)
+          backoffOnRetry(spins)
+          continue
+
+      # Not found: insert fresh node with insertVal
+      let newNode = cast[ptr SkipListNode[K, V, MaxLevel]](
+        allocShared0(sizeof(SkipListNode[K, V, MaxLevel]))
+      )
+      newNode.isHead = false
+      newNode.isTail = false
+      newNode.topLevel = topLevel
+      wasMoved(newNode.key)
+      newNode.key = key
+      newNode.valPtr.store(newVBox(insertVal), moRelaxed)
+
+      for level in 0 .. topLevel:
+        newNode.next[level].store(toEntry(succs[level], false), moRelaxed)
+
+      let pred0 = preds[0]
+      let succ0 = succs[0]
+      var expected0 = toEntry(succ0, false)
+      let desired0 = toEntry(newNode, false)
+      if not pred0.next[0].compareExchange(expected0, desired0, moAcquireRelease, moAcquire):
+        freeVBox(newNode.valPtr.load(moRelaxed))
+        when not (K is SomeNumber or K is bool or K is char or K is pointer or K is ptr):
+          `=destroy`(newNode.key)
+        deallocShared(newNode)
+        backoffOnRetry(spins)
+        continue
+
+      discard self.core.count.fetchAdd(1, moRelaxed)
+
+      for level in 1 .. topLevel:
+        if isMarked(newNode.next[0].load(moAcquire)):
+          break
+        while true:
+          let pred = preds[level]
+          let succ = succs[level]
+          newNode.next[level].store(toEntry(succ, false), moRelaxed)
+          var expected = toEntry(succ, false)
+          let desired = toEntry(newNode, false)
+          if pred.next[level].compareExchange(expected, desired, moAcquireRelease, moAcquire):
+            break
+          discard self.find(key, preds, succs, ready)
+
+      handle.advanceEvery(32)
+      return insertVal
+  finally:
+    unpinGuard(toPinned(ready))
+
+proc upsert*[K, V; MaxThreads, MaxLevel: static int](
+    self: var SkipListMap[K, V, MaxThreads, MaxLevel],
+    key: K,
+    insertVal: V,
+    updateProc: proc(oldVal: V): V {.closure, gcsafe.}
+): V {.inline.} =
+  let h = self.getOrRegisterHandle()
+  self.upsert(key, insertVal, updateProc, h)
+
 # ---------------------------------------------------------------------------
 # Ordered Iterators (Ascending Level-0 Walk)
 # ---------------------------------------------------------------------------
@@ -807,6 +981,93 @@ iterator items*[K, V; MaxThreads, MaxLevel: static int](
   ## Default iterator over key-value tuples.
   for p in self.pairs():
     yield p
+
+proc snapshotPairs*[K, V; MaxThreads, MaxLevel: static int](
+    self: SkipListMap[K, V, MaxThreads, MaxLevel],
+    handle: ThreadHandle[MaxThreads, ccMulti]
+): seq[(K, V)] =
+  ## Returns a point-in-time materialized sequence of all (key, value) pairs
+  ## in strictly ascending key order under Debra SMR protection.
+  if unlikely(self.core == nil or self.core.head == nil): return @[]
+  let pinned = unpinned(handle).pin()
+  try:
+    var res: seq[(K, V)] = @[]
+    var currEntry = self.core.head.next[0].load(moAcquire)
+    var curr = toPtr[SkipListNode[K, V, MaxLevel]](currEntry)
+    while curr != nil and curr != self.core.tail:
+      let succEntry = curr.next[0].load(moAcquire)
+      if not isMarked(succEntry):
+        let box = curr.valPtr.load(moAcquire)
+        if box != nil:
+          res.add((curr.key, box.val))
+      curr = toPtr[SkipListNode[K, V, MaxLevel]](succEntry)
+    return res
+  finally:
+    unpinGuard(pinned)
+
+proc snapshotPairs*[K, V; MaxThreads, MaxLevel: static int](
+    self: SkipListMap[K, V, MaxThreads, MaxLevel]
+): seq[(K, V)] {.inline.} =
+  let h = self.getOrRegisterHandle()
+  self.snapshotPairs(h)
+
+proc snapshotKeys*[K, V; MaxThreads, MaxLevel: static int](
+    self: SkipListMap[K, V, MaxThreads, MaxLevel],
+    handle: ThreadHandle[MaxThreads, ccMulti]
+): seq[K] =
+  ## Returns a point-in-time materialized sequence of all keys in strictly
+  ## ascending key order under Debra SMR protection.
+  if unlikely(self.core == nil or self.core.head == nil): return @[]
+  let pinned = unpinned(handle).pin()
+  try:
+    var res: seq[K] = @[]
+    var currEntry = self.core.head.next[0].load(moAcquire)
+    var curr = toPtr[SkipListNode[K, V, MaxLevel]](currEntry)
+    while curr != nil and curr != self.core.tail:
+      let succEntry = curr.next[0].load(moAcquire)
+      if not isMarked(succEntry):
+        let box = curr.valPtr.load(moAcquire)
+        if box != nil:
+          res.add(curr.key)
+      curr = toPtr[SkipListNode[K, V, MaxLevel]](succEntry)
+    return res
+  finally:
+    unpinGuard(pinned)
+
+proc snapshotKeys*[K, V; MaxThreads, MaxLevel: static int](
+    self: SkipListMap[K, V, MaxThreads, MaxLevel]
+): seq[K] {.inline.} =
+  let h = self.getOrRegisterHandle()
+  self.snapshotKeys(h)
+
+proc snapshotValues*[K, V; MaxThreads, MaxLevel: static int](
+    self: SkipListMap[K, V, MaxThreads, MaxLevel],
+    handle: ThreadHandle[MaxThreads, ccMulti]
+): seq[V] =
+  ## Returns a point-in-time materialized sequence of all values in strictly
+  ## ascending key order under Debra SMR protection.
+  if unlikely(self.core == nil or self.core.head == nil): return @[]
+  let pinned = unpinned(handle).pin()
+  try:
+    var res: seq[V] = @[]
+    var currEntry = self.core.head.next[0].load(moAcquire)
+    var curr = toPtr[SkipListNode[K, V, MaxLevel]](currEntry)
+    while curr != nil and curr != self.core.tail:
+      let succEntry = curr.next[0].load(moAcquire)
+      if not isMarked(succEntry):
+        let box = curr.valPtr.load(moAcquire)
+        if box != nil:
+          res.add(box.val)
+      curr = toPtr[SkipListNode[K, V, MaxLevel]](succEntry)
+    return res
+  finally:
+    unpinGuard(pinned)
+
+proc snapshotValues*[K, V; MaxThreads, MaxLevel: static int](
+    self: SkipListMap[K, V, MaxThreads, MaxLevel]
+): seq[V] {.inline.} =
+  let h = self.getOrRegisterHandle()
+  self.snapshotValues(h)
 
 # ---------------------------------------------------------------------------
 # Constructor Aliases
