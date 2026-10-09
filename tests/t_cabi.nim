@@ -1127,6 +1127,46 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check lfq_streambuffer_is_full(sbuf) == false
     lfq_streambuffer_destroy(sbuf)
 
+  test "Atomic Associative Map Operations C ABI":
+    var ctrie: ptr lfq_ctrie_t = nil
+    check lfq_ctrie_create(nil, nil, addr ctrie) == LFQ_OK
+    check ctrie != nil
+
+    var outVal: pointer = nil
+    var outLen: csize_t = 0
+
+    let mappingCb: lfq_mapping_fn = proc(k: pointer, kLen: csize_t, uData: pointer): pointer {.cdecl.} =
+      cast[pointer](cast[uint](k) * 10)
+
+    let updateCb: lfq_update_fn = proc(oldVal: pointer, oldLen: csize_t, uData: pointer): pointer {.cdecl.} =
+      cast[pointer](cast[uint](oldVal) + 1)
+
+    # Ctrie computeIfAbsent
+    check lfq_ctrie_compute_if_absent(ctrie, cast[pointer](42), 0, mappingCb, nil, addr outVal, addr outLen) == true
+    check cast[uint](outVal) == 420
+    outVal = nil
+    check lfq_ctrie_compute_if_absent(ctrie, cast[pointer](42), 0, mappingCb, nil, addr outVal, addr outLen) == true
+    check cast[uint](outVal) == 420
+
+    # Ctrie atomicUpdate
+    check lfq_ctrie_atomic_update(ctrie, cast[pointer](999), 0, updateCb, nil, addr outVal, addr outLen) == false
+    check lfq_ctrie_atomic_update(ctrie, cast[pointer](42), 0, updateCb, nil, addr outVal, addr outLen) == true
+    check cast[uint](outVal) == 421
+
+    check lfq_ctrie_destroy(ctrie) == LFQ_OK
+
+    # SkipListMap / Table
+    var table: ptr lfq_table_t = nil
+    check lfq_table_create(nil, nil, addr table) == LFQ_OK
+    check table != nil
+
+    check lfq_skiplist_compute_if_absent(table, cast[pointer](55), 0, mappingCb, nil, addr outVal, addr outLen) == true
+    check cast[uint](outVal) == 550
+    check lfq_skiplist_atomic_update(table, cast[pointer](55), 0, updateCb, nil, addr outVal, addr outLen) == true
+    check cast[uint](outVal) == 551
+
+    check lfq_table_destroy(table) == LFQ_OK
+
   test "Direct C99 Header Interoperability":
     let code1 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree.h"))
     check code1 == 0
@@ -1136,6 +1176,8 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check code3 == 0
     let code4 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_streambuffer.h"))
     check code4 == 0
+    let code5 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_associative.h"))
+    check code5 == 0
 
   test "Compiled C99 test harness execution (clang + liblockfree.a)":
     let rootDir = currentSourcePath().parentDir() / ".."

@@ -20,6 +20,7 @@
 #include "lockfree.h"
 #include "lockfree_ratelimit.h"
 #include "lockfree_streambuffer.h"
+#include "lockfree_associative.h"
 #include <string.h>
 
 /* Nim runtime initialization symbol exported by liblockfree.a */
@@ -1287,6 +1288,173 @@ static void test_cabi_streambuffer(void) {
 }
 
 /* -------------------------------------------------------------------------
+ * Test 13: Atomic Associative Map Operations (Ctrie & SkipListMap)
+ * ------------------------------------------------------------------------- */
+
+static void* test_mapping_cb(const void* key, size_t key_len, void* user_data) {
+    (void)key_len;
+    (void)user_data;
+    uintptr_t k = (uintptr_t)key;
+    return (void*)(k * 10);
+}
+
+static void* test_update_cb(const void* old_val, size_t old_val_len, void* user_data) {
+    (void)old_val_len;
+    (void)user_data;
+    uintptr_t v = (uintptr_t)old_val;
+    return (void*)(v + 1);
+}
+
+typedef struct {
+    lfq_ctrie_t* ctrie;
+    lfq_skiplist_t* skiplist;
+    size_t increments;
+    void* target_key;
+} assoc_worker_arg_t;
+
+static void* assoc_ctrie_worker(void* raw_arg) {
+    assoc_worker_arg_t* arg = (assoc_worker_arg_t*)raw_arg;
+    for (size_t i = 0; i < arg->increments; i++) {
+        void* out_v = NULL;
+        size_t out_len = 0;
+        bool ok = lfq_ctrie_atomic_update(arg->ctrie, arg->target_key, 0, test_update_cb, NULL, &out_v, &out_len);
+        TEST_ASSERT(ok, "ctrie atomic_update must succeed on present key");
+    }
+    return NULL;
+}
+
+static void* assoc_skiplist_worker(void* raw_arg) {
+    assoc_worker_arg_t* arg = (assoc_worker_arg_t*)raw_arg;
+    for (size_t i = 0; i < arg->increments; i++) {
+        void* out_v = NULL;
+        size_t out_len = 0;
+        bool ok = lfq_skiplist_atomic_update(arg->skiplist, arg->target_key, 0, test_update_cb, NULL, &out_v, &out_len);
+        TEST_ASSERT(ok, "skiplist atomic_update must succeed on present key");
+    }
+    return NULL;
+}
+
+static void test_cabi_associative(void) {
+    printf("Running test_cabi_associative...\n");
+
+    /* 1. Ctrie compute_if_absent & atomic_update */
+    lfq_ctrie_t* ctrie = NULL;
+    lfq_status_t s = lfq_ctrie_create(NULL, NULL, &ctrie);
+    TEST_ASSERT(s == LFQ_OK && ctrie != NULL, "lfq_ctrie_create failed");
+
+    void* out_val = NULL;
+    size_t out_len = 0;
+
+    /* computeIfAbsent on absent key: should compute 42 * 10 = 420 */
+    bool ok = lfq_ctrie_compute_if_absent(ctrie, (void*)(uintptr_t)42, 0, test_mapping_cb, NULL, &out_val, &out_len);
+    TEST_ASSERT(ok, "compute_if_absent on absent key should succeed");
+    TEST_ASSERT((uintptr_t)out_val == 420, "Computed value mismatch");
+
+    /* computeIfAbsent on existing key: should return existing value (420) without re-computing */
+    out_val = NULL;
+    ok = lfq_ctrie_compute_if_absent(ctrie, (void*)(uintptr_t)42, 0, test_mapping_cb, NULL, &out_val, &out_len);
+    TEST_ASSERT(ok, "compute_if_absent on existing key should succeed");
+    TEST_ASSERT((uintptr_t)out_val == 420, "Existing value mismatch");
+
+    /* atomicUpdate on missing key: should return false */
+    ok = lfq_ctrie_atomic_update(ctrie, (void*)(uintptr_t)999, 0, test_update_cb, NULL, &out_val, &out_len);
+    TEST_ASSERT(!ok, "atomic_update on missing key must return false");
+
+    /* atomicUpdate on existing key: should increment 420 -> 421 */
+    ok = lfq_ctrie_atomic_update(ctrie, (void*)(uintptr_t)42, 0, test_update_cb, NULL, &out_val, &out_len);
+    TEST_ASSERT(ok, "atomic_update on existing key must succeed");
+    TEST_ASSERT((uintptr_t)out_val == 421, "Updated value mismatch");
+
+    /* 2. SkipListMap compute_if_absent & atomic_update */
+    lfq_table_t* table = NULL;
+    s = lfq_table_create(NULL, NULL, &table);
+    TEST_ASSERT(s == LFQ_OK && table != NULL, "lfq_table_create failed");
+    lfq_skiplist_t* skiplist = (lfq_skiplist_t*)table;
+
+    /* computeIfAbsent on absent key */
+    out_val = NULL;
+    ok = lfq_skiplist_compute_if_absent(skiplist, (void*)(uintptr_t)55, 0, test_mapping_cb, NULL, &out_val, &out_len);
+    TEST_ASSERT(ok, "skiplist compute_if_absent on absent key should succeed");
+    TEST_ASSERT((uintptr_t)out_val == 550, "Computed value mismatch");
+
+    /* computeIfAbsent on existing key */
+    out_val = NULL;
+    ok = lfq_skiplist_compute_if_absent(skiplist, (void*)(uintptr_t)55, 0, test_mapping_cb, NULL, &out_val, &out_len);
+    TEST_ASSERT(ok, "skiplist compute_if_absent on existing key should succeed");
+    TEST_ASSERT((uintptr_t)out_val == 550, "Existing value mismatch");
+
+    /* atomicUpdate on missing key */
+    ok = lfq_skiplist_atomic_update(skiplist, (void*)(uintptr_t)999, 0, test_update_cb, NULL, &out_val, &out_len);
+    TEST_ASSERT(!ok, "skiplist atomic_update on missing key must return false");
+
+    /* atomicUpdate on existing key */
+    ok = lfq_skiplist_atomic_update(skiplist, (void*)(uintptr_t)55, 0, test_update_cb, NULL, &out_val, &out_len);
+    TEST_ASSERT(ok, "skiplist atomic_update on existing key must succeed");
+    TEST_ASSERT((uintptr_t)out_val == 551, "Updated value mismatch");
+
+    /* Table aliases */
+    out_val = NULL;
+    ok = lfq_table_compute_if_absent(table, (void*)(uintptr_t)77, 0, test_mapping_cb, NULL, &out_val, &out_len);
+    TEST_ASSERT(ok && (uintptr_t)out_val == 770, "table alias compute_if_absent failed");
+    ok = lfq_table_atomic_update(table, (void*)(uintptr_t)77, 0, test_update_cb, NULL, &out_val, &out_len);
+    TEST_ASSERT(ok && (uintptr_t)out_val == 771, "table alias atomic_update failed");
+
+    /* 3. Null resilience */
+    TEST_ASSERT(!lfq_ctrie_compute_if_absent(NULL, NULL, 0, NULL, NULL, NULL, NULL), "ctrie compute NULL resilience");
+    TEST_ASSERT(!lfq_ctrie_atomic_update(NULL, NULL, 0, NULL, NULL, NULL, NULL), "ctrie update NULL resilience");
+    TEST_ASSERT(!lfq_skiplist_compute_if_absent(NULL, NULL, 0, NULL, NULL, NULL, NULL), "skiplist compute NULL resilience");
+    TEST_ASSERT(!lfq_skiplist_atomic_update(NULL, NULL, 0, NULL, NULL, NULL, NULL), "skiplist update NULL resilience");
+
+    /* 4. Concurrent Multithreaded Lost-Update Stress Test */
+    const size_t NUM_THREADS = 4;
+    const size_t INCS_PER_THREAD = 2500;
+    pthread_t c_ths[NUM_THREADS];
+    pthread_t s_ths[NUM_THREADS];
+    assoc_worker_arg_t c_args[NUM_THREADS];
+    assoc_worker_arg_t s_args[NUM_THREADS];
+
+    /* Put initial 0 for counter keys */
+    void* counter_key = (void*)(uintptr_t)12345;
+    bool inserted = false;
+    lfq_ctrie_insert(ctrie, counter_key, (void*)(uintptr_t)0, &inserted);
+    lfq_table_put(table, counter_key, (void*)(uintptr_t)0, &inserted);
+
+    for (size_t i = 0; i < NUM_THREADS; i++) {
+        c_args[i].ctrie = ctrie;
+        c_args[i].skiplist = skiplist;
+        c_args[i].increments = INCS_PER_THREAD;
+        c_args[i].target_key = counter_key;
+        pthread_create(&c_ths[i], NULL, assoc_ctrie_worker, &c_args[i]);
+
+        s_args[i].ctrie = ctrie;
+        s_args[i].skiplist = skiplist;
+        s_args[i].increments = INCS_PER_THREAD;
+        s_args[i].target_key = counter_key;
+        pthread_create(&s_ths[i], NULL, assoc_skiplist_worker, &s_args[i]);
+    }
+
+    for (size_t i = 0; i < NUM_THREADS; i++) {
+        pthread_join(c_ths[i], NULL);
+        pthread_join(s_ths[i], NULL);
+    }
+
+    /* Verify zero lost updates! Final value MUST be exactly NUM_THREADS * INCS_PER_THREAD */
+    uintptr_t expected_total = NUM_THREADS * INCS_PER_THREAD;
+    void* final_ctrie_val = NULL;
+    lfq_ctrie_lookup(ctrie, counter_key, &final_ctrie_val);
+    TEST_ASSERT((uintptr_t)final_ctrie_val == expected_total, "Ctrie lost updates detected!");
+
+    void* final_skiplist_val = NULL;
+    lfq_table_get(table, counter_key, &final_skiplist_val);
+    TEST_ASSERT((uintptr_t)final_skiplist_val == expected_total, "SkipList lost updates detected!");
+
+    lfq_ctrie_destroy(ctrie);
+    lfq_table_destroy(table);
+
+    printf("test_cabi_associative PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
  * Main Entry Point
  * ------------------------------------------------------------------------- */
 int main(void) {
@@ -1305,6 +1473,7 @@ int main(void) {
     test_cabi_rendezvous();
     test_cabi_ratelimit();
     test_cabi_streambuffer();
+    test_cabi_associative();
     test_cabi_concurrency();
 
     /* TaskPool C ABI */

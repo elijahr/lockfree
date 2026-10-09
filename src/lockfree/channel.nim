@@ -145,17 +145,21 @@ proc boundedDestroy[T; N, P, C: static int](p: pointer) {.nimcall, gcsafe, raise
     var bc = cast[ptr BoundedCore[T, N, P, C]](p)
     `=destroy`(bc.queue)
 
+type
+  CachedProducerEntry[T; N, P, C: static int] = object
+    chanId: uint64
+    bound: Bound[T, AnyThreadTag, BQueue[T, ccMulti, ccMulti, N, P, C]]
+
+  CachedConsumerEntry[T; N, P, C: static int] = object
+    chanId: uint64
+    bound: Bound[T, AnyThreadTag, BQueue[T, ccMulti, ccMulti, N, P, C]]
+
 proc boundedSend[T; N, P, C: static int](p: pointer, item: sink T): bool {.nimcall, gcsafe, raises: [].} =
   var bc = cast[ptr BoundedCore[T, N, P, C]](p)
   if bc.core.receivers.load(moAcquire) == 0 or bc.core.isClosed.load(moAcquire):
     return false
 
-  type BoundProd = Bound[T, AnyThreadTag, BQueue[T, ccMulti, ccMulti, N, P, C]]
-  type CachedEntry = object
-    chanId: uint64
-    bound: BoundProd
-
-  var tlsProducers {.threadvar.}: seq[CachedEntry]
+  var tlsProducers {.threadvar.}: seq[CachedProducerEntry[T, N, P, C]]
   let chanId = bc.core.id
 
   var foundIdx = -1
@@ -177,19 +181,15 @@ proc boundedSend[T; N, P, C: static int](p: pointer, item: sink T): bool {.nimca
     var b = u.bindToThread()
     if tlsProducers.len >= ChannelTlsMruCapacity:
       tlsProducers.setLen(ChannelTlsMruCapacity - 1)
-    tlsProducers.insert(CachedEntry(chanId: chanId, bound: b), 0)
+    tlsProducers.insert(CachedProducerEntry[T, N, P, C](chanId: chanId, bound: b), 0)
     return tlsProducers[0].bound.push(item)
   except NoProducersAvailableError:
     return false
 
 proc boundedRecv[T; N, P, C: static int](p: pointer): Option[T] {.nimcall, gcsafe, raises: [].} =
   var bc = cast[ptr BoundedCore[T, N, P, C]](p)
-  type BoundCons = Bound[T, AnyThreadTag, BQueue[T, ccMulti, ccMulti, N, P, C]]
-  type CachedEntry = object
-    chanId: uint64
-    bound: BoundCons
 
-  var tlsConsumers {.threadvar.}: seq[CachedEntry]
+  var tlsConsumers {.threadvar.}: seq[CachedConsumerEntry[T, N, P, C]]
   let chanId = bc.core.id
 
   var foundIdx = -1
@@ -211,7 +211,7 @@ proc boundedRecv[T; N, P, C: static int](p: pointer): Option[T] {.nimcall, gcsaf
     var b = u.bindToThread()
     if tlsConsumers.len >= ChannelTlsMruCapacity:
       tlsConsumers.setLen(ChannelTlsMruCapacity - 1)
-    tlsConsumers.insert(CachedEntry(chanId: chanId, bound: b), 0)
+    tlsConsumers.insert(CachedConsumerEntry[T, N, P, C](chanId: chanId, bound: b), 0)
     return tlsConsumers[0].bound.pop()
   except NoConsumersAvailableError:
     return none(T)
