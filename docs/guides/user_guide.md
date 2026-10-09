@@ -430,17 +430,19 @@ pool.parallelFor(0 .. 999, proc(i: int) =
 , chunkSize = 64)
 
 # 3. Two-way and Recursive Fork-Join
-var leftResult = 0
-var rightResult = 0
+var leftResult: Atomic[int]
+var rightResult: Atomic[int]
+leftResult.store(0, moRelaxed)
+rightResult.store(0, moRelaxed)
 
 pool.forkJoin(
   proc() =
-    leftResult = 42 * 2,
+    leftResult.store(42 * 2, moRelease),
   proc() =
-    rightResult = 100 * 3
+    rightResult.store(100 * 3, moRelease)
 )
 
-echo "Fork-join results: ", leftResult, ", ", rightResult
+echo "Fork-join results: ", leftResult.load(moAcquire), ", ", rightResult.load(moAcquire)
 
 # Sync all work and clean shutdown
 pool.sync()

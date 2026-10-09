@@ -130,9 +130,10 @@ suite "User Guide Code Snippets Verification":
 
   test "4.8 Work-Stealing TaskPool":
     var pool = initTaskPool(2)
-    var ran = false
+    var ran: Atomic[bool]
+    ran.store(false, moRelaxed)
     pool.spawn(proc() =
-      ran = true
+      ran.store(true, moRelease)
     )
 
     var numbers = newSeq[int](10)
@@ -141,15 +142,18 @@ suite "User Guide Code Snippets Verification":
       arrPtr[i] = (i + 1) * 2
     , chunkSize = 2)
 
-    var leftResult = 0
-    var rightResult = 0
+    var leftDone: Atomic[bool]
+    var rightDone: Atomic[bool]
+    leftDone.store(false, moRelaxed)
+    rightDone.store(false, moRelaxed)
     pool.forkJoin(
-      proc() = leftResult = 84,
-      proc() = rightResult = 300
+      proc() = leftDone.store(true, moRelease),
+      proc() = rightDone.store(true, moRelease)
     )
     pool.sync()
-    check leftResult == 84
-    check rightResult == 300
+    check ran.load(moAcquire) == true
+    check leftDone.load(moAcquire) == true
+    check rightDone.load(moAcquire) == true
     check numbers[0] == 2
     check numbers[9] == 20
     pool.shutdown(wait = true)
