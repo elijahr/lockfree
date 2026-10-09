@@ -35,6 +35,9 @@ const LockfreeVersion* {.strdefine.} = "0.1.0"
 ##     - Implementation: Aleksandar Prokopec MPMC Lock-Free Concurrent Hash Array Mapped Trie with O(1) Wait-Free Snapshots and Debra SMR.
 ##   - **Channel Facade** (`lockfree/channel`):
 ##     - `Channel[T]`, `Sender[T]`, `Receiver[T]` with automatic thread-local registration.
+##   - **Rate Limiting Surface** (`lockfree/ratelimit`):
+##     - `TokenBucket`: Hardware 128-bit DWCAS burst-tolerant rate limiter with zero-drift nano-tokens.
+##     - `LeakyBucket`: Hardware 128-bit DWCAS GCRA virtual scheduling traffic smoother.
 ##   - Strategy / reclamation / pinscope-stub enums re-exported for
 ##     consumer code that references `stEager`, `stManual`, `ccSingle`,
 ##     `ccMulti` (and the legacy `rkNone`/`rkEbr` symbols) directly.
@@ -42,12 +45,12 @@ const LockfreeVersion* {.strdefine.} = "0.1.0"
 when compileOption("threads"):
   import lockfree/atomics
   import lockfree/atomics/dsl
-  import ./lockfree/[bqueue, broadcast, cardinality, channel, ctrie, deque, endpoint, exceptions, queue, reclamation, rendezvous, set, skiplist, stack, strategy, taskpool]
+  import ./lockfree/[bqueue, broadcast, cardinality, channel, ctrie, deque, endpoint, exceptions, queue, ratelimit, reclamation, rendezvous, set, skiplist, stack, strategy, taskpool]
   import ./lockfree/internal/pinscope_stub
   import ./lockfree/typestates/with_bound
 
   export atomics, dsl
-  export bqueue, broadcast, cardinality, channel, ctrie, deque, endpoint, exceptions, queue, reclamation, rendezvous, set, skiplist, stack, strategy, taskpool
+  export bqueue, broadcast, cardinality, channel, ctrie, deque, endpoint, exceptions, queue, ratelimit, reclamation, rendezvous, set, skiplist, stack, strategy, taskpool
   export pinscope_stub
   export with_bound
 
