@@ -211,7 +211,7 @@ proc initBroadcastRing*[T](
 
   result.core = core
 
-proc `=destroy`*[T](self: var BroadcastRing[T]) =
+proc `=destroy`*[T](self: var BroadcastRing[T]) {.gcsafe.} =
   if self.core != nil:
     if self.core.rc.fetchSub(1, moRelease) == 1:
       threadFence(moAcquire)
@@ -377,6 +377,9 @@ proc unsubscribe*[T](cursor: var BroadcastCursor[T]) =
     cursor.cursorId = -1
     core.cursors[id].state.store(csUnused, moRelease)
     discard core.activeCursorCount.fetchSub(1, moRelaxed)
+
+proc `=destroy`*[T](self: var BroadcastCursor[T]) {.gcsafe.} =
+  `=destroy`(self.ring)
 
 proc isNil*[T](cursor: BroadcastCursor[T]): bool {.inline.} =
   cursor.cursorId < 0 or cursor.ring.core == nil
