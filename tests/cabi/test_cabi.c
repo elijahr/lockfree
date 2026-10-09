@@ -560,6 +560,16 @@ int main(void) {
     test_cabi_set();
     test_cabi_concurrency();
 
+    /* TaskPool C ABI */
+    printf("Running test_cabi_taskpool...\n");
+    lfq_taskpool_t* pool = NULL;
+    lfq_status_t tp_status = lfq_taskpool_create(4, &pool);
+    TEST_ASSERT(tp_status == LFQ_OK && pool != NULL, "lfq_taskpool_create failed");
+    TEST_ASSERT(lfq_taskpool_num_workers(pool) == 4, "TaskPool worker count should be 4");
+    tp_status = lfq_taskpool_destroy(pool);
+    TEST_ASSERT(tp_status == LFQ_OK, "lfq_taskpool_destroy failed");
+    printf("test_cabi_taskpool PASSED.\n");
+
     printf("\n>>> ALL C ABI TESTS COMPLETED SUCCESSFULLY! <<<\n");
     return 0;
 }
