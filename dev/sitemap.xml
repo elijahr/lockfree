@@ -305,6 +305,10 @@
          <lastmod>2026-10-09</lastmod>
     </url>
     <url>
+         <loc>https://elijahr.github.io/lockfree/latest/reviews/review_ratelimit_concurrency/</loc>
+         <lastmod>2026-10-09</lastmod>
+    </url>
+    <url>
          <loc>https://elijahr.github.io/lockfree/latest/reviews/review_rendezvous_concurrency/</loc>
          <lastmod>2026-10-09</lastmod>
     </url>
