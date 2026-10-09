@@ -3390,8 +3390,8 @@ consumers (Queue[T] with ref payloads, the destructor walk) need.</p>
     
       <div class="doc-description">
         <p>Register current thread with the NEBR manager.</p>
-<p>Must be called once per thread before any epoch operations.
-Raises DebraRegistrationError if max threads already registered.</p>
+<p>Must be called once per thread before any epoch operations. Raises
+DebraRegistrationError if max threads already registered.</p>
       </div>
     
 
@@ -3469,9 +3469,9 @@ Raises DebraRegistrationError if max threads already registered.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Unregister the current thread from the NEBR manager, releasing the</p>
-<p>slot it claimed via <code>registerThread</code> so a future <code>registerThread</code> may
-re-claim that slot index for a different thread.</p>
+        <p>Unregister the current thread from the NEBR manager, releasing the slot it</p>
+<p>claimed via <code>registerThread</code> so a future <code>registerThread</code> may re-claim that
+slot index for a different thread.</p>
 <p><strong>Caller contract (preconditions).</strong> Both must hold or this proc fails a
 <code>doAssert</code> (see "Failure behavior" below):</p>
 <ol>
@@ -3486,31 +3486,31 @@ re-claim that slot index for a different thread.</p>
    pending limbo is a programming error.</li>
 </ol>
 <p><strong>Why the contract exists.</strong> Releasing the slot lets <code>registerThread</code>
-re-claim THIS slot index for a DIFFERENT thread; <code>register</code> reuses the
-slot in place and does not re-initialise its epoch/pinned/limbo state.
-So any state left here is inherited verbatim by the next owner:</p>
+re-claim THIS slot index for a DIFFERENT thread; <code>register</code> reuses the slot
+in place and does not re-initialise its epoch/pinned/limbo state. So any
+state left here is inherited verbatim by the next owner:</p>
 <ul>
 <li>A departing thread's still-pending retired objects are NOT necessarily
   epoch-safe to free yet, and NEBR keeps NO manager-level orphan-reclaim
   list — it cannot adopt them. Eagerly freeing them here would be a
   premature-free UAF; leaving them on a reused slot would let the new
   owner's <code>tryReclaim</code> walk them under a different epoch (a stale-slot
-  use-after-free / double-free). Requiring the caller to drain first is
-  the conservative resolution of both hazards.</li>
+  use-after-free / double-free). Requiring the caller to drain first is the
+  conservative resolution of both hazards.</li>
 <li>A stale <code>pinned = true</code> would make reclamation observe this slot as
   pinned forever, stalling ALL reclamation manager-wide.</li>
 </ul>
-<p><strong>Failure behavior.</strong> Contract violations are reported via <code>doAssert</code>
-(this proc is <code>{.raises: [].}</code>, a compile-time-pinned contract, so it
-cannot raise). In debug builds a violation aborts loudly. Under
-<code>-d:danger</code> assertions are compiled out, so violating the contract is
-undefined behavior (the very slot-reuse UAF / double-free this contract
-prevents) rather than a loud abort. Treat the contract as mandatory in
-all builds, not merely as a debug aid.</p>
-<p>A handle with an out-of-range index, a slot whose <code>activeThreadMask</code> bit
-is already clear (double-unregister), or a thread-affinity mismatch is
-handled before the precondition checks: the first two return silently;
-the affinity mismatch is its own <code>doAssert</code>.</p>
+<p><strong>Failure behavior.</strong> Contract violations are reported via <code>doAssert</code> (this
+proc is <code>{.raises: [].}</code>, a compile-time-pinned contract, so it cannot
+raise). In debug builds a violation aborts loudly. Under <code>-d:danger</code>
+assertions are compiled out, so violating the contract is undefined
+behavior (the very slot-reuse UAF / double-free this contract prevents)
+rather than a loud abort. Treat the contract as mandatory in all builds,
+not merely as a debug aid.</p>
+<p>A handle with an out-of-range index, a slot whose <code>activeThreadMask</code> bit is
+already clear (double-unregister), or a thread-affinity mismatch is handled
+before the precondition checks: the first two return silently; the affinity
+mismatch is its own <code>doAssert</code>.</p>
       </div>
     
 
@@ -3614,8 +3614,8 @@ the affinity mismatch is its own <code>doAssert</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/smr/nebr.nim#L198" target="_blank" rel="noopener">
-            src/lockfree/smr/nebr.nim:198
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/smr/nebr.nim#L200" target="_blank" rel="noopener">
+            src/lockfree/smr/nebr.nim:200
           </a>
         
       </div>
@@ -3678,8 +3678,8 @@ the affinity mismatch is its own <code>doAssert</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/smr/nebr.nim#L209" target="_blank" rel="noopener">
-            src/lockfree/smr/nebr.nim:209
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/smr/nebr.nim#L211" target="_blank" rel="noopener">
+            src/lockfree/smr/nebr.nim:211
           </a>
         
       </div>
@@ -3747,8 +3747,8 @@ the affinity mismatch is its own <code>doAssert</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/smr/nebr.nim#L215" target="_blank" rel="noopener">
-            src/lockfree/smr/nebr.nim:215
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/smr/nebr.nim#L217" target="_blank" rel="noopener">
+            src/lockfree/smr/nebr.nim:217
           </a>
         
       </div>
@@ -3811,8 +3811,8 @@ the affinity mismatch is its own <code>doAssert</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/smr/nebr.nim#L221" target="_blank" rel="noopener">
-            src/lockfree/smr/nebr.nim:221
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/smr/nebr.nim#L223" target="_blank" rel="noopener">
+            src/lockfree/smr/nebr.nim:223
           </a>
         
       </div>
@@ -3875,8 +3875,8 @@ the affinity mismatch is its own <code>doAssert</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/smr/nebr.nim#L227" target="_blank" rel="noopener">
-            src/lockfree/smr/nebr.nim:227
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/smr/nebr.nim#L229" target="_blank" rel="noopener">
+            src/lockfree/smr/nebr.nim:229
           </a>
         
       </div>
@@ -3944,8 +3944,8 @@ the affinity mismatch is its own <code>doAssert</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/smr/nebr.nim#L236" target="_blank" rel="noopener">
-            src/lockfree/smr/nebr.nim:236
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/smr/nebr.nim#L238" target="_blank" rel="noopener">
+            src/lockfree/smr/nebr.nim:238
           </a>
         
       </div>

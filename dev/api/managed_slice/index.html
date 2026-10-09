@@ -3326,36 +3326,34 @@ SMR (<code>nebr</code>) for deferred reclamation.</p>
     
       <div class="doc-description">
         <p>lockfree/managed_slice</p>
-<p>Internal slot encoding for <code>string</code> and <code>seq[U]</code> payloads under
-Path C (<code>Queue[string, ...]</code> / <code>Queue[seq[U], ...]</code>). Unified
-encoding using the heap-box pattern.</p>
+<p>Internal slot encoding for <code>string</code> and <code>seq[U]</code> payloads under Path C
+(<code>Queue[string, ...]</code> / <code>Queue[seq[U], ...]</code>). Unified encoding using the
+heap-box pattern.</p>
 <h5 id="managed_slice--never-user-facing">NEVER user-facing<a class="headerlink" href="#managed_slice--never-user-facing" title="Permanent link">¶</a></h5>
-<p><code>ManagedSlice[T]</code> is the wire-format the queue stores in its slot
-array. The user-facing API is <code>string</code> / <code>seq[U]</code>. ManagedSlice
-MUST NOT leak into public docs, examples, or signatures.</p>
+<p><code>ManagedSlice[T]</code> is the wire-format the queue stores in its slot array.
+The user-facing API is <code>string</code> / <code>seq[U]</code>. ManagedSlice MUST NOT leak
+into public docs, examples, or signatures.</p>
 <h5 id="managed_slice--design-pattern-heap-boxed-payload-pointer">Design pattern: heap-boxed payload pointer<a class="headerlink" href="#managed_slice--design-pattern-heap-boxed-payload-pointer" title="Permanent link">¶</a></h5>
-<p>The slot bits are a <code>distinct uint</code> pointer at a heap-allocated
-box (<code>alloc0Shared</code>) that holds the V2 payload (<code>NimStringV2</code> /
-<code>NimSeqV2[U]</code>). Box layout deliberately mirrors a <code>ptr object</code>
-with a single <code>v</code> field of the payload type so that under
-arc/orc/atomicArc/refc the compiler-emitted destructor for <code>v</code>
-runs the V2 <code>frees()</code> path automatically when <code>=destroy</code> is
-called explicitly in <code>disposeSlot</code>.</p>
+<p>The slot bits are a <code>distinct uint</code> pointer at a heap-allocated box
+(<code>alloc0Shared</code>) that holds the V2 payload (<code>NimStringV2</code> /
+<code>NimSeqV2[U]</code>). Box layout deliberately mirrors a <code>ptr object</code> with a
+single <code>v</code> field of the payload type so that under arc/orc/atomicArc/refc
+the compiler-emitted destructor for <code>v</code> runs the V2 <code>frees()</code> path
+automatically when <code>=destroy</code> is called explicitly in <code>disposeSlot</code>.</p>
 <h5 id="managed_slice--path-c-mm-matrix">Path C MM matrix<a class="headerlink" href="#managed_slice--path-c-mm-matrix" title="Permanent link">¶</a></h5>
 <ul>
 <li>arc / orc / atomicArc / refc — sink-assign payload into the
-  zero-initialised box on <code>wrap</code> (compiler emits <code>=sink</code>);
-  <code>move</code> the payload out and <code>deallocShared</code> the box on
-  <code>unwrap</code>; <code>=destroy</code> the box payload + <code>deallocShared</code> the
-  box on <code>disposeSlot</code> (destructor walk).</li>
-<li>none — strict bit-transport contract. The source binding
-  is NOT zeroed on <code>wrap</code> and the destination is NOT destroyed
-  on <code>disposeSlot</code>. The user owns lifetime; we are a pointer-bit
-  transport only.</li>
+  zero-initialised box on <code>wrap</code> (compiler emits <code>=sink</code>); <code>move</code> the
+  payload out and <code>deallocShared</code> the box on <code>unwrap</code>; <code>=destroy</code> the
+  box payload + <code>deallocShared</code> the box on <code>disposeSlot</code> (destructor
+  walk).</li>
+<li>none — strict bit-transport contract. The source binding is NOT zeroed on
+  <code>wrap</code> and the destination is NOT destroyed on <code>disposeSlot</code>. The user
+  owns lifetime; we are a pointer-bit transport only.</li>
 </ul>
 <h5 id="managed_slice--abi-stability">ABI stability<a class="headerlink" href="#managed_slice--abi-stability" title="Permanent link">¶</a></h5>
-<p><code>sizeof(ManagedSlice[T])</code> == <code>sizeof(uint)</code> on every supported
-platform — asserted at compile time in the <code>static:</code> block below.</p>
+<p><code>sizeof(ManagedSlice[T])</code> == <code>sizeof(uint)</code> on every supported platform
+— asserted at compile time in the <code>static:</code> block below.</p>
       </div>
     
 
@@ -3380,9 +3378,9 @@ platform — asserted at compile time in the <code>static:</code> block below.</
   <div class="doc doc-contents">
     
       <div class="doc-description">
-        <p>Slot encoding for a <code>string</code> (<code>T = char</code>) or <code>seq[U]</code></p>
-<p>(<code>T = U</code>) payload. Internal — see module doc-comment. Sized
-and aligned identically to <code>uint</code>.</p>
+        <p>Slot encoding for a <code>string</code> (<code>T = char</code>) or <code>seq[U]</code> (<code>T = U</code>)</p>
+<p>payload. Internal — see module doc-comment. Sized and aligned
+identically to <code>uint</code>.</p>
       </div>
     
 
@@ -3394,8 +3392,8 @@ and aligned identically to <code>uint</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_slice.nim#L69" target="_blank" rel="noopener">
-            src/lockfree/managed_slice.nim:69
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_slice.nim#L65" target="_blank" rel="noopener">
+            src/lockfree/managed_slice.nim:65
           </a>
         
       </div>
@@ -3431,9 +3429,8 @@ and aligned identically to <code>uint</code>.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Pack a <code>string</code> into the slot encoding. Allocates a shared</p>
-<p>heap box and transfers the payload in. The caller's binding is
-consumed (<code>sink</code>).</p>
+        <p>Pack a <code>string</code> into the slot encoding. Allocates a shared heap box and</p>
+<p>transfers the payload in. The caller's binding is consumed (<code>sink</code>).</p>
       </div>
     
 
@@ -3465,8 +3462,8 @@ consumed (<code>sink</code>).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_slice.nim#L96" target="_blank" rel="noopener">
-            src/lockfree/managed_slice.nim:96
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_slice.nim#L90" target="_blank" rel="noopener">
+            src/lockfree/managed_slice.nim:90
           </a>
         
       </div>
@@ -3502,15 +3499,14 @@ consumed (<code>sink</code>).</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Pack a <code>seq[U]</code> into the slot encoding. Allocates a shared</p>
-<p>heap box and transfers the payload in.</p>
-<p><code>seq[ref U]</code> and <code>seq[seq[U]]</code> are ACCEPTED. The box-pattern
-transport handles inner-element lifecycle correctly via Nim's
-compiler-emitted seq <code>=destroy</code> when the box is reconstructed at
-pop or destroy-walk. The library's transport is the outer seq
-value (boxed here); inner refs/seqs are the seq's lifecycle
-problem. No <code>supportsCopyMem(U)</code> guard is applied here or in
-path_c_admit.nim.</p>
+        <p>Pack a <code>seq[U]</code> into the slot encoding. Allocates a shared heap box and</p>
+<p>transfers the payload in.</p>
+<p><code>seq[ref U]</code> and <code>seq[seq[U]]</code> are ACCEPTED. The box-pattern transport
+handles inner-element lifecycle correctly via Nim's compiler-emitted seq
+<code>=destroy</code> when the box is reconstructed at pop or destroy-walk. The
+library's transport is the outer seq value (boxed here); inner refs/seqs
+are the seq's lifecycle problem. No <code>supportsCopyMem(U)</code> guard is applied
+here or in path_c_admit.nim.</p>
       </div>
     
 
@@ -3542,8 +3538,8 @@ path_c_admit.nim.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_slice.nim#L110" target="_blank" rel="noopener">
-            src/lockfree/managed_slice.nim:110
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_slice.nim#L103" target="_blank" rel="noopener">
+            src/lockfree/managed_slice.nim:103
           </a>
         
       </div>
@@ -3579,10 +3575,10 @@ path_c_admit.nim.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Unpack a <code>string</code> from the slot encoding. Frees the heap box.</p>
-<p>On arc/orc/atomicArc/refc the payload pointer is moved out (no
-refcount bump on the V2 payload); on mm:none the payload bits
-are copied out and the source bits are not zeroed.</p>
+        <p>Unpack a <code>string</code> from the slot encoding. Frees the heap box. On</p>
+<p>arc/orc/atomicArc/refc the payload pointer is moved out (no refcount bump
+on the V2 payload); on mm:none the payload bits are copied out and the
+source bits are not zeroed.</p>
       </div>
     
 
@@ -3614,8 +3610,8 @@ are copied out and the source bits are not zeroed.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_slice.nim#L154" target="_blank" rel="noopener">
-            src/lockfree/managed_slice.nim:154
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_slice.nim#L145" target="_blank" rel="noopener">
+            src/lockfree/managed_slice.nim:145
           </a>
         
       </div>
@@ -3652,15 +3648,14 @@ are copied out and the source bits are not zeroed.</p>
     
       <div class="doc-description">
         <p>Unpack a <code>seq[U]</code> from the slot encoding. Frees the heap box.</p>
-<p>Distinctly named (<code>unwrapSeq</code>, not <code>unwrap</code>) so the seq path is
-never shadowed by the non-generic <code>unwrap(ManagedSlice[char])</code>
-(string/StringBox) overload. <code>ManagedSlice[char]</code> is the slot
-encoding for BOTH <code>string</code> (<code>T = char</code>) and <code>seq[char]</code>
-(<code>U = char</code>); they collapse to the same instantiation, so Nim
-overload resolution would pick the non-generic string <code>unwrap</code> for
-a <code>seq[char]</code> slot, applying the StringBox layout to a SeqBox.
-The distinct name forces the SeqBox path explicitly. See
-<code>internal/path_c_wrap.nim</code>.</p>
+<p>Distinctly named (<code>unwrapSeq</code>, not <code>unwrap</code>) so the seq path is never
+shadowed by the non-generic <code>unwrap(ManagedSlice[char])</code>
+(string/StringBox) overload. <code>ManagedSlice[char]</code> is the slot encoding
+for BOTH <code>string</code> (<code>T = char</code>) and <code>seq[char]</code> (<code>U = char</code>); they
+collapse to the same instantiation, so Nim overload resolution would pick
+the non-generic string <code>unwrap</code> for a <code>seq[char]</code> slot, applying the
+StringBox layout to a SeqBox. The distinct name forces the SeqBox path
+explicitly. See <code>internal/path_c_wrap.nim</code>.</p>
       </div>
     
 
@@ -3692,8 +3687,8 @@ The distinct name forces the SeqBox path explicitly. See
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_slice.nim#L167" target="_blank" rel="noopener">
-            src/lockfree/managed_slice.nim:167
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_slice.nim#L158" target="_blank" rel="noopener">
+            src/lockfree/managed_slice.nim:158
           </a>
         
       </div>
@@ -3729,12 +3724,11 @@ The distinct name forces the SeqBox path explicitly. See
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Destroy-walk dispose for an unpopped string slot. Safe on the</p>
-<p>nil slot (0).</p>
-<p>Non-generic (string / StringBox) overload. <code>disposeSeqSlot</code> is
-the distinctly-named SEQ counterpart so a <code>seq[char]</code> slot is
-never routed here by overload resolution (StringBox vs SeqBox
-layout). See <code>internal/path_c_wrap.nim</code>.</p>
+        <p>Destroy-walk dispose for an unpopped string slot. Safe on the nil slot (0).</p>
+<p>Non-generic (string / StringBox) overload. <code>disposeSeqSlot</code> is the
+distinctly-named SEQ counterpart so a <code>seq[char]</code> slot is never routed
+here by overload resolution (StringBox vs SeqBox layout). See
+<code>internal/path_c_wrap.nim</code>.</p>
       </div>
     
 
@@ -3761,8 +3755,8 @@ layout). See <code>internal/path_c_wrap.nim</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_slice.nim#L198" target="_blank" rel="noopener">
-            src/lockfree/managed_slice.nim:198
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_slice.nim#L187" target="_blank" rel="noopener">
+            src/lockfree/managed_slice.nim:187
           </a>
         
       </div>
@@ -3798,17 +3792,15 @@ layout). See <code>internal/path_c_wrap.nim</code>.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Destroy-walk dispose for an unpopped seq slot. Safe on the nil</p>
-<p>slot (0).</p>
-<p>Distinctly named (<code>disposeSeqSlot</code>, not <code>disposeSlot</code>) so the
-seq path is never shadowed by the non-generic
-<code>disposeSlot(ManagedSlice[char])</code> (string/StringBox) overload.
-<code>ManagedSlice[char]</code> is the slot encoding for BOTH <code>string</code>
-and <code>seq[char]</code>; they collapse to the same instantiation, so Nim
-overload resolution would pick the non-generic string
-<code>disposeSlot</code> for a <code>seq[char]</code> slot, running the StringBox
-destructor over a SeqBox. The distinct name forces the SeqBox path
-explicitly. See <code>internal/path_c_wrap.nim</code>.</p>
+        <p>Destroy-walk dispose for an unpopped seq slot. Safe on the nil slot (0).</p>
+<p>Distinctly named (<code>disposeSeqSlot</code>, not <code>disposeSlot</code>) so the seq path
+is never shadowed by the non-generic <code>disposeSlot(ManagedSlice[char])</code>
+(string/StringBox) overload. <code>ManagedSlice[char]</code> is the slot encoding
+for BOTH <code>string</code> and <code>seq[char]</code>; they collapse to the same
+instantiation, so Nim overload resolution would pick the non-generic string
+<code>disposeSlot</code> for a <code>seq[char]</code> slot, running the StringBox destructor
+over a SeqBox. The distinct name forces the SeqBox path explicitly. See
+<code>internal/path_c_wrap.nim</code>.</p>
       </div>
     
 
@@ -3835,8 +3827,8 @@ explicitly. See <code>internal/path_c_wrap.nim</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_slice.nim#L217" target="_blank" rel="noopener">
-            src/lockfree/managed_slice.nim:217
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_slice.nim#L205" target="_blank" rel="noopener">
+            src/lockfree/managed_slice.nim:205
           </a>
         
       </div>

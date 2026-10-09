@@ -3195,23 +3195,21 @@ lifecycle contract visible.</p>
       <div class="doc-description">
         <p>Segment-state predicate for the unbounded MPSC arm.</p>
 <p>Companion to the two slot-state predicate families in <code>slot_state.nim</code>,
-covering the MPSC committed-segment predicate (the linked-segment
-destructor walk).</p>
-<p>Substrate: <code>Segment[T, ccMulti, ccSingle, S].committed: array[S, Atomic[bool]]</code>
-— the committed-flag overlay on the MPSC arm (declared in <code>queue.nim</code> on
-the <code>(ccMulti × ccSingle)</code> shape).</p>
+covering the MPSC committed-segment predicate (the linked-segment destructor
+walk).</p>
+<p>Substrate: <code>Segment[T, ccMulti, ccSingle, S].committed: array[S,
+Atomic[bool]]</code> — the committed-flag overlay on the MPSC arm (declared in
+<code>queue.nim</code> on the <code>(ccMulti × ccSingle)</code> shape).</p>
 <p>Current call sites: NONE in v0.1.0. The first consumer is the segment
-destructor walk, which walks <code>committed[i]</code> to drop any values
-committed by the producer but not yet read by the consumer when the
-segment is reclaimed.</p>
-<p>Why a sibling module rather than a section in <code>slot_state.nim</code>?
-Orthogonality rationale: three substrates → three predicate
-families. The MPSC <code>committed[i]</code> is a segment-overlay flag with
-different lifetime semantics from the per-slot seq counters used by
-Families A and B. Keeping it lexically distinct makes accidental
-cross-substrate reuse impossible.</p>
-<p>Import note: this module imports <code>queue.nim</code> (and is itself NOT imported
-by <code>queue.nim</code> in v0.1.0), so there is no cycle.</p>
+destructor walk, which walks <code>committed[i]</code> to drop any values committed by
+the producer but not yet read by the consumer when the segment is reclaimed.</p>
+<p>Why a sibling module rather than a section in <code>slot_state.nim</code>? Orthogonality
+rationale: three substrates → three predicate families. The MPSC
+<code>committed[i]</code> is a segment-overlay flag with different lifetime semantics
+from the per-slot seq counters used by Families A and B. Keeping it lexically
+distinct makes accidental cross-substrate reuse impossible.</p>
+<p>Import note: this module imports <code>queue.nim</code> (and is itself NOT imported by
+<code>queue.nim</code> in v0.1.0), so there is no cycle.</p>
       </div>
     
 
@@ -3243,12 +3241,12 @@ by <code>queue.nim</code> in v0.1.0), so there is no cycle.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Returns true when <code>slot</code> is at or past the consumer's</p>
-<p>last-read index AND the producer has flipped its <code>committed[slot]</code>
-flag to true. The relaxed load suffices because the destructor walk
-runs only when the segment is being reclaimed — all producers and
-the consumer have already quiesced by EBR/manual reclamation
-guarantees, so no in-flight publish can race the walk.</p>
+        <p>Returns true when <code>slot</code> is at or past the consumer's last-read index AND</p>
+<p>the producer has flipped its <code>committed[slot]</code> flag to true. The relaxed
+load suffices because the destructor walk runs only when the segment is
+being reclaimed — all producers and the consumer have already quiesced by
+EBR/manual reclamation guarantees, so no in-flight publish can race the
+walk.</p>
       </div>
     
 
@@ -3292,8 +3290,8 @@ guarantees, so no in-flight publish can race the walk.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/segment_state.nim#L29" target="_blank" rel="noopener">
-            src/lockfree/typestates/segment_state.nim:29
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/segment_state.nim#L27" target="_blank" rel="noopener">
+            src/lockfree/typestates/segment_state.nim:27
           </a>
         
       </div>

@@ -3311,36 +3311,33 @@ long-lived worker object).</p>
 <p>v0.1.0 surfaces two API styles for endpoint binding:</p>
 <ol>
 <li>
-<p><strong>Typestate-guarded surface (existing)</strong> — users call
-   <code>q.getProducer()</code>, then <code>bindToThread()</code>, then <code>push(item)</code>, then
-   <code>close()</code>. The <code>Unbound → Bound → Closed</code> typestate FSM is visible
-   and provides compile-time guards (no <code>push</code> on <code>Unbound</code>, no double
-   bind, no use-after-close).</p>
+<p><strong>Typestate-guarded surface (existing)</strong> — users call <code>q.getProducer()</code>,
+   then <code>bindToThread()</code>, then <code>push(item)</code>, then <code>close()</code>. The <code>Unbound →
+   Bound → Closed</code> typestate FSM is visible and provides compile-time
+   guards (no <code>push</code> on <code>Unbound</code>, no double bind, no use-after-close).</p>
 </li>
 <li>
-<p><strong>RAII surface (this module)</strong> — <code>withBoundProducer(q, p): body</code>
-   expands to a block that runs <code>getProducer + bindToThread</code>, executes
-   <code>body</code> with <code>p</code> bound to the <code>Bound[...]</code> endpoint, and runs <code>close</code>
-   on scope exit via <code>defer</code>. The typestate FSM still drives the
-   compile-time guards inside <code>body</code>; the user just doesn't type the
-   transitions.</p>
+<p><strong>RAII surface (this module)</strong> — <code>withBoundProducer(q, p): body</code> expands
+   to a block that runs <code>getProducer + bindToThread</code>, executes <code>body</code> with
+   <code>p</code> bound to the <code>Bound[...]</code> endpoint, and runs <code>close</code> on scope exit via
+   <code>defer</code>. The typestate FSM still drives the compile-time guards inside
+   <code>body</code>; the user just doesn't type the transitions.</p>
 </li>
 </ol>
-<p>Both surfaces dispatch to the same per-cardinality push/pop bodies —
-there is no duplicate implementation. Bug fixes apply uniformly.</p>
-<p>The <code>Queueable[T]</code> concept (§5.5.5) is a non-typestate-aware
-ergonomic surface for library code that wants a single generic
-<code>Queueable[T]</code>-shaped parameter rather than <code>Queue[T, ccProd, ...] |
-BQueue[T, ccProd, ...] | Bound[T, Tag, Queue[T, ...]]</code> enumerated
-arms. Concept resolution is verified across the full Path-C-encoded
-payload set (ref X / string / seq[U] / POD T).</p>
+<p>Both surfaces dispatch to the same per-cardinality push/pop bodies — there
+is no duplicate implementation. Bug fixes apply uniformly.</p>
+<p>The <code>Queueable[T]</code> concept (§5.5.5) is a non-typestate-aware ergonomic
+surface for library code that wants a single generic <code>Queueable[T]</code>-shaped
+parameter rather than <code>Queue[T, ccProd, ...] | BQueue[T, ccProd, ...] |
+Bound[T, Tag, Queue[T, ...]]</code> enumerated arms. Concept resolution is verified
+across the full Path-C-encoded payload set (ref X / string / seq[U] / POD T).</p>
 <h5 id="with_bound--path-c-transparency-operator-directive-2026-06-06">Path-C transparency (operator directive 2026-06-06)<a class="headerlink" href="#with_bound--path-c-transparency-operator-directive-2026-06-06" title="Permanent link">¶</a></h5>
-<p>Both surfaces work uniformly across <code>ref X</code> (via ManagedRef), <code>string</code>
-/ <code>seq[U]</code> (via ManagedSlice), and POD T. The Path-C encoding routing
-happens INSIDE the existing per-cardinality push/pop bodies; this
-module never touches encoded slots. Users see <code>Queue[ref Foo]</code> /
-<code>Queue[string]</code> / <code>Queue[seq[int]]</code> / <code>Queue[int]</code> with the same
-surface regardless of which API style they choose.</p>
+<p>Both surfaces work uniformly across <code>ref X</code> (via ManagedRef), <code>string</code> /
+<code>seq[U]</code> (via ManagedSlice), and POD T. The Path-C encoding routing happens
+INSIDE the existing per-cardinality push/pop bodies; this module never
+touches encoded slots. Users see <code>Queue[ref Foo]</code> / <code>Queue[string]</code> /
+<code>Queue[seq[int]]</code> / <code>Queue[int]</code> with the same surface regardless of which
+API style they choose.</p>
       </div>
     
 
@@ -3368,9 +3365,9 @@ surface regardless of which API style they choose.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>BQueue multi-producer RAII wrapper. Acquires a per-thread producer</p>
-<p>slot, transitions to <code>Bound</code>, runs <code>body</code>, then transitions to
-<code>EndpointClosed</code> on scope exit.</p>
+        <p>BQueue multi-producer RAII wrapper. Acquires a per-thread producer slot,</p>
+<p>transitions to <code>Bound</code>, runs <code>body</code>, then transitions to <code>EndpointClosed</code>
+on scope exit.</p>
       </div>
     
 
@@ -3414,8 +3411,8 @@ surface regardless of which API style they choose.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/with_bound.nim#L61" target="_blank" rel="noopener">
-            src/lockfree/typestates/with_bound.nim:61
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/with_bound.nim#L57" target="_blank" rel="noopener">
+            src/lockfree/typestates/with_bound.nim:57
           </a>
         
       </div>
@@ -3447,8 +3444,7 @@ surface regardless of which API style they choose.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>BQueue multi-consumer RAII wrapper. Symmetric to</p>
-<p><code>withBoundProducer</code>.</p>
+        <p>BQueue multi-consumer RAII wrapper. Symmetric to <code>withBoundProducer</code>.</p>
       </div>
     
 
@@ -3492,8 +3488,8 @@ surface regardless of which API style they choose.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/with_bound.nim#L76" target="_blank" rel="noopener">
-            src/lockfree/typestates/with_bound.nim:76
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/with_bound.nim#L72" target="_blank" rel="noopener">
+            src/lockfree/typestates/with_bound.nim:72
           </a>
         
       </div>
@@ -3525,12 +3521,11 @@ surface regardless of which API style they choose.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Queue producer RAII wrapper. Covers all four cardinality arms</p>
-<p>(SPSC / MPSC / SPMC / MPMC) — <code>getProducer</code> on <code>Queue</code> is defined
-uniformly in <code>endpoint.nim</code>. SPSC absorbed arm (ccProd ==
-ccSingle and ccCons == ccSingle) is debra-free, so
-<code>bindToThread</code> is a no-op there; the template's shape is
-unchanged.</p>
+        <p>Queue producer RAII wrapper. Covers all four cardinality arms (SPSC / MPSC</p>
+<p>/ SPMC / MPMC) — <code>getProducer</code> on <code>Queue</code> is defined uniformly in
+<code>endpoint.nim</code>. SPSC absorbed arm (ccProd == ccSingle and ccCons ==
+ccSingle) is debra-free, so <code>bindToThread</code> is a no-op there; the template's
+shape is unchanged.</p>
       </div>
     
 
@@ -3574,8 +3569,8 @@ unchanged.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/with_bound.nim#L90" target="_blank" rel="noopener">
-            src/lockfree/typestates/with_bound.nim:90
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/with_bound.nim#L85" target="_blank" rel="noopener">
+            src/lockfree/typestates/with_bound.nim:85
           </a>
         
       </div>
@@ -3651,8 +3646,8 @@ unchanged.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/with_bound.nim#L113" target="_blank" rel="noopener">
-            src/lockfree/typestates/with_bound.nim:113
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/with_bound.nim#L107" target="_blank" rel="noopener">
+            src/lockfree/typestates/with_bound.nim:107
           </a>
         
       </div>
@@ -3684,13 +3679,12 @@ unchanged.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>WARNING: this umbrella alias ALWAYS binds a PRODUCER endpoint (it</p>
-<p>forwards to withBoundProducer). A consumer-intent call here will
-SILENTLY acquire a producer slot — there is no role auto-detection.
-For a consumer endpoint you MUST call withBoundConsumer explicitly.
-The producer/consumer dispatch (getProducer vs getConsumer) cannot
-be inferred from the queue type alone, so this alias hard-codes the
-producer role.</p>
+        <p>WARNING: this umbrella alias ALWAYS binds a PRODUCER endpoint (it forwards</p>
+<p>to withBoundProducer). A consumer-intent call here will SILENTLY acquire a
+producer slot — there is no role auto-detection. For a consumer endpoint
+you MUST call withBoundConsumer explicitly. The producer/consumer dispatch
+(getProducer vs getConsumer) cannot be inferred from the queue type alone,
+so this alias hard-codes the producer role.</p>
       </div>
     
 
@@ -3734,8 +3728,8 @@ producer role.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/with_bound.nim#L142" target="_blank" rel="noopener">
-            src/lockfree/typestates/with_bound.nim:142
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/with_bound.nim#L135" target="_blank" rel="noopener">
+            src/lockfree/typestates/with_bound.nim:135
           </a>
         
       </div>
@@ -3759,13 +3753,12 @@ producer role.</p>
       <pre><code class="language-nim highlight"><span class="k">type</span><span class="w"> </span><span class="n">Queueable</span><span class="o">[</span><span class="n">T</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">concept</span><span class="w"> </span><span class="n">x</span>
 <span class="w">    </span><span class="sd">## Type-class for "anything queue-like accepting / yielding `T`".</span>
 <span class="w">    </span><span class="sd">## </span>
-<span class="w">    </span><span class="sd">## Resolution: Nim's concept machinery instantiates the body with</span>
-<span class="w">    </span><span class="sd">## `x` bound to a candidate type and checks each expression compiles</span>
-<span class="w">    </span><span class="sd">## and has the stated type. The `var x` form admits both `var Queue`</span>
-<span class="w">    </span><span class="sd">## and `var BQueue` direct-push variants and `Bound` endpoint</span>
-<span class="w">    </span><span class="sd">## variants alike — push/pop on `Bound` take `self: Bound[...]`</span>
-<span class="w">    </span><span class="sd">## (not var), but Nim's overload resolution falls through to those</span>
-<span class="w">    </span><span class="sd">## from the `var x` candidate.</span>
+<span class="w">    </span><span class="sd">## Resolution: Nim's concept machinery instantiates the body with `x` bound to</span>
+<span class="w">    </span><span class="sd">## a candidate type and checks each expression compiles and has the stated</span>
+<span class="w">    </span><span class="sd">## type. The `var x` form admits both `var Queue` and `var BQueue` direct-push</span>
+<span class="w">    </span><span class="sd">## variants and `Bound` endpoint variants alike — push/pop on `Bound` take</span>
+<span class="w">    </span><span class="sd">## `self: Bound[...]` (not var), but Nim's overload resolution falls through</span>
+<span class="w">    </span><span class="sd">## to those from the `var x` candidate.</span>
 <span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="n">qref</span><span class="p">:</span><span class="w"> </span><span class="n">typeof</span><span class="p">(</span><span class="n">x</span><span class="p">)</span>
 <span class="w">    </span><span class="n">push</span><span class="p">(</span><span class="n">qref</span><span class="p">,</span><span class="w"> </span><span class="n">default</span><span class="p">(</span><span class="n">T</span><span class="p">))</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="nb">bool</span>
 <span class="w">    </span><span class="n">pop</span><span class="p">(</span><span class="n">qref</span><span class="p">)</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="n">Option</span><span class="o">[</span><span class="n">T</span><span class="o">]</span>
@@ -3784,8 +3777,8 @@ producer role.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/with_bound.nim#L175" target="_blank" rel="noopener">
-            src/lockfree/typestates/with_bound.nim:175
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/with_bound.nim#L166" target="_blank" rel="noopener">
+            src/lockfree/typestates/with_bound.nim:166
           </a>
         
       </div>

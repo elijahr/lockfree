@@ -3416,72 +3416,66 @@ out / sunk).</p>
     
       <div class="doc-description">
         <p>lockfree/managed_ref</p>
-<p>Internal slot encoding for <code>ref T</code> payloads under Path C
-(<code>Queue[ref Foo, ...]</code>). <code>ManagedRef[X]</code> is the internal type with
-per-MM refcount shim arms and bit-cast guarantees.</p>
+<p>Internal slot encoding for <code>ref T</code> payloads under Path C (<code>Queue[ref Foo,
+...]</code>). <code>ManagedRef[X]</code> is the internal type with per-MM refcount shim arms
+and bit-cast guarantees.</p>
 <h5 id="managed_ref--never-user-facing">NEVER user-facing<a class="headerlink" href="#managed_ref--never-user-facing" title="Permanent link">¶</a></h5>
-<p><code>ManagedRef[X]</code> is the wire-format the queue stores in its slot
-array. The user-facing API is <code>ref T</code>. <code>ManagedRef</code> MUST NOT
-leak into public docs, examples, or signatures.</p>
+<p><code>ManagedRef[X]</code> is the wire-format the queue stores in its slot array. The
+user-facing API is <code>ref T</code>. <code>ManagedRef</code> MUST NOT leak into public docs,
+examples, or signatures.</p>
 <h5 id="managed_ref--why-distinct-uint-and-not-distinct-ptr-x">Why <code>distinct uint</code> and not <code>distinct ptr X</code><a class="headerlink" href="#managed_ref--why-distinct-uint-and-not-distinct-ptr-x" title="Permanent link">¶</a></h5>
 <ol>
-<li><code>Atomic[uint]</code> and <code>Atomic[Pair[uint, uint]]</code> compile and
-   produce the right <code>cmpxchg16b</code> / <code>ldxp+stxp</code> instructions
-   across every atomics backend we target. <code>Atomic[ptr X]</code> is
-   less well-trodden and the strict-LCRQ DWCAS arm cannot tolerate
-   "may or may not compile".</li>
-<li><code>distinct uint</code> opacifies the slot at the compiler's lifecycle
-   pass — no implicit <code>=destroy</code> / <code>=copy</code> is emitted on the
-   slot value because the compiler sees POD bits. Refcount
-   operations happen at the EXPLICIT call sites in the queue
-   wrappers (push, pop, queue-destroy walk), never silently behind
-   the queue's back.</li>
-<li><code>cast[uint](myRef) ↔ cast[ManagedRef[X]](bits) ↔
-   cast[ref X](toBits(mref))</code> is a no-op at runtime and preserves
-   pointer identity, which is the precondition for the per-MM
-   refcount calls to find the correct heap header.</li>
+<li><code>Atomic[uint]</code> and <code>Atomic[Pair[uint, uint]]</code> compile and produce the
+   right <code>cmpxchg16b</code> / <code>ldxp+stxp</code> instructions across every atomics
+   backend we target. <code>Atomic[ptr X]</code> is less well-trodden and the
+   strict-LCRQ DWCAS arm cannot tolerate "may or may not compile".</li>
+<li><code>distinct uint</code> opacifies the slot at the compiler's lifecycle pass —
+   no implicit <code>=destroy</code> / <code>=copy</code> is emitted on the slot value because
+   the compiler sees POD bits. Refcount operations happen at the EXPLICIT
+   call sites in the queue wrappers (push, pop, queue-destroy walk), never
+   silently behind the queue's back.</li>
+<li><code>cast[uint](myRef) ↔ cast[ManagedRef[X]](bits) ↔ cast[ref
+   X](toBits(mref))</code> is a no-op at runtime and preserves pointer identity,
+   which is the precondition for the per-MM refcount calls to find the
+   correct heap header.</li>
 </ol>
 <h5 id="managed_ref--abi-stability">ABI stability<a class="headerlink" href="#managed_ref--abi-stability" title="Permanent link">¶</a></h5>
-<p><code>sizeof(ManagedRef[X])</code> and <code>alignof(ManagedRef[X])</code> are equal
-to <code>sizeof(uint)</code> and <code>alignof(uint)</code> on every supported
-platform. This is the wire-format invariant the queue's atomic
-slot operations depend on, and it is asserted at compile time in
-the <code>static:</code> block below. Across-MM ABI promises (arc ↔ orc ↔
-atomicArc ↔ none) follow from this identity plus the same field
-layout in <code>Queue[T, ...]</code>. What we explicitly do NOT promise:
-refc bit-compat, cross-Nim-version, cross-minor-version.</p>
+<p><code>sizeof(ManagedRef[X])</code> and <code>alignof(ManagedRef[X])</code> are equal to
+<code>sizeof(uint)</code> and <code>alignof(uint)</code> on every supported platform. This is
+the wire-format invariant the queue's atomic slot operations depend on, and
+it is asserted at compile time in the <code>static:</code> block below. Across-MM ABI
+promises (arc ↔ orc ↔ atomicArc ↔ none) follow from this identity plus
+the same field layout in <code>Queue[T, ...]</code>. What we explicitly do NOT
+promise: refc bit-compat, cross-Nim-version, cross-minor-version.</p>
 <h5 id="managed_ref--per-mm-shim-arms">Per-MM shim arms<a class="headerlink" href="#managed_ref--per-mm-shim-arms" title="Permanent link">¶</a></h5>
-<p>The <code>incRefSlot</code> / <code>decRefSlot</code> templates dispatch on the
-compile-time MM define:</p>
+<p>The <code>incRefSlot</code> / <code>decRefSlot</code> templates dispatch on the compile-time MM
+define:</p>
 <ul>
-<li><code>arc</code> / <code>orc</code> / <code>atomicArc</code> — bump/drop the cell's
-  refcount via the same per-MM mechanism the compiler would emit
-  for a <code>ref X</code>. The atomicArc arm collapses with arc in the
-  <code>when</code> because the C-RTL substitutes the atomic op
-  transparently.</li>
+<li><code>arc</code> / <code>orc</code> / <code>atomicArc</code> — bump/drop the cell's refcount via the
+  same per-MM mechanism the compiler would emit for a <code>ref X</code>. The
+  atomicArc arm collapses with arc in the <code>when</code> because the C-RTL
+  substitutes the atomic op transparently.</li>
 <li><code>refc</code> — tracing GC: <code>GC_ref</code> / <code>GC_unref</code>.</li>
-<li><code>none</code> — strict bit-transport contract: no-op. The user
-  owns lifetime; the queue is pointer-bit transport only.</li>
+<li><code>none</code> — strict bit-transport contract: no-op. The user owns lifetime;
+  the queue is pointer-bit transport only.</li>
 <li><code>nimony</code> — uses <code>arcInc</code> / <code>arcDec</code> from nimony's
-  <code>std/system/arcops</code>. The
-  signature shape differs from Nim 2.x's <code>nimIncRef</code> family:
-  nimony's <code>arcInc(memLoc: var int)</code> and
-  <code>arcDec(memLoc: var int): bool</code> operate on the refcount field
-  directly (a <code>var int</code> lvalue), NOT a heap-pointer. The arm
-  below uses <code>cast[ptr int](bits)[]</code> to materialise a <code>var int</code>
-  lvalue at the bits location. See partial-port boundary block
-  below for heap-header offset and dispose-symbol caveats.</li>
+  <code>std/system/arcops</code>. The signature shape differs from Nim 2.x's
+  <code>nimIncRef</code> family: nimony's <code>arcInc(memLoc: var int)</code> and
+  <code>arcDec(memLoc: var int): bool</code> operate on the refcount field directly (a
+  <code>var int</code> lvalue), NOT a heap-pointer. The arm below uses <code>cast[ptr
+  int](bits)[]</code> to materialise a <code>var int</code> lvalue at the bits location.
+  See partial-port boundary block below for heap-header offset and
+  dispose-symbol caveats.</li>
 </ul>
 <p>Implementation note: <code>nimIncRef</code> / <code>nimDecRefIsLast</code> /
 <code>nimDestroyAndDispose</code> are the underlying symbol path. Those are
-<code>compilerRtl</code> and emitted <code>static</code> in their TU, so a
-cross-module call site requires a thin wrapper. <code>GC_ref</code> /
-<code>GC_unref</code> are the exported wrappers around that exact path —
-under arc/orc/atomicArc they delegate to <code>nimIncRef</code> /
-<code>=destroy</code> (which in turn calls <code>nimDecRefIsLast</code> and
-<code>nimDestroyAndDispose</code>); under refc they hit the tracing-GC path.
-The semantic is identical; the symbol path differs only in being
-public. The bit-cast guarantee makes either choice equivalent.</p>
+<code>compilerRtl</code> and emitted <code>static</code> in their TU, so a cross-module call
+site requires a thin wrapper. <code>GC_ref</code> / <code>GC_unref</code> are the exported
+wrappers around that exact path — under arc/orc/atomicArc they delegate to
+<code>nimIncRef</code> / <code>=destroy</code> (which in turn calls <code>nimDecRefIsLast</code> and
+<code>nimDestroyAndDispose</code>); under refc they hit the tracing-GC path. The
+semantic is identical; the symbol path differs only in being public. The
+bit-cast guarantee makes either choice equivalent.</p>
       </div>
     
 
@@ -3519,8 +3513,8 @@ public. The bit-cast guarantee makes either choice equivalent.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L97" target="_blank" rel="noopener">
-            src/lockfree/managed_ref.nim:97
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L91" target="_blank" rel="noopener">
+            src/lockfree/managed_ref.nim:91
           </a>
         
       </div>
@@ -3556,11 +3550,10 @@ public. The bit-cast guarantee makes either choice equivalent.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Pack a <code>ref X</code> into the slot encoding. Pointer-bit transfer</p>
-<p>only — does NOT touch refcount. The queue wrapper
-(<code>path_c_wrap.nim:wrapOrIdentity</code>) is responsible for the
-paired <code>incRefSlot</code> that claims +1 of the cell's refcount
-lifetime for the slot. See path_c_wrap.nim.</p>
+        <p>Pack a <code>ref X</code> into the slot encoding. Pointer-bit transfer only — does</p>
+<p>NOT touch refcount. The queue wrapper (<code>path_c_wrap.nim:wrapOrIdentity</code>)
+is responsible for the paired <code>incRefSlot</code> that claims +1 of the cell's
+refcount lifetime for the slot. See path_c_wrap.nim.</p>
       </div>
     
 
@@ -3592,8 +3585,8 @@ lifetime for the slot. See path_c_wrap.nim.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L136" target="_blank" rel="noopener">
-            src/lockfree/managed_ref.nim:136
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L127" target="_blank" rel="noopener">
+            src/lockfree/managed_ref.nim:127
           </a>
         
       </div>
@@ -3629,10 +3622,10 @@ lifetime for the slot. See path_c_wrap.nim.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Unpack the slot encoding back to <code>ref X</code>. Pointer-bit transfer</p>
-<p>only — does NOT touch refcount. Pop is destructive (<code>move</code>);
-the queue's +1 refcount share (claimed at push) is inherited by
-the caller's binding. See path_c_wrap.nim.</p>
+        <p>Unpack the slot encoding back to <code>ref X</code>. Pointer-bit transfer only —</p>
+<p>does NOT touch refcount. Pop is destructive (<code>move</code>); the queue's +1
+refcount share (claimed at push) is inherited by the caller's binding. See
+path_c_wrap.nim.</p>
       </div>
     
 
@@ -3664,8 +3657,8 @@ the caller's binding. See path_c_wrap.nim.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L144" target="_blank" rel="noopener">
-            src/lockfree/managed_ref.nim:144
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L134" target="_blank" rel="noopener">
+            src/lockfree/managed_ref.nim:134
           </a>
         
       </div>
@@ -3701,9 +3694,8 @@ the caller's binding. See path_c_wrap.nim.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Expose the raw pointer bits. Used by the queue's atomic slot</p>
-<p>operations (<code>Atomic[uint]</code> ops on the slot array). Identity
-codegen.</p>
+        <p>Expose the raw pointer bits. Used by the queue's atomic slot operations</p>
+<p>(<code>Atomic[uint]</code> ops on the slot array). Identity codegen.</p>
       </div>
     
 
@@ -3735,8 +3727,8 @@ codegen.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L151" target="_blank" rel="noopener">
-            src/lockfree/managed_ref.nim:151
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L141" target="_blank" rel="noopener">
+            src/lockfree/managed_ref.nim:141
           </a>
         
       </div>
@@ -3772,8 +3764,8 @@ codegen.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Reconstruct a <code>ManagedRef[X]</code> from raw bits read out of the</p>
-<p>slot array. Identity codegen.</p>
+        <p>Reconstruct a <code>ManagedRef[X]</code> from raw bits read out of the slot array.</p>
+<p>Identity codegen.</p>
       </div>
     
 
@@ -3811,8 +3803,8 @@ codegen.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L157" target="_blank" rel="noopener">
-            src/lockfree/managed_ref.nim:157
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L146" target="_blank" rel="noopener">
+            src/lockfree/managed_ref.nim:146
           </a>
         
       </div>
@@ -3848,12 +3840,11 @@ codegen.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>The all-zero slot — semantically equivalent to a nil <code>ref X</code>.</p>
-<p>A generic proc rather than a <code>const</code> because the generic
-<code>ManagedRef[X]</code> cannot be a top-level <code>const</code> without
-binding <code>X</code>. Call as <code>nilManagedRef(Foo)</code> (typedesc passed
-explicitly) from generic queue code where <code>X</code> is bound by
-context.</p>
+        <p>The all-zero slot — semantically equivalent to a nil <code>ref X</code>. A generic</p>
+<p>proc rather than a <code>const</code> because the generic <code>ManagedRef[X]</code> cannot
+be a top-level <code>const</code> without binding <code>X</code>. Call as
+<code>nilManagedRef(Foo)</code> (typedesc passed explicitly) from generic queue code
+where <code>X</code> is bound by context.</p>
       </div>
     
 
@@ -3885,8 +3876,8 @@ context.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L162" target="_blank" rel="noopener">
-            src/lockfree/managed_ref.nim:162
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L151" target="_blank" rel="noopener">
+            src/lockfree/managed_ref.nim:151
           </a>
         
       </div>
@@ -3918,8 +3909,8 @@ context.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Bump the refcount of the cell pointed at by <code>mref</code>. No-op when</p>
-<p><code>mref</code> is the nil slot. Per-MM dispatch.</p>
+        <p>Bump the refcount of the cell pointed at by <code>mref</code>. No-op when <code>mref</code></p>
+<p>is the nil slot. Per-MM dispatch.</p>
       </div>
     
 
@@ -3946,8 +3937,8 @@ context.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L179" target="_blank" rel="noopener">
-            src/lockfree/managed_ref.nim:179
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L167" target="_blank" rel="noopener">
+            src/lockfree/managed_ref.nim:167
           </a>
         
       </div>
@@ -3979,8 +3970,8 @@ context.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Drop the refcount of the cell pointed at by <code>mref</code>. No-op when</p>
-<p><code>mref</code> is the nil slot. Per-MM dispatch.</p>
+        <p>Drop the refcount of the cell pointed at by <code>mref</code>. No-op when <code>mref</code></p>
+<p>is the nil slot. Per-MM dispatch.</p>
       </div>
     
 
@@ -4007,8 +3998,8 @@ context.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L205" target="_blank" rel="noopener">
-            src/lockfree/managed_ref.nim:205
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L191" target="_blank" rel="noopener">
+            src/lockfree/managed_ref.nim:191
           </a>
         
       </div>
@@ -4040,11 +4031,11 @@ context.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Nimony arm of <code>incRefSlot</code>. Calls <code>arcInc(memLoc: var int)</code> on</p>
-<p>the cell's refcount. <strong>Experimental.</strong></p>
-<p>Partial-port note: the rc field is assumed to live AT the slot
-bits address. The verified nimony heap-header offset is tracked
-at v0.2 — see module-level partial-port block.</p>
+        <p>Nimony arm of <code>incRefSlot</code>. Calls <code>arcInc(memLoc: var int)</code> on the cell's</p>
+<p>refcount. <strong>Experimental.</strong></p>
+<p>Partial-port note: the rc field is assumed to live AT the slot bits
+address. The verified nimony heap-header offset is tracked at v0.2 —
+see module-level partial-port block.</p>
       </div>
     
 
@@ -4071,8 +4062,8 @@ at v0.2 — see module-level partial-port block.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L293" target="_blank" rel="noopener">
-            src/lockfree/managed_ref.nim:293
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L272" target="_blank" rel="noopener">
+            src/lockfree/managed_ref.nim:272
           </a>
         
       </div>
@@ -4104,10 +4095,10 @@ at v0.2 — see module-level partial-port block.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Nimony arm of <code>decRefSlot</code>. Calls <code>arcDec(memLoc: var int): bool</code></p>
-<p>on the cell's refcount. <strong>Experimental.</strong></p>
-<p>Partial-port note: the dispose-on-last-ref symbol is omitted
-pending resolution. See module-level partial-port block.</p>
+        <p>Nimony arm of <code>decRefSlot</code>. Calls <code>arcDec(memLoc: var int): bool</code> on the</p>
+<p>cell's refcount. <strong>Experimental.</strong></p>
+<p>Partial-port note: the dispose-on-last-ref symbol is omitted pending
+resolution. See module-level partial-port block.</p>
       </div>
     
 
@@ -4134,8 +4125,8 @@ pending resolution. See module-level partial-port block.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L311" target="_blank" rel="noopener">
-            src/lockfree/managed_ref.nim:311
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L290" target="_blank" rel="noopener">
+            src/lockfree/managed_ref.nim:290
           </a>
         
       </div>
@@ -4171,9 +4162,9 @@ pending resolution. See module-level partial-port block.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Zero the slot AND drop the refcount in one balanced operation.</p>
-<p>Used by the queue's destructor walk and by push-failure
-rollback. No-op when <code>mref</code> is already nil.</p>
+        <p>Zero the slot AND drop the refcount in one balanced operation. Used by the</p>
+<p>queue's destructor walk and by push-failure rollback. No-op when <code>mref</code>
+is already nil.</p>
       </div>
     
 
@@ -4200,8 +4191,8 @@ rollback. No-op when <code>mref</code> is already nil.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L343" target="_blank" rel="noopener">
-            src/lockfree/managed_ref.nim:343
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/managed_ref.nim#L320" target="_blank" rel="noopener">
+            src/lockfree/managed_ref.nim:320
           </a>
         
       </div>

@@ -3414,17 +3414,15 @@ move-tracked lifecycle.</p>
     
       <div class="doc-description">
         <p>src/lockfree/chronos.nim</p>
-<p>Tier 3 chronos async adapter for <code>lockfree</code> queues. This is the only
-async tier shipping in v0.1.0, built on the hybrid optional-dep
-pattern.</p>
-<p>chronos is intentionally NOT listed unconditionally in
-<code>lockfree.nimble</code> <code>requires</code>. The library is flag-only opt-in: users
-who want the async adapter pass <code>-d:lockfreeChronos</code> AND install
-chronos themselves (or rely on <code>lockfree.nimble</code>'s
-<code>when defined(lockfreeChronos): requires "chronos &gt;= 4.0.0, &lt; 5.0.0"</code>
-conditional dep). The library never transitively pulls chronos in
-for users who do not need it, and chronos is never auto-detected at
-compile time.</p>
+<p>Tier 3 chronos async adapter for <code>lockfree</code> queues. This is the only async
+tier shipping in v0.1.0, built on the hybrid optional-dep pattern.</p>
+<p>chronos is intentionally NOT listed unconditionally in <code>lockfree.nimble</code>
+<code>requires</code>. The library is flag-only opt-in: users who want the async adapter
+pass <code>-d:lockfreeChronos</code> AND install chronos themselves (or rely on
+<code>lockfree.nimble</code>'s <code>when defined(lockfreeChronos): requires "chronos &gt;=
+4.0.0, &lt; 5.0.0"</code> conditional dep). The library never transitively pulls
+chronos in for users who do not need it, and chronos is never auto-detected
+at compile time.</p>
 <p>Activation matrix (flag-only opt-in):</p>
 <table>
 <thead>
@@ -3438,76 +3436,47 @@ compile time.</p>
 <tr>
 <td>No</td>
 <td>(irrelevant)</td>
-<td>(d) import succeeds; module</td>
+<td>(d) import succeeds; module body skipped; AsyncQueue/</td>
 </tr>
 <tr>
-<td>body skipped; AsyncQueue/</td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td>AsyncBQueue invisible.</td>
-<td></td>
-<td></td>
-</tr>
-<tr>
+<td>AsyncBQueue invisible. Yes</td>
 <td>Yes</td>
-<td>Yes</td>
-<td>(b) opt-in path; module body</td>
+<td>(b) opt-in path; module body activates;</td>
 </tr>
 <tr>
-<td>activates; types exported.</td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td>Yes</td>
+<td>types exported. Yes</td>
 <td>No</td>
-<td>(c) <code>{.error.}</code> fires with a</td>
+<td>(c) <code>{.error.}</code> fires with a precise install</td>
 </tr>
 <tr>
-<td>precise install hint</td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td>referencing</td>
-<td></td>
-<td></td>
-</tr>
-<tr>
-<td><code>docs/api/chronos.md</code>.</td>
+<td>hint referencing <code>docs/api/chronos.md</code>.</td>
 <td></td>
 <td></td>
 </tr>
 </tbody>
 </table>
 <p>The previous auto-detect arm — a public <code>lockfreeChronosAvailable*</code>
-constant that callers could <code>when</code>-branch on to silently enable the
-adapter without the flag — was removed: silent activation based on
-whether chronos happens to be installed in a user's package set
-violates the flag-only opt-in contract. An internal
-(non-exported) <code>chronosReachable</code> probe is retained ONLY to drive
-the precise install-hint <code>{.error.}</code> arm; the module body never
-activates without <code>-d:lockfreeChronos</code>, regardless of whether
-chronos is reachable.</p>
-<p>NOTE on chronos import form: the obvious <code>import chronos</code> self-shadows
-inside this module —
-our own file IS <code>src/lockfree/chronos.nim</code>, which Nim resolves first
-on the import search path, breaking the <code>compiles do:</code> probe used to
-emit the precise install-hint error. We import the chronos
-<em>submodule</em> <code>chronos/asyncsync</code> (which transitively re-exports
-asyncloop -&gt; asyncfutures + asyncmacro, covering AsyncEvent, Future,
-async/await, waitFor, CancelledError) and we use the bracket-array
-form <code>chronos/[asyncsync]</code>. The bracket form is what makes the
-resolver locate the chronos package despite the local module's name.
-A leading throw-away <code>compiles do: import chronos/asyncsync</code> primes
-Nim's package resolver so the bracket form binds correctly on the
-next call — without that prime the bracket form returns false on the
-very first invocation in a module whose own name is "chronos". This
-priming probe is deliberate and is required to defeat the
-self-shadowing; it is NOT an auto-detect arm, and its result is
-discarded.</p>
+constant that callers could <code>when</code>-branch on to silently enable the adapter
+without the flag — was removed: silent activation based on whether chronos
+happens to be installed in a user's package set violates the flag-only opt-in
+contract. An internal (non-exported) <code>chronosReachable</code> probe is retained
+ONLY to drive the precise install-hint <code>{.error.}</code> arm; the module body never
+activates without <code>-d:lockfreeChronos</code>, regardless of whether chronos is
+reachable.</p>
+<p>NOTE on chronos import form: the obvious <code>import chronos</code> self-shadows inside
+this module — our own file IS <code>src/lockfree/chronos.nim</code>, which Nim
+resolves first on the import search path, breaking the <code>compiles do:</code> probe
+used to emit the precise install-hint error. We import the chronos
+<em>submodule</em> <code>chronos/asyncsync</code> (which transitively re-exports asyncloop -&gt;
+asyncfutures + asyncmacro, covering AsyncEvent, Future, async/await, waitFor,
+CancelledError) and we use the bracket-array form <code>chronos/[asyncsync]</code>. The
+bracket form is what makes the resolver locate the chronos package despite
+the local module's name. A leading throw-away <code>compiles do: import
+chronos/asyncsync</code> primes Nim's package resolver so the bracket form binds
+correctly on the next call — without that prime the bracket form returns
+false on the very first invocation in a module whose own name is "chronos".
+This priming probe is deliberate and is required to defeat the
+self-shadowing; it is NOT an auto-detect arm, and its result is discarded.</p>
       </div>
     
 
@@ -3532,19 +3501,17 @@ discarded.</p>
   <div class="doc doc-contents">
     
       <div class="doc-description">
-        <p>Bounded async-adapter queue. Wraps a sync</p>
-<p><code>BQueue</code> and adds a single chronos <code>AsyncEvent</code> for the
-consumer-wakeup signal. Lock-freedom on the producer side is
-preserved (fire is a non-blocking flag set on the chronos
-event-loop thread); the consumer opts into blocking via
-<code>await event.wait()</code>.</p>
-<p>Storage is <code>ref object</code> rather than a plain <code>object</code>
-because chronos's <code>{.async.}</code> macro lifts pop into a
-closure-bearing iterator, and Nim refuses to capture a <code>var</code>
-receiver across the await suspension point. Boxing the wrapper
-resolves the capture without introducing extra atomic state.
-This matches chronos's own <code>asyncsync.AsyncQueue[T]</code> which is
-also <code>ref object of RootRef</code>.</p>
+        <p>Bounded async-adapter queue. Wraps a sync <code>BQueue</code> and adds a single</p>
+<p>chronos <code>AsyncEvent</code> for the consumer-wakeup signal. Lock-freedom on
+the producer side is preserved (fire is a non-blocking flag set on the
+chronos event-loop thread); the consumer opts into blocking via <code>await
+event.wait()</code>.</p>
+<p>Storage is <code>ref object</code> rather than a plain <code>object</code> because chronos's
+<code>{.async.}</code> macro lifts pop into a closure-bearing iterator, and Nim
+refuses to capture a <code>var</code> receiver across the await suspension point.
+Boxing the wrapper resolves the capture without introducing extra
+atomic state. This matches chronos's own <code>asyncsync.AsyncQueue[T]</code>
+which is also <code>ref object of RootRef</code>.</p>
       </div>
     
 
@@ -3582,8 +3549,8 @@ also <code>ref object of RootRef</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L107" target="_blank" rel="noopener">
-            src/lockfree/chronos.nim:107
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L94" target="_blank" rel="noopener">
+            src/lockfree/chronos.nim:94
           </a>
         
       </div>
@@ -3613,13 +3580,13 @@ also <code>ref object of RootRef</code>.</p>
   <div class="doc doc-contents">
     
       <div class="doc-description">
-        <p>Unbounded async-adapter queue. Same shape as</p>
-<p><code>AsyncBQueue</code> but over the unbounded <code>Queue</code>. Note that
-chronos's own <code>chronos/asyncsync.AsyncQueue[T]</code> (a ref object
-with a single generic parameter) lives in a different scope;
-downstream code that imports both should qualify or alias one
-side. See the test suite (<code>tests/t_chronos.nim</code>) for the
-recommended <code>from chronos import nil</code> pattern.</p>
+        <p>Unbounded async-adapter queue. Same shape as <code>AsyncBQueue</code> but over the</p>
+<p>unbounded <code>Queue</code>. Note that chronos's own
+<code>chronos/asyncsync.AsyncQueue[T]</code> (a ref object with a single generic
+parameter) lives in a different scope; downstream code that imports
+both should qualify or alias one side. See the test suite
+(<code>tests/t_chronos.nim</code>) for the recommended <code>from chronos import nil</code>
+pattern.</p>
       </div>
     
 
@@ -3657,8 +3624,8 @@ recommended <code>from chronos import nil</code> pattern.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L130" target="_blank" rel="noopener">
-            src/lockfree/chronos.nim:130
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L115" target="_blank" rel="noopener">
+            src/lockfree/chronos.nim:115
           </a>
         
       </div>
@@ -3688,9 +3655,8 @@ recommended <code>from chronos import nil</code> pattern.</p>
     
       <div class="doc-description">
         <p>Convenience alias for the SPSC-absorbed unbounded async queue</p>
-<p>(debra-free; no pinscope; trivially safe across async-await
-boundaries — pin scope is closed inside the
-inner pop before any <code>await</code>).</p>
+<p>(debra-free; no pinscope; trivially safe across async-await boundaries
+— pin scope is closed inside the inner pop before any <code>await</code>).</p>
       </div>
     
 
@@ -3702,8 +3668,8 @@ inner pop before any <code>await</code>).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L141" target="_blank" rel="noopener">
-            src/lockfree/chronos.nim:141
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L126" target="_blank" rel="noopener">
+            src/lockfree/chronos.nim:126
           </a>
         
       </div>
@@ -3735,10 +3701,9 @@ inner pop before any <code>await</code>).</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Construct an <code>AsyncBQueue</code>. Allocates a fresh <code>AsyncEvent</code> and</p>
-<p>forwards to <code>newBQueue</code> for the inner queue. Returns a heap-
-allocated wrapper (see the type doc on why the wrapper is
-<code>ref object</code>).</p>
+        <p>Construct an <code>AsyncBQueue</code>. Allocates a fresh <code>AsyncEvent</code> and forwards</p>
+<p>to <code>newBQueue</code> for the inner queue. Returns a heap- allocated wrapper
+(see the type doc on why the wrapper is <code>ref object</code>).</p>
       </div>
     
 
@@ -3757,8 +3722,8 @@ allocated wrapper (see the type doc on why the wrapper is
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L152" target="_blank" rel="noopener">
-            src/lockfree/chronos.nim:152
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L136" target="_blank" rel="noopener">
+            src/lockfree/chronos.nim:136
           </a>
         
       </div>
@@ -3790,11 +3755,11 @@ allocated wrapper (see the type doc on why the wrapper is
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Construct an <code>AsyncQueue</code> via the typedesc-only sync ctor</p>
-<p>(delegates to <code>newQueue(typedesc[Queue[...]])</code>). For the
-spsc-absorbed <code>(ccSingle, ccSingle)</code> shape this is debra-free.
-For other cardinalities the sync ctor allocates a private
-<code>DebraManager</code>; the async wrapper inherits that ownership.</p>
+        <p>Construct an <code>AsyncQueue</code> via the typedesc-only sync ctor (delegates to</p>
+<p><code>newQueue(typedesc[Queue[...]])</code>). For the spsc-absorbed <code>(ccSingle,
+ccSingle)</code> shape this is debra-free. For other cardinalities the sync
+ctor allocates a private <code>DebraManager</code>; the async wrapper inherits that
+ownership.</p>
       </div>
     
 
@@ -3826,8 +3791,8 @@ For other cardinalities the sync ctor allocates a private
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L165" target="_blank" rel="noopener">
-            src/lockfree/chronos.nim:165
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L148" target="_blank" rel="noopener">
+            src/lockfree/chronos.nim:148
           </a>
         
       </div>
@@ -3859,11 +3824,11 @@ For other cardinalities the sync ctor allocates a private
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>SPSC async-adapter push. Forwards to the sync <code>BQueue.push</code> and</p>
-<p>fires the <code>AsyncEvent</code> on success so an awaiting <code>pop</code> wakes.
-Returns the underlying push outcome so the user
-can implement back-pressure (a <code>false</code> return means the bounded
-queue is full; the event is NOT fired in that case).</p>
+        <p>SPSC async-adapter push. Forwards to the sync <code>BQueue.push</code> and fires the</p>
+<p><code>AsyncEvent</code> on success so an awaiting <code>pop</code> wakes. Returns the
+underlying push outcome so the user can implement back-pressure (a
+<code>false</code> return means the bounded queue is full; the event is NOT fired in
+that case).</p>
       </div>
     
 
@@ -3901,8 +3866,8 @@ queue is full; the event is NOT fired in that case).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L196" target="_blank" rel="noopener">
-            src/lockfree/chronos.nim:196
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L178" target="_blank" rel="noopener">
+            src/lockfree/chronos.nim:178
           </a>
         
       </div>
@@ -3938,26 +3903,23 @@ queue is full; the event is NOT fired in that case).</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>SPSC async-adapter pop. Loops the canonical sticky-flag</p>
-<p>condition pattern:</p>
-<p>clear flag -&gt; non-blocking pop -&gt; if some, return -&gt;
-  else await flag -&gt; repeat</p>
-<p>The <code>clear</code> precedes the pop so a producer push that interleaves
-between the <code>clear</code> and the <code>await</code> still leaves the flag set,
-and the subsequent <code>await event.wait()</code> returns immediately
-(chronos <code>AsyncEvent.wait</code> short-circuits when the flag is
-already true — chronos 4.x <code>AsyncEvent.wait</code>). This eliminates
-the lost-wakeup race without introducing extra atomic state on
-the queue side.</p>
-<p>Cancellation discipline: the sync <code>pop</code>
-body for the SPSC arm is debra-free and holds no pin across the
-<code>await</code>. The <code>try/finally</code> here is the structural guard that
-also covers future expansion to cardinalities where an inner pop
-DOES enter and exit a pin scope (the design guarantees that pin
-acquisition/release happens entirely inside <code>q.queue.pop()</code>, so
+        <p>SPSC async-adapter pop. Loops the canonical sticky-flag condition</p>
+<p>pattern:</p>
+<p>clear flag -&gt; non-blocking pop -&gt; if some, return -&gt; else await flag -&gt;
+  repeat</p>
+<p>The <code>clear</code> precedes the pop so a producer push that interleaves between
+the <code>clear</code> and the <code>await</code> still leaves the flag set, and the subsequent
+<code>await event.wait()</code> returns immediately (chronos <code>AsyncEvent.wait</code>
+short-circuits when the flag is already true — chronos 4.x
+<code>AsyncEvent.wait</code>). This eliminates the lost-wakeup race without
+introducing extra atomic state on the queue side.</p>
+<p>Cancellation discipline: the sync <code>pop</code> body for the SPSC arm is
+debra-free and holds no pin across the <code>await</code>. The <code>try/finally</code> here is
+the structural guard that also covers future expansion to cardinalities
+where an inner pop DOES enter and exit a pin scope (the design guarantees
+that pin acquisition/release happens entirely inside <code>q.queue.pop()</code>, so
 no pin is held across the <code>await event.wait()</code> line below; the
-try/finally captures the cancellation propagation contract
-regardless).</p>
+try/finally captures the cancellation propagation contract regardless).</p>
       </div>
     
 
@@ -3989,8 +3951,8 @@ regardless).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L208" target="_blank" rel="noopener">
-            src/lockfree/chronos.nim:208
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L190" target="_blank" rel="noopener">
+            src/lockfree/chronos.nim:190
           </a>
         
       </div>
@@ -4059,8 +4021,8 @@ regardless).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L266" target="_blank" rel="noopener">
-            src/lockfree/chronos.nim:266
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L241" target="_blank" rel="noopener">
+            src/lockfree/chronos.nim:241
           </a>
         
       </div>
@@ -4093,9 +4055,8 @@ regardless).</p>
     
       <div class="doc-description">
         <p>Returns a mutable view of the wrapper's <code>AsyncEvent</code>. Exposed so</p>
-<p>downstream <code>asyncPop</code>-on-<code>Bound</code> implementations
-can share the same event flag without reaching through <code>q.event</code>
-directly.</p>
+<p>downstream <code>asyncPop</code>-on-<code>Bound</code> implementations can share the same event
+flag without reaching through <code>q.event</code> directly.</p>
       </div>
     
 
@@ -4127,8 +4088,8 @@ directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L292" target="_blank" rel="noopener">
-            src/lockfree/chronos.nim:292
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L267" target="_blank" rel="noopener">
+            src/lockfree/chronos.nim:267
           </a>
         
       </div>
@@ -4192,8 +4153,8 @@ directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L301" target="_blank" rel="noopener">
-            src/lockfree/chronos.nim:301
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/chronos.nim#L275" target="_blank" rel="noopener">
+            src/lockfree/chronos.nim:275
           </a>
         
       </div>

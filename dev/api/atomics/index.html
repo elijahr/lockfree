@@ -4344,31 +4344,27 @@ against the same memory-ordering discipline used by the umbrella.</p>
   * Reject <code>Atomic[ref T]</code> at compile time (no silent spinlock).
   * Require <code>Atomic[T]</code> to be lock-free at compile time.
   * Validate <code>MemoryOrder</code> per op at compile time.
-  * Statically assert <code>alignof(Atomic[T]) &gt;= sizeof(T)</code> so a target
-    where <code>T</code>'s natural alignment is insufficient (e.g. <code>uint64</code> on
-    some 32-bit ABIs) fails to compile rather than silently downgrading
-    to a non-lock-free split-lock object. The assert is the safety
-    boundary; we cannot force alignment higher than the type's natural
-    alignment from generic code (see <code>Atomic[T]</code> doc), so we trap the
-    mismatch instead.</p>
+  * Statically assert <code>alignof(Atomic[T]) &gt;= sizeof(T)</code> so a target where
+    <code>T</code>'s natural alignment is insufficient (e.g. <code>uint64</code> on some 32-bit
+    ABIs) fails to compile rather than silently downgrading to a
+    non-lock-free split-lock object. The assert is the safety boundary; we
+    cannot force alignment higher than the type's natural alignment from
+    generic code (see <code>Atomic[T]</code> doc), so we trap the mismatch instead.</p>
 <p>Design doc: docs/design/2026-04-25-custom-atomics.md</p>
-<p>User guide: see docs/guide/atomics.md for a side-by-side comparison
-with std/atomics, the DWCAS surface overview, memory-order policy,
-cross-compiler/arch compatibility matrix, and an LCRQ-style worked
-example.</p>
-<p>Backend strategy: wrap GCC/Clang <code>__atomic_*_n</code> builtins for the
-unix toolchains (gcc, clang, llvm_gcc, nintendoswitch), and MSVC's
-<code>_Interlocked*</code> intrinsics family (declared in <code>&lt;intrin.h&gt;</code>) for vcc.
-The MSVC arms cover the full 1-, 2-, 4-, and 8-byte <code>Atomic[T]</code>
-surface plus AtomicFlag, fences, and the 16-byte DWCAS via
-<code>_InterlockedCompareExchange128</code>.</p>
+<p>User guide: see docs/guide/atomics.md for a side-by-side comparison with
+std/atomics, the DWCAS surface overview, memory-order policy,
+cross-compiler/arch compatibility matrix, and an LCRQ-style worked example.</p>
+<p>Backend strategy: wrap GCC/Clang <code>__atomic_*_n</code> builtins for the unix
+toolchains (gcc, clang, llvm_gcc, nintendoswitch), and MSVC's <code>_Interlocked*</code>
+intrinsics family (declared in <code>&lt;intrin.h&gt;</code>) for vcc. The MSVC arms cover the
+full 1-, 2-, 4-, and 8-byte <code>Atomic[T]</code> surface plus AtomicFlag, fences, and
+the 16-byte DWCAS via <code>_InterlockedCompareExchange128</code>.</p>
 <p>DWCAS (16-byte) emit logic adapted from atomic128
-(https://github.com/patternnoster/atomic128) by patternnoster,
-MIT licensed. See atomic128_ref.hpp for the C++ reference
-implementation that documents the GCC __sync vs __atomic
-footgun this code works around. Pinned upstream commit:
-d45ba3d348a9620a25552f9cf50dc7ccef05ef90.
-See THIRD_PARTY_LICENSES.md for the verbatim MIT text.</p>
+(https://github.com/patternnoster/atomic128) by patternnoster, MIT licensed.
+See atomic128_ref.hpp for the C++ reference implementation that documents the
+GCC __sync vs __atomic footgun this code works around. Pinned upstream
+commit: d45ba3d348a9620a25552f9cf50dc7ccef05ef90. See THIRD_PARTY_LICENSES.md
+for the verbatim MIT text.</p>
       </div>
     
 
@@ -4394,8 +4390,8 @@ See THIRD_PARTY_LICENSES.md for the verbatim MIT text.</p>
     
       <div class="doc-description">
         <p>Specifies how non-atomic operations can be reordered around atomic</p>
-<p>operations. Ordinals match GCC's <code>__ATOMIC_*</code> so <code>ord(order)</code> is
-passed directly to the builtins.</p>
+<p>operations. Ordinals match GCC's <code>__ATOMIC_*</code> so <code>ord(order)</code> is passed
+directly to the builtins.</p>
       </div>
     
 
@@ -4450,8 +4446,8 @@ passed directly to the builtins.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L269" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:269
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L261" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:261
           </a>
         
       </div>
@@ -4510,8 +4506,8 @@ passed directly to the builtins.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L297" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:297
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L288" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:288
           </a>
         
       </div>
@@ -4548,12 +4544,12 @@ monotonically-bumped sequence counter (ABA defense) and <code>second</code> is t
 payload. Generation overflow is documented as impossible in practical
 lifetimes (uint64 monotonicity).</p>
 <p>Field-level <code>{.align: 16.}</code> on <code>first*</code> elevates the whole object to
-16-byte alignment per Nim 2.2.10 align-pragma scope rules; the
-object-level form (<code>type Pair {.align: 16.} = object ...</code>) is rejected.</p>
-<p><code>ptr T</code> fields are explicitly opt-out of ARC: <code>Pair</code> makes no claim
-on the lifetime of whatever a contained <code>ptr</code> points at.</p>
-<p>See <code>docs/guide/atomics.md</code> §7 for an LCRQ-style worked example
-using <code>Pair[uint64, ptr Node]</code>.</p>
+16-byte alignment per Nim 2.2.10 align-pragma scope rules; the object-level
+form (<code>type Pair {.align: 16.} = object ...</code>) is rejected.</p>
+<p><code>ptr T</code> fields are explicitly opt-out of ARC: <code>Pair</code> makes no claim on the
+lifetime of whatever a contained <code>ptr</code> points at.</p>
+<p>See <code>docs/guide/atomics.md</code> §7 for an LCRQ-style worked example using
+<code>Pair[uint64, ptr Node]</code>.</p>
       </div>
     
 
@@ -4583,8 +4579,8 @@ using <code>Pair[uint64, ptr Node]</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L411" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:411
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L398" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:398
           </a>
         
       </div>
@@ -4648,8 +4644,8 @@ using <code>Pair[uint64, ptr Node]</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L433" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:433
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L420" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:420
           </a>
         
       </div>
@@ -4682,12 +4678,12 @@ using <code>Pair[uint64, ptr Node]</code>.</p>
     
       <div class="doc-description">
         <p>Gate 2 (Pair shape) + Gate 4 (lock-free) for <code>Atomic[Pair[A, B]]</code>.</p>
-<p>Checks <code>sizeof(A) + sizeof(B) == 16</code> rather than <code>sizeof(Pair[A, B]) == 16</code>:
-the field-level <code>{.align: 16.}</code> on <code>first</code> pads any undersized Pair up to
-16 bytes, so the outer sizeof would silently mask half-size mismatches
+<p>Checks <code>sizeof(A) + sizeof(B) == 16</code> rather than <code>sizeof(Pair[A, B]) ==
+16</code>: the field-level <code>{.align: 16.}</code> on <code>first</code> pads any undersized Pair up
+to 16 bytes, so the outer sizeof would silently mask half-size mismatches
 (e.g. <code>Pair[uint64, uint32]</code> has 12 bytes of payload + 4 padding). DWCAS
-requires both halves live (cmpxchg16b / casp compares all 128 bits), so
-the payload sum is the real safety invariant.</p>
+requires both halves live (cmpxchg16b / casp compares all 128 bits), so the
+payload sum is the real safety invariant.</p>
       </div>
     
 
@@ -4720,8 +4716,8 @@ the payload sum is the real safety invariant.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L447" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:447
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L434" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:434
           </a>
         
       </div>
@@ -4750,28 +4746,25 @@ the payload sum is the real safety invariant.</p>
   <div class="doc doc-contents">
     
       <div class="doc-description">
-        <p>Atomic wrapper for <code>T</code>. Lock-free on this target; rejects</p>
-<p><code>ref T</code>.</p>
-<p>Supports 1-, 2-, 4-, and 8-byte types only. 16-byte types
-(<code>__int128</code>, double-quadword pointers) require a different code
-path (<code>cmpxchg16b</code> on x86_64, <code>casp</code> on aarch64) and are not
-currently provided. Such instantiations fail with a compile-time
-<code>{.error.}</code> from the underlying <code>nonAtomicType</code> template.</p>
-<p>Note on alignment: Nim's field-level <code>{.align: ...}</code> pragma
-cannot reference <code>sizeof(T)</code> from a generic context (as of
-Nim 2.2.6 it triggers <code>sizeof requires .importc types to be
-.completeStruct</code>). We therefore rely on <code>T</code>'s natural alignment
-— which is <code>&gt;= sizeof(T)</code> for the primitives we ship on every
-64-bit ABI we currently target, but is <strong>not</strong> universally true.
-Notably, on i386 System V <code>alignof(uint64) == 4</code>, which would
-yield a split-lock object that is not always-lock-free.</p>
-<p><code>enforceAtomicConstraints</code> therefore fires
-<code>static: assert alignof(Atomic[T]) &gt;= sizeof(T)</code> per instantiation;
-a target where natural alignment is insufficient fails to compile
-rather than silently producing a non-lock-free object. If we ever
-need to support such a target, the fix is a per-size specialisation
-that boxes <code>T</code> in a struct with an explicit <code>{.align: 8.}</code> (or
-similar) field; the generic path cannot do better today.</p>
+        <p>Atomic wrapper for <code>T</code>. Lock-free on this target; rejects <code>ref T</code>.</p>
+<p>Supports 1-, 2-, 4-, and 8-byte types only. 16-byte types (<code>__int128</code>,
+double-quadword pointers) require a different code path (<code>cmpxchg16b</code> on
+x86_64, <code>casp</code> on aarch64) and are not currently provided. Such
+instantiations fail with a compile-time <code>{.error.}</code> from the underlying
+<code>nonAtomicType</code> template.</p>
+<p>Note on alignment: Nim's field-level <code>{.align: ...}</code> pragma cannot
+reference <code>sizeof(T)</code> from a generic context (as of Nim 2.2.6 it triggers
+<code>sizeof requires .importc types to be .completeStruct</code>). We therefore rely
+on <code>T</code>'s natural alignment — which is <code>&gt;= sizeof(T)</code> for the primitives
+we ship on every 64-bit ABI we currently target, but is <strong>not</strong> universally
+true. Notably, on i386 System V <code>alignof(uint64) == 4</code>, which would yield a
+split-lock object that is not always-lock-free.</p>
+<p><code>enforceAtomicConstraints</code> therefore fires <code>static: assert
+alignof(Atomic[T]) &gt;= sizeof(T)</code> per instantiation; a target where natural
+alignment is insufficient fails to compile rather than silently producing a
+non-lock-free object. If we ever need to support such a target, the fix is
+a per-size specialisation that boxes <code>T</code> in a struct with an explicit
+<code>{.align: 8.}</code> (or similar) field; the generic path cannot do better today.</p>
       </div>
     
 
@@ -4786,8 +4779,8 @@ similar) field; the generic path cannot do better today.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L510" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:510
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L496" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:496
           </a>
         
       </div>
@@ -4847,8 +4840,8 @@ similar) field; the generic path cannot do better today.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L609" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:609
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L591" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:591
           </a>
         
       </div>
@@ -4918,8 +4911,8 @@ similar) field; the generic path cannot do better today.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L621" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:621
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L603" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:603
           </a>
         
       </div>
@@ -4990,8 +4983,8 @@ similar) field; the generic path cannot do better today.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L688" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:688
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L667" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:667
           </a>
         
       </div>
@@ -5067,8 +5060,8 @@ similar) field; the generic path cannot do better today.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L808" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:808
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L786" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:786
           </a>
         
       </div>
@@ -5104,8 +5097,8 @@ similar) field; the generic path cannot do better today.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Strong CAS. On success, swaps <code>desired</code> into <code>loc</code>. On failure,</p>
-<p>overwrites <code>expected</code> with the current value of <code>loc</code>.</p>
+        <p>Strong CAS. On success, swaps <code>desired</code> into <code>loc</code>. On failure, overwrites</p>
+<p><code>expected</code> with the current value of <code>loc</code>.</p>
       </div>
     
 
@@ -5161,8 +5154,8 @@ similar) field; the generic path cannot do better today.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L838" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:838
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L816" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:816
           </a>
         
       </div>
@@ -5198,8 +5191,8 @@ similar) field; the generic path cannot do better today.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Weak CAS. May fail spuriously on platforms (notably ARM LL/SC)</p>
-<p>even when current value equals <code>expected</code>. Cheaper inside a loop.</p>
+        <p>Weak CAS. May fail spuriously on platforms (notably ARM LL/SC) even when</p>
+<p>current value equals <code>expected</code>. Cheaper inside a loop.</p>
       </div>
     
 
@@ -5255,8 +5248,8 @@ similar) field; the generic path cannot do better today.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L902" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:902
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L880" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:880
           </a>
         
       </div>
@@ -5292,11 +5285,10 @@ similar) field; the generic path cannot do better today.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Strong CAS, single-order form. Failure order is derived from</p>
-<p>success per C11 (drop the release component): <code>moRelease</code> -&gt;
-<code>moRelaxed</code>, <code>moAcquireRelease</code> -&gt; <code>moAcquire</code>, otherwise
-unchanged. Use the five-arg form to spell the failure order
-explicitly.</p>
+        <p>Strong CAS, single-order form. Failure order is derived from success per</p>
+<p>C11 (drop the release component): <code>moRelease</code> -&gt; <code>moRelaxed</code>,
+<code>moAcquireRelease</code> -&gt; <code>moAcquire</code>, otherwise unchanged. Use the five-arg
+form to spell the failure order explicitly.</p>
       </div>
     
 
@@ -5346,8 +5338,8 @@ explicitly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L928" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:928
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L906" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:906
           </a>
         
       </div>
@@ -5383,8 +5375,8 @@ explicitly.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Weak CAS, single-order form. Failure order is derived from</p>
-<p>success per <code>compareExchangeStrong</code>'s single-order overload.</p>
+        <p>Weak CAS, single-order form. Failure order is derived from success per</p>
+<p><code>compareExchangeStrong</code>'s single-order overload.</p>
       </div>
     
 
@@ -5434,8 +5426,8 @@ explicitly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L938" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:938
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L915" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:915
           </a>
         
       </div>
@@ -5516,8 +5508,8 @@ explicitly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L945" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:945
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L922" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:922
           </a>
         
       </div>
@@ -5598,8 +5590,8 @@ explicitly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L954" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:954
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L931" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:931
           </a>
         
       </div>
@@ -5636,8 +5628,8 @@ explicitly.</p>
     
       <div class="doc-description">
         <p>Strong compare-and-exchange. Unsuffixed-name alias for</p>
-<p><code>compareExchangeStrong</code>, matching the spelling used by clients
-migrating from <code>std/atomics</code>.</p>
+<p><code>compareExchangeStrong</code>, matching the spelling used by clients migrating
+from <code>std/atomics</code>.</p>
       </div>
     
 
@@ -5693,8 +5685,8 @@ migrating from <code>std/atomics</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L969" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:969
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L946" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:946
           </a>
         
       </div>
@@ -5730,9 +5722,8 @@ migrating from <code>std/atomics</code>.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Strong CAS, single-order form. Failure order is derived from</p>
-<p>success per C11 (drop the release component). Alias for
-<code>compareExchangeStrong</code>.</p>
+        <p>Strong CAS, single-order form. Failure order is derived from success per</p>
+<p>C11 (drop the release component). Alias for <code>compareExchangeStrong</code>.</p>
       </div>
     
 
@@ -5782,8 +5773,8 @@ migrating from <code>std/atomics</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L981" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:981
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L958" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:958
           </a>
         
       </div>
@@ -5820,8 +5811,8 @@ migrating from <code>std/atomics</code>.</p>
     
       <div class="doc-description">
         <p>Strong CAS, default-order form. Equivalent to passing</p>
-<p><code>moSequentiallyConsistent</code> for both success and failure. Alias
-for <code>compareExchangeStrong</code>.</p>
+<p><code>moSequentiallyConsistent</code> for both success and failure. Alias for
+<code>compareExchangeStrong</code>.</p>
       </div>
     
 
@@ -5865,8 +5856,8 @@ for <code>compareExchangeStrong</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L989" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:989
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L965" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:965
           </a>
         
       </div>
@@ -5942,8 +5933,8 @@ for <code>compareExchangeStrong</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1001" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1001
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L977" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:977
           </a>
         
       </div>
@@ -6019,8 +6010,8 @@ for <code>compareExchangeStrong</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1031" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1031
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1007" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1007
           </a>
         
       </div>
@@ -6096,8 +6087,8 @@ for <code>compareExchangeStrong</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1072" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1072
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1047" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1047
           </a>
         
       </div>
@@ -6173,8 +6164,8 @@ for <code>compareExchangeStrong</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1096" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1096
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1071" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1071
           </a>
         
       </div>
@@ -6250,8 +6241,8 @@ for <code>compareExchangeStrong</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1120" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1120
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1095" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1095
           </a>
         
       </div>
@@ -6287,35 +6278,33 @@ for <code>compareExchangeStrong</code>.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Atomically add <code>v</code> to the float value at <code>loc</code> and return the</p>
-<p>previous value. Implemented as a <code>compareExchangeWeak</code> CAS-loop
-because GCC's <code>__atomic_fetch_add_n</code> is integer-only.</p>
-<p>Semantics: the read-add-CAS cycle is repeated until the CAS
-succeeds, so the returned old value and the new stored value
-together reflect a coherent atomic update of <code>loc</code>. Under
-contention, the loop may iterate multiple times.</p>
-<p><code>order</code> is applied to the successful CAS; the failure order is
-derived per C11 (drops the release component).</p>
-<p>Bit-pattern fidelity caveat: <code>fetchAdd</code> performs an IEEE-754
-float addition; unlike <code>load</code>/<code>store</code>/<code>exchange</code>/<code>compareExchange*</code>
-(pure bitwise transfer), the bit-pattern guarantees do NOT apply
-to the <em>new stored value</em>. Specifically:</p>
+        <p>Atomically add <code>v</code> to the float value at <code>loc</code> and return the previous</p>
+<p>value. Implemented as a <code>compareExchangeWeak</code> CAS-loop because GCC's
+<code>__atomic_fetch_add_n</code> is integer-only.</p>
+<p>Semantics: the read-add-CAS cycle is repeated until the CAS succeeds, so
+the returned old value and the new stored value together reflect a coherent
+atomic update of <code>loc</code>. Under contention, the loop may iterate multiple
+times.</p>
+<p><code>order</code> is applied to the successful CAS; the failure order is derived per
+C11 (drops the release component).</p>
+<p>Bit-pattern fidelity caveat: <code>fetchAdd</code> performs an IEEE-754 float
+addition; unlike <code>load</code>/<code>store</code>/<code>exchange</code>/<code>compareExchange*</code> (pure bitwise
+transfer), the bit-pattern guarantees do NOT apply to the <em>new stored
+value</em>. Specifically:</p>
 <ul>
-<li>The returned old value IS bit-exact: it comes from a relaxed
-    load before the add and reflects the pre-RMW storage bits
-    verbatim (so e.g. a NaN payload in <code>loc</code> is preserved in the
-    return value).</li>
-<li>The new stored value is <code>old + v</code> computed by the FPU, which
-    means: NaN payloads are not preserved across the add (e.g.
-    <code>NaN_payload_A + 1.0</code> yields a quiet NaN with implementation-
-    defined payload, not <code>payload_A</code>); denormal results may flush
-    to zero if FTZ/DAZ is enabled in the calling thread's FPU
-    state; the rounding mode is whatever the FPU is currently set
-    to (round-to-nearest by default; modifiable via <code>fesetround</code>
-    on x86 or FPCR on ARM); and overflow produces +/-Inf.</li>
+<li>The returned old value IS bit-exact: it comes from a relaxed load
+    before the add and reflects the pre-RMW storage bits verbatim (so e.g.
+    a NaN payload in <code>loc</code> is preserved in the return value).</li>
+<li>The new stored value is <code>old + v</code> computed by the FPU, which means: NaN
+    payloads are not preserved across the add (e.g. <code>NaN_payload_A + 1.0</code>
+    yields a quiet NaN with implementation- defined payload, not
+    <code>payload_A</code>); denormal results may flush to zero if FTZ/DAZ is enabled
+    in the calling thread's FPU state; the rounding mode is whatever the
+    FPU is currently set to (round-to-nearest by default; modifiable via
+    <code>fesetround</code> on x86 or FPCR on ARM); and overflow produces +/-Inf.</li>
 </ul>
-<p>The CAS-loop preserves atomicity; these caveats are inherent to
-float arithmetic, not to this implementation.</p>
+<p>The CAS-loop preserves atomicity; these caveats are inherent to float
+arithmetic, not to this implementation.</p>
       </div>
     
 
@@ -6359,8 +6348,8 @@ float arithmetic, not to this implementation.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1169" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1169
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1141" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1141
           </a>
         
       </div>
@@ -6423,8 +6412,8 @@ float arithmetic, not to this implementation.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1217" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1217
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1187" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1187
           </a>
         
       </div>
@@ -6460,8 +6449,8 @@ float arithmetic, not to this implementation.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Compiler-only fence. Prevents the compiler from reordering across</p>
-<p>the fence; emits no CPU instructions. All memory orders are valid.</p>
+        <p>Compiler-only fence. Prevents the compiler from reordering across the</p>
+<p>fence; emits no CPU instructions. All memory orders are valid.</p>
       </div>
     
 
@@ -6488,8 +6477,8 @@ float arithmetic, not to this implementation.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1269" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1269
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1237" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1237
           </a>
         
       </div>
@@ -6518,10 +6507,9 @@ float arithmetic, not to this implementation.</p>
   <div class="doc doc-contents">
     
       <div class="doc-description">
-        <p>Boolean flag with <code>testAndSet</code> / <code>clear</code> semantics. Underlying</p>
-<p>byte must be 0 or 1; <code>__atomic_test_and_set</code> is
-implementation-defined for any other value, so do not poke the
-raw uint8 directly.</p>
+        <p>Boolean flag with <code>testAndSet</code> / <code>clear</code> semantics. Underlying byte must be</p>
+<p>0 or 1; <code>__atomic_test_and_set</code> is implementation-defined for any other
+value, so do not poke the raw uint8 directly.</p>
       </div>
     
 
@@ -6533,8 +6521,8 @@ raw uint8 directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1289" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1289
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1257" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1257
           </a>
         
       </div>
@@ -6608,8 +6596,8 @@ raw uint8 directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1295" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1295
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1262" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1262
           </a>
         
       </div>
@@ -6645,8 +6633,8 @@ raw uint8 directly.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Atomically reset the flag to false. <code>order</code> must not be</p>
-<p>moAcquire / moAcquireRelease / moConsume.</p>
+        <p>Atomically reset the flag to false. <code>order</code> must not be moAcquire /</p>
+<p>moAcquireRelease / moConsume.</p>
       </div>
     
 
@@ -6679,8 +6667,8 @@ raw uint8 directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1309" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1309
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1276" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1276
           </a>
         
       </div>
@@ -6712,14 +6700,13 @@ raw uint8 directly.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Low-level 16-byte atomic load emit. Backend-dispatched by compiler:</p>
-<p>gcc → <code>__sync_val_compare_and_swap</code> on <code>__int128</code> (inlines
-<code>cmpxchg16b</code> on x86_64 with <code>-mcx16</code> and <code>casp</code> on aarch64 with
-<code>-march=armv8.1-a+lse</code>); clang / llvm_gcc → <code>__atomic_load_n</code> on
-<code>__int128</code>. Callers should prefer <code>load(Atomic[Pair[A, B]])</code>
-which carries the per-callsite memory-order validation and
-seq_cst-upgrade warning. Exposed for testing and for callers
-that have already validated the order policy externally.</p>
+        <p>Low-level 16-byte atomic load emit. Backend-dispatched by compiler: gcc</p>
+<p>→ <code>__sync_val_compare_and_swap</code> on <code>__int128</code> (inlines <code>cmpxchg16b</code> on
+x86_64 with <code>-mcx16</code> and <code>casp</code> on aarch64 with <code>-march=armv8.1-a+lse</code>);
+clang / llvm_gcc → <code>__atomic_load_n</code> on <code>__int128</code>. Callers should
+prefer <code>load(Atomic[Pair[A, B]])</code> which carries the per-callsite
+memory-order validation and seq_cst-upgrade warning. Exposed for testing
+and for callers that have already validated the order policy externally.</p>
       </div>
     
 
@@ -6757,8 +6744,8 @@ that have already validated the order policy externally.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1417" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1417
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1381" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1381
           </a>
         
       </div>
@@ -6794,10 +6781,10 @@ that have already validated the order policy externally.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>16-byte atomic load via DWCAS substrate. Returns the current value</p>
-<p>of <code>loc</code> as a <code>Pair[A, B]</code>. Always seq_cst at the instruction level;
-sub-seq_cst <code>order</code> values are accepted but upgraded with a compile-
-time warning.</p>
+        <p>16-byte atomic load via DWCAS substrate. Returns the current value of</p>
+<p><code>loc</code> as a <code>Pair[A, B]</code>. Always seq_cst at the instruction level;
+sub-seq_cst <code>order</code> values are accepted but upgraded with a compile- time
+warning.</p>
       </div>
     
 
@@ -6835,8 +6822,8 @@ time warning.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1494" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1494
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1456" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1456
           </a>
         
       </div>
@@ -6869,8 +6856,8 @@ time warning.</p>
     
       <div class="doc-description">
         <p>Low-level 16-byte atomic store emit. Backend-dispatched (see</p>
-<p><code>dwcasLoad</code>). Prefer <code>store(Atomic[Pair[A, B]])</code> for the
-validated, warning-emitting surface.</p>
+<p><code>dwcasLoad</code>). Prefer <code>store(Atomic[Pair[A, B]])</code> for the validated,
+warning-emitting surface.</p>
       </div>
     
 
@@ -6909,8 +6896,8 @@ validated, warning-emitting surface.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1523" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1523
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1485" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1485
           </a>
         
       </div>
@@ -6987,8 +6974,8 @@ warning.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1632" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1632
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1587" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1587
           </a>
         
       </div>
@@ -7020,9 +7007,9 @@ warning.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Low-level 16-byte atomic exchange emit. Backend-dispatched</p>
-<p>(see <code>dwcasLoad</code>). Prefer <code>exchange(Atomic[Pair[A, B]])</code> for
-the validated, warning-emitting surface.</p>
+        <p>Low-level 16-byte atomic exchange emit. Backend-dispatched (see</p>
+<p><code>dwcasLoad</code>). Prefer <code>exchange(Atomic[Pair[A, B]])</code> for the validated,
+warning-emitting surface.</p>
       </div>
     
 
@@ -7066,8 +7053,8 @@ the validated, warning-emitting surface.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1653" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1653
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1608" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1608
           </a>
         
       </div>
@@ -7104,9 +7091,9 @@ the validated, warning-emitting surface.</p>
     
       <div class="doc-description">
         <p>16-byte atomic exchange via DWCAS substrate. Atomically replaces the</p>
-<p>value at <code>loc</code> with <code>desired</code> and returns the prior value. Always
-seq_cst at the instruction level; sub-seq_cst <code>order</code> values emit a
-compile-time warning.</p>
+<p>value at <code>loc</code> with <code>desired</code> and returns the prior value. Always seq_cst
+at the instruction level; sub-seq_cst <code>order</code> values emit a compile-time
+warning.</p>
       </div>
     
 
@@ -7150,8 +7137,8 @@ compile-time warning.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1737" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1737
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1689" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1689
           </a>
         
       </div>
@@ -7183,11 +7170,10 @@ compile-time warning.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Low-level 16-byte strong CAS emit. Backend-dispatched (see</p>
-<p><code>dwcasLoad</code>). On gcc maps to <code>__sync_val_compare_and_swap</code>
-(always-strong); on clang / llvm_gcc maps to
-<code>__atomic_compare_exchange_n</code> with the weak flag = 0. Prefer
-<code>compareExchangeStrong(Atomic[Pair[A, B]])</code> for the validated,
+        <p>Low-level 16-byte strong CAS emit. Backend-dispatched (see <code>dwcasLoad</code>).</p>
+<p>On gcc maps to <code>__sync_val_compare_and_swap</code> (always-strong); on clang /
+llvm_gcc maps to <code>__atomic_compare_exchange_n</code> with the weak flag = 0.
+Prefer <code>compareExchangeStrong(Atomic[Pair[A, B]])</code> for the validated,
 warning-emitting surface.</p>
       </div>
     
@@ -7244,8 +7230,8 @@ warning-emitting surface.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1758" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1758
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1710" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1710
           </a>
         
       </div>
@@ -7281,21 +7267,21 @@ warning-emitting surface.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Strong 16-byte CAS via DWCAS. On success, swaps <code>desired</code> into</p>
-<p><code>loc</code> and returns true; <code>expected</code> is unchanged. On failure,
-overwrites <code>expected</code> with the current value of <code>loc</code> and returns
-false. Always seq_cst at the instruction level; sub-seq_cst
-<code>success</code>/<code>failure</code> values emit a compile-time warning.</p>
-<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct
-memory locations. On CAS failure, <code>expected</code> is overwritten in-place
-with the current value of <code>loc</code>; on success, <code>expected</code> is unchanged.
-Passing the same <code>var</code> location for both <code>expected</code> and <code>desired</code> is
-a defined-but-confusing pattern (the desired payload is read first,
-then <code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code>
-alias, the post-CAS <code>desired</code> is undefined). Callers MUST NOT alias
-them. The 1/2/4/8-byte CAS surface has the same contract; the
-16-byte ops re-document it here because the wider value makes
-accidental aliasing more tempting in LCRQ-style consumer code.</p>
+        <p>Strong 16-byte CAS via DWCAS. On success, swaps <code>desired</code> into <code>loc</code> and</p>
+<p>returns true; <code>expected</code> is unchanged. On failure, overwrites <code>expected</code>
+with the current value of <code>loc</code> and returns false. Always seq_cst at the
+instruction level; sub-seq_cst <code>success</code>/<code>failure</code> values emit a
+compile-time warning.</p>
+<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct memory
+locations. On CAS failure, <code>expected</code> is overwritten in-place with the
+current value of <code>loc</code>; on success, <code>expected</code> is unchanged. Passing the
+same <code>var</code> location for both <code>expected</code> and <code>desired</code> is a
+defined-but-confusing pattern (the desired payload is read first, then
+<code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code> alias, the
+post-CAS <code>desired</code> is undefined). Callers MUST NOT alias them. The
+1/2/4/8-byte CAS surface has the same contract; the 16-byte ops
+re-document it here because the wider value makes accidental aliasing
+more tempting in LCRQ-style consumer code.</p>
       </div>
     
 
@@ -7351,8 +7337,8 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1832" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1832
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1781" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1781
           </a>
         
       </div>
@@ -7388,18 +7374,18 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Strong 16-byte CAS, single-order form. Failure order is derived</p>
-<p>from <code>order</code> per C11 (drop the release component).</p>
-<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct
-memory locations. On CAS failure, <code>expected</code> is overwritten in-place
-with the current value of <code>loc</code>; on success, <code>expected</code> is unchanged.
-Passing the same <code>var</code> location for both <code>expected</code> and <code>desired</code> is
-a defined-but-confusing pattern (the desired payload is read first,
-then <code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code>
-alias, the post-CAS <code>desired</code> is undefined). Callers MUST NOT alias
-them. The 1/2/4/8-byte CAS surface has the same contract; the
-16-byte ops re-document it here because the wider value makes
-accidental aliasing more tempting in LCRQ-style consumer code.</p>
+        <p>Strong 16-byte CAS, single-order form. Failure order is derived from</p>
+<p><code>order</code> per C11 (drop the release component).</p>
+<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct memory
+locations. On CAS failure, <code>expected</code> is overwritten in-place with the
+current value of <code>loc</code>; on success, <code>expected</code> is unchanged. Passing the
+same <code>var</code> location for both <code>expected</code> and <code>desired</code> is a
+defined-but-confusing pattern (the desired payload is read first, then
+<code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code> alias, the
+post-CAS <code>desired</code> is undefined). Callers MUST NOT alias them. The
+1/2/4/8-byte CAS surface has the same contract; the 16-byte ops
+re-document it here because the wider value makes accidental aliasing
+more tempting in LCRQ-style consumer code.</p>
       </div>
     
 
@@ -7449,8 +7435,8 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1868" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1868
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1817" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1817
           </a>
         
       </div>
@@ -7488,16 +7474,16 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
       <div class="doc-description">
         <p>Strong 16-byte CAS, default-order form. Equivalent to passing</p>
 <p><code>moSequentiallyConsistent</code> for both success and failure.</p>
-<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct
-memory locations. On CAS failure, <code>expected</code> is overwritten in-place
-with the current value of <code>loc</code>; on success, <code>expected</code> is unchanged.
-Passing the same <code>var</code> location for both <code>expected</code> and <code>desired</code> is
-a defined-but-confusing pattern (the desired payload is read first,
-then <code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code>
-alias, the post-CAS <code>desired</code> is undefined). Callers MUST NOT alias
-them. The 1/2/4/8-byte CAS surface has the same contract; the
-16-byte ops re-document it here because the wider value makes
-accidental aliasing more tempting in LCRQ-style consumer code.</p>
+<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct memory
+locations. On CAS failure, <code>expected</code> is overwritten in-place with the
+current value of <code>loc</code>; on success, <code>expected</code> is unchanged. Passing the
+same <code>var</code> location for both <code>expected</code> and <code>desired</code> is a
+defined-but-confusing pattern (the desired payload is read first, then
+<code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code> alias, the
+post-CAS <code>desired</code> is undefined). Callers MUST NOT alias them. The
+1/2/4/8-byte CAS surface has the same contract; the 16-byte ops
+re-document it here because the wider value makes accidental aliasing
+more tempting in LCRQ-style consumer code.</p>
       </div>
     
 
@@ -7541,8 +7527,8 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1889" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1889
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1838" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1838
           </a>
         
       </div>
@@ -7574,14 +7560,13 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Low-level 16-byte weak CAS emit. Backend-dispatched (see</p>
-<p><code>dwcasLoad</code>). On gcc, <code>__sync_val_compare_and_swap</code> is always-strong
-on both x86_64 (<code>cmpxchg16b</code>) and aarch64+LSE (<code>casp</code>), so the
-weak/strong distinction is a no-op; on clang / llvm_gcc maps to
-<code>__atomic_compare_exchange_n</code> with weak=1, where ARMv8.0 LL/SC
-(no LSE) <code>stlxp</code> may genuinely fail spuriously, while aarch64
-FEAT_LSE / LSE2 (<code>caspal</code>, objdump-verified on Apple Silicon)
-is always-strong. Prefer
+        <p>Low-level 16-byte weak CAS emit. Backend-dispatched (see <code>dwcasLoad</code>). On</p>
+<p>gcc, <code>__sync_val_compare_and_swap</code> is always-strong on both x86_64
+(<code>cmpxchg16b</code>) and aarch64+LSE (<code>casp</code>), so the weak/strong distinction
+is a no-op; on clang / llvm_gcc maps to <code>__atomic_compare_exchange_n</code>
+with weak=1, where ARMv8.0 LL/SC (no LSE) <code>stlxp</code> may genuinely fail
+spuriously, while aarch64 FEAT_LSE / LSE2 (<code>caspal</code>, objdump-verified on
+Apple Silicon) is always-strong. Prefer
 <code>compareExchangeWeak(Atomic[Pair[A, B]])</code> for the validated,
 warning-emitting surface.</p>
       </div>
@@ -7639,8 +7624,8 @@ warning-emitting surface.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1909" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1909
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1858" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1858
           </a>
         
       </div>
@@ -7676,24 +7661,24 @@ warning-emitting surface.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Weak 16-byte CAS via DWCAS. May fail spuriously only on ARMv8.0</p>
-<p>LL/SC cores (no LSE), where <code>stlxp</code> is permitted to fail without
-contention. On all other supported targets weak and strong are
-equivalent: x86_64 (<code>cmpxchg16b</code>) is always-strong; arm64 with
-FEAT_LSE / LSE2 (Apple Silicon, modern server chips) emits
-<code>caspal</code> for both procs (objdump-verified on Apple Silicon).
-Default to <code>compareExchangeStrong</code>; reach for Weak only after
-measuring a contention win on an ARMv8.0 target.</p>
-<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct
-memory locations. On CAS failure, <code>expected</code> is overwritten in-place
-with the current value of <code>loc</code>; on success, <code>expected</code> is unchanged.
-Passing the same <code>var</code> location for both <code>expected</code> and <code>desired</code> is
-a defined-but-confusing pattern (the desired payload is read first,
-then <code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code>
-alias, the post-CAS <code>desired</code> is undefined). Callers MUST NOT alias
-them. The 1/2/4/8-byte CAS surface has the same contract; the
-16-byte ops re-document it here because the wider value makes
-accidental aliasing more tempting in LCRQ-style consumer code.</p>
+        <p>Weak 16-byte CAS via DWCAS. May fail spuriously only on ARMv8.0 LL/SC</p>
+<p>cores (no LSE), where <code>stlxp</code> is permitted to fail without contention. On
+all other supported targets weak and strong are equivalent: x86_64
+(<code>cmpxchg16b</code>) is always-strong; arm64 with FEAT_LSE / LSE2 (Apple
+Silicon, modern server chips) emits <code>caspal</code> for both procs
+(objdump-verified on Apple Silicon). Default to <code>compareExchangeStrong</code>;
+reach for Weak only after measuring a contention win on an ARMv8.0
+target.</p>
+<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct memory
+locations. On CAS failure, <code>expected</code> is overwritten in-place with the
+current value of <code>loc</code>; on success, <code>expected</code> is unchanged. Passing the
+same <code>var</code> location for both <code>expected</code> and <code>desired</code> is a
+defined-but-confusing pattern (the desired payload is read first, then
+<code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code> alias, the
+post-CAS <code>desired</code> is undefined). Callers MUST NOT alias them. The
+1/2/4/8-byte CAS surface has the same contract; the 16-byte ops
+re-document it here because the wider value makes accidental aliasing
+more tempting in LCRQ-style consumer code.</p>
       </div>
     
 
@@ -7749,8 +7734,8 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1990" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1990
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1936" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1936
           </a>
         
       </div>
@@ -7786,18 +7771,18 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Weak 16-byte CAS, single-order form. Failure order is derived</p>
-<p>from <code>order</code> per C11 (drop the release component).</p>
-<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct
-memory locations. On CAS failure, <code>expected</code> is overwritten in-place
-with the current value of <code>loc</code>; on success, <code>expected</code> is unchanged.
-Passing the same <code>var</code> location for both <code>expected</code> and <code>desired</code> is
-a defined-but-confusing pattern (the desired payload is read first,
-then <code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code>
-alias, the post-CAS <code>desired</code> is undefined). Callers MUST NOT alias
-them. The 1/2/4/8-byte CAS surface has the same contract; the
-16-byte ops re-document it here because the wider value makes
-accidental aliasing more tempting in LCRQ-style consumer code.</p>
+        <p>Weak 16-byte CAS, single-order form. Failure order is derived from</p>
+<p><code>order</code> per C11 (drop the release component).</p>
+<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct memory
+locations. On CAS failure, <code>expected</code> is overwritten in-place with the
+current value of <code>loc</code>; on success, <code>expected</code> is unchanged. Passing the
+same <code>var</code> location for both <code>expected</code> and <code>desired</code> is a
+defined-but-confusing pattern (the desired payload is read first, then
+<code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code> alias, the
+post-CAS <code>desired</code> is undefined). Callers MUST NOT alias them. The
+1/2/4/8-byte CAS surface has the same contract; the 16-byte ops
+re-document it here because the wider value makes accidental aliasing
+more tempting in LCRQ-style consumer code.</p>
       </div>
     
 
@@ -7847,8 +7832,8 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2029" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2029
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1975" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1975
           </a>
         
       </div>
@@ -7885,21 +7870,21 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
     
       <div class="doc-description">
         <p>Weak 16-byte CAS, default-order form. Equivalent to passing</p>
-<p><code>moSequentiallyConsistent</code> for both success and failure. Mirrors
-the <code>compareExchangeStrong</code> default-order overload so that the
-two overload sets match shape-for-shape — relevant for callers
-migrating from <code>std/atomics</code>, whose <code>compareExchange*</code> procs all
-accept the no-order form.</p>
-<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct
-memory locations. On CAS failure, <code>expected</code> is overwritten in-place
-with the current value of <code>loc</code>; on success, <code>expected</code> is unchanged.
-Passing the same <code>var</code> location for both <code>expected</code> and <code>desired</code> is
-a defined-but-confusing pattern (the desired payload is read first,
-then <code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code>
-alias, the post-CAS <code>desired</code> is undefined). Callers MUST NOT alias
-them. The 1/2/4/8-byte CAS surface has the same contract; the
-16-byte ops re-document it here because the wider value makes
-accidental aliasing more tempting in LCRQ-style consumer code.</p>
+<p><code>moSequentiallyConsistent</code> for both success and failure. Mirrors the
+<code>compareExchangeStrong</code> default-order overload so that the two overload
+sets match shape-for-shape — relevant for callers migrating from
+<code>std/atomics</code>, whose <code>compareExchange*</code> procs all accept the no-order
+form.</p>
+<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct memory
+locations. On CAS failure, <code>expected</code> is overwritten in-place with the
+current value of <code>loc</code>; on success, <code>expected</code> is unchanged. Passing the
+same <code>var</code> location for both <code>expected</code> and <code>desired</code> is a
+defined-but-confusing pattern (the desired payload is read first, then
+<code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code> alias, the
+post-CAS <code>desired</code> is undefined). Callers MUST NOT alias them. The
+1/2/4/8-byte CAS surface has the same contract; the 16-byte ops
+re-document it here because the wider value makes accidental aliasing
+more tempting in LCRQ-style consumer code.</p>
       </div>
     
 
@@ -7943,8 +7928,8 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2050" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2050
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1996" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1996
           </a>
         
       </div>
@@ -7980,19 +7965,18 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Strong 16-byte CAS. Unsuffixed-name alias for</p>
-<p><code>compareExchangeStrong</code>, matching the spelling used by clients
-migrating from <code>std/atomics</code>.</p>
-<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct
-memory locations. On CAS failure, <code>expected</code> is overwritten in-place
-with the current value of <code>loc</code>; on success, <code>expected</code> is unchanged.
-Passing the same <code>var</code> location for both <code>expected</code> and <code>desired</code> is
-a defined-but-confusing pattern (the desired payload is read first,
-then <code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code>
-alias, the post-CAS <code>desired</code> is undefined). Callers MUST NOT alias
-them. The 1/2/4/8-byte CAS surface has the same contract; the
-16-byte ops re-document it here because the wider value makes
-accidental aliasing more tempting in LCRQ-style consumer code.</p>
+        <p>Strong 16-byte CAS. Unsuffixed-name alias for <code>compareExchangeStrong</code>,</p>
+<p>matching the spelling used by clients migrating from <code>std/atomics</code>.</p>
+<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct memory
+locations. On CAS failure, <code>expected</code> is overwritten in-place with the
+current value of <code>loc</code>; on success, <code>expected</code> is unchanged. Passing the
+same <code>var</code> location for both <code>expected</code> and <code>desired</code> is a
+defined-but-confusing pattern (the desired payload is read first, then
+<code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code> alias, the
+post-CAS <code>desired</code> is undefined). Callers MUST NOT alias them. The
+1/2/4/8-byte CAS surface has the same contract; the 16-byte ops
+re-document it here because the wider value makes accidental aliasing
+more tempting in LCRQ-style consumer code.</p>
       </div>
     
 
@@ -8048,8 +8032,8 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2079" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2079
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2025" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2025
           </a>
         
       </div>
@@ -8085,18 +8069,17 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Strong 16-byte CAS, single-order form. Alias for</p>
-<p><code>compareExchangeStrong</code>.</p>
-<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct
-memory locations. On CAS failure, <code>expected</code> is overwritten in-place
-with the current value of <code>loc</code>; on success, <code>expected</code> is unchanged.
-Passing the same <code>var</code> location for both <code>expected</code> and <code>desired</code> is
-a defined-but-confusing pattern (the desired payload is read first,
-then <code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code>
-alias, the post-CAS <code>desired</code> is undefined). Callers MUST NOT alias
-them. The 1/2/4/8-byte CAS surface has the same contract; the
-16-byte ops re-document it here because the wider value makes
-accidental aliasing more tempting in LCRQ-style consumer code.</p>
+        <p>Strong 16-byte CAS, single-order form. Alias for <code>compareExchangeStrong</code>.</p>
+<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct memory
+locations. On CAS failure, <code>expected</code> is overwritten in-place with the
+current value of <code>loc</code>; on success, <code>expected</code> is unchanged. Passing the
+same <code>var</code> location for both <code>expected</code> and <code>desired</code> is a
+defined-but-confusing pattern (the desired payload is read first, then
+<code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code> alias, the
+post-CAS <code>desired</code> is undefined). Callers MUST NOT alias them. The
+1/2/4/8-byte CAS surface has the same contract; the 16-byte ops
+re-document it here because the wider value makes accidental aliasing
+more tempting in LCRQ-style consumer code.</p>
       </div>
     
 
@@ -8146,8 +8129,8 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2102" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2102
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2047" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2047
           </a>
         
       </div>
@@ -8185,16 +8168,16 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
       <div class="doc-description">
         <p>Strong 16-byte CAS, default-order form. Alias for</p>
 <p><code>compareExchangeStrong</code>.</p>
-<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct
-memory locations. On CAS failure, <code>expected</code> is overwritten in-place
-with the current value of <code>loc</code>; on success, <code>expected</code> is unchanged.
-Passing the same <code>var</code> location for both <code>expected</code> and <code>desired</code> is
-a defined-but-confusing pattern (the desired payload is read first,
-then <code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code>
-alias, the post-CAS <code>desired</code> is undefined). Callers MUST NOT alias
-them. The 1/2/4/8-byte CAS surface has the same contract; the
-16-byte ops re-document it here because the wider value makes
-accidental aliasing more tempting in LCRQ-style consumer code.</p>
+<p>ABA / aliasing note: <code>expected</code> and <code>desired</code> MUST be distinct memory
+locations. On CAS failure, <code>expected</code> is overwritten in-place with the
+current value of <code>loc</code>; on success, <code>expected</code> is unchanged. Passing the
+same <code>var</code> location for both <code>expected</code> and <code>desired</code> is a
+defined-but-confusing pattern (the desired payload is read first, then
+<code>expected</code> is overwritten — but if <code>expected</code> and <code>desired</code> alias, the
+post-CAS <code>desired</code> is undefined). Callers MUST NOT alias them. The
+1/2/4/8-byte CAS surface has the same contract; the 16-byte ops
+re-document it here because the wider value makes accidental aliasing
+more tempting in LCRQ-style consumer code.</p>
       </div>
     
 
@@ -8238,8 +8221,8 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2123" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2123
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2067" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2067
           </a>
         
       </div>
@@ -8276,19 +8259,18 @@ accidental aliasing more tempting in LCRQ-style consumer code.</p>
     
       <div class="doc-description">
         <p>Atomically add <code>delta.first</code> to <code>loc.first</code> and <code>delta.second</code> to</p>
-<p><code>loc.second</code>, returning the prior 128-bit pair. Both halves are
-updated as a single atomic transaction via a 16-byte CAS-loop
-(cmpxchg16b / casp / <code>_InterlockedCompareExchange128</code>).</p>
+<p><code>loc.second</code>, returning the prior 128-bit pair. Both halves are updated
+as a single atomic transaction via a 16-byte CAS-loop (cmpxchg16b / casp
+/ <code>_InterlockedCompareExchange128</code>).</p>
 <p>Half-type overflow behavior follows the underlying integer type
-(<code>SomeInteger</code>). Unsigned halves wrap modulo <code>2^(sizeof(half)*8)</code>.
-Signed halves do NOT silently wrap: the half-add <code>prev.first +
-delta.first</code> is an ordinary checked Nim addition, so under default
-builds (overflow checks on) a signed-half overflow raises
-<code>OverflowDefect</code> — aborting the CAS loop rather than completing the
-"atomic transaction". Signed halves only wrap two's-complement
-under <code>-d:danger</code> or an explicit <code>{.push overflowChecks: off.}</code>.
-For counters that must never trap (e.g. an LCRQ generation tag),
-use an unsigned half-type.</p>
+(<code>SomeInteger</code>). Unsigned halves wrap modulo <code>2^(sizeof(half)*8)</code>. Signed
+halves do NOT silently wrap: the half-add <code>prev.first + delta.first</code> is
+an ordinary checked Nim addition, so under default builds (overflow
+checks on) a signed-half overflow raises <code>OverflowDefect</code> — aborting
+the CAS loop rather than completing the "atomic transaction". Signed
+halves only wrap two's-complement under <code>-d:danger</code> or an explicit
+<code>{.push overflowChecks: off.}</code>. For counters that must never trap (e.g.
+an LCRQ generation tag), use an unsigned half-type.</p>
       </div>
     
 
@@ -8332,8 +8314,8 @@ use an unsigned half-type.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2168" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2168
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2111" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2111
           </a>
         
       </div>
@@ -8369,8 +8351,8 @@ use an unsigned half-type.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Componentwise atomic subtract. See <code>fetchAdd</code> for transactional</p>
-<p>semantics and overflow behavior.</p>
+        <p>Componentwise atomic subtract. See <code>fetchAdd</code> for transactional semantics</p>
+<p>and overflow behavior.</p>
       </div>
     
 
@@ -8414,8 +8396,8 @@ use an unsigned half-type.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2196" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2196
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2138" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2138
           </a>
         
       </div>
@@ -8496,8 +8478,8 @@ use an unsigned half-type.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2211" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2211
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2153" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2153
           </a>
         
       </div>
@@ -8578,8 +8560,8 @@ use an unsigned half-type.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2227" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2227
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2169" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2169
           </a>
         
       </div>
@@ -8660,8 +8642,8 @@ use an unsigned half-type.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2242" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2242
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2184" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2184
           </a>
         
       </div>
@@ -8693,15 +8675,14 @@ use an unsigned half-type.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Wraps a DWCAS call site, suppressing the moSeqCst-upgrade</p>
-<p>warning emitted by the 16-byte ops (load / store / exchange /
-compareExchange*) for that site only. Use when the upgrade is
-intentional and audited (e.g. the LCRQ producer publish CAS
-passing <code>moRelease</code> / <code>moRelaxed</code>). The warning continues to
-fire at unwrapped call sites.</p>
-<p>See <code>docs/design/2026-04-25-custom-atomics.md</code> §3 and the
-user guide <code>docs/guide/atomics.md</code> §5 (Memory-order policy) for
-the memory-model rationale.</p>
+        <p>Wraps a DWCAS call site, suppressing the moSeqCst-upgrade warning emitted</p>
+<p>by the 16-byte ops (load / store / exchange / compareExchange*) for that
+site only. Use when the upgrade is intentional and audited (e.g. the LCRQ
+producer publish CAS passing <code>moRelease</code> / <code>moRelaxed</code>). The warning
+continues to fire at unwrapped call sites.</p>
+<p>See <code>docs/design/2026-04-25-custom-atomics.md</code> §3 and the user guide
+<code>docs/guide/atomics.md</code> §5 (Memory-order policy) for the memory-model
+rationale.</p>
       </div>
     
 
@@ -8733,8 +8714,8 @@ the memory-model rationale.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2269" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2269
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2211" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2211
           </a>
         
       </div>

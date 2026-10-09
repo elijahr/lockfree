@@ -3326,44 +3326,40 @@ contracts visible.</p>
     
       <div class="doc-description">
         <p>Slot-state predicates for v0.1.0 lockfree umbrella.</p>
-<p>Two predicate families plus an MPSC committed-segment predicate in
-sibling <code>segment_state.nim</code>.</p>
-<p>Module-layout choice:
-shared <code>slot_state.nim</code> for Families A and B. Family-A symbols use the <code>B</code>
-suffix (<code>seqIsClosedB</code>, etc.); Family-B uses no suffix (<code>seqIsClosed</code>,
-etc.) because LCRQ-integration is the live consumer in v0.1.0 (4 call
-sites in <code>queue.nim</code>). The two families intentionally do NOT share a
+<p>Two predicate families plus an MPSC committed-segment predicate in sibling
+<code>segment_state.nim</code>.</p>
+<p>Module-layout choice: shared <code>slot_state.nim</code> for Families A and B. Family-A
+symbols use the <code>B</code> suffix (<code>seqIsClosedB</code>, etc.); Family-B uses no suffix
+(<code>seqIsClosed</code>, etc.) because LCRQ-integration is the live consumer in v0.1.0
+(4 call sites in <code>queue.nim</code>). The two families intentionally do NOT share a
 <code>seqIsClosed</code> symbol so that a silent <code>uint64</code> ↔ <code>uint</code> width punning
 across the substrates cannot occur (orthogonality rationale).</p>
-<p>Three substrates → two slot-state predicate families plus one
-segment-state predicate (the MPSC <code>committed[i]</code> predicate lives in
-the sibling <code>segment_state.nim</code> module):</p>
-<p>Family A — Bounded-Vyukov:
-    Substrate: <code>MPMCCell[T]</code> with <code>payload.seq: Atomic[uint64]</code>.
-    Close sentinel: <code>ClosedBitB = high(uint64) shr 1</code> (64-bit wide).
-    Current call sites: NONE (placeholder for future bounded
-    close-on-empty; consumed by later phases).</p>
-<p>Family B — LCRQ-integration:
-    Substrate: <code>LCRQCell[T] = Atomic[Pair[uint, T]]</code>.
-    Close sentinel: <code>CLOSED_BIT</code>, platform-uint wide.
-    Live consumer in <code>queue.nim</code>.</p>
+<p>Three substrates → two slot-state predicate families plus one segment-state
+predicate (the MPSC <code>committed[i]</code> predicate lives in the sibling
+<code>segment_state.nim</code> module):</p>
+<p>Family A — Bounded-Vyukov: Substrate: <code>MPMCCell[T]</code> with <code>payload.seq:
+  Atomic[uint64]</code>. Close sentinel: <code>ClosedBitB = high(uint64) shr 1</code> (64-bit
+  wide). Current call sites: NONE (placeholder for future bounded
+  close-on-empty; consumed by later phases).</p>
+<p>Family B — LCRQ-integration: Substrate: <code>LCRQCell[T] = Atomic[Pair[uint,
+  T]]</code>. Close sentinel: <code>CLOSED_BIT</code>, platform-uint wide. Live consumer in
+  <code>queue.nim</code>.</p>
 <p>Import-cycle note: this module is a <em>substrate</em> for queue.nim (queue.nim
 imports it), so it MUST NOT import queue.nim. For Family B that means
 <code>seqIsClosed(s: uint)</code> takes a plain <code>uint</code> and uses a locally-defined
 <code>LCRQClosedBit</code> constant whose value is computed by the same formula as
 queue.nim's <code>CLOSED_BIT* = 1'u shl (sizeof(uint) * 8 - 1)</code>.</p>
-<p>Drift guard (honest scope): the import cycle (queue.nim imports THIS
-module) makes it impossible to <code>import</code> <code>CLOSED_BIT</code> here, so a true
-cross-module pin (<code>static: doAssert LCRQClosedBit == CLOSED_BIT</code>)
-CANNOT exist. Instead the two constants are kept equal by using the
-IDENTICAL formula, and a LOCAL static-assert at the bottom of this
-file pins this module's <code>LCRQClosedBit</code> to that canonical formula
-(<code>1'u shl (sizeof(uint) * 8 - 1)</code>). That tripwire fires if someone
-edits THIS module's constant away from the canonical formula.
-RESIDUAL RISK (explicit, not guarded): if someone edits queue.nim's
-<code>CLOSED_BIT</code> formula, the divergence is NOT caught here — the local
-assert only pins this module's side. Keeping both on the same literal
-formula is the only mitigation available without breaking the cycle.</p>
+<p>Drift guard (honest scope): the import cycle (queue.nim imports THIS module)
+makes it impossible to <code>import</code> <code>CLOSED_BIT</code> here, so a true cross-module pin
+(<code>static: doAssert LCRQClosedBit == CLOSED_BIT</code>) CANNOT exist. Instead the
+two constants are kept equal by using the IDENTICAL formula, and a LOCAL
+static-assert at the bottom of this file pins this module's <code>LCRQClosedBit</code>
+to that canonical formula (<code>1'u shl (sizeof(uint) * 8 - 1)</code>). That tripwire
+fires if someone edits THIS module's constant away from the canonical
+formula. RESIDUAL RISK (explicit, not guarded): if someone edits queue.nim's
+<code>CLOSED_BIT</code> formula, the divergence is NOT caught here — the local assert
+only pins this module's side. Keeping both on the same literal formula is the
+only mitigation available without breaking the cycle.</p>
       </div>
     
 
@@ -3388,10 +3384,9 @@ formula is the only mitigation available without breaking the cycle.</p>
   <div class="doc doc-contents">
     
       <div class="doc-description">
-        <p>Family-A close sentinel. 64-bit wide because the Vyukov</p>
-<p>substrate is <code>Atomic[uint64]</code>. Distinct from Family-B's
-platform-uint <code>CLOSED_BIT</code> so the two substrates remain lexically
-separable (orthogonality rationale).</p>
+        <p>Family-A close sentinel. 64-bit wide because the Vyukov substrate is</p>
+<p><code>Atomic[uint64]</code>. Distinct from Family-B's platform-uint <code>CLOSED_BIT</code> so
+the two substrates remain lexically separable (orthogonality rationale).</p>
       </div>
     
 
@@ -3399,8 +3394,8 @@ separable (orthogonality rationale).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/slot_state.nim#L57" target="_blank" rel="noopener">
-            src/lockfree/typestates/slot_state.nim:57
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/slot_state.nim#L53" target="_blank" rel="noopener">
+            src/lockfree/typestates/slot_state.nim:53
           </a>
         
       </div>
@@ -3474,8 +3469,8 @@ separable (orthogonality rationale).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/slot_state.nim#L63" target="_blank" rel="noopener">
-            src/lockfree/typestates/slot_state.nim:63
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/slot_state.nim#L58" target="_blank" rel="noopener">
+            src/lockfree/typestates/slot_state.nim:58
           </a>
         
       </div>
@@ -3549,8 +3544,8 @@ separable (orthogonality rationale).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/slot_state.nim#L67" target="_blank" rel="noopener">
-            src/lockfree/typestates/slot_state.nim:67
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/slot_state.nim#L62" target="_blank" rel="noopener">
+            src/lockfree/typestates/slot_state.nim:62
           </a>
         
       </div>
@@ -3586,8 +3581,8 @@ separable (orthogonality rationale).</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Family A. Placeholder for future bounded close-on-empty;</p>
-<p>zero call sites in v0.1.0.</p>
+        <p>Family A. Placeholder for future bounded close-on-empty; zero call sites in</p>
+<p>v0.1.0.</p>
       </div>
     
 
@@ -3598,6 +3593,82 @@ separable (orthogonality rationale).</p>
           
             <li>
               <code>s</code>
+              (<code>uint64</code>)
+              
+            </li>
+          
+        </ul>
+      </div>
+    
+
+    
+      <div class="doc-section doc-section-returns">
+        <h5>Returns</h5>
+        <p><code>bool</code></p>
+      </div>
+    
+
+    
+
+    
+      <div class="doc-source">
+        <span class="doc-source-label">Source:</span>
+        
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/slot_state.nim#L66" target="_blank" rel="noopener">
+            src/lockfree/typestates/slot_state.nim:66
+          </a>
+        
+      </div>
+    
+  </div>
+</div>
+      
+    
+      
+      
+        <div class="doc doc-object doc-proc">
+  
+
+  
+    <h4 id="seqIsClaimedB" class="doc doc-heading">
+      
+      <span class="doc doc-object-name doc-proc-name">seqIsClaimedB</span>
+      
+        
+          <span class="doc-label" data-label="inline">inline</span>
+        
+      
+    <a href="#seqIsClaimedB" class="headerlink" title="Permanent link">¶</a></h4>
+  
+
+  
+    <div class="doc-signature highlight">
+      <pre><code class="language-nim highlight"><span class="k">proc</span><span class="w"> </span><span class="nf">seqIsClaimedB</span><span class="p">(</span><span class="n">s</span><span class="p">:</span><span class="w"> </span><span class="n">uint64</span><span class="p">;</span><span class="w"> </span><span class="n">pos</span><span class="p">:</span><span class="w"> </span><span class="n">uint64</span><span class="p">):</span><span class="w"> </span><span class="nb">bool</span>
+</code></pre>
+    </div>
+  
+
+  <div class="doc doc-contents first">
+    
+      <div class="doc-description">
+        <p>Family A. Bounded destructor walk: a slot is "claimed" when its seq has</p>
+<p>advanced past the filled epoch but has not been closed.</p>
+      </div>
+    
+
+    
+      <div class="doc-section doc-section-parameters">
+        <h5>Parameters</h5>
+        <ul>
+          
+            <li>
+              <code>s</code>
+              (<code>uint64</code>)
+              
+            </li>
+          
+            <li>
+              <code>pos</code>
               (<code>uint64</code>)
               
             </li>
@@ -3635,20 +3706,20 @@ separable (orthogonality rationale).</p>
   
 
   
-    <h4 id="seqIsClaimedB" class="doc doc-heading">
+    <h4 id="seqIsLiveB" class="doc doc-heading">
       
-      <span class="doc doc-object-name doc-proc-name">seqIsClaimedB</span>
+      <span class="doc doc-object-name doc-proc-name">seqIsLiveB</span>
       
         
           <span class="doc-label" data-label="inline">inline</span>
         
       
-    <a href="#seqIsClaimedB" class="headerlink" title="Permanent link">¶</a></h4>
+    <a href="#seqIsLiveB" class="headerlink" title="Permanent link">¶</a></h4>
   
 
   
     <div class="doc-signature highlight">
-      <pre><code class="language-nim highlight"><span class="k">proc</span><span class="w"> </span><span class="nf">seqIsClaimedB</span><span class="p">(</span><span class="n">s</span><span class="p">:</span><span class="w"> </span><span class="n">uint64</span><span class="p">;</span><span class="w"> </span><span class="n">pos</span><span class="p">:</span><span class="w"> </span><span class="n">uint64</span><span class="p">):</span><span class="w"> </span><span class="nb">bool</span>
+      <pre><code class="language-nim highlight"><span class="k">proc</span><span class="w"> </span><span class="nf">seqIsLiveB</span><span class="p">(</span><span class="n">slot</span><span class="p">:</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="n">MPMCCell</span><span class="o">[</span><span class="n">T</span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="n">pos</span><span class="p">:</span><span class="w"> </span><span class="n">uint64</span><span class="p">):</span><span class="w"> </span><span class="nb">bool</span>
 </code></pre>
     </div>
   
@@ -3656,8 +3727,8 @@ separable (orthogonality rationale).</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Family A. Bounded destructor walk: a slot is "claimed" when</p>
-<p>its seq has advanced past the filled epoch but has not been closed.</p>
+        <p>Family A. Loads <code>payload.seq</code> with <code>moRelaxed</code> and reports whether the slot</p>
+<p>is filled at epoch <code>pos</code> and not closed.</p>
       </div>
     
 
@@ -3667,8 +3738,8 @@ separable (orthogonality rationale).</p>
         <ul>
           
             <li>
-              <code>s</code>
-              (<code>uint64</code>)
+              <code>slot</code>
+              (<code>var MPMCCell[T]</code>)
               
             </li>
           
@@ -3711,82 +3782,6 @@ separable (orthogonality rationale).</p>
   
 
   
-    <h4 id="seqIsLiveB" class="doc doc-heading">
-      
-      <span class="doc doc-object-name doc-proc-name">seqIsLiveB</span>
-      
-        
-          <span class="doc-label" data-label="inline">inline</span>
-        
-      
-    <a href="#seqIsLiveB" class="headerlink" title="Permanent link">¶</a></h4>
-  
-
-  
-    <div class="doc-signature highlight">
-      <pre><code class="language-nim highlight"><span class="k">proc</span><span class="w"> </span><span class="nf">seqIsLiveB</span><span class="p">(</span><span class="n">slot</span><span class="p">:</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="n">MPMCCell</span><span class="o">[</span><span class="n">T</span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="n">pos</span><span class="p">:</span><span class="w"> </span><span class="n">uint64</span><span class="p">):</span><span class="w"> </span><span class="nb">bool</span>
-</code></pre>
-    </div>
-  
-
-  <div class="doc doc-contents first">
-    
-      <div class="doc-description">
-        <p>Family A. Loads <code>payload.seq</code> with <code>moRelaxed</code> and reports</p>
-<p>whether the slot is filled at epoch <code>pos</code> and not closed.</p>
-      </div>
-    
-
-    
-      <div class="doc-section doc-section-parameters">
-        <h5>Parameters</h5>
-        <ul>
-          
-            <li>
-              <code>slot</code>
-              (<code>var MPMCCell[T]</code>)
-              
-            </li>
-          
-            <li>
-              <code>pos</code>
-              (<code>uint64</code>)
-              
-            </li>
-          
-        </ul>
-      </div>
-    
-
-    
-      <div class="doc-section doc-section-returns">
-        <h5>Returns</h5>
-        <p><code>bool</code></p>
-      </div>
-    
-
-    
-
-    
-      <div class="doc-source">
-        <span class="doc-source-label">Source:</span>
-        
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/slot_state.nim#L81" target="_blank" rel="noopener">
-            src/lockfree/typestates/slot_state.nim:81
-          </a>
-        
-      </div>
-    
-  </div>
-</div>
-      
-    
-      
-      
-        <div class="doc doc-object doc-proc">
-  
-
-  
     <h4 id="seqIsClosed" class="doc doc-heading">
       
       <span class="doc doc-object-name doc-proc-name">seqIsClosed</span>
@@ -3808,8 +3803,8 @@ separable (orthogonality rationale).</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Family B. LCRQ-integration close test. Replaces the inline</p>
-<p><code>(&lt;seq&gt; and CLOSED_BIT) != 0'u</code> literals in queue.nim.</p>
+        <p>Family B. LCRQ-integration close test. Replaces the inline `(<seq> and</seq></p>
+<p>CLOSED_BIT) != 0'u` literals in queue.nim.</p>
       </div>
     
 
@@ -3841,8 +3836,8 @@ separable (orthogonality rationale).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/slot_state.nim#L101" target="_blank" rel="noopener">
-            src/lockfree/typestates/slot_state.nim:101
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/typestates/slot_state.nim#L95" target="_blank" rel="noopener">
+            src/lockfree/typestates/slot_state.nim:95
           </a>
         
       </div>

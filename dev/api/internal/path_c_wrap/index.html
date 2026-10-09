@@ -3241,23 +3241,22 @@ the broader protocol context.</p>
     
       <div class="doc-description">
         <p>Path-C wrap/unwrap helpers.</p>
-<p>Encode user-facing <code>T</code> into its <code>SlotEncoding(T)</code> slot form at push
-time; decode back at pop time. Identity for POD <code>T</code>. Internal-only.</p>
-<p>Lifecycle model:
-library inc paired with library dec WITHIN library scopes. For
-<code>ref X</code> the push wrapper does an explicit <code>incRefSlot</code> so the
-queue claims +1 of the cell's refcount lifetime; on the caller side
-the local binding's scope-exit <code>=destroy</code> balances back to net +1
-owned by the slot. Pop is a destructive read via <code>move</code> — the
-queue relinquishes the bits without a library <code>decRefSlot</code> (the
-caller's binding inherits the queue's +1). The queue-side library
-dec is the destroy-walk: <code>disposeSlotEncoded</code> runs <code>decRefSlot</code>
-on every UNPOPPED slot, releasing the +1 the slot claimed at push.</p>
+<p>Encode user-facing <code>T</code> into its <code>SlotEncoding(T)</code> slot form at push time;
+decode back at pop time. Identity for POD <code>T</code>. Internal-only.</p>
+<p>Lifecycle model: library inc paired with library dec WITHIN library scopes.
+For <code>ref X</code> the push wrapper does an explicit <code>incRefSlot</code> so the queue
+claims +1 of the cell's refcount lifetime; on the caller side the local
+binding's scope-exit <code>=destroy</code> balances back to net +1 owned by the slot.
+Pop is a destructive read via <code>move</code> — the queue relinquishes the bits
+without a library <code>decRefSlot</code> (the caller's binding inherits the queue's
++1). The queue-side library dec is the destroy-walk: <code>disposeSlotEncoded</code>
+runs <code>decRefSlot</code> on every UNPOPPED slot, releasing the +1 the slot claimed
+at push.</p>
 <p>Type dispatch (mirrors <code>SlotEncoding</code> in slot_encoding.nim):
-  * <code>ref X</code>    → <code>ManagedRef[X]</code>    via <code>toManagedRef</code> / <code>toRef</code>
-  * <code>string</code>   → <code>ManagedSlice[char]</code> via <code>wrap</code> / <code>unwrap</code>
-  * <code>seq[U]</code>   → <code>ManagedSlice[U]</code>    via <code>wrap</code> / <code>unwrapSeq</code>
-  * else (POD)   → <code>T</code> identity (assumed sizeof(T) &lt;= sizeof(uint))</p>
+  * <code>ref X</code> → <code>ManagedRef[X]</code> via <code>toManagedRef</code> / <code>toRef</code>
+  * <code>string</code> → <code>ManagedSlice[char]</code> via <code>wrap</code> / <code>unwrap</code>
+  * <code>seq[U]</code> → <code>ManagedSlice[U]</code> via <code>wrap</code> / <code>unwrapSeq</code>
+  * else (POD) → <code>T</code> identity (assumed sizeof(T) &lt;= sizeof(uint))</p>
       </div>
     
 
@@ -3288,16 +3287,15 @@ on every UNPOPPED slot, releasing the +1 the slot claimed at push.</p>
         <p>Encode a user-facing <code>T</code> into its <code>SlotEncoding(T)</code> form.</p>
 <ul>
 <li><code>ref X</code> — bit-cast the pointer to <code>ManagedRef[X]</code> AND call
-  <code>incRefSlot</code> so the queue claims +1 of the cell's refcount
-  lifetime. The caller's <code>sink</code> consumption fires <code>=destroy</code>
-  on the original binding when its scope ends, balancing back to
-  net +1 owned by the slot. The destroy-walk
-  (<code>disposeSlotEncoded</code> → <code>decRefSlot</code>) releases the +1 on any
-  UNPOPPED slot; pop transfers the +1 to the caller's binding via
+  <code>incRefSlot</code> so the queue claims +1 of the cell's refcount lifetime.
+  The caller's <code>sink</code> consumption fires <code>=destroy</code> on the original
+  binding when its scope ends, balancing back to net +1 owned by the slot.
+  The destroy-walk (<code>disposeSlotEncoded</code> → <code>decRefSlot</code>) releases the
+  +1 on any UNPOPPED slot; pop transfers the +1 to the caller's binding via
   destructive <code>move</code> (no library dec at pop).</li>
-<li><code>string</code> / <code>seq[U]</code> — box transfer via <code>managed_slice.wrap</code>;
-  the queue holds the box pointer and <code>disposeSlot</code> frees the
-  box on destroy-walk.</li>
+<li><code>string</code> / <code>seq[U]</code> — box transfer via <code>managed_slice.wrap</code>; the
+  queue holds the box pointer and <code>disposeSlot</code> frees the box on
+  destroy-walk.</li>
 <li>POD — identity; <code>sink</code> consumes the source binding.</li>
 </ul>
       </div>
@@ -3331,8 +3329,8 @@ on every UNPOPPED slot, releasing the +1 the slot claimed at push.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/internal/path_c_wrap.nim#L28" target="_blank" rel="noopener">
-            src/lockfree/internal/path_c_wrap.nim:28
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/internal/path_c_wrap.nim#L27" target="_blank" rel="noopener">
+            src/lockfree/internal/path_c_wrap.nim:27
           </a>
         
       </div>
@@ -3365,11 +3363,11 @@ on every UNPOPPED slot, releasing the +1 the slot claimed at push.</p>
     
       <div class="doc-description">
         <p>Decode a <code>SlotEncoding(T)</code> slot value back to user-facing <code>T</code>.</p>
-<p>Pointer-bit / box-pointer transfer only — NO library refcount
-touch at pop. Pop is a destructive read (<code>move</code> on the slot);
-the queue's +1 refcount share (claimed by <code>wrapOrIdentity</code> at
-push) is INHERITED by the caller's binding. <code>=destroy</code> will
-fire on the caller's binding when their local leaves scope.</p>
+<p>Pointer-bit / box-pointer transfer only — NO library refcount touch at
+pop. Pop is a destructive read (<code>move</code> on the slot); the queue's +1
+refcount share (claimed by <code>wrapOrIdentity</code> at push) is INHERITED by the
+caller's binding. <code>=destroy</code> will fire on the caller's binding when their
+local leaves scope.</p>
       </div>
     
 
@@ -3401,8 +3399,8 @@ fire on the caller's binding when their local leaves scope.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/internal/path_c_wrap.nim#L70" target="_blank" rel="noopener">
-            src/lockfree/internal/path_c_wrap.nim:70
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/internal/path_c_wrap.nim#L67" target="_blank" rel="noopener">
+            src/lockfree/internal/path_c_wrap.nim:67
           </a>
         
       </div>
@@ -3434,39 +3432,32 @@ fire on the caller's binding when their local leaves scope.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Per-slot destroy-walk for an UNPOPPED slot. Reconstructs the</p>
-<p>value and runs <code>=destroy</code>. Internal-only. Used by queue / bqueue
-destructors when walking abandoned items.</p>
+        <p>Per-slot destroy-walk for an UNPOPPED slot. Reconstructs the value and runs</p>
+<p><code>=destroy</code>. Internal-only. Used by queue / bqueue destructors when
+walking abandoned items.</p>
 <ul>
-<li>POD <code>T</code>     — identity. The encoded value is bit-for-bit <code>T</code>;
-                  no managed resources, no-op.</li>
-<li><code>ref X</code>     — delegate to <code>managed_ref.decRefSlot</code> which
-                  drops the cell's refcount via the per-MM shim
-                  (arc/orc/atomicArc/refc → <code>GC_unref</code>; none →
-                  no-op; nimony → <code>arcDec</code>). This is the
-                  analogue of <code>managed_slice.disposeSlot</code> for
-                  the ref-T arm. We intentionally do NOT use the
-                  "reconstruct a local <code>ref X</code> and let it leave
-                  scope" pattern: under <code>--mm:arc</code> the compiler's
-                  cursor inference treats such a local as a
-                  non-owning borrow and elides <code>=destroy</code>,
-                  leaking the refcount. <code>decRefSlot</code> calls
-                  <code>GC_unref</code> on the bit-cast <code>ref X</code> directly,
-                  which is immune to cursor elision.</li>
-<li><code>string</code>     — delegate to <code>managed_slice.disposeSlot</code>
-                  (non-generic StringBox path) which destroys the
-                  box payload and frees the box.</li>
-<li><code>seq[U]</code>    — delegate to <code>managed_slice.disposeSeqSlot</code>
-                  (distinctly-named SeqBox path). MUST NOT call
-                  <code>disposeSlot</code>: for <code>seq[char]</code> the slot
-                  encoding is <code>ManagedSlice[char]</code>, which would
-                  resolve to the non-generic string <code>disposeSlot</code>
-                  and run the StringBox destructor over a SeqBox.</li>
+<li>POD <code>T</code> — identity. The encoded value is bit-for-bit <code>T</code>; no
+  managed resources, no-op.</li>
+<li><code>ref X</code> — delegate to <code>managed_ref.decRefSlot</code> which drops the
+  cell's refcount via the per-MM shim (arc/orc/atomicArc/refc →
+  <code>GC_unref</code>; none → no-op; nimony → <code>arcDec</code>). This is the
+  analogue of <code>managed_slice.disposeSlot</code> for the ref-T arm. We
+  intentionally do NOT use the "reconstruct a local <code>ref X</code> and let it
+  leave scope" pattern: under <code>--mm:arc</code> the compiler's cursor inference
+  treats such a local as a non-owning borrow and elides <code>=destroy</code>,
+  leaking the refcount. <code>decRefSlot</code> calls <code>GC_unref</code> on the bit-cast
+  <code>ref X</code> directly, which is immune to cursor elision.</li>
+<li><code>string</code> — delegate to <code>managed_slice.disposeSlot</code> (non-generic
+  StringBox path) which destroys the box payload and frees the box.</li>
+<li><code>seq[U]</code> — delegate to <code>managed_slice.disposeSeqSlot</code>
+  (distinctly-named SeqBox path). MUST NOT call <code>disposeSlot</code>: for
+  <code>seq[char]</code> the slot encoding is <code>ManagedSlice[char]</code>, which would
+  resolve to the non-generic string <code>disposeSlot</code> and run the StringBox
+  destructor over a SeqBox.</li>
 </ul>
 <p>All arms tolerate the zero / nil-bits sentinel: <code>decRefSlot</code>
-short-circuits on nil bits via its own guard;
-<code>managed_slice.disposeSlot</code> / <code>disposeSeqSlot</code> check the box
-pointer for nil.</p>
+short-circuits on nil bits via its own guard; <code>managed_slice.disposeSlot</code>
+/ <code>disposeSeqSlot</code> check the box pointer for nil.</p>
       </div>
     
 
@@ -3493,8 +3484,8 @@ pointer for nil.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/internal/path_c_wrap.nim#L95" target="_blank" rel="noopener">
-            src/lockfree/internal/path_c_wrap.nim:95
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/internal/path_c_wrap.nim#L92" target="_blank" rel="noopener">
+            src/lockfree/internal/path_c_wrap.nim:92
           </a>
         
       </div>

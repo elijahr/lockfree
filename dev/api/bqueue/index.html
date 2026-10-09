@@ -5083,45 +5083,43 @@ the lockfree CHANGELOG <code>[0.1.0]</code> entry for details.</p>
     
       <div class="doc-description">
         <p>===========================================================================
-Concurrency Topology: SPSC, SPMC, MPSC, MPMC Bounded Ring-Buffer Queues (<code>BQueue</code>)
+Concurrency Topology: SPSC, SPMC, MPSC, MPMC Bounded Ring-Buffer Queues
+(<code>BQueue</code>)
 ===========================================================================</p>
 <p>Bounded lock-free queue — <code>BQueue[T, ccProd, ccCons, N, P, C]</code>.</p>
-<p>A 6-param bounded ring-buffer surface with no debra integration and
-no <code>ST</code>/<code>S</code>/<code>MaxThreads</code> axes. Cardinality dispatch uses
-<code>when (ccProd, ccCons) is</code> internally.</p>
+<p>A 6-param bounded ring-buffer surface with no debra integration and no
+<code>ST</code>/<code>S</code>/<code>MaxThreads</code> axes. Cardinality dispatch uses <code>when (ccProd, ccCons)
+is</code> internally.</p>
 <p><strong>Param order is LOAD-BEARING</strong>: <code>T, ccProd, ccCons, N, P, C</code>.</p>
-<p><strong>No cross-import.</strong> <code>bqueue.nim</code> MUST NOT <code>import ./queue</code> (or
-vice-versa). Shared helpers route through <code>./internal/shared</code>. Any
-helper added to <code>internal/shared</code> is available to both modules
-without creating a backward dependency that would defeat the split.</p>
-<p><strong>Queueable[T] concept hookup.</strong> Bare
-<code>BQueue[T, ccSingle, ccSingle, ...]</code> satisfies the <code>Queueable[T]</code>
-concept defined in <code>./typestates/with_bound</code>. Conformance is pinned
-by static doAsserts in that module across the full Path-C-encoded
-payload set (ref / string / seq / POD). No code change to this
-module is required for concept conformance — the existing public
-<code>push</code> / <code>pop</code> signatures on the SPSC arm already match the
-concept's expected shape.</p>
-<p><strong>Field-layout invariant.</strong> Bounded queue bodies preserve the
-offset prefix required by the typestate Base types (<code>SpscBase</code>,
-<code>MpscBase</code>, <code>SpmcBase</code>, <code>MpmcBase</code>, <code>*PushBase</code>). The
-<code>static:</code> offsetOf asserts below lock the prefix at canonical
-instantiations so the unsafe casts in the push/pop bodies remain
-sound. Object-field offsets are computed structurally, so a match
-for one instantiation implies a match for all.</p>
-<p><strong>Cardinality dispatch ladder.</strong> The four (ccProd × ccCons) combos
-are handled by <code>when</code> arms inside the procs, matching the layout
-the legacy per-family files (<code>spsc.nim</code> / <code>mpsc.nim</code> /
-<code>spmc.nim</code> / <code>mpmc.nim</code>) used pre-unification:
-  - <code>ccSingle × ccSingle</code> (SPSC):   direct <code>Queue.push</code> / <code>Queue.pop</code>.
-  - <code>ccMulti  × ccSingle</code> (MPSC):   producer.push / direct pop.
-  - <code>ccSingle × ccMulti</code>  (SPMC):   direct push / consumer.pop.
-  - <code>ccMulti  × ccMulti</code>  (MPMC):   producer.push / consumer.pop.</p>
-<p>Multi-side direct-on-queue calls are gated by compile-time
-<code>{.error.}</code> overloads — calling <code>BQueue.push(item)</code> on a
-<code>ccProd == ccMulti</code> queue (or <code>BQueue.pop()</code> on <code>ccCons == ccMulti</code>)
-fails at compile time with a message pointing the caller at
-<code>BQueue.getProducer().push(item)</code> / <code>BQueue.getConsumer().pop()</code>.</p>
+<p><strong>No cross-import.</strong> <code>bqueue.nim</code> MUST NOT <code>import ./queue</code> (or vice-versa).
+Shared helpers route through <code>./internal/shared</code>. Any helper added to
+<code>internal/shared</code> is available to both modules without creating a backward
+dependency that would defeat the split.</p>
+<p><strong>Queueable[T] concept hookup.</strong> Bare <code>BQueue[T, ccSingle, ccSingle, ...]</code>
+satisfies the <code>Queueable[T]</code> concept defined in <code>./typestates/with_bound</code>.
+Conformance is pinned by static doAsserts in that module across the full
+Path-C-encoded payload set (ref / string / seq / POD). No code change to this
+module is required for concept conformance — the existing public <code>push</code> /
+<code>pop</code> signatures on the SPSC arm already match the concept's expected shape.</p>
+<p><strong>Field-layout invariant.</strong> Bounded queue bodies preserve the offset prefix
+required by the typestate Base types (<code>SpscBase</code>, <code>MpscBase</code>, <code>SpmcBase</code>,
+<code>MpmcBase</code>, <code>*PushBase</code>). The <code>static:</code> offsetOf asserts below lock the
+prefix at canonical instantiations so the unsafe casts in the push/pop bodies
+remain sound. Object-field offsets are computed structurally, so a match for
+one instantiation implies a match for all.</p>
+<p><strong>Cardinality dispatch ladder.</strong> The four (ccProd × ccCons) combos are
+handled by <code>when</code> arms inside the procs, matching the layout the legacy
+per-family files (<code>spsc.nim</code> / <code>mpsc.nim</code> / <code>spmc.nim</code> / <code>mpmc.nim</code>) used
+pre-unification:
+  - <code>ccSingle × ccSingle</code> (SPSC): direct <code>Queue.push</code> / <code>Queue.pop</code>.
+  - <code>ccMulti × ccSingle</code> (MPSC): producer.push / direct pop.
+  - <code>ccSingle × ccMulti</code> (SPMC): direct push / consumer.pop.
+  - <code>ccMulti × ccMulti</code> (MPMC): producer.push / consumer.pop.</p>
+<p>Multi-side direct-on-queue calls are gated by compile-time <code>{.error.}</code>
+overloads — calling <code>BQueue.push(item)</code> on a <code>ccProd == ccMulti</code> queue (or
+<code>BQueue.pop()</code> on <code>ccCons == ccMulti</code>) fails at compile time with a message
+pointing the caller at <code>BQueue.getProducer().push(item)</code> /
+<code>BQueue.getConsumer().pop()</code>.</p>
       </div>
     
 
@@ -5147,8 +5145,8 @@ fails at compile time with a message pointing the caller at
     
       <div class="doc-description">
         <p>Phantom context type for the BQueue Lifecycle typestate. Never</p>
-<p>instantiated at runtime; carries the generic param shape so the
-state types below can <code>distinct</code> from it.</p>
+<p>instantiated at runtime; carries the generic param shape so the state
+types below can <code>distinct</code> from it.</p>
       </div>
     
 
@@ -5160,8 +5158,8 @@ state types below can <code>distinct</code> from it.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L123" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:123
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L118" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:118
           </a>
         
       </div>
@@ -5190,9 +5188,9 @@ state types below can <code>distinct</code> from it.</p>
   <div class="doc doc-contents">
     
       <div class="doc-description">
-        <p>Initial Lifecycle state for a BQueue. Every newly constructed</p>
-<p>BQueue enters this state via the <code>{.BQueueLifecycle: BQueueInit.}</code>
-attachment pragma on the BQueue object below.</p>
+        <p>Initial Lifecycle state for a BQueue. Every newly constructed BQueue</p>
+<p>enters this state via the <code>{.BQueueLifecycle: BQueueInit.}</code> attachment
+pragma on the BQueue object below.</p>
       </div>
     
 
@@ -5204,8 +5202,8 @@ attachment pragma on the BQueue object below.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L128" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:128
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L123" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:123
           </a>
         
       </div>
@@ -5234,8 +5232,8 @@ attachment pragma on the BQueue object below.</p>
   <div class="doc doc-contents">
     
       <div class="doc-description">
-        <p>Terminal Lifecycle state for a BQueue. Reached exclusively via</p>
-<p>the BQueue <code>=destroy</code> destructor's <code>destructorTransition</code>.</p>
+        <p>Terminal Lifecycle state for a BQueue. Reached exclusively via the BQueue</p>
+<p><code>=destroy</code> destructor's <code>destructorTransition</code>.</p>
       </div>
     
 
@@ -5247,8 +5245,8 @@ attachment pragma on the BQueue object below.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L134" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:134
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L129" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:129
           </a>
         
       </div>
@@ -5290,8 +5288,8 @@ attachment pragma on the BQueue object below.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L220" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:220
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L219" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:219
           </a>
         
       </div>
@@ -5321,7 +5319,8 @@ attachment pragma on the BQueue object below.</p>
     
       <div class="doc-description">
         <h5 id="MpmcBoundedQueue--concurrency-topology-mpmc-bounded-queue">Concurrency Topology: MPMC Bounded Queue<a class="headerlink" href="#MpmcBoundedQueue--concurrency-topology-mpmc-bounded-queue" title="Permanent link">¶</a></h5>
-<p>Multi-Producer Multi-Consumer bounded lock-free queue based on Dmitry Vyukov's algorithm.</p>
+<p>Multi-Producer Multi-Consumer bounded lock-free queue based on Dmitry
+Vyukov's algorithm.</p>
       </div>
     
 
@@ -5333,8 +5332,8 @@ attachment pragma on the BQueue object below.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L225" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:225
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L224" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:224
           </a>
         
       </div>
@@ -5364,7 +5363,8 @@ attachment pragma on the BQueue object below.</p>
     
       <div class="doc-description">
         <h5 id="SpscBoundedQueue--concurrency-topology-spsc-bounded-queue">Concurrency Topology: SPSC Bounded Queue<a class="headerlink" href="#SpscBoundedQueue--concurrency-topology-spsc-bounded-queue" title="Permanent link">¶</a></h5>
-<p>Single-Producer Single-Consumer bounded wait-free circular buffer with cacheline separation.</p>
+<p>Single-Producer Single-Consumer bounded wait-free circular buffer with
+cacheline separation.</p>
       </div>
     
 
@@ -5407,7 +5407,8 @@ attachment pragma on the BQueue object below.</p>
     
       <div class="doc-description">
         <h5 id="MpscBoundedQueue--concurrency-topology-mpsc-bounded-queue">Concurrency Topology: MPSC Bounded Queue<a class="headerlink" href="#MpscBoundedQueue--concurrency-topology-mpsc-bounded-queue" title="Permanent link">¶</a></h5>
-<p>Multi-Producer Single-Consumer bounded lock-free queue with registered producer threads.</p>
+<p>Multi-Producer Single-Consumer bounded lock-free queue with registered
+producer threads.</p>
       </div>
     
 
@@ -5419,8 +5420,8 @@ attachment pragma on the BQueue object below.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L235" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:235
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L236" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:236
           </a>
         
       </div>
@@ -5450,7 +5451,8 @@ attachment pragma on the BQueue object below.</p>
     
       <div class="doc-description">
         <h5 id="SpmcBoundedQueue--concurrency-topology-spmc-bounded-queue">Concurrency Topology: SPMC Bounded Queue<a class="headerlink" href="#SpmcBoundedQueue--concurrency-topology-spmc-bounded-queue" title="Permanent link">¶</a></h5>
-<p>Single-Producer Multi-Consumer bounded lock-free queue with registered consumer threads.</p>
+<p>Single-Producer Multi-Consumer bounded lock-free queue with registered
+consumer threads.</p>
       </div>
     
 
@@ -5462,8 +5464,8 @@ attachment pragma on the BQueue object below.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L240" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:240
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L242" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:242
           </a>
         
       </div>
@@ -5505,8 +5507,8 @@ attachment pragma on the BQueue object below.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L254" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:254
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L257" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:257
           </a>
         
       </div>
@@ -5538,10 +5540,9 @@ attachment pragma on the BQueue object below.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Compile-time entry point for BQueue's 4-5 param-coherence guards</p>
-<p>(subset of ). Invoked implicitly by <code>initBQueue</code>;
-callers may invoke explicitly to exercise the guards in isolation.
-Has no runtime cost.</p>
+        <p>Compile-time entry point for BQueue's 4-5 param-coherence guards (subset of</p>
+<p>). Invoked implicitly by <code>initBQueue</code>; callers may invoke explicitly to
+exercise the guards in isolation. Has no runtime cost.</p>
       </div>
     
 
@@ -5568,8 +5569,8 @@ Has no runtime cost.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L274" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:274
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L277" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:277
           </a>
         
       </div>
@@ -5601,12 +5602,12 @@ Has no runtime cost.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Bounded-queue constructor. Initializes the slot storage, zeroes</p>
-<p>head/tail, and clears any producer/consumer thread-id registry
-tables (multi-cardinality only).</p>
-<p><code>initBQueue</code> is the primitive that returns a freshly cleared
-<code>BQueue</code> value. <code>newBQueue</code> is the canonical smart constructor and
-forwards verbatim — callers should prefer <code>newBQueue</code>.</p>
+        <p>Bounded-queue constructor. Initializes the slot storage, zeroes head/tail,</p>
+<p>and clears any producer/consumer thread-id registry tables
+(multi-cardinality only).</p>
+<p><code>initBQueue</code> is the primitive that returns a freshly cleared <code>BQueue</code>
+value. <code>newBQueue</code> is the canonical smart constructor and forwards verbatim
+— callers should prefer <code>newBQueue</code>.</p>
       </div>
     
 
@@ -5625,8 +5626,8 @@ forwards verbatim — callers should prefer <code>newBQueue</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L375" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:375
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L376" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:376
           </a>
         
       </div>
@@ -5662,13 +5663,13 @@ forwards verbatim — callers should prefer <code>newBQueue</code>.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Canonical bounded-queue smart constructor (M4 alias-return lock —</p>
-<p>returns the user-visible <code>BQueue</code> alias, never a backing type).</p>
-<p>Forwards to <code>initBQueue</code>. The family-named helpers
-(<code>newSpscQueue</code> / <code>newMpscQueue</code> / <code>newSpmcQueue</code> /
-<code>newMpmcQueue</code>) are thin wrappers around this generic ctor with
-the cardinality pre-bound; they exist for ergonomic continuity with
-the v3.x → v4.x naming and minimize churn in the test suite.</p>
+        <p>Canonical bounded-queue smart constructor (M4 alias-return lock — returns</p>
+<p>the user-visible <code>BQueue</code> alias, never a backing type).</p>
+<p>Forwards to <code>initBQueue</code>. The family-named helpers (<code>newSpscQueue</code> /
+<code>newMpscQueue</code> / <code>newSpmcQueue</code> / <code>newMpmcQueue</code>) are thin wrappers around
+this generic ctor with the cardinality pre-bound; they exist for ergonomic
+continuity with the v3.x → v4.x naming and minimize churn in the test
+suite.</p>
       </div>
     
 
@@ -5687,8 +5688,8 @@ the v3.x → v4.x naming and minimize churn in the test suite.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L388" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:388
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L389" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:389
           </a>
         
       </div>
@@ -5743,8 +5744,8 @@ the v3.x → v4.x naming and minimize churn in the test suite.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L413" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:413
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L414" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:414
           </a>
         
       </div>
@@ -5780,8 +5781,8 @@ the v3.x → v4.x naming and minimize churn in the test suite.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Bounded mpsc-equivalent (<code>ccMulti × ccSingle</code>) smart-constructor.</p>
-<p><code>P</code> is the producer-registry capacity.</p>
+        <p>Bounded mpsc-equivalent (<code>ccMulti × ccSingle</code>) smart-constructor. <code>P</code> is</p>
+<p>the producer-registry capacity.</p>
       </div>
     
 
@@ -5800,8 +5801,8 @@ the v3.x → v4.x naming and minimize churn in the test suite.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L419" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:419
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L420" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:420
           </a>
         
       </div>
@@ -5837,8 +5838,8 @@ the v3.x → v4.x naming and minimize churn in the test suite.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Bounded spmc-equivalent (<code>ccSingle × ccMulti</code>) smart-constructor.</p>
-<p><code>C</code> is the consumer-registry capacity.</p>
+        <p>Bounded spmc-equivalent (<code>ccSingle × ccMulti</code>) smart-constructor. <code>C</code> is</p>
+<p>the consumer-registry capacity.</p>
       </div>
     
 
@@ -5857,8 +5858,8 @@ the v3.x → v4.x naming and minimize churn in the test suite.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L426" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:426
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L427" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:427
           </a>
         
       </div>
@@ -5894,9 +5895,8 @@ the v3.x → v4.x naming and minimize churn in the test suite.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Bounded mpmc-equivalent (<code>ccMulti × ccMulti</code>) smart-constructor.</p>
-<p><code>P</code> is the producer-registry capacity, <code>C</code> is the consumer-registry
-capacity.</p>
+        <p>Bounded mpmc-equivalent (<code>ccMulti × ccMulti</code>) smart-constructor. <code>P</code> is</p>
+<p>the producer-registry capacity, <code>C</code> is the consumer-registry capacity.</p>
       </div>
     
 
@@ -5915,8 +5915,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L433" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:433
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L434" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:434
           </a>
         
       </div>
@@ -6581,8 +6581,8 @@ capacity.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Returns the queue's producer-registry capacity (<code>P</code>).</p>
-<p>Single-producer shapes report 0.</p>
+        <p>Returns the queue's producer-registry capacity (<code>P</code>). Single-producer</p>
+<p>shapes report 0.</p>
       </div>
     
 
@@ -6651,8 +6651,8 @@ capacity.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Returns the queue's consumer-registry capacity (<code>C</code>).</p>
-<p>Single-consumer shapes report 0.</p>
+        <p>Returns the queue's consumer-registry capacity (<code>C</code>). Single-consumer</p>
+<p>shapes report 0.</p>
       </div>
     
 
@@ -7522,8 +7522,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L739" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:739
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L738" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:738
           </a>
         
       </div>
@@ -7593,8 +7593,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L751" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:751
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L750" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:750
           </a>
         
       </div>
@@ -7664,8 +7664,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L762" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:762
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L761" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:761
           </a>
         
       </div>
@@ -7735,8 +7735,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L807" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:807
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L805" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:805
           </a>
         
       </div>
@@ -7806,8 +7806,8 @@ capacity.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L825" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:825
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L823" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:823
           </a>
         
       </div>
@@ -7847,14 +7847,14 @@ capacity.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>BQueue destructor — drives the Lifecycle terminal transition AND</p>
-<p>performs the destroy-walk for unpopped slots.</p>
-<p>BQueue owns no debra/manager heap state. For POD T the default
-destructor would suffice. For ref / string / seq T the cells /
-storage hold <code>SlotEncoding(T)</code> values (ManagedRef or
-ManagedSlice — <code>distinct uint</code>, no auto-=destroy), so abandoned
-items must be explicitly disposed here. This is the ONLY
-library-managed cleanup path (push and pop are pure transfers).</p>
+        <p>BQueue destructor — drives the Lifecycle terminal transition AND performs</p>
+<p>the destroy-walk for unpopped slots.</p>
+<p>BQueue owns no debra/manager heap state. For POD T the default destructor
+would suffice. For ref / string / seq T the cells / storage hold
+<code>SlotEncoding(T)</code> values (ManagedRef or ManagedSlice — <code>distinct
+uint</code>, no auto-=destroy), so abandoned items must be explicitly disposed
+here. This is the ONLY library-managed cleanup path (push and pop are pure
+transfers).</p>
       </div>
     
 
@@ -7881,8 +7881,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L861" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:861
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L855" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:855
           </a>
         
       </div>
@@ -7960,8 +7960,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L920" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:920
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L910" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:910
           </a>
         
       </div>
@@ -8039,8 +8039,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L944" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:944
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L934" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:934
           </a>
         
       </div>
@@ -8112,8 +8112,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L970" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:970
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L960" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:960
           </a>
         
       </div>
@@ -8185,8 +8185,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L994" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:994
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L984" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:984
           </a>
         
       </div>
@@ -8226,8 +8226,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>MPSC batch push. Returns <code>none</code> if all items pushed; <code>some(slice)</code></p>
-<p>of unpushed indices otherwise.</p>
+        <p>MPSC batch push. Returns <code>none</code> if all items pushed; <code>some(slice)</code> of</p>
+<p>unpushed indices otherwise.</p>
       </div>
     
 
@@ -8265,8 +8265,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1019" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1019
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1009" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1009
           </a>
         
       </div>
@@ -8344,8 +8344,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1031" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1031
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1021" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1021
           </a>
         
       </div>
@@ -8423,8 +8423,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1044" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1044
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1034" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1034
           </a>
         
       </div>
@@ -8502,8 +8502,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1059" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1059
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1049" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1049
           </a>
         
       </div>
@@ -8544,8 +8544,8 @@ library-managed cleanup path (push and pop are pure transfers).</p>
     
       <div class="doc-description">
         <p>Multi-consumer BQueue batch pop into a caller-supplied openArray buffer.</p>
-<p>Extracts up to <code>min(dest.len, maxCount)</code> items without allocating intermediate seqs.
-Returns the number of items successfully extracted.</p>
+<p>Extracts up to <code>min(dest.len, maxCount)</code> items without allocating
+intermediate seqs. Returns the number of items successfully extracted.</p>
       </div>
     
 
@@ -8589,8 +8589,8 @@ Returns the number of items successfully extracted.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1074" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1074
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1064" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1064
           </a>
         
       </div>
@@ -8674,8 +8674,8 @@ Returns the number of items successfully extracted.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1100" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1100
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1090" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1090
           </a>
         
       </div>
@@ -8753,8 +8753,8 @@ Returns the number of items successfully extracted.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1114" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1114
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1104" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1104
           </a>
         
       </div>
@@ -8828,8 +8828,8 @@ Returns the number of items successfully extracted.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1129" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1129
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1119" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1119
           </a>
         
       </div>
@@ -8861,9 +8861,9 @@ Returns the number of items successfully extracted.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Drain a single-consumer BQueue (SPSC or MPSC). Yields each remaining</p>
-<p>item until the queue is empty. Calls the existing pop in a loop —
-Path-C unwrap is already done by pop.</p>
+        <p>Drain a single-consumer BQueue (SPSC or MPSC). Yields each remaining item</p>
+<p>until the queue is empty. Calls the existing pop in a loop — Path-C
+unwrap is already done by pop.</p>
       </div>
     
 
@@ -8895,8 +8895,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1173" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1173
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1161" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1161
           </a>
         
       </div>
@@ -8960,8 +8960,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1186" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1186
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1174" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1174
           </a>
         
       </div>
@@ -9025,8 +9025,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1198" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1198
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1186" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1186
           </a>
         
       </div>
@@ -9086,8 +9086,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1220" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1220
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1207" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1207
           </a>
         
       </div>
@@ -9147,8 +9147,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1230" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1230
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1217" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1217
           </a>
         
       </div>
@@ -9208,8 +9208,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1242" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1242
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1229" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1229
           </a>
         
       </div>
@@ -9269,8 +9269,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1254" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1254
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1241" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1241
           </a>
         
       </div>
@@ -9330,8 +9330,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1266" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1266
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1253" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1253
           </a>
         
       </div>
@@ -9391,8 +9391,8 @@ Path-C unwrap is already done by pop.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1280" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1280
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1267" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1267
           </a>
         
       </div>
@@ -9424,14 +9424,13 @@ Path-C unwrap is already done by pop.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Drain a single-consumer BQueue (SPSC or MPSC), calling <code>cleanup</code></p>
-<p>on each remaining item, then trigger queue destruction. Takes
-<code>sink</code> of the queue so the caller's binding is moved-from
-(preventing scope-end double-destroy on top of the explicit
-destruction here).</p>
-<p>Under mm:none this is the ONLY safe teardown path for a non-empty
-queue carrying ref / string / seq payloads (strict bit-transport
-contract). For POD payloads the <code>cleanup</code> is logically a no-op.</p>
+        <p>Drain a single-consumer BQueue (SPSC or MPSC), calling <code>cleanup</code> on each</p>
+<p>remaining item, then trigger queue destruction. Takes <code>sink</code> of the queue
+so the caller's binding is moved-from (preventing scope-end double-destroy
+on top of the explicit destruction here).</p>
+<p>Under mm:none this is the ONLY safe teardown path for a non-empty queue
+carrying ref / string / seq payloads (strict bit-transport contract). For
+POD payloads the <code>cleanup</code> is logically a no-op.</p>
       </div>
     
 
@@ -9464,8 +9463,8 @@ contract). For POD payloads the <code>cleanup</code> is logically a no-op.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1294" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1294
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1281" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1281
           </a>
         
       </div>
@@ -9497,12 +9496,11 @@ contract). For POD payloads the <code>cleanup</code> is logically a no-op.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>POD discard-callback overload for single-consumer BQueue. Takes</p>
-<p><code>sink</code> for the same reason as the callback overload. Safe for
-POD T; for non-POD T the queue's <code>=destroy</code> walk handles
-disposal under arc/orc/atomicArc/refc — under mm:none, this
-overload leaks payload bits (the operator must provide an
-explicit cleanup callback under mm:none for non-POD T).</p>
+        <p>POD discard-callback overload for single-consumer BQueue. Takes <code>sink</code> for</p>
+<p>the same reason as the callback overload. Safe for POD T; for non-POD T the
+queue's <code>=destroy</code> walk handles disposal under arc/orc/atomicArc/refc —
+under mm:none, this overload leaks payload bits (the operator must provide
+an explicit cleanup callback under mm:none for non-POD T).</p>
       </div>
     
 
@@ -9529,8 +9527,8 @@ explicit cleanup callback under mm:none for non-POD T).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1313" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1313
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1299" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1299
           </a>
         
       </div>
@@ -9562,8 +9560,8 @@ explicit cleanup callback under mm:none for non-POD T).</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Resets the queue to its default state. For single-threaded unit</p>
-<p>tests only.</p>
+        <p>Resets the queue to its default state. For single-threaded unit tests</p>
+<p>only.</p>
       </div>
     
 
@@ -9590,8 +9588,8 @@ explicit cleanup callback under mm:none for non-POD T).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1345" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1345
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1328" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1328
           </a>
         
       </div>
@@ -9668,8 +9666,8 @@ explicit cleanup callback under mm:none for non-POD T).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1352" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1352
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1335" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1335
           </a>
         
       </div>
@@ -9740,8 +9738,8 @@ explicit cleanup callback under mm:none for non-POD T).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1370" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1370
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1352" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1352
           </a>
         
       </div>
@@ -9818,8 +9816,8 @@ explicit cleanup callback under mm:none for non-POD T).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1383" target="_blank" rel="noopener">
-            src/lockfree/bqueue.nim:1383
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/bqueue.nim#L1365" target="_blank" rel="noopener">
+            src/lockfree/bqueue.nim:1365
           </a>
         
       </div>

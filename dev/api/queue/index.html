@@ -5122,30 +5122,29 @@ documented limitation; see the lockfree CHANGELOG <code>[0.1.0]</code> entry.</p
     
       <div class="doc-description">
         <p>===========================================================================
-Concurrency Topology: SPSC, SPMC, MPSC, MPMC Unbounded Linked-Segment Queues (<code>Queue</code>)
+Concurrency Topology: SPSC, SPMC, MPSC, MPMC Unbounded Linked-Segment Queues
+(<code>Queue</code>)
 ===========================================================================</p>
 <p>Unbounded <code>Queue</code> generic.</p>
 <div class="highlight"><pre><span></span><code>Queue[T, ccProd, ccCons, ST, S, MaxThreads]
 </code></pre></div>
-<p>Param order is LOAD-BEARING:
-  T, ccProd, ccCons, ST, S, MaxThreads</p>
-<p>The bounded surface lives in <code>bqueue.nim</code> (<code>BQueue[T, ccProd, ccCons,
-N, P, C]</code>). The <code>(ccSingle, ccSingle)</code> branch of the object body
-carries no debra integration (no <code>manager</code>, no <code>ownsManager</code>, no
-pin/retire wrappers) and uses the committed-flag-free linked-segment
-protocol from the legacy standalone unbounded-SPSC module. The other
-three cardinality combos (MPSC, SPMC, MPMC) carry debra integration.</p>
-<p>Cardinality-illegal direct-on-queue calls (multi-producer <code>push</code>
-or multi-consumer <code>pop</code> against <code>Queue</code> directly rather than via
-<code>QueueProducer</code> / <code>QueueConsumer</code>) are gated by compile-time
-<code>{.error.}</code> overloads. The error messages reference the user-visible
-alias type names — no <code>*Multi</code>/<code>*Single</code> leakage.</p>
-<p><strong>Queueable[T] concept hookup.</strong> Bare
-<code>Queue[T, ...]</code> does NOT satisfy the <code>Queueable[T]</code> concept defined
-in <code>./typestates/with_bound</code> — unbounded push/pop always routes
-through a <code>Bound[T, Tag, Queue[T, ...]]</code> endpoint (no direct push/pop
-on bare <code>Queue</code>, even for SPSC). Users wanting an unbounded queue
-with the Queueable-style ergonomic surface use the typestate API
+<p>Param order is LOAD-BEARING: T, ccProd, ccCons, ST, S, MaxThreads</p>
+<p>The bounded surface lives in <code>bqueue.nim</code> (<code>BQueue[T, ccProd, ccCons, N, P,
+C]</code>). The <code>(ccSingle, ccSingle)</code> branch of the object body carries no debra
+integration (no <code>manager</code>, no <code>ownsManager</code>, no pin/retire wrappers) and uses
+the committed-flag-free linked-segment protocol from the legacy standalone
+unbounded-SPSC module. The other three cardinality combos (MPSC, SPMC, MPMC)
+carry debra integration.</p>
+<p>Cardinality-illegal direct-on-queue calls (multi-producer <code>push</code> or
+multi-consumer <code>pop</code> against <code>Queue</code> directly rather than via <code>QueueProducer</code>
+/ <code>QueueConsumer</code>) are gated by compile-time <code>{.error.}</code> overloads. The error
+messages reference the user-visible alias type names — no
+<code>*Multi</code>/<code>*Single</code> leakage.</p>
+<p><strong>Queueable[T] concept hookup.</strong> Bare <code>Queue[T, ...]</code> does NOT satisfy the
+<code>Queueable[T]</code> concept defined in <code>./typestates/with_bound</code> — unbounded
+push/pop always routes through a <code>Bound[T, Tag, Queue[T, ...]]</code> endpoint (no
+direct push/pop on bare <code>Queue</code>, even for SPSC). Users wanting an unbounded
+queue with the Queueable-style ergonomic surface use the typestate API
 (<code>getProducer().bindToThread()</code>) or the <code>withBoundProducer</code> /
 <code>withBoundConsumer</code> RAII templates in <code>./typestates/with_bound</code>.</p>
       </div>
@@ -5172,13 +5171,12 @@ with the Queueable-style ergonomic surface use the typestate API
   <div class="doc doc-contents">
     
       <div class="doc-description">
-        <p>Strict-LCRQ close sentinel. A cell with <code>seq == CLOSED_BIT</code></p>
-<p>is permanently closed: no producer can publish into it, no
-consumer can claim it.</p>
-<p>The sentinel occupies the high bit of the platform-native <code>uint</code>
-so that <code>LCRQCell[T]</code> stays at native double-word width on every
-target debra supports (16 bytes on 64-bit, 8 bytes on 32-bit).
-On 64-bit (uint == uint64) the value is identical to <code>1'u64 shl 63</code>.</p>
+        <p>Strict-LCRQ close sentinel. A cell with <code>seq == CLOSED_BIT</code> is permanently</p>
+<p>closed: no producer can publish into it, no consumer can claim it.</p>
+<p>The sentinel occupies the high bit of the platform-native <code>uint</code> so that
+<code>LCRQCell[T]</code> stays at native double-word width on every target debra
+supports (16 bytes on 64-bit, 8 bytes on 32-bit). On 64-bit (uint ==
+uint64) the value is identical to <code>1'u64 shl 63</code>.</p>
       </div>
     
 
@@ -5186,8 +5184,8 @@ On 64-bit (uint == uint64) the value is identical to <code>1'u64 shl 63</code>.<
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L137" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:137
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L132" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:132
           </a>
         
       </div>
@@ -5217,12 +5215,12 @@ On 64-bit (uint == uint64) the value is identical to <code>1'u64 shl 63</code>.<
     
       <div class="doc-description">
         <p>Strict-LCRQ cell: native double-word DWCAS-able pair of seq counter</p>
-<p>(<code>Pair.first</code>) and payload (<code>Pair.second</code>). Transparent alias
-for <code>Atomic[Pair[uint, T]]</code> — assigning a <code>LCRQCell[T]</code> to /
-from the spelled-out type requires no conversion. Using
-platform-native <code>uint</code> (rather than hardcoded <code>uint64</code>) keeps
-the cell at the platform's native DWCAS width, preserving the
-lock-free guarantee on every debra-supported target.</p>
+<p>(<code>Pair.first</code>) and payload (<code>Pair.second</code>). Transparent alias for
+<code>Atomic[Pair[uint, T]]</code> — assigning a <code>LCRQCell[T]</code> to / from the
+spelled-out type requires no conversion. Using platform-native <code>uint</code>
+(rather than hardcoded <code>uint64</code>) keeps the cell at the platform's native
+DWCAS width, preserving the lock-free guarantee on every debra-supported
+target.</p>
       </div>
     
 
@@ -5234,8 +5232,8 @@ lock-free guarantee on every debra-supported target.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L147" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:147
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L141" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:141
           </a>
         
       </div>
@@ -5271,19 +5269,17 @@ lock-free guarantee on every debra-supported target.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Producer publish via DWCAS into an empty cell.</p>
-<p>Returns true on success (cell now <code>(expectedSeq+1, value)</code>).
-Returns false if the cell is already filled, closed, or at a
-different epoch.</p>
-<p>Precondition for nullable T (<code>ptr</code>, <code>ref</code>, <code>pointer</code>, <code>cstring</code>,
-<code>proc</code>, closures): <code>value</code> MUST NOT be nil. The std/options
-transport used by <code>tryClaim</code> (<code>some(val)</code>) asserts <code>not val.isNil</code>
-at runtime for nullable types; forbidding nil here surfaces the
-contract violation at the producer rather than as a delayed
-AssertionDefect inside an unrelated consumer's <code>tryClaim</code> call.
-<code>doAssert</code> (not <code>assert</code>) so the guard
-survives <code>-d:danger</code> builds. <code>when compiles(value.isNil)</code> covers
-every nullable type Nim exposes (broader than <code>T is ptr or ref</code>).</p>
+        <p>Producer publish via DWCAS into an empty cell. Returns true on success</p>
+<p>(cell now <code>(expectedSeq+1, value)</code>). Returns false if the cell is already
+filled, closed, or at a different epoch.</p>
+<p>Precondition for nullable T (<code>ptr</code>, <code>ref</code>, <code>pointer</code>, <code>cstring</code>, <code>proc</code>,
+closures): <code>value</code> MUST NOT be nil. The std/options transport used by
+<code>tryClaim</code> (<code>some(val)</code>) asserts <code>not val.isNil</code> at runtime for nullable
+types; forbidding nil here surfaces the contract violation at the producer
+rather than as a delayed AssertionDefect inside an unrelated consumer's
+<code>tryClaim</code> call. <code>doAssert</code> (not <code>assert</code>) so the guard survives
+<code>-d:danger</code> builds. <code>when compiles(value.isNil)</code> covers every nullable type
+Nim exposes (broader than <code>T is ptr or ref</code>).</p>
       </div>
     
 
@@ -5327,8 +5323,8 @@ every nullable type Nim exposes (broader than <code>T is ptr or ref</code>).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L185" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:185
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L178" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:178
           </a>
         
       </div>
@@ -5365,10 +5361,10 @@ every nullable type Nim exposes (broader than <code>T is ptr or ref</code>).</p>
     
       <div class="doc-description">
         <p>Consumer claim via DWCAS.</p>
-<p>CONTRACT: NEVER inspect <code>observed.second</code>. The CAS on the seq
-encoding is the sole authority on cell state. A filled cell with
-payload <code>default(T)</code> (e.g. <code>q.push(0)</code>, <code>q.push(nil)</code>) is a
-legitimate publish and MUST be returned via <code>some(observed.second)</code>.</p>
+<p>CONTRACT: NEVER inspect <code>observed.second</code>. The CAS on the seq encoding is
+the sole authority on cell state. A filled cell with payload <code>default(T)</code>
+(e.g. <code>q.push(0)</code>, <code>q.push(nil)</code>) is a legitimate publish and MUST be
+returned via <code>some(observed.second)</code>.</p>
       </div>
     
 
@@ -5406,8 +5402,8 @@ legitimate publish and MUST be returned via <code>some(observed.second)</code>.<
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L222" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:222
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L213" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:213
           </a>
         
       </div>
@@ -5443,9 +5439,9 @@ legitimate publish and MUST be returned via <code>some(observed.second)</code>.<
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Consumer close-on-empty via DWCAS. Atomically sets</p>
-<p><code>CLOSED_BIT</code> on an empty cell so no producer can later publish
-into it. Returns false if the cell is already filled or closed.</p>
+        <p>Consumer close-on-empty via DWCAS. Atomically sets <code>CLOSED_BIT</code> on an empty</p>
+<p>cell so no producer can later publish into it. Returns false if the cell is
+already filled or closed.</p>
       </div>
     
 
@@ -5483,8 +5479,8 @@ into it. Returns false if the cell is already filled or closed.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L246" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:246
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L237" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:237
           </a>
         
       </div>
@@ -5522,8 +5518,8 @@ into it. Returns false if the cell is already filled or closed.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L289" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:289
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L279" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:279
           </a>
         
       </div>
@@ -5565,8 +5561,8 @@ into it. Returns false if the cell is already filled or closed.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L296" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:296
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L286" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:286
           </a>
         
       </div>
@@ -5608,8 +5604,8 @@ into it. Returns false if the cell is already filled or closed.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L304" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:304
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L294" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:294
           </a>
         
       </div>
@@ -5638,26 +5634,24 @@ into it. Returns false if the cell is already filled or closed.</p>
   <div class="doc doc-contents">
     
       <div class="doc-description">
-        <p>Unbounded-queue segment. One linked-segment payload, parameterized</p>
-<p>by <code>(ccProd, ccCons)</code> so each cardinality variant's field set
-matches its per-family analogue.</p>
+        <p>Unbounded-queue segment. One linked-segment payload, parameterized by</p>
+<p><code>(ccProd, ccCons)</code> so each cardinality variant's field set matches its
+per-family analogue.</p>
 <p>Field set:
   - <code>data: array[S, T]</code> — slot storage (non-MPMC variants).
   - <code>cells: array[S, LCRQCell[T]]</code> — strict-LCRQ cells (MPMC only).
     Replaces <code>committed + data</code> on the <code>ccMulti × ccMulti</code> arm.
   - <code>next: Atomic[ptr Segment[...]]</code> — linked-list pointer.
   - <code>tail: Atomic[int]</code> — producer write index. Atomic for
-    multi-producer coordination and for spsc-equiv (publish
-    via release).
-  - <code>head: int</code> — single-consumer non-atomic read position.
-    Present on <code>(ccProd × ccSingle)</code> shapes (mpsc-equiv and
-    the absorbed spsc-equiv). Only the single consumer ever
-    writes it.
-  - <code>committed: array[S, Atomic[bool]]</code> — multi-producer
-    publication flags. Present on <code>ccProd == ccMulti and
-    ccCons == ccSingle</code> (MPSC only — MPMC migrated to <code>cells</code>).
-  - <code>prevConsumerIdx: Atomic[int]</code> — multi-consumer CAS slot.
-    Present on <code>ccCons == ccMulti</code>.</p>
+    multi-producer coordination and for spsc-equiv (publish via release).
+  - <code>head: int</code> — single-consumer non-atomic read position. Present on
+    <code>(ccProd × ccSingle)</code> shapes (mpsc-equiv and the absorbed
+    spsc-equiv). Only the single consumer ever writes it.
+  - <code>committed: array[S, Atomic[bool]]</code> — multi-producer publication
+    flags. Present on <code>ccProd == ccMulti and ccCons == ccSingle</code> (MPSC
+    only — MPMC migrated to <code>cells</code>).
+  - <code>prevConsumerIdx: Atomic[int]</code> — multi-consumer CAS slot. Present
+    on <code>ccCons == ccMulti</code>.</p>
       </div>
     
 
@@ -5672,8 +5666,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L330" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:330
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L320" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:320
           </a>
         
       </div>
@@ -5711,8 +5705,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L436" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:436
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L423" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:423
           </a>
         
       </div>
@@ -5749,8 +5743,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L444" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:444
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L431" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:431
           </a>
         
       </div>
@@ -5787,8 +5781,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L452" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:452
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L440" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:440
           </a>
         
       </div>
@@ -5825,8 +5819,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L460" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:460
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L448" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:448
           </a>
         
       </div>
@@ -5863,8 +5857,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L468" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:468
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L456" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:456
           </a>
         
       </div>
@@ -5906,8 +5900,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L480" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:480
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L468" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:468
           </a>
         
       </div>
@@ -5939,8 +5933,8 @@ matches its per-family analogue.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Compile-time entry point for the 2 param-coherence guards. Has no</p>
-<p>runtime cost.</p>
+        <p>Compile-time entry point for the 2 param-coherence guards. Has no runtime</p>
+<p>cost.</p>
       </div>
     
 
@@ -5967,8 +5961,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L492" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:492
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L480" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:480
           </a>
         
       </div>
@@ -6067,8 +6061,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L654" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:654
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L636" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:636
           </a>
         
       </div>
@@ -6100,9 +6094,8 @@ matches its per-family analogue.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Per-queue <code>retireOnPublish</code> wrapper. **FOOT-GUN — single-writer</p>
-<p>required (DR-S4).** Delegates to nebr's
-<code>pinned_scope.retireOnPublish</code>.</p>
+        <p>Per-queue <code>retireOnPublish</code> wrapper. **FOOT-GUN — single-writer required</p>
+<p>(DR-S4).** Delegates to nebr's <code>pinned_scope.retireOnPublish</code>.</p>
       </div>
     
 
@@ -6153,8 +6146,8 @@ matches its per-family analogue.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L674" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:674
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L656" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:656
           </a>
         
       </div>
@@ -6187,14 +6180,12 @@ matches its per-family analogue.</p>
     
       <div class="doc-description">
         <p>Manager-borrowed unbounded <code>newQueue</code> overload — ccCons == ccSingle</p>
-<p>variants (mpsc-equiv only; the spsc-absorbed <code>(ccSingle,
-ccSingle)</code> shape is debra-free and uses a separate <code>{.error.}</code>
-overload below).</p>
-<p>Caller owns the <code>DebraManager</code>. Sets <code>ownsManager = false</code>. The
-handle is consumed by mpsc-equiv (<code>ccProd == ccMulti</code>) and stored
-on the queue. ccProd-ccSingle spsc-equiv would be type-uniformly
-constructable here, but is excluded by the dedicated spsc
-<code>{.error.}</code> overload further below.</p>
+<p>variants (mpsc-equiv only; the spsc-absorbed <code>(ccSingle, ccSingle)</code> shape
+is debra-free and uses a separate <code>{.error.}</code> overload below).</p>
+<p>Caller owns the <code>DebraManager</code>. Sets <code>ownsManager = false</code>. The handle is
+consumed by mpsc-equiv (<code>ccProd == ccMulti</code>) and stored on the queue.
+ccProd-ccSingle spsc-equiv would be type-uniformly constructable here, but
+is excluded by the dedicated spsc <code>{.error.}</code> overload further below.</p>
       </div>
     
 
@@ -6238,8 +6229,8 @@ constructable here, but is excluded by the dedicated spsc
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L751" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:751
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L730" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:730
           </a>
         
       </div>
@@ -6271,12 +6262,12 @@ constructable here, but is excluded by the dedicated spsc
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Handle-free manager-borrowed unbounded <code>newQueue</code> overload for</p>
-<p>ccCons == ccSingle (mpsc-equiv). The single consumer's debra
-handle is NOT registered here; the consumer thread registers itself
-via <code>attachConsumer()</code> before its first <code>pop</code>. The handle-carrying
-overload above remains the escape hatch for callers who register
-on the consumer thread and supply the handle directly.</p>
+        <p>Handle-free manager-borrowed unbounded <code>newQueue</code> overload for ccCons ==</p>
+<p>ccSingle (mpsc-equiv). The single consumer's debra handle is NOT registered
+here; the consumer thread registers itself via <code>attachConsumer()</code> before
+its first <code>pop</code>. The handle-carrying overload above remains the escape
+hatch for callers who register on the consumer thread and supply the handle
+directly.</p>
       </div>
     
 
@@ -6314,8 +6305,8 @@ on the consumer thread and supply the handle directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L788" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:788
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L764" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:764
           </a>
         
       </div>
@@ -6392,8 +6383,8 @@ on the consumer thread and supply the handle directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L815" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:815
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L791" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:791
           </a>
         
       </div>
@@ -6425,8 +6416,8 @@ on the consumer thread and supply the handle directly.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Handle-free manager-borrowed unbounded <code>newQueue</code> overload for</p>
-<p>ccCons == ccMulti (spmc-equiv and mpmc-equiv).</p>
+        <p>Handle-free manager-borrowed unbounded <code>newQueue</code> overload for ccCons ==</p>
+<p>ccMulti (spmc-equiv and mpmc-equiv).</p>
       </div>
     
 
@@ -6464,8 +6455,8 @@ on the consumer thread and supply the handle directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L841" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:841
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L817" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:817
           </a>
         
       </div>
@@ -6541,8 +6532,8 @@ on the consumer thread and supply the handle directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L869" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:869
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L844" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:844
           </a>
         
       </div>
@@ -6612,8 +6603,8 @@ on the consumer thread and supply the handle directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L886" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:886
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L861" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:861
           </a>
         
       </div>
@@ -6646,18 +6637,16 @@ on the consumer thread and supply the handle directly.</p>
     
       <div class="doc-description">
         <p>Auto-create unbounded <code>newQueue</code> overload. For the spsc-absorbed</p>
-<p><code>(ccSingle, ccSingle)</code> branch this skips manager allocation
-entirely. For the other three cardinality combos, allocates a
-private <code>DebraManager[MaxThreads, ...]</code> and sets <code>ownsManager =
-true</code>.</p>
+<p><code>(ccSingle, ccSingle)</code> branch this skips manager allocation entirely. For
+the other three cardinality combos, allocates a private
+<code>DebraManager[MaxThreads, ...]</code> and sets <code>ownsManager = true</code>.</p>
 <p><strong>No thread is registered at construction.</strong> <code>registerThread</code> is
-thread-affine (stamps the calling thread + installs a signal
-handler on the calling OS thread), so registering here would
-mis-route the handle when the queue is later operated on a
-different thread. Each operating thread registers itself at
-attach-time: producers/consumers via <code>getProducer().attach()</code> /
-<code>getConsumer().attach()</code>, and the mpsc-equiv single consumer via
-<code>attachConsumer()</code> before its first <code>pop</code>.</p>
+thread-affine (stamps the calling thread + installs a signal handler on the
+calling OS thread), so registering here would mis-route the handle when the
+queue is later operated on a different thread. Each operating thread
+registers itself at attach-time: producers/consumers via
+<code>getProducer().attach()</code> / <code>getConsumer().attach()</code>, and the mpsc-equiv
+single consumer via <code>attachConsumer()</code> before its first <code>pop</code>.</p>
       </div>
     
 
@@ -6689,8 +6678,8 @@ attach-time: producers/consumers via <code>getProducer().attach()</code> /
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L902" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:902
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L877" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:877
           </a>
         
       </div>
@@ -6754,8 +6743,8 @@ attach-time: producers/consumers via <code>getProducer().attach()</code> /
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L965" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:965
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L938" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:938
           </a>
         
       </div>
@@ -6819,8 +6808,8 @@ attach-time: producers/consumers via <code>getProducer().attach()</code> /
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L974" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:974
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L947" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:947
           </a>
         
       </div>
@@ -6856,8 +6845,8 @@ attach-time: producers/consumers via <code>getProducer().attach()</code> /
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Returns true if the queue is empty (atomic snapshot).</p>
-<p>Checks if headSegment == tailSegment (and unconsumed slots).</p>
+        <p>Returns true if the queue is empty (atomic snapshot). Checks if headSegment</p>
+<p>== tailSegment (and unconsumed slots).</p>
       </div>
     
 
@@ -6889,8 +6878,8 @@ attach-time: producers/consumers via <code>getProducer().attach()</code> /
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L983" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:983
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L956" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:956
           </a>
         
       </div>
@@ -6923,9 +6912,9 @@ attach-time: producers/consumers via <code>getProducer().attach()</code> /
     
       <div class="doc-description">
         <p>Spsc-absorbed pop — direct slot read + segment advance with</p>
-<p><code>freeAligned(oldSeg)</code>. No pin (no retire-race; only one consumer
-ever runs, only one producer ever writes). Lifted verbatim from
-the unbounded SPSC pop path.</p>
+<p><code>freeAligned(oldSeg)</code>. No pin (no retire-race; only one consumer ever runs,
+only one producer ever writes). Lifted verbatim from the unbounded SPSC pop
+path.</p>
       </div>
     
 
@@ -6957,8 +6946,8 @@ the unbounded SPSC pop path.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1032" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1032
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1004" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1004
           </a>
         
       </div>
@@ -7028,8 +7017,8 @@ the unbounded SPSC pop path.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1072" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1072
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1043" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1043
           </a>
         
       </div>
@@ -7093,8 +7082,8 @@ the unbounded SPSC pop path.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1094" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1094
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1065" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1065
           </a>
         
       </div>
@@ -7164,8 +7153,8 @@ the unbounded SPSC pop path.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1110" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1110
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1081" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1081
           </a>
         
       </div>
@@ -7201,12 +7190,11 @@ the unbounded SPSC pop path.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Compile-time copy ban. A Queue owns heap state (segment chain +</p>
-<p>optionally the debra manager, recorded by <code>ownsManager</code>) that is
-reclaimed exactly once in <code>=destroy</code>. A field-wise copy would
-duplicate the owning <code>ptr</code>s and reclaim them twice. Move semantics
-(the implicit <code>=sink</code> synthesized alongside <code>=destroy</code>) remain
-available; only copies are rejected.</p>
+        <p>Compile-time copy ban. A Queue owns heap state (segment chain + optionally</p>
+<p>the debra manager, recorded by <code>ownsManager</code>) that is reclaimed exactly
+once in <code>=destroy</code>. A field-wise copy would duplicate the owning <code>ptr</code>s and
+reclaim them twice. Move semantics (the implicit <code>=sink</code> synthesized
+alongside <code>=destroy</code>) remain available; only copies are rejected.</p>
       </div>
     
 
@@ -7239,8 +7227,8 @@ available; only copies are rejected.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1131" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1131
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1102" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1102
           </a>
         
       </div>
@@ -7280,19 +7268,17 @@ available; only copies are rejected.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Destructor. Walks <code>headSegment</code> → <code>next</code> → ... freeing each</p>
-<p>segment. For non-spsc cardinalities, additionally unbinds the
-client refcount on the manager and (when <code>ownsManager</code>) runs the
-manager's destructor.</p>
-<p>Also drives the Lifecycle terminal transition
-(<code>QueueInit -&gt; QueueDestroyed</code>) via <code>destructorTransition</code>.</p>
-<p><strong>Precondition:</strong> all worker threads that attached to this queue
-must be joined before <code>=destroy</code> runs. debra 0.8.0 has no
-per-thread unregister; thread handles live until the manager is
-destroyed here. Destroying the queue while an attached worker is
-still pinning/popping is undefined. For shared-manager queues
-(<code>ownsManager == false</code>) the destructor only unbinds the client
-refcount; the manager is left intact for its owner to free.</p>
+        <p>Destructor. Walks <code>headSegment</code> → <code>next</code> → ... freeing each segment.</p>
+<p>For non-spsc cardinalities, additionally unbinds the client refcount on the
+manager and (when <code>ownsManager</code>) runs the manager's destructor.</p>
+<p>Also drives the Lifecycle terminal transition (<code>QueueInit -&gt;
+QueueDestroyed</code>) via <code>destructorTransition</code>.</p>
+<p><strong>Precondition:</strong> all worker threads that attached to this queue must be
+joined before <code>=destroy</code> runs. debra 0.8.0 has no per-thread unregister;
+thread handles live until the manager is destroyed here. Destroying the
+queue while an attached worker is still pinning/popping is undefined. For
+shared-manager queues (<code>ownsManager == false</code>) the destructor only unbinds
+the client refcount; the manager is left intact for its owner to free.</p>
       </div>
     
 
@@ -7319,8 +7305,8 @@ refcount; the manager is left intact for its owner to free.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1154" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1154
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1124" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1124
           </a>
         
       </div>
@@ -7356,9 +7342,8 @@ refcount; the manager is left intact for its owner to free.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Unbounded SPSC (<code>ccSingle × ccSingle</code>) auto-create</p>
-<p>smart-constructor. Skips manager allocation (SPSC has
-no debra integration).</p>
+        <p>Unbounded SPSC (<code>ccSingle × ccSingle</code>) auto-create smart-constructor.</p>
+<p>Skips manager allocation (SPSC has no debra integration).</p>
       </div>
     
 
@@ -7377,8 +7362,8 @@ no debra integration).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1230" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1230
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1196" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1196
           </a>
         
       </div>
@@ -7414,10 +7399,9 @@ no debra integration).</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Unbounded MPSC (<code>ccMulti × ccSingle</code>) borrow</p>
-<p>smart-constructor — manager-only form. The consumer thread calls
-<code>q.bindConsumer()</code> on its own thread to register and obtain its
-<code>Bound</code> endpoint.</p>
+        <p>Unbounded MPSC (<code>ccMulti × ccSingle</code>) borrow smart-constructor —</p>
+<p>manager-only form. The consumer thread calls <code>q.bindConsumer()</code> on its own
+thread to register and obtain its <code>Bound</code> endpoint.</p>
 <p>The consumer's debra handle is owned by <code>Bound</code> (opaque storage).
 <code>bindConsumer</code> wraps registration + binding in one call.</p>
       </div>
@@ -7451,8 +7435,8 @@ no debra integration).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1240" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1240
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1205" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1205
           </a>
         
       </div>
@@ -7489,8 +7473,8 @@ no debra integration).</p>
     
       <div class="doc-description">
         <p>Unbounded mpsc-equivalent (<code>ccMulti × ccSingle</code>) auto-create</p>
-<p>smart-constructor. No thread is registered at construction: the
-consumer thread calls <code>attachConsumer()</code> and producer threads call
+<p>smart-constructor. No thread is registered at construction: the consumer
+thread calls <code>attachConsumer()</code> and producer threads call
 <code>getProducer().attach()</code> on their own threads.</p>
       </div>
     
@@ -7510,8 +7494,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1256" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1256
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1220" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1220
           </a>
         
       </div>
@@ -7547,8 +7531,7 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Unbounded spmc-equivalent (<code>ccSingle × ccMulti</code>) borrow</p>
-<p>smart-constructor.</p>
+        <p>Unbounded spmc-equivalent (<code>ccSingle × ccMulti</code>) borrow smart-constructor.</p>
       </div>
     
 
@@ -7580,8 +7563,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1267" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1267
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1231" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1231
           </a>
         
       </div>
@@ -7637,8 +7620,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1278" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1278
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1241" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1241
           </a>
         
       </div>
@@ -7674,8 +7657,7 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Unbounded mpmc-equivalent (<code>ccMulti × ccMulti</code>) borrow</p>
-<p>smart-constructor.</p>
+        <p>Unbounded mpmc-equivalent (<code>ccMulti × ccMulti</code>) borrow smart-constructor.</p>
       </div>
     
 
@@ -7707,8 +7689,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1287" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1287
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1250" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1250
           </a>
         
       </div>
@@ -7764,8 +7746,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1298" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1298
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1260" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1260
           </a>
         
       </div>
@@ -7820,8 +7802,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1307" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1307
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1269" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1269
           </a>
         
       </div>
@@ -7857,7 +7839,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Smart constructor for SpscQueue (Single-Producer Single-Consumer Unbounded).</p>
+        <p>Smart constructor for SpscQueue (Single-Producer Single-Consumer</p>
+<p>Unbounded).</p>
       </div>
     
 
@@ -7876,8 +7859,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1316" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1316
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1278" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1278
           </a>
         
       </div>
@@ -7932,8 +7915,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1324" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1324
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1287" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1287
           </a>
         
       </div>
@@ -7988,8 +7971,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1332" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1332
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1295" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1295
           </a>
         
       </div>
@@ -8044,8 +8027,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1340" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1340
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1303" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1303
           </a>
         
       </div>
@@ -8118,8 +8101,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1364" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1364
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1326" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1326
           </a>
         
       </div>
@@ -8192,8 +8175,8 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1578" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1578
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1533" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1533
           </a>
         
       </div>
@@ -8233,9 +8216,9 @@ consumer thread calls <code>attachConsumer()</code> and producer threads call
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Pop for <code>ccCons == ccSingle</code> (SPSC + MPSC). Single consumer thread,</p>
-<p>no pin required. Body consolidates the two direct-on-Queue pop
-overloads with cardinality dispatch via the existing <code>when</code> arms.</p>
+        <p>Pop for <code>ccCons == ccSingle</code> (SPSC + MPSC). Single consumer thread, no pin</p>
+<p>required. Body consolidates the two direct-on-Queue pop overloads with
+cardinality dispatch via the existing <code>when</code> arms.</p>
       </div>
     
 
@@ -8267,8 +8250,8 @@ overloads with cardinality dispatch via the existing <code>when</code> arms.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1593" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1593
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1548" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1548
           </a>
         
       </div>
@@ -8346,8 +8329,8 @@ overloads with cardinality dispatch via the existing <code>when</code> arms.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1686" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1686
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1639" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1639
           </a>
         
       </div>
@@ -8387,8 +8370,8 @@ overloads with cardinality dispatch via the existing <code>when</code> arms.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>SPMC pop — retire-bearing site. Pin claim via reconstructed</p>
-<p>ThreadHandle from opaque Bound storage.</p>
+        <p>SPMC pop — retire-bearing site. Pin claim via reconstructed ThreadHandle</p>
+<p>from opaque Bound storage.</p>
 <p>DEBRA Pin–Claim Ordering Invariant (both topologies):</p>
 <ol>
 <li>Pin opens BEFORE headSegment.load (this <code>pinScope</code> scope).</li>
@@ -8402,18 +8385,18 @@ overloads with cardinality dispatch via the existing <code>when</code> arms.</p>
 <li>Pin coverage (topology-conditional):</li>
 </ol>
 <p>a. Consumer (both SPMC and MPMC): pin opens BEFORE the consumer's slot
-      claim / close-CAS in <code>pop</code>, and remains open THROUGH the claim/close
-      completion AND the subsequent item extraction or segment transition.
-      Same <code>pinScope</code> as the <code>headSegment.load</code> that produced the segment
-      pointer.</p>
-<p>b. MPMC producer: push publish-CAS occurs within the same <code>pinScope</code>
-      as the <code>tailSegment.load</code> that produced the segment pointer.
-      Required because peer producers can retire the segment under us
-      via headSegment-advance (peer-producer retire race).
-      Implementation: MPMC push wraps the retry loop in <code>pinScope</code>.</p>
+   claim / close-CAS in <code>pop</code>, and remains open THROUGH the claim/close
+   completion AND the subsequent item extraction or segment transition.
+   Same <code>pinScope</code> as the <code>headSegment.load</code> that produced the segment
+   pointer.</p>
+<p>b. MPMC producer: push publish-CAS occurs within the same <code>pinScope</code> as
+   the <code>tailSegment.load</code> that produced the segment pointer. Required
+   because peer producers can retire the segment under us via
+   headSegment-advance (peer-producer retire race). Implementation: MPMC
+   push wraps the retry loop in <code>pinScope</code>.</p>
 <p>c. SPMC producer: push does NOT require <code>pinScope</code>. Single-producer
-      immunity: no peer producer can retire the segment under us.
-      Implementation: SPMC push explicitly opts out of <code>pinScope</code>.</p>
+   immunity: no peer producer can retire the segment under us.
+   Implementation: SPMC push explicitly opts out of <code>pinScope</code>.</p>
 <p>DO NOT alter pinScope without re-establishing this invariant.</p>
       </div>
     
@@ -8446,8 +8429,8 @@ overloads with cardinality dispatch via the existing <code>when</code> arms.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1710" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1710
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1663" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1663
           </a>
         
       </div>
@@ -8501,18 +8484,18 @@ overloads with cardinality dispatch via the existing <code>when</code> arms.</p>
 <li>Pin coverage (topology-conditional):</li>
 </ol>
 <p>a. Consumer (both SPMC and MPMC): pin opens BEFORE the consumer's slot
-      claim / close-CAS in <code>pop</code>, and remains open THROUGH the claim/close
-      completion AND the subsequent item extraction or segment transition.
-      Same <code>pinScope</code> as the <code>headSegment.load</code> that produced the segment
-      pointer.</p>
-<p>b. MPMC producer: push publish-CAS occurs within the same <code>pinScope</code>
-      as the <code>tailSegment.load</code> that produced the segment pointer.
-      Required because peer producers can retire the segment under us
-      via headSegment-advance (peer-producer retire race).
-      Implementation: MPMC push wraps the retry loop in <code>pinScope</code>.</p>
+   claim / close-CAS in <code>pop</code>, and remains open THROUGH the claim/close
+   completion AND the subsequent item extraction or segment transition.
+   Same <code>pinScope</code> as the <code>headSegment.load</code> that produced the segment
+   pointer.</p>
+<p>b. MPMC producer: push publish-CAS occurs within the same <code>pinScope</code> as
+   the <code>tailSegment.load</code> that produced the segment pointer. Required
+   because peer producers can retire the segment under us via
+   headSegment-advance (peer-producer retire race). Implementation: MPMC
+   push wraps the retry loop in <code>pinScope</code>.</p>
 <p>c. SPMC producer: push does NOT require <code>pinScope</code>. Single-producer
-      immunity: no peer producer can retire the segment under us.
-      Implementation: SPMC push explicitly opts out of <code>pinScope</code>.</p>
+   immunity: no peer producer can retire the segment under us.
+   Implementation: SPMC push explicitly opts out of <code>pinScope</code>.</p>
 <p>DO NOT alter pinScope without re-establishing this invariant.</p>
       </div>
     
@@ -8545,8 +8528,8 @@ overloads with cardinality dispatch via the existing <code>when</code> arms.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1810" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:1810
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L1764" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:1764
           </a>
         
       </div>
@@ -8620,8 +8603,8 @@ overloads with cardinality dispatch via the existing <code>when</code> arms.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2216" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2216
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2146" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2146
           </a>
         
       </div>
@@ -8661,9 +8644,9 @@ overloads with cardinality dispatch via the existing <code>when</code> arms.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Batch pop for Queue into caller-supplied buffer <code>dest</code>.</p>
-<p>For MPMC strict-LCRQ, amortizes slot reservations on <code>prevConsumerIdx</code>
-via atomic slot advance and runs SMR epoch advancement once for the entire batch.</p>
+        <p>Batch pop for Queue into caller-supplied buffer <code>dest</code>. For MPMC</p>
+<p>strict-LCRQ, amortizes slot reservations on <code>prevConsumerIdx</code> via atomic
+slot advance and runs SMR epoch advancement once for the entire batch.</p>
       </div>
     
 
@@ -8707,8 +8690,8 @@ via atomic slot advance and runs SMR epoch advancement once for the entire batch
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2240" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2240
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2170" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2170
           </a>
         
       </div>
@@ -8788,8 +8771,8 @@ via atomic slot advance and runs SMR epoch advancement once for the entire batch
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2462" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2462
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2392" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2392
           </a>
         
       </div>
@@ -8863,8 +8846,8 @@ via atomic slot advance and runs SMR epoch advancement once for the entire batch
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2476" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2476
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2406" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2406
           </a>
         
       </div>
@@ -8938,8 +8921,8 @@ via atomic slot advance and runs SMR epoch advancement once for the entire batch
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2491" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2491
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2421" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2421
           </a>
         
       </div>
@@ -8971,9 +8954,9 @@ via atomic slot advance and runs SMR epoch advancement once for the entire batch
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Drain SPSC-absorbed unbounded Queue. Bare-Queue pop is available</p>
-<p>for SPSC only (the only arm where direct-on-Queue pop survived
-v5.0.0); other cardinalities route drain through Bound endpoints.</p>
+        <p>Drain SPSC-absorbed unbounded Queue. Bare-Queue pop is available for SPSC</p>
+<p>only (the only arm where direct-on-Queue pop survived v5.0.0); other
+cardinalities route drain through Bound endpoints.</p>
       </div>
     
 
@@ -9005,8 +8988,8 @@ v5.0.0); other cardinalities route drain through Bound endpoints.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2526" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2526
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2454" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2454
           </a>
         
       </div>
@@ -9070,8 +9053,8 @@ v5.0.0); other cardinalities route drain through Bound endpoints.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2542" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2542
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2470" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2470
           </a>
         
       </div>
@@ -9135,8 +9118,8 @@ v5.0.0); other cardinalities route drain through Bound endpoints.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2555" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2555
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2483" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2483
           </a>
         
       </div>
@@ -9169,8 +9152,8 @@ v5.0.0); other cardinalities route drain through Bound endpoints.</p>
     
       <div class="doc-description">
         <p>Drain MPMC unbounded Queue via Bound consumer endpoint. The MPMC</p>
-<p>consumer-CAS pop succeeds on the first try under the single-
-consumer drain contract (no contention).</p>
+<p>consumer-CAS pop succeeds on the first try under the single- consumer drain
+contract (no contention).</p>
       </div>
     
 
@@ -9202,8 +9185,8 @@ consumer drain contract (no contention).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2568" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2568
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2496" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2496
           </a>
         
       </div>
@@ -9263,8 +9246,8 @@ consumer drain contract (no contention).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2588" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2588
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2516" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2516
           </a>
         
       </div>
@@ -9324,8 +9307,8 @@ consumer drain contract (no contention).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2600" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2600
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2528" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2528
           </a>
         
       </div>
@@ -9385,8 +9368,8 @@ consumer drain contract (no contention).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2613" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2613
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2541" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2541
           </a>
         
       </div>
@@ -9446,8 +9429,8 @@ consumer drain contract (no contention).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2626" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2626
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2554" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2554
           </a>
         
       </div>
@@ -9479,11 +9462,10 @@ consumer drain contract (no contention).</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Drain SPSC unbounded Queue, run <code>cleanup</code> per item, then destroy.</p>
-<p>Takes <code>sink</code> of the queue so the caller's binding is moved-from
-(preventing scope-end double-destroy). Under mm:none this is the
-ONLY safe teardown path for a non-empty queue with ref / string /
-seq payloads.</p>
+        <p>Drain SPSC unbounded Queue, run <code>cleanup</code> per item, then destroy. Takes</p>
+<p><code>sink</code> of the queue so the caller's binding is moved-from (preventing
+scope-end double-destroy). Under mm:none this is the ONLY safe teardown
+path for a non-empty queue with ref / string / seq payloads.</p>
       </div>
     
 
@@ -9516,8 +9498,8 @@ seq payloads.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2639" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2639
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2567" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2567
           </a>
         
       </div>
@@ -9549,8 +9531,8 @@ seq payloads.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>SPSC POD discard overload. Takes <code>sink</code> to prevent caller-side</p>
-<p>scope-end double-destroy.</p>
+        <p>SPSC POD discard overload. Takes <code>sink</code> to prevent caller-side scope-end</p>
+<p>double-destroy.</p>
       </div>
     
 
@@ -9577,8 +9559,8 @@ seq payloads.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2658" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2658
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2585" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2585
           </a>
         
       </div>
@@ -9610,8 +9592,8 @@ seq payloads.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Test-only accessor: returns the queue's current head-segment</p>
-<p>pointer so the cache-line padding audit can verify base alignment.</p>
+        <p>Test-only accessor: returns the queue's current head-segment pointer so</p>
+<p>the cache-line padding audit can verify base alignment.</p>
       </div>
     
 
@@ -9643,8 +9625,8 @@ seq payloads.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2685" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2685
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2610" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2610
           </a>
         
       </div>
@@ -9676,8 +9658,8 @@ seq payloads.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Test-only accessor: returns offset of the cache-line-padded <code>tail</code></p>
-<p>field within the unified Segment for any cardinality.</p>
+        <p>Test-only accessor: returns offset of the cache-line-padded <code>tail</code> field</p>
+<p>within the unified Segment for any cardinality.</p>
       </div>
     
 
@@ -9709,8 +9691,8 @@ seq payloads.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2695" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2695
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2620" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2620
           </a>
         
       </div>
@@ -9742,9 +9724,9 @@ seq payloads.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Test-only accessor: returns offset of <code>head</code> for cardinality</p>
-<p>combos that carry it (<code>ccCons == ccSingle</code>). For shapes that
-lack <code>head</code> Nim's <code>offsetOf</code> will compile-fail at the call site.</p>
+        <p>Test-only accessor: returns offset of <code>head</code> for cardinality combos that</p>
+<p>carry it (<code>ccCons == ccSingle</code>). For shapes that lack <code>head</code> Nim's
+<code>offsetOf</code> will compile-fail at the call site.</p>
       </div>
     
 
@@ -9776,8 +9758,8 @@ lack <code>head</code> Nim's <code>offsetOf</code> will compile-fail at the call
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2702" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2702
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2627" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2627
           </a>
         
       </div>
@@ -9809,11 +9791,11 @@ lack <code>head</code> Nim's <code>offsetOf</code> will compile-fail at the call
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Test-only accessor: returns offset of <code>committed</code> for cardinality</p>
-<p>combos that carry it (<code>ccProd == ccMulti and ccCons == ccSingle</code>,
-i.e. MPSC only). MPMC carries <code>cells</code>; use
-<code>segmentCellsOffsetForTest</code> on the MPMC arm. Calling this with an
-MPMC cardinality fails at the <code>offsetOf</code> site (field absent).</p>
+        <p>Test-only accessor: returns offset of <code>committed</code> for cardinality combos</p>
+<p>that carry it (<code>ccProd == ccMulti and ccCons == ccSingle</code>, i.e. MPSC
+only). MPMC carries <code>cells</code>; use <code>segmentCellsOffsetForTest</code> on the MPMC
+arm. Calling this with an MPMC cardinality fails at the <code>offsetOf</code> site
+(field absent).</p>
       </div>
     
 
@@ -9845,8 +9827,8 @@ MPMC cardinality fails at the <code>offsetOf</code> site (field absent).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2710" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2710
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2635" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2635
           </a>
         
       </div>
@@ -9878,10 +9860,10 @@ MPMC cardinality fails at the <code>offsetOf</code> site (field absent).</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Test-only accessor: returns offset of the strict-LCRQ <code>cells</code> array</p>
-<p>for the MPMC arm (<code>ccProd == ccMulti and ccCons == ccMulti</code>). Other
-cardinality combos lack the field; calling there compile-fails at
-the <code>offsetOf</code> site.</p>
+        <p>Test-only accessor: returns offset of the strict-LCRQ <code>cells</code> array for</p>
+<p>the MPMC arm (<code>ccProd == ccMulti and ccCons == ccMulti</code>). Other
+cardinality combos lack the field; calling there compile-fails at the
+<code>offsetOf</code> site.</p>
       </div>
     
 
@@ -9913,8 +9895,8 @@ the <code>offsetOf</code> site.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2720" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2720
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2645" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2645
           </a>
         
       </div>
@@ -9946,8 +9928,8 @@ the <code>offsetOf</code> site.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Test-only accessor: returns offset of <code>prevConsumerIdx</code> for</p>
-<p>cardinality combos that carry it (<code>ccCons == ccMulti</code>).</p>
+        <p>Test-only accessor: returns offset of <code>prevConsumerIdx</code> for cardinality</p>
+<p>combos that carry it (<code>ccCons == ccMulti</code>).</p>
       </div>
     
 
@@ -9979,8 +9961,8 @@ the <code>offsetOf</code> site.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2729" target="_blank" rel="noopener">
-            src/lockfree/queue.nim:2729
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/queue.nim#L2654" target="_blank" rel="noopener">
+            src/lockfree/queue.nim:2654
           </a>
         
       </div>

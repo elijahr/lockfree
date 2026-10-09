@@ -3218,36 +3218,34 @@ paper §4 for the broader protocol context.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Path-C admission dispatch — the user-facing <code>T</code> type-class gate that
-sits at the head of every <code>Queue</code> / <code>BQueue</code> push, pop, drain entry
-point.</p>
+        <p>Path-C admission dispatch — the user-facing <code>T</code> type-class gate that sits
+at the head of every <code>Queue</code> / <code>BQueue</code> push, pop, drain entry point.</p>
 <h5 id="path_c_admit--behaviour">Behaviour<a class="headerlink" href="#path_c_admit--behaviour" title="Permanent link">¶</a></h5>
 <ul>
 <li>Path-C string / seq handling (no <code>ManagedSlice</code> indirection).</li>
-<li><code>when T is ref:</code> composition matrix (25 rows; verbatim REJECT
-  messages for rows 7 and 8).</li>
+<li><code>when T is ref:</code> composition matrix (25 rows; verbatim REJECT messages for
+  rows 7 and 8).</li>
 <li>Nullable T handling (<code>nil</code> passthrough — not a reject).</li>
 <li>ref T rejection rules (canonical <code>when</code> / <code>elif</code> chain shape).</li>
 <li>mm:none + ref T contract details (pure bit transport).</li>
 <li>ManagedRef[X] shim impl details (per-MM inc/dec wrappers).</li>
-<li>Path-C string / seq inline transfer-ownership:
-  <code>sink string</code> / <code>sink seq[U]</code> flow through the slot's <code>Pair.second</code>
-  half. Per-MM treatment lives at the call site inside the queue's
-  push/pop body; this admission template only validates the type-class.</li>
+<li>Path-C string / seq inline transfer-ownership: <code>sink string</code> / <code>sink
+  seq[U]</code> flow through the slot's <code>Pair.second</code> half. Per-MM treatment lives
+  at the call site inside the queue's push/pop body; this admission template
+  only validates the type-class.</li>
 </ul>
 <h5 id="path_c_admit--why-a-template-not-a-when-block-inlined-at-every-call-site">Why a template, not a <code>when</code> block inlined at every call site<a class="headerlink" href="#path_c_admit--why-a-template-not-a-when-block-inlined-at-every-call-site" title="Permanent link">¶</a></h5>
-<p>The reject/accept chain repeats VERBATIM at every user-facing push,
-pop, and drain entry across both <code>queue.nim</code> and <code>bqueue.nim</code>.
-Inlining it 14+ times would bake the REJECT messages into copies that
-drift the moment someone updates one and forgets the others.
-Centralising it in one template makes the matrix the single source of
-truth.</p>
+<p>The reject/accept chain repeats VERBATIM at every user-facing push, pop, and
+drain entry across both <code>queue.nim</code> and <code>bqueue.nim</code>. Inlining it 14+ times
+would bake the REJECT messages into copies that drift the moment someone
+updates one and forgets the others. Centralising it in one template makes the
+matrix the single source of truth.</p>
 <p>The template expands to a <code>when</code> chain that emits either a compile-time
 <code>{.error.}</code> (REJECT rows + unsupported fallback) or expands to nothing
 (ACCEPT rows).</p>
 <h5 id="path_c_admit--not-user-facing">NOT user-facing<a class="headerlink" href="#path_c_admit--not-user-facing" title="Permanent link">¶</a></h5>
-<p>This module is an internal implementation detail. Users see only the
-<code>Queue</code> / <code>BQueue</code> types and their push/pop/drain APIs.</p>
+<p>This module is an internal implementation detail. Users see only the <code>Queue</code>
+/ <code>BQueue</code> types and their push/pop/drain APIs.</p>
       </div>
     
 
@@ -3307,8 +3305,8 @@ truth.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/internal/path_c_admit.nim#L41" target="_blank" rel="noopener">
-            src/lockfree/internal/path_c_admit.nim:41
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/internal/path_c_admit.nim#L39" target="_blank" rel="noopener">
+            src/lockfree/internal/path_c_admit.nim:39
           </a>
         
       </div>
@@ -3340,30 +3338,29 @@ truth.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>Static dispatch / admission gate for <code>Queue[T, ...]</code> and</p>
-<p><code>BQueue[T, ...]</code> push, pop, drain entries.</p>
-<p>Emits compile-time <code>{.error.}</code> for the REJECT rows (distinct
-ref alias row 7, nested <code>ref ref</code> row 8, value types with managed
-fields) and the unsupported-T fallback. Accept rows
-(<code>ref T</code>, <code>string</code>, <code>seq[U]</code>, POD) expand to nothing; their
-per-MM lifecycle handling lives at the call site below.</p>
-<p>The chain ORDER MATTERS. Reject arms must come BEFORE accept arms so
-a <code>ref ref Foo</code> does not match the plain <code>T is ref</code> accept arm by way
-of "outer ref still matches <code>is ref</code>."</p>
+        <p>Static dispatch / admission gate for <code>Queue[T, ...]</code> and <code>BQueue[T, ...]</code></p>
+<p>push, pop, drain entries.</p>
+<p>Emits compile-time <code>{.error.}</code> for the REJECT rows (distinct ref alias row
+7, nested <code>ref ref</code> row 8, value types with managed fields) and the
+unsupported-T fallback. Accept rows (<code>ref T</code>, <code>string</code>, <code>seq[U]</code>, POD)
+expand to nothing; their per-MM lifecycle handling lives at the call site
+below.</p>
+<p>The chain ORDER MATTERS. Reject arms must come BEFORE accept arms so a <code>ref
+ref Foo</code> does not match the plain <code>T is ref</code> accept arm by way of "outer
+ref still matches <code>is ref</code>."</p>
 <p>Row order verification:</p>
 <ul>
-<li><code>T is ref and (T is ref ref ...)</code> reject arm matches nested refs.
-  <code>T is ref</code> plain accept arm fires only for direct <code>ref</code> to a
-  non-ref user type, never for <code>ref ref</code>.</li>
+<li><code>T is ref and (T is ref ref ...)</code> reject arm matches nested refs. <code>T is
+  ref</code> plain accept arm fires only for direct <code>ref</code> to a non-ref user type,
+  never for <code>ref ref</code>.</li>
 <li><code>T is distinct and distinctBase(T) is ref</code> reject arm matches
   distinct-of-ref aliases. Plain <code>T is distinct</code> does not match
-  non-distinct types so the downstream <code>T is ref</code> accept arm
-  catches exactly the intended population.</li>
+  non-distinct types so the downstream <code>T is ref</code> accept arm catches
+  exactly the intended population.</li>
 </ul>
-<p>Nullable note: <code>nil</code> for <code>ref T</code>, <code>ptr T</code>, <code>pointer</code>, and
-<code>cstring</code> is ACCEPTED (slot bits = 0, disambiguated by the seq
-counter / committed flag at the slot-state predicate layer). The
-admit chain does NOT reject <code>nil</code>.</p>
+<p>Nullable note: <code>nil</code> for <code>ref T</code>, <code>ptr T</code>, <code>pointer</code>, and <code>cstring</code> is
+ACCEPTED (slot bits = 0, disambiguated by the seq counter / committed flag
+at the slot-state predicate layer). The admit chain does NOT reject <code>nil</code>.</p>
       </div>
     
 
@@ -3390,8 +3387,8 @@ admit chain does NOT reject <code>nil</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/internal/path_c_admit.nim#L55" target="_blank" rel="noopener">
-            src/lockfree/internal/path_c_admit.nim:55
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/internal/path_c_admit.nim#L53" target="_blank" rel="noopener">
+            src/lockfree/internal/path_c_admit.nim:53
           </a>
         
       </div>

@@ -3198,17 +3198,17 @@ in one place.</p>
   <div class="doc doc-contents first">
     
       <div class="doc-description">
-        <p>SlotEncoding[T] — compile-time mapping from user-facing T to encoded slot type.</p>
-<p>Unified encoding:
-  ref X    -&gt; ManagedRef[X]    (8B distinct uint; refcount lifecycle)
-  string   -&gt; ManagedSlice[char] (8B distinct uint; box pointer)
-  seq[U]   -&gt; ManagedSlice[U]    (8B distinct uint; box pointer)
-  POD T    -&gt; T (identity; assumed sizeof(T) &lt;= sizeof(uint))</p>
+        <p>SlotEncoding[T] — compile-time mapping from user-facing T to encoded slot
+type.</p>
+<p>Unified encoding: ref X -&gt; ManagedRef[X] (8B distinct uint; refcount
+lifecycle) string -&gt; ManagedSlice[char] (8B distinct uint; box pointer)
+seq[U] -&gt; ManagedSlice[U] (8B distinct uint; box pointer) POD T -&gt; T
+(identity; assumed sizeof(T) &lt;= sizeof(uint))</p>
 <p>Cells in Segment + MPMCCellArrayN are typed <code>LCRQCell[SlotEncoding(T)]</code> /
 <code>MPMCCell[SlotEncoding(T)]</code>.</p>
 <p>Internal-only. NEVER user-facing. The user writes <code>Queue[ref Foo, ...]</code>,
-<code>Queue[string, ...]</code>, or <code>Queue[seq[int], ...]</code>; this template performs
-the wire-format substitution invisibly inside the queue cores.</p>
+<code>Queue[string, ...]</code>, or <code>Queue[seq[int], ...]</code>; this template performs the
+wire-format substitution invisibly inside the queue cores.</p>
       </div>
     
 
@@ -3238,8 +3238,8 @@ the wire-format substitution invisibly inside the queue cores.</p>
       <div class="doc-description">
         <p>Map a user-facing payload type <code>T</code> to its slot-encoded wire type.</p>
 <p>Type-extraction grammar (verified under Nim 2.2.10):
-  * <code>typeof(default(T)[])</code>   — pointee of <code>ref X</code>
-  * <code>typeof(default(T)[0])</code>  — element of <code>seq[U]</code>.</p>
+  * <code>typeof(default(T)[])</code> — pointee of <code>ref X</code>
+  * <code>typeof(default(T)[0])</code> — element of <code>seq[U]</code>.</p>
       </div>
     
 
