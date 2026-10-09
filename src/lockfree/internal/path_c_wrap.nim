@@ -74,9 +74,12 @@ template unwrapOrIdentity*[T](encoded: SlotEncoding(T)): T =
   ## the queue's +1 refcount share (claimed by ``wrapOrIdentity`` at
   ## push) is INHERITED by the caller's binding. ``=destroy`` will
   ## fire on the caller's binding when their local leaves scope.
-  bind unwrap, unwrapSeq, toRef
+  bind unwrap, unwrapSeq, toRef, decRefSlot
   when T is ref:
-    toRef(encoded)
+    block:
+      let res = toRef(encoded)
+      decRefSlot(encoded)
+      res
   elif T is string:
     # Non-generic string unwrap (StringBox path).
     unwrap(encoded)

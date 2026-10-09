@@ -239,6 +239,7 @@ suite "ChaseLevDeque — Concurrent Multi-Thief Stress Tests":
       poppedOrStolen: ptr array[10000, Atomic[int]]
       workerCount: int
       thiefCount: int
+      stopFlag: Atomic[bool]
 
   proc thiefWorker(ctx: ptr StressContext) {.thread.} =
     var stolen = 0
@@ -250,13 +251,16 @@ suite "ChaseLevDeque — Concurrent Multi-Thief Stress Tests":
           discard ctx.poppedOrStolen[val].fetchAdd(1, moRelaxed)
           inc stolen
       else:
-        # Check if all items processed or yield
-        var allDone = true
-        for i in 0 ..< ctx.totalItems:
-          if ctx.poppedOrStolen[i].load(moRelaxed) == 0:
-            allDone = false
-            break
-        if allDone:
+        if ctx.stopFlag.load(moAcquire):
+          while true:
+            let leftover = ctx.deque.steal()
+            if leftover.isSome:
+              let val = leftover.get()
+              if val >= 0 and val < ctx.totalItems:
+                discard ctx.poppedOrStolen[val].fetchAdd(1, moRelaxed)
+                inc stolen
+            else:
+              break
           break
         sleep(0)
 
@@ -274,6 +278,7 @@ suite "ChaseLevDeque — Concurrent Multi-Thief Stress Tests":
       workerCount: 1,
       thiefCount: 4
     )
+    ctx.stopFlag.store(false, moRelaxed)
 
     var thiefThreads: array[4, Thread[ptr StressContext]]
     for i in 0 ..< 4:
@@ -288,17 +293,20 @@ suite "ChaseLevDeque — Concurrent Multi-Thief Stress Tests":
           let val = popped.get()
           discard poppedOrStolen[val].fetchAdd(1, moRelaxed)
 
-    # Join thieves
-    for i in 0 ..< 4:
-      joinThread(thiefThreads[i])
-
-    # Drain any leftovers
+    # Drain any leftovers from worker side
     while true:
       let p = deque.popBottom()
       if p.isSome:
         discard poppedOrStolen[p.get()].fetchAdd(1, moRelaxed)
       else:
         break
+
+    # Signal thieves to stop
+    ctx.stopFlag.store(true, moRelease)
+
+    # Join thieves
+    for i in 0 ..< 4:
+      joinThread(thiefThreads[i])
 
     # Verification: every single item was processed EXACTLY once
     for i in 0 ..< Total:
@@ -314,12 +322,16 @@ suite "ChaseLevDeque — Concurrent Multi-Thief Stress Tests":
           if val >= 0 and val < ctx.totalItems:
             discard ctx.poppedOrStolen[val].fetchAdd(1, moRelaxed)
       else:
-        var allDone = true
-        for i in 0 ..< ctx.totalItems:
-          if ctx.poppedOrStolen[i].load(moRelaxed) == 0:
-            allDone = false
-            break
-        if allDone:
+        if ctx.stopFlag.load(moAcquire):
+          while true:
+            let rem = ctx.deque.stealBatch(buf, maxItems = 8)
+            if rem > 0:
+              for i in 0 ..< rem:
+                let val = buf[i]
+                if val >= 0 and val < ctx.totalItems:
+                  discard ctx.poppedOrStolen[val].fetchAdd(1, moRelaxed)
+            else:
+              break
           break
         sleep(0)
 
@@ -337,6 +349,7 @@ suite "ChaseLevDeque — Concurrent Multi-Thief Stress Tests":
       workerCount: 1,
       thiefCount: 4
     )
+    ctx.stopFlag.store(false, moRelaxed)
 
     var thiefThreads: array[4, Thread[ptr StressContext]]
     for i in 0 ..< 4:
@@ -349,9 +362,13 @@ suite "ChaseLevDeque — Concurrent Multi-Thief Stress Tests":
         if p.isSome:
           discard poppedOrStolen[p.get()].fetchAdd(1, moRelaxed)
 
+    # Signal thieves to stop
+    ctx.stopFlag.store(true, moRelease)
+
     for i in 0 ..< 4:
       joinThread(thiefThreads[i])
 
+    # Drain leftovers from worker side after thieves have completed
     while true:
       let p = deque.popBottom()
       if p.isSome:
