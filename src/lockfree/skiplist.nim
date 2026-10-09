@@ -25,7 +25,7 @@ when not compileOption("threads"):
   {.error: "lockfree/skiplist requires --threads:on".}
 
 import std/[options]
-import typestates
+import pkg/typestates
 import ./atomics
 import ./smr/nebr
 import ./internal/aligned_alloc
