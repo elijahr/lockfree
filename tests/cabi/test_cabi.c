@@ -16,6 +16,7 @@
 #include <stdbool.h>
 #include <assert.h>
 #include <pthread.h>
+#include <time.h>
 #include "lockfree.h"
 
 /* Nim runtime initialization symbol exported by liblockfree.a */
@@ -601,7 +602,197 @@ static void test_cabi_broadcast(void) {
 }
 
 /* -------------------------------------------------------------------------
- * Test 9: Concurrent Multithreaded MPMC Queue Test via pthreads
+ * Test 9: RendezvousChannel (Zero-Buffer Synchronous Dual Channel)
+ * ------------------------------------------------------------------------- */
+
+typedef struct {
+    lfq_rendezvous_t* chan;
+    size_t count;
+    uintptr_t start_val;
+    uint64_t* corr_ids;
+} rz_thread_arg_t;
+
+static void* rz_sender_worker(void* raw_arg) {
+    rz_thread_arg_t* arg = (rz_thread_arg_t*)raw_arg;
+    for (size_t i = 0; i < arg->count; i++) {
+        uintptr_t val = arg->start_val + i;
+        uint64_t cid = 0;
+        lfq_status_t s = lfq_rendezvous_send(arg->chan, (void*)val, &cid);
+        TEST_ASSERT(s == LFQ_OK, "lfq_rendezvous_send failed in sender worker");
+        TEST_ASSERT(cid > 0, "Correlation ID should be positive");
+        if (arg->corr_ids != NULL) {
+            arg->corr_ids[i] = cid;
+        }
+    }
+    return NULL;
+}
+
+static void* rz_receiver_worker(void* raw_arg) {
+    rz_thread_arg_t* arg = (rz_thread_arg_t*)raw_arg;
+    for (size_t i = 0; i < arg->count; i++) {
+        void* item = NULL;
+        uint64_t cid = 0;
+        lfq_status_t s = lfq_rendezvous_recv(arg->chan, &item, &cid);
+        TEST_ASSERT(s == LFQ_OK, "lfq_rendezvous_recv failed in receiver worker");
+        uintptr_t val = (uintptr_t)item;
+        TEST_ASSERT(val == arg->start_val + i, "Received item mismatch");
+        TEST_ASSERT(cid > 0, "Correlation ID should be positive");
+        if (arg->corr_ids != NULL) {
+            arg->corr_ids[i] = cid;
+        }
+    }
+    return NULL;
+}
+
+typedef struct {
+    lfq_rendezvous_t* chan;
+    lfq_status_t result_status;
+} rz_close_waiter_arg_t;
+
+static void* rz_close_waiter_worker(void* raw_arg) {
+    rz_close_waiter_arg_t* arg = (rz_close_waiter_arg_t*)raw_arg;
+    void* item = NULL;
+    uint64_t cid = 0;
+    arg->result_status = lfq_rendezvous_recv(arg->chan, &item, &cid);
+    return NULL;
+}
+
+static void test_cabi_rendezvous(void) {
+    printf("Running test_cabi_rendezvous...\n");
+    lfq_rendezvous_t* chan = NULL;
+    lfq_status_t status = lfq_rendezvous_create(&chan);
+    TEST_ASSERT(status == LFQ_OK && chan != NULL, "lfq_rendezvous_create failed");
+    TEST_ASSERT(!lfq_rendezvous_is_closed(chan), "Channel should not be closed initially");
+
+    /* 1. Immediate non-blocking operations on empty channel */
+    uint64_t corr_id = 0;
+    void* item = NULL;
+    status = lfq_rendezvous_try_send(chan, (void*)(uintptr_t)42, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY, "try_send without receiver must return LFQ_ERR_EMPTY");
+    status = lfq_rendezvous_try_recv(chan, &item, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY, "try_recv without sender must return LFQ_ERR_EMPTY");
+
+    /* 2. Bounded timeout operations without matching peer */
+    status = lfq_rendezvous_send_timeout(chan, (void*)(uintptr_t)42, 10, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY, "send_timeout without receiver must return LFQ_ERR_EMPTY");
+    status = lfq_rendezvous_recv_timeout(chan, &item, 10, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY, "recv_timeout without sender must return LFQ_ERR_EMPTY");
+
+    /* 3. Bilateral handoff across threads with correlation ID identity */
+    const size_t NUM_HANDOFFS = 200;
+    uint64_t* sender_cids = (uint64_t*)calloc(NUM_HANDOFFS, sizeof(uint64_t));
+    uint64_t* receiver_cids = (uint64_t*)calloc(NUM_HANDOFFS, sizeof(uint64_t));
+    TEST_ASSERT(sender_cids != NULL && receiver_cids != NULL, "calloc failed");
+
+    rz_thread_arg_t sender_arg = {
+        chan,
+        NUM_HANDOFFS,
+        1000,
+        sender_cids
+    };
+    rz_thread_arg_t receiver_arg = {
+        chan,
+        NUM_HANDOFFS,
+        1000,
+        receiver_cids
+    };
+
+    pthread_t th_recv, th_send;
+    pthread_create(&th_recv, NULL, rz_receiver_worker, &receiver_arg);
+    pthread_create(&th_send, NULL, rz_sender_worker, &sender_arg);
+
+    pthread_join(th_send, NULL);
+    pthread_join(th_recv, NULL);
+
+    /* Verify 100% correlation ID identity between sender and receiver */
+    for (size_t i = 0; i < NUM_HANDOFFS; i++) {
+        TEST_ASSERT(sender_cids[i] != 0, "Sender cid must be non-zero");
+        TEST_ASSERT(receiver_cids[i] != 0, "Receiver cid must be non-zero");
+        TEST_ASSERT(sender_cids[i] == receiver_cids[i], "Sender and receiver corrId must match identically!");
+        if (i > 0) {
+            TEST_ASSERT(sender_cids[i] > sender_cids[i - 1], "Correlation IDs must be monotonically increasing");
+        }
+    }
+    free(sender_cids);
+    free(receiver_cids);
+
+    /* 4. Section 9.1 C-Style Functions */
+    lf_rendezvous_t* rchan = lf_rendezvous_create();
+    TEST_ASSERT(rchan != NULL, "lf_rendezvous_create failed");
+    TEST_ASSERT(!lf_rendezvous_try_send(rchan, (void*)(uintptr_t)99, NULL), "try_send empty should return false");
+    TEST_ASSERT(!lf_rendezvous_try_recv(rchan, &item, NULL), "try_recv empty should return false");
+    TEST_ASSERT(!lf_rendezvous_send_timeout(rchan, (void*)(uintptr_t)99, 10, NULL), "send_timeout empty should return false");
+    TEST_ASSERT(!lf_rendezvous_recv_timeout(rchan, &item, 10, NULL), "recv_timeout empty should return false");
+
+    rz_thread_arg_t rz_s_arg = {
+        (lfq_rendezvous_t*)rchan,
+        1,
+        777,
+        NULL
+    };
+    pthread_t th_s2;
+    pthread_create(&th_s2, NULL, rz_sender_worker, &rz_s_arg);
+    uint64_t r_cid = 0;
+    int recv_res = lf_rendezvous_recv(rchan, &item, &r_cid);
+    TEST_ASSERT(recv_res == 0, "lf_rendezvous_recv failed");
+    TEST_ASSERT((uintptr_t)item == 777, "Item payload mismatch in lf_rendezvous_recv");
+    TEST_ASSERT(r_cid > 0, "Correlation ID should be positive");
+    pthread_join(th_s2, NULL);
+
+    lf_rendezvous_close(rchan);
+    lf_rendezvous_destroy(rchan);
+
+    /* 5. Channel closure and cancellation of waiting threads */
+    lfq_rendezvous_t* chan_close = NULL;
+    status = lfq_rendezvous_create(&chan_close);
+    TEST_ASSERT(status == LFQ_OK && chan_close != NULL, "lfq_rendezvous_create failed");
+
+    rz_close_waiter_arg_t close_arg = {
+        chan_close,
+        LFQ_OK
+    };
+    pthread_t th_close;
+    pthread_create(&th_close, NULL, rz_close_waiter_worker, &close_arg);
+
+    /* Give thread time to park in recv */
+    struct timespec ts;
+    ts.tv_sec = 0;
+    ts.tv_nsec = 30000000; /* 30 ms */
+    nanosleep(&ts, NULL);
+
+    status = lfq_rendezvous_close(chan_close);
+    TEST_ASSERT(status == LFQ_OK, "lfq_rendezvous_close failed");
+    TEST_ASSERT(lfq_rendezvous_is_closed(chan_close), "Channel should be closed");
+
+    pthread_join(th_close, NULL);
+    TEST_ASSERT(close_arg.result_status == LFQ_ERR_CLOSED, "Waiting receiver should receive LFQ_ERR_CLOSED on channel close");
+
+    /* Subsequent operations on closed channel must return LFQ_ERR_CLOSED */
+    status = lfq_rendezvous_send(chan_close, (void*)(uintptr_t)1, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_CLOSED, "send on closed channel must return LFQ_ERR_CLOSED");
+    status = lfq_rendezvous_recv(chan_close, &item, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_CLOSED, "recv on closed channel must return LFQ_ERR_CLOSED");
+    status = lfq_rendezvous_try_send(chan_close, (void*)(uintptr_t)1, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_CLOSED, "try_send on closed channel must return LFQ_ERR_CLOSED");
+    status = lfq_rendezvous_try_recv(chan_close, &item, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_CLOSED, "try_recv on closed channel must return LFQ_ERR_CLOSED");
+    status = lfq_rendezvous_send_timeout(chan_close, (void*)(uintptr_t)1, 10, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_CLOSED, "send_timeout on closed channel must return LFQ_ERR_CLOSED");
+    status = lfq_rendezvous_recv_timeout(chan_close, &item, 10, &corr_id);
+    TEST_ASSERT(status == LFQ_ERR_CLOSED, "recv_timeout on closed channel must return LFQ_ERR_CLOSED");
+
+    status = lfq_rendezvous_destroy(chan_close);
+    TEST_ASSERT(status == LFQ_OK, "lfq_rendezvous_destroy on closed channel failed");
+
+    /* Destroy original channel */
+    status = lfq_rendezvous_destroy(chan);
+    TEST_ASSERT(status == LFQ_OK, "lfq_rendezvous_destroy failed");
+
+    printf("test_cabi_rendezvous PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
+ * Test 10: Concurrent Multithreaded MPMC Queue Test via pthreads
  * ------------------------------------------------------------------------- */
 #define NUM_PRODUCERS 4
 #define NUM_CONSUMERS 4
@@ -730,6 +921,7 @@ int main(void) {
     test_cabi_set();
     test_cabi_ctrie();
     test_cabi_broadcast();
+    test_cabi_rendezvous();
     test_cabi_concurrency();
 
     /* TaskPool C ABI */
