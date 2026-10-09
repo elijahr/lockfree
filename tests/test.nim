@@ -79,6 +79,7 @@ import ./t_deque
 import ./t_skiplist
 import ./t_set
 import ./t_taskpool
+import ./t_ctrie
 
 # chronos adapter tests gated on chronos availability
 # (chronos is NOT in lockfree.nimble requires). When chronos

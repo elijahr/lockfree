@@ -29,6 +29,10 @@ const LockfreeVersion* {.strdefine.} = "0.1.0"
 ##     - Core type: `SkipListMap[K, V, MaxThreads, MaxLevel]`
 ##     - Ergonomic aliases: `SortedTable`, `OrderedTable`, `ConcurrentSortedTable`
 ##     - Implementation: Fraser / Herlihy MPMC Lock-Free SkipList with Debra SMR.
+##   - **Concurrent Hash Trie Surface** (`lockfree/ctrie`):
+##     - Core type: `Ctrie[K, V, MaxThreads]`
+##     - Ergonomic aliases: `Table`, `ConcurrentTable`, `ConcurrentMap`, `ConcurrentTrie`
+##     - Implementation: Aleksandar Prokopec MPMC Lock-Free Concurrent Hash Array Mapped Trie with O(1) Wait-Free Snapshots and Debra SMR.
 ##   - **Channel Facade** (`lockfree/channel`):
 ##     - `Channel[T]`, `Sender[T]`, `Receiver[T]` with automatic thread-local registration.
 ##   - Strategy / reclamation / pinscope-stub enums re-exported for
@@ -38,12 +42,12 @@ const LockfreeVersion* {.strdefine.} = "0.1.0"
 when compileOption("threads"):
   import lockfree/atomics
   import lockfree/atomics/dsl
-  import ./lockfree/[bqueue, cardinality, channel, deque, endpoint, exceptions, queue, reclamation, set, skiplist, stack, strategy, taskpool]
+  import ./lockfree/[bqueue, cardinality, channel, ctrie, deque, endpoint, exceptions, queue, reclamation, set, skiplist, stack, strategy, taskpool]
   import ./lockfree/internal/pinscope_stub
   import ./lockfree/typestates/with_bound
 
   export atomics, dsl
-  export bqueue, cardinality, channel, deque, endpoint, exceptions, queue, reclamation, set, skiplist, stack, strategy, taskpool
+  export bqueue, cardinality, channel, ctrie, deque, endpoint, exceptions, queue, reclamation, set, skiplist, stack, strategy, taskpool
   export pinscope_stub
   export with_bound
 else:
