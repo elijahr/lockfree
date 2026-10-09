@@ -268,12 +268,11 @@ proc steal*[T](self: ChaseLevDeque[T]): Option[T] =
   if t >= b:
     return none(T)
 
-  var buf = core.buffer.load(moAcquire)
-  let idx = int(t and int64(buf.mask))
-  let encoded = buf.data[idx]
-
   var expectedTop = t
   if core.top.compareExchangeStrong(expectedTop, t + 1, moSequentiallyConsistent, moRelaxed):
+    var buf = core.buffer.load(moAcquire)
+    let idx = int(t and int64(buf.mask))
+    let encoded = buf.data[idx]
     return some(unwrapOrIdentity[T](encoded))
   else:
     return none(T)
@@ -287,7 +286,8 @@ proc trySteal*[T](self: ChaseLevDeque[T], item: var T): bool =
   return false
 
 proc stealBatch*[T](self: ChaseLevDeque[T], dest: var openArray[T], maxItems: int = -1): int =
-  ## Steals a batch of items from the top of the deque in a single atomic CAS.
+  ## Steals a batch of items from the top of the deque via per-slot CAS to prevent
+  ## racing with popBottom jumping top past bottom (CVE-2021-32810).
   ## Writes stolen items to `dest[0 ..< stolenCount]` in FIFO order and returns `stolenCount`.
   ## If `maxItems <= 0`, defaults to stealing up to `min(dest.len, (available + 1) div 2)`.
   if unlikely(self.core == nil or dest.len == 0): return 0
@@ -305,19 +305,25 @@ proc stealBatch*[T](self: ChaseLevDeque[T], dest: var openArray[T], maxItems: in
   if limit <= 0:
     return 0
 
-  var buf = core.buffer.load(moAcquire)
+  var stolen = 0
+  while stolen < limit:
+    t = core.top.load(moAcquire)
+    threadFence(moSequentiallyConsistent)
+    b = core.bottom.load(moAcquire)
+    if t >= b:
+      break
 
-  var expectedTop = t
-  if core.top.compareExchangeStrong(expectedTop, t + int64(limit), moSequentiallyConsistent, moRelaxed):
-    # This thief uniquely won the right to slots [t ..< t + limit]
-    for i in 0 ..< limit:
-      let idx = int((t + int64(i)) and int64(buf.mask))
+    var expectedTop = t
+    if core.top.compareExchangeStrong(expectedTop, t + 1, moSequentiallyConsistent, moRelaxed):
+      var buf = core.buffer.load(moAcquire)
+      let idx = int(t and int64(buf.mask))
       let encoded = buf.data[idx]
-      dest[i] = unwrapOrIdentity[T](encoded)
-    return limit
-  else:
-    # CAS contention
-    return 0
+      dest[stolen] = unwrapOrIdentity[T](encoded)
+      inc stolen
+    else:
+      break
+
+  return stolen
 
 proc stealBatch*[T](self: ChaseLevDeque[T], maxItems: int = -1): seq[T] =
   ## Steals a batch of items from the top of the deque into a new `seq[T]`.
