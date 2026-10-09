@@ -347,16 +347,16 @@ jobs:
   multi-nim:
     name: '13: Multi-Nim (2.2.10, 2.2.12, devel)'
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/elijahr/lockfree-ci:latest
-    env:
-      LOCKFREE_NIM_FROM_IMAGE: 'true'
-      LFQ_TEST_VARIANT: orc
     timeout-minutes: 35
 
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
+
+      - name: Setup Nim via vfox-nim
+        uses: elijahr/vfox-nim@main
+        with:
+          version: '2.2.10'
 
       - name: Cache nimble packages
         uses: actions/cache@v4
@@ -369,25 +369,16 @@ jobs:
             nimble-${{ runner.os }}-multinim-
             nimble-${{ runner.os }}-stable-
 
-      - name: Cache choosenim and nimble toolchains
+      - name: Cache vfox toolchains
         uses: actions/cache@v4
         with:
           path: |
-            ~/.choosenim
-            ~/.nimble
-            /opt/vfox/cache/nim
-          key: choosenim-${{ runner.os }}-multinim-2.2.10-2.2.12-devel-${{ hashFiles('lockfree.nimble') }}
+            ~/.version-fox/cache/nim
+            ~/.vfox/cache/nim
+          key: vfox-${{ runner.os }}-multinim-2.2.10-2.2.12-devel-${{ hashFiles('lockfree.nimble') }}
           restore-keys: |
-            choosenim-${{ runner.os }}-multinim-
-            choosenim-${{ runner.os }}-
-
-      - name: Setup choosenim
-        shell: bash
-        run: |
-          if ! command -v choosenim &>/dev/null && [ ! -x "$HOME/.nimble/bin/choosenim" ]; then
-            curl https://nim-lang.org/choosenim/init.sh -sSf | sh -s -- -y
-          fi
-          echo "$HOME/.nimble/bin" >> "$GITHUB_PATH"
+            vfox-${{ runner.os }}-multinim-
+            vfox-${{ runner.os }}-
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -433,16 +424,25 @@ jobs:
           switch_toolchain() {
             local ver="$1"
             echo "::group::Switching toolchain to Nim ${ver}"
-            export PATH="$HOME/.nimble/bin:$PATH"
+            local target="$ver"
             if [[ "$ver" == "devel" ]]; then
-              choosenim --yes "#devel" || choosenim --yes devel
-            else
-              choosenim --yes "$ver"
+              target="ref:devel"
             fi
-            ln -sf "$HOME/.nimble/bin/nim" /usr/local/bin/nim 2>/dev/null || true
-            ln -sf "$HOME/.nimble/bin/nimble" /usr/local/bin/nimble 2>/dev/null || true
-            ln -sf "$HOME/.nimble/bin/nim" /usr/bin/nim 2>/dev/null || true
-            ln -sf "$HOME/.nimble/bin/nimble" /usr/bin/nimble 2>/dev/null || true
+            vfox install --yes "nim@${target}" || true
+            local bin_dir=""
+            for search_dir in "$HOME/.version-fox" "$HOME/.vfox"; do
+              if [ -d "$search_dir/cache/nim" ]; then
+                for candidate in $(find "$search_dir/cache/nim" -type f -name nim 2>/dev/null); do
+                  if [[ "$candidate" == *"$ver"* ]]; then
+                    bin_dir="$(dirname "$candidate")"
+                    break 2
+                  fi
+                done
+              fi
+            done
+            if [ -n "$bin_dir" ]; then
+              export PATH="$bin_dir:$PATH"
+            fi
             echo "Active compiler: $(nim --version | head -1)"
             echo "Active nimble:   $(nimble --version | head -1)"
             echo "::endgroup::"
@@ -608,17 +608,31 @@ jobs:
   nimony:
     name: '14: nimony aufbruch (informational)'
     runs-on: ubuntu-latest
-    container:
-      image: ghcr.io/elijahr/lockfree-ci:latest
     timeout-minutes: 30
     continue-on-error: true
-    env:
-      # Pinned nimony commit SHA per §6 O3.
-      NIMONY_SHA: '751121f9ee0fc7584015fc03f5326fe521029d84'
-      LOCKFREE_NIM_FROM_IMAGE: 'true'
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
+
+      - name: Setup Nim stable (2.2.10)
+        uses: elijahr/vfox-nim@main
+        with:
+          version: '2.2.10'
+
+      - name: Install Nimony nightly via vfox
+        run: |
+          vfox install --yes nim@nimony
+          for search_dir in "$HOME/.version-fox" "$HOME/.vfox"; do
+            if [ -d "$search_dir/cache/nim" ]; then
+              nimony_bin="$(find "$search_dir/cache/nim" -type f -name nimony 2>/dev/null | head -n 1)"
+              if [ -n "$nimony_bin" ]; then
+                bin_dir="$(dirname "$nimony_bin")"
+                echo "$bin_dir" >> "$GITHUB_PATH"
+                echo "Added Nimony directory to GITHUB_PATH: $bin_dir"
+                break
+              fi
+            fi
+          done
 
       - name: Cache nimble packages
         uses: actions/cache@v4
@@ -640,16 +654,6 @@ jobs:
             nimcache-${{ runner.os }}-stable-nimony-
             nimcache-${{ runner.os }}-stable-base-
 
-      - name: Cache nimony build
-        uses: actions/cache@v4
-        id: nimony-cache
-        with:
-          path: |
-            /tmp/nimony/bin
-            ~/.nimble/bin/nimony
-            /root/.nimble/bin/nimony
-          key: nimony-${{ runner.os }}-${{ env.NIMONY_SHA }}
-
       - name: Install dependencies from nimble registry
         run: |
           nimble install -dy
@@ -657,23 +661,6 @@ jobs:
           for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
-
-      - name: Build nimony from source (pinned SHA)
-        if: steps.nimony-cache.outputs.cache-hit != 'true'
-        shell: bash
-        continue-on-error: true
-        run: |
-          set -o pipefail
-          rm -rf /tmp/nimony
-          git clone https://github.com/nim-lang/nimony.git /tmp/nimony
-          cd /tmp/nimony
-          git checkout "${NIMONY_SHA}"
-          nim c --warning[ProveInit]:off -r src/hastur.nim build nimony
-          mkdir -p "$HOME/.nimble/bin" /root/.nimble/bin 2>/dev/null || true
-          if [ -f bin/nimony ]; then
-            cp bin/nimony "$HOME/.nimble/bin/nimony"
-            cp bin/nimony /root/.nimble/bin/nimony 2>/dev/null || true
-          fi
 
       - name: Run non-nimony ARC baseline under standard Nim
         shell: bash
@@ -694,15 +681,8 @@ jobs:
         run: |
           set -o pipefail
           echo "::group::nimony aufbruch baseline"
-          export PATH="/root/.nimble/bin:$HOME/.nimble/bin:/tmp/nimony/bin:/tmp/nimony:$PATH"
-          NIMONY_BIN=""
-          for candidate in /tmp/nimony/bin/nimony /root/.nimble/bin/nimony "$HOME/.nimble/bin/nimony" "$(command -v nimony 2>/dev/null)"; do
-            if [ -n "$candidate" ] && [ -x "$candidate" ]; then
-              NIMONY_BIN="$candidate"
-              break
-            fi
-          done
-          if [ -n "$NIMONY_BIN" ]; then
+          NIMONY_BIN="$(command -v nimony 2>/dev/null || find "$HOME/.version-fox/cache/nim" "$HOME/.vfox/cache/nim" -type f -name nimony 2>/dev/null | head -n 1)"
+          if [ -n "$NIMONY_BIN" ] && [ -x "$NIMONY_BIN" ]; then
             echo "Using nimony binary at: $NIMONY_BIN"
             "$NIMONY_BIN" c -r tests/nimony/t_nimony_arc_baseline.nim || echo "::warning::nimony test run exited with non-zero (informational)"
           else
