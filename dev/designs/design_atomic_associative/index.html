@@ -1,0 +1,3990 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Lock-free queues for Nim">
+      
+      
+      
+        <link rel="canonical" href="https://elijahr.github.io/lockfree/latest/designs/design_atomic_associative/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Concurrency Architecture &amp; Formal Invariants: Atomic Associative Map Operations - lockfree</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../css/timeago.css">
+    
+      <link rel="stylesheet" href="../../css/custom.css">
+    
+      <link rel="stylesheet" href="../../assets/bench-charts.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#concurrency-architecture-formal-invariants-atomic-associative-map-operations" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden="">
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="lockfree" class="md-header__button md-logo" aria-label="lockfree" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            lockfree
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Concurrency Architecture &amp; Formal Invariants: Atomic Associative Map Operations
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan" aria-label="Switch to light mode" type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan" aria-label="Switch to dark mode" type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/elijahr/lockfree" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    elijahr/lockfree
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="lockfree" class="md-nav__button md-logo" aria-label="lockfree" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    lockfree
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/elijahr/lockfree" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    elijahr/lockfree
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2">
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/user_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guides/smr_nebr_lifecycle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMR &amp; NEBR Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_5">
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/concepts/lock-freedom/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lock-freedom
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/concepts/smr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Safe memory reclamation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/concepts/memory-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_6">
+        
+          
+          <label class="md-nav__link" for="__nav_2_6" id="__nav_2_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queues
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Queues
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/bounded-vyukov/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounded (Vyukov)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/strict-lcrq-mpmc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unbounded MPMC (strict-LCRQ)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/legacy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy cardinalities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_7">
+        
+          
+          <label class="md-nav__link" for="__nav_2_7" id="__nav_2_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMR
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SMR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/smr/nebr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nebr
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/managed-ref/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ManagedRef
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/managed-slice/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ManagedSlice
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/typestates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Typestates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/nimony/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nimony
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_12">
+        
+          
+          <label class="md-nav__link" for="__nav_2_12" id="__nav_2_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Legacy guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/core-concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core concepts (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/bounded-vs-unbounded/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounded vs unbounded (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/slot-ownership-typestates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slot ownership typestates (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/safety-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Safety model (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/performance-tuning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lockfree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    lockfree (umbrella)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/compat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility (lockfreequeues)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/bqueue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounded Queue (BQueue)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unbounded Queue (Queue)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/managed_ref/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ManagedRef
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/managed_slice/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ManagedSlice
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/chronos/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chronos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/atomics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    atomics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_10">
+        
+          
+          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMR
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SMR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/smr/nebr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nebr
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_11">
+        
+          
+          <label class="md-nav__link" for="__nav_3_11" id="__nav_3_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Typestates
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Typestates
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typestates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Facade
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typestates/with_bound/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    with_bound
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typestates/slot_state/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    slot_state
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typestates/segment_state/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    segment_state
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_12">
+        
+          
+          <label class="md-nav__link" for="__nav_3_12" id="__nav_3_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Internal
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Internal
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/internal/slot_encoding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    slot_encoding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/internal/path_c_admit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    path_c_admit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/internal/path_c_wrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    path_c_wrap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4">
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migrations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Migrations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../transition_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transition Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migrations/from-lockfreequeues-v5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    From lockfreequeues v5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migrations/from-nim-debra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    From nim-debra
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Legacy
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_1">
+        
+          
+          <label class="md-nav__link" for="__nav_6_1" id="__nav_6_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nim-debra docs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    nim-debra docs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/PROVENANCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Provenance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/safety-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Safety model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/MIGRATION_v0.8.0/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration (v0.8.0)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_1_7">
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_7" id="__nav_6_1_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/atomics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atomics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/thread-registration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thread registration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/pin-unpin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pin / unpin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/retiring-objects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Retiring objects
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/reclamation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reclamation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/epoch-advancement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Epoch advancement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/neutralization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Neutralization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_1_8">
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_8" id="__nav_6_1_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/design/2026-04-25-batched-retire-reclaim/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batched retire/reclaim
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/design/2026-04-25-custom-atomics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom atomics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#concurrency-topology-substrate-banner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Concurrency Topology &amp; Substrate Banner
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-executive-summary-problem-formulation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Executive Summary &amp; Problem Formulation
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Executive Summary &amp; Problem Formulation">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#11-the-compound-associative-mutation-gap" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.1 The Compound Associative Mutation Gap
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#12-wave-5a-architectural-scope" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1.2 Wave 5A Architectural Scope
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-theoretical-foundations-linearization-points" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Theoretical Foundations &amp; Linearization Points
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. Theoretical Foundations &amp; Linearization Points">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-formal-linearization-proofs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Formal Linearization Proofs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.1 Formal Linearization Proofs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#linearization-of-computeifabsent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linearization of computeIfAbsent:
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#linearization-of-atomicupdate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Linearization of atomicUpdate:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-algorithmic-state-machines-across-substrates" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Algorithmic State Machines Across Substrates
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Algorithmic State Machines Across Substrates">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-ctriek-v-compound-mutations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Ctrie[K, V] Compound Mutations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.1 Ctrie[K, V] Compound Mutations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-ctrie-update-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The Ctrie Update Protocol:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-skiplistmapk-v-in-place-value-cas-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 SkipListMap[K, V] In-Place Value CAS Protocol
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3.2 SkipListMap[K, V] In-Place Value CAS Protocol">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#the-in-place-value-update-advantage" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The In-Place Value Update Advantage:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-safe-memory-reclamation-smr-nebr-discipline" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Safe Memory Reclamation (SMR / NEBR) Discipline
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Safe Memory Reclamation (SMR / NEBR) Discipline">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-strict-ephemeral-pin-scopes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Strict Ephemeral Pin Scopes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-typestates-pragma-compliance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Typestates Pragma Compliance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-closure-idempotency-contract" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Closure Idempotency Contract
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Closure Idempotency Contract">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-the-contention-re-execution-phenomenon" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 The Contention Re-execution Phenomenon
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-the-invariant-of-functional-purity" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 The Invariant of Functional Purity
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-arcorc-memory-management-discard-safety" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. ARC/ORC Memory Management &amp; Discard Safety
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. ARC/ORC Memory Management &amp; Discard Safety">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-the-speculative-allocation-leak-hazard" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 The Speculative Allocation Leak Hazard
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-the-guaranteed-discard-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 The Guaranteed Discard Protocol
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-consistent-snapshot-iteration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7. Consistent Snapshot Iteration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7. Consistent Snapshot Iteration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#71-ctriek-v-generational-snapshots-o1-time-work" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.1 Ctrie[K, V] Generational Snapshots ($O(1)$ Time &amp; Work)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#72-skiplistmapk-v-consistent-iteration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7.2 SkipListMap[K, V] Consistent Iteration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7.2 SkipListMap[K, V] Consistent Iteration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#model-1-ephemeral-pinned-streaming-iterator-iterator-pairs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model 1: Ephemeral Pinned Streaming Iterator (iterator pairs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#model-2-materialized-consistent-snapshot-proc-snapshotpairs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Model 2: Materialized Consistent Snapshot (proc snapshotPairs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-c-abi-interoperability-layer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8. C ABI &amp; Interoperability Layer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8. C ABI &amp; Interoperability Layer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#header-specification-includelockfree_associativeh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Header Specification: include/lockfree_associative.h
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-formal-memory-ordering-synchronization-proofs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9. Formal Memory Ordering &amp; Synchronization Proofs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="9. Formal Memory Ordering &amp; Synchronization Proofs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#91-memory-ordering-invariant-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.1 Memory Ordering Invariant Table
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#92-linearization-points-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9.2 Linearization Points &amp; Invariants
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-verification-strategy-two-key-gate-criteria" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10. Verification Strategy &amp; Two-Key Gate Criteria
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="concurrency-architecture-formal-invariants-atomic-associative-map-operations">Concurrency Architecture &amp; Formal Invariants: Atomic Associative Map Operations<a class="headerlink" href="#concurrency-architecture-formal-invariants-atomic-associative-map-operations" title="Permanent link">¶</a></h1>
+<p><strong>Document ID</strong>: <code>DESIGN-LOCKFREE-ASSOCIATIVE-001</code><br>
+<strong>Author</strong>: Marcus Vance (<code>architect-horsetail</code>), Staff Systems Architect<br>
+<strong>Reviewers</strong>: Caleb Thorne (<code>auditor-pegasus</code>), Elena Rostova (<code>implementer-kite</code>), Supreme Orchestrator (<code>orchestrator-whipbird</code>)<br>
+<strong>Status</strong>: RATIFIED ARCHITECTURAL SPECIFICATION<br>
+<strong>Target Substrate</strong>: <code>lockfree</code> (v0.1.0-consolidated)<br>
+<strong>Deliverable</strong>: <code>docs/designs/design_atomic_associative.md</code>  </p>
+<hr>
+<h2 id="concurrency-topology-substrate-banner">Concurrency Topology &amp; Substrate Banner<a class="headerlink" href="#concurrency-topology-substrate-banner" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>====================================================================================================
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>Concurrency Topology: Atomic Associative Map Operations (Wave 5A)
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>====================================================================================================
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>| Dimension              | Architectural Specification                                             |
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>|:-----------------------|:------------------------------------------------------------------------|
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>| **Target Substrates**  | `Ctrie[K, V]` (Unordered Concurrent HAMT) &amp; `SkipListMap[K, V]` (Ordered)|
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>| **Compound Operations**| `computeIfAbsent`, `atomicUpdate`, `upsert`, Consistent Snapshot Iterate |
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>| **Progress Guarantees**| Read-Paths: Wait-Free; CAS Update Paths: Lock-Free with Linear Backoff  |
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>| **Snapshot Guarantees**| `Ctrie`: O(1) Wait-Free Generational Root Swing; `SkipList`: Epoch-Pinned|
+<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>| **Linearization Points**| Exact Atomic CAS Instructions on Value Pointer (`valPtr`) or `INode.main`|
+<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>| **SMR Discipline**     | In-tree Debra SMR (NEBR) with Strict Ephemeral Pin Scopes               |
+<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>| **Closure Semantics**  | Strict Idempotency Requirement: Closures May Re-Execute During CAS Retries|
+<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>| **Payload Storage**    | Atomic Reference-Counted Pointer Box (`VBox[V]`) under ARC/ORC          |
+<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>| **Memory Reclamation** | Retired `VBox[V]` Nodes Deferred-Reclaimed via Debra `retire()` Callbacks|
+<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>| **Cache Alignment**    | Node Anchors and Roots Aligned to `CacheLineBytes` (64/128-byte boundary)|
+<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>| **Typestates Pragma**  | Procedures Decorated with `{.notATransition.}` for Strict Typestate Gate |
+<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>| **C ABI Interop**      | Foreign Thread C99 Callback Bindings via `include/lockfree_associative.h`|
+<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>====================================================================================================
+</code></pre></div>
+<hr>
+<h2 id="1-executive-summary-problem-formulation">1. Executive Summary &amp; Problem Formulation<a class="headerlink" href="#1-executive-summary-problem-formulation" title="Permanent link">¶</a></h2>
+<h3 id="11-the-compound-associative-mutation-gap">1.1 The Compound Associative Mutation Gap<a class="headerlink" href="#11-the-compound-associative-mutation-gap" title="Permanent link">¶</a></h3>
+<p>Basic concurrent map operations (<code>get</code>, <code>put</code>, <code>delete</code>) provide atomic point accesses. However, modern high-concurrency systems (caches, distributed state stores, rate limiter registries, metric aggregators, and actor mailboxes) require <strong>compound read-modify-write primitives</strong>:</p>
+<ol>
+<li><strong><code>computeIfAbsent(key, mappingProc)</code></strong>:</li>
+<li>Lazily compute an expensive resource (e.g. database connection, token bucket, parsed AST) if and only if the key does not already exist.</li>
+<li>Naive sequence: <code>if not map.hasKey(k): map[k] = f(k)</code> creates a disastrous race condition where multiple threads redundantly compute <code>f(k)</code> and overwrite each other's state, leaking resources.</li>
+<li><strong><code>atomicUpdate(key, updateProc)</code></strong>:</li>
+<li>Atomically transform an existing value $V_{\text{old}} \to V_{\text{new}}$ using an arbitrary pure function (e.g. increment counter, append log entry, adjust state machine).</li>
+<li>Naive sequence: <code>let v = map[k]; map[k] = f(v)</code> loses concurrent updates under multi-threaded execution (the classic <strong>Lost Update Anomaly</strong>).</li>
+<li><strong><code>upsert(key, insertVal, updateProc)</code></strong>:</li>
+<li>Insert <code>insertVal</code> if absent, or apply <code>updateProc(existing)</code> if present, guaranteeing atomic settlement without torn reads or phantom overwrites.</li>
+<li><strong><code>Consistent Snapshot Iteration</code></strong>:</li>
+<li>Iterate across all active key-value pairs representing a single coherent point-in-time without taking global locks or stalling concurrent mutators.</li>
+</ol>
+<h3 id="12-wave-5a-architectural-scope">1.2 Wave 5A Architectural Scope<a class="headerlink" href="#12-wave-5a-architectural-scope" title="Permanent link">¶</a></h3>
+<p>Wave 5A specifies and standardizes these atomic compound operations across both concurrent map substrates in <code>lockfree</code>:
+- <strong><code>Ctrie[K, V]</code></strong>: Prokopec's Concurrent Hash Array Mapped Trie (HAMT) with $O(1)$ wait-free generational snapshots.
+- <strong><code>SkipListMap[K, V]</code></strong>: Fraser / Herlihy concurrent skip list with Harris logical marking and strict total key ordering.</p>
+<hr>
+<h2 id="2-theoretical-foundations-linearization-points">2. Theoretical Foundations &amp; Linearization Points<a class="headerlink" href="#2-theoretical-foundations-linearization-points" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>+----------------------------------------------------------------------------------------------------+
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>| Operation            | Key State | Outcome    | Linearization Point                                 |
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>+:---------------------|:----------|:-----------|:----------------------------------------------------+
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>| `computeIfAbsent`    | Present   | No-op      | Atomic load of existing `SNode` / `SkipListNode`   |
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>| `computeIfAbsent`    | Absent    | Inserted   | Atomic CAS inserting new node with computed `VBox` |
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>| `atomicUpdate`       | Absent    | None       | Atomic load establishing absence of key            |
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>| `atomicUpdate`       | Present   | Transformed| Atomic CAS swinging `valPtr` or `INode.main`       |
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>| `upsert`             | Absent    | Inserted   | Atomic CAS inserting new node with `insertVal`     |
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>| `upsert`             | Present   | Transformed| Atomic CAS swinging `valPtr` or `INode.main`       |
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>| `snapshot` (Ctrie)   | N/A       | Frozen Tree| Atomic CAS on root INode swinging generation        |
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>| `snapshot` (SkipList)| N/A       | Pinned View| Monotonic epoch acquisition + level-0 scan          |
+<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>+----------------------------------------------------------------------------------------------------+
+</code></pre></div>
+<h3 id="21-formal-linearization-proofs">2.1 Formal Linearization Proofs<a class="headerlink" href="#21-formal-linearization-proofs" title="Permanent link">¶</a></h3>
+<h4 id="linearization-of-computeifabsent">Linearization of <code>computeIfAbsent</code>:<a class="headerlink" href="#linearization-of-computeifabsent" title="Permanent link">¶</a></h4>
+<ul>
+<li>Let $k$ be the target key, and $f$ be the mapping function.</li>
+<li><strong>Case 1 (Key Present)</strong>: The traversal encounters a valid, unmarked node containing $k$ with value $V_{\text{existing}}$. The linearization point is the <code>moAcquire</code> load of the node pointer that proves $k$ was present. The closure $f$ is NOT invoked.</li>
+<li><strong>Case 2 (Key Absent)</strong>: The traversal finds no node matching $k$. The thread executes $v = f(k)$ and prepares a new node. The linearization point is the successful <code>compareExchange</code> (<code>moAcqRel</code>) that inserts the node into the data structure. If the CAS fails because another thread inserted $k$ concurrently, the thread discards $v$ and retries.</li>
+</ul>
+<h4 id="linearization-of-atomicupdate">Linearization of <code>atomicUpdate</code>:<a class="headerlink" href="#linearization-of-atomicupdate" title="Permanent link">¶</a></h4>
+<ul>
+<li>Let $k$ be the key, and $u$ be the update closure $V \to V$.</li>
+<li><strong>Case 1 (Key Absent)</strong>: The search proves $k$ is not present. Linearizes at the atomic load proving absence. Returns <code>none(V)</code>.</li>
+<li><strong>Case 2 (Key Present)</strong>: The search locates node $N$ with current value box $B_{\text{old}}$. The thread computes $B_{\text{new}} = \text{newVBox}(u(B_{\text{old}}.\text{val}))$.</li>
+<li>In <code>SkipListMap</code>: Linearizes at <code>N.valPtr.compareExchange(B_{\text{old}}, B_{\text{new}}, moAcqRel)</code>.</li>
+<li>In <code>Ctrie</code>: Linearizes at <code>INode.main.compareExchange(oldMain, newMain, moAcqRel)</code>.</li>
+<li>If another thread modified the value concurrently, the CAS fails; the thread re-reads the fresh value, re-invokes $u$, and retries.</li>
+</ul>
+<hr>
+<h2 id="3-algorithmic-state-machines-across-substrates">3. Algorithmic State Machines Across Substrates<a class="headerlink" href="#3-algorithmic-state-machines-across-substrates" title="Permanent link">¶</a></h2>
+<h3 id="31-ctriek-v-compound-mutations">3.1 <code>Ctrie[K, V]</code> Compound Mutations<a class="headerlink" href="#31-ctriek-v-compound-mutations" title="Permanent link">¶</a></h3>
+<p>In <code>Ctrie[K, V]</code>, keys are distributed across a 32-way branching HAMT. Updates occur by atomically replacing the <code>main</code> pointer of the parent <code>INode</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>                       INode (Level L)
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>                     +-----------------+
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>                     | main (Atomic)   |
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>                     +--------+--------+
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>                              |
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>                              v
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>                   +---------------------+
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>                   | CNode (Branch)      |
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>                   | - bmp: uint32       |
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>                   | - array of branches |
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>                   +----------+----------+
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>                              |
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>               +--------------+--------------+
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>               |                             |
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>               v                             v
+<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>       SNode (Key, VBox_old)         INode (Level L+1)
+</code></pre></div>
+<h4 id="the-ctrie-update-protocol">The <code>Ctrie</code> Update Protocol:<a class="headerlink" href="#the-ctrie-update-protocol" title="Permanent link">¶</a></h4>
+<ol>
+<li>Pointers are read inside an active Debra SMR pin scope (<code>pin()</code>).</li>
+<li>If an <code>SNode</code> with matching <code>key</code> is found:</li>
+<li>Read $V_{\text{old}} = \text{snode.vbox.val}$.</li>
+<li>Compute $V_{\text{new}} = \text{updateProc}(V_{\text{old}})$.</li>
+<li>Allocate new $B_{\text{new}} = \text{newVBox}(V_{\text{new}})$.</li>
+<li>Create a cloned <code>CNode</code> containing a new <code>SNode</code> pointing to $B_{\text{new}}$.</li>
+<li>Attempt CAS on <code>INode.main</code>:
+     <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">if</span><span class="w"> </span><span class="n">inode</span><span class="p">.</span><span class="n">main</span><span class="p">.</span><span class="n">compareExchangeStrong</span><span class="p">(</span><span class="n">curMain</span><span class="p">,</span><span class="w"> </span><span class="n">newMain</span><span class="p">,</span><span class="w"> </span><span class="n">moAcquireRelease</span><span class="p">,</span><span class="w"> </span><span class="n">moAcquire</span><span class="p">):</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="c"># Success! Retire displaced SNode and CNode to SMR</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="n">manager</span><span class="p">.</span><span class="n">retire</span><span class="p">(</span><span class="n">oldSNode</span><span class="p">,</span><span class="w"> </span><span class="n">destroySNodeCallback</span><span class="p">)</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="n">manager</span><span class="p">.</span><span class="n">retire</span><span class="p">(</span><span class="n">curMain</span><span class="p">,</span><span class="w"> </span><span class="n">destroyCNodeCallback</span><span class="p">)</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">some</span><span class="p">(</span><span class="n">V_new</span><span class="p">)</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">  </span><span class="c"># CAS Failed (Concurrent modification or GCopy compression)</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">  </span><span class="n">decRef</span><span class="p">(</span><span class="n">B_new</span><span class="p">)</span><span class="w"> </span><span class="c"># Destroy unused speculative value!</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span><span class="c"># Retry traversal from root</span>
+</code></pre></div></li>
+</ol>
+<hr>
+<h3 id="32-skiplistmapk-v-in-place-value-cas-protocol">3.2 <code>SkipListMap[K, V]</code> In-Place Value CAS Protocol<a class="headerlink" href="#32-skiplistmapk-v-in-place-value-cas-protocol" title="Permanent link">¶</a></h3>
+<p>In <code>SkipListMap[K, V]</code>, nodes are arranged in a multi-level linked list ordered by key. Keys are immutable once inserted, but <strong>values can be updated in-place via atomic CAS on <code>valPtr</code></strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>[ SkipListNode ]
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>- key: K (Immutable)
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>- topLevel: int
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>- next: array[MaxLevel, Atomic[uint]]
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>- valPtr: Atomic[ptr VBox[V]]  &lt;--- ATOMIC LINEARIZATION POINT
+</code></pre></div>
+<h4 id="the-in-place-value-update-advantage">The In-Place Value Update Advantage:<a class="headerlink" href="#the-in-place-value-update-advantage" title="Permanent link">¶</a></h4>
+<ul>
+<li>Because the skip list topology (tower height, key ordering, next pointers) remains completely unchanged when only the value is modified, <code>atomicUpdate</code> does NOT require modifying skip list pointers or rebuilding towers!</li>
+<li>It executes an in-place CAS directly on <code>node.valPtr</code>:</li>
+</ul>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">proc</span><span class="w"> </span><span class="nf">atomicUpdate</span><span class="o">*[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="p">;</span><span class="w"> </span><span class="n">MT</span><span class="p">,</span><span class="w"> </span><span class="n">ML</span><span class="p">:</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="nb">int</span><span class="o">]</span><span class="p">(</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span><span class="n">self</span><span class="p">:</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="n">SkipListMap</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="p">,</span><span class="w"> </span><span class="n">MT</span><span class="p">,</span><span class="w"> </span><span class="n">ML</span><span class="o">]</span><span class="p">,</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="n">key</span><span class="p">:</span><span class="w"> </span><span class="n">K</span><span class="p">,</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="n">updateProc</span><span class="p">:</span><span class="w"> </span><span class="n">proc</span><span class="p">(</span><span class="n">v</span><span class="p">:</span><span class="w"> </span><span class="n">V</span><span class="p">):</span><span class="w"> </span><span class="n">V</span><span class="w"> </span><span class="sx">{.closure.}</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="p">):</span><span class="w"> </span><span class="n">Option</span><span class="o">[</span><span class="n">V</span><span class="o">]</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">pinGuard</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">self</span><span class="p">.</span><span class="n">core</span><span class="p">.</span><span class="n">manager</span><span class="p">.</span><span class="n">pin</span><span class="p">()</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="kd">var</span><span class="w"> </span><span class="n">spins</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">InitialSpin</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="kp">true</span><span class="p">:</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">    </span><span class="c"># 1. Search for key at Level 0</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">    </span><span class="k">let</span><span class="w"> </span><span class="p">(</span><span class="n">node</span><span class="p">,</span><span class="w"> </span><span class="n">found</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">self</span><span class="p">.</span><span class="n">searchNode</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">found</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">node</span><span class="p">.</span><span class="n">isMarked</span><span class="p">():</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">none</span><span class="p">(</span><span class="n">V</span><span class="p">)</span>
+<a id="__codelineno-5-14" name="__codelineno-5-14" href="#__codelineno-5-14"></a>
+<a id="__codelineno-5-15" name="__codelineno-5-15" href="#__codelineno-5-15"></a><span class="w">    </span><span class="c"># 2. Read current VBox</span>
+<a id="__codelineno-5-16" name="__codelineno-5-16" href="#__codelineno-5-16"></a><span class="w">    </span><span class="k">let</span><span class="w"> </span><span class="n">oldBox</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">node</span><span class="p">.</span><span class="n">valPtr</span><span class="p">.</span><span class="n">load</span><span class="p">(</span><span class="n">moAcquire</span><span class="p">)</span>
+<a id="__codelineno-5-17" name="__codelineno-5-17" href="#__codelineno-5-17"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">oldBox</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kp">nil</span><span class="p">:</span>
+<a id="__codelineno-5-18" name="__codelineno-5-18" href="#__codelineno-5-18"></a><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">none</span><span class="p">(</span><span class="n">V</span><span class="p">)</span><span class="w"> </span><span class="c"># Node is being deleted</span>
+<a id="__codelineno-5-19" name="__codelineno-5-19" href="#__codelineno-5-19"></a>
+<a id="__codelineno-5-20" name="__codelineno-5-20" href="#__codelineno-5-20"></a><span class="w">    </span><span class="c"># 3. Speculatively compute new value</span>
+<a id="__codelineno-5-21" name="__codelineno-5-21" href="#__codelineno-5-21"></a><span class="w">    </span><span class="k">let</span><span class="w"> </span><span class="n">newVal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">updateProc</span><span class="p">(</span><span class="n">oldBox</span><span class="p">.</span><span class="n">val</span><span class="p">)</span>
+<a id="__codelineno-5-22" name="__codelineno-5-22" href="#__codelineno-5-22"></a><span class="w">    </span><span class="k">let</span><span class="w"> </span><span class="n">newBox</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newVBox</span><span class="p">(</span><span class="n">newVal</span><span class="p">)</span>
+<a id="__codelineno-5-23" name="__codelineno-5-23" href="#__codelineno-5-23"></a>
+<a id="__codelineno-5-24" name="__codelineno-5-24" href="#__codelineno-5-24"></a><span class="w">    </span><span class="c"># 4. Atomic CAS to swap value pointers</span>
+<a id="__codelineno-5-25" name="__codelineno-5-25" href="#__codelineno-5-25"></a><span class="w">    </span><span class="kd">var</span><span class="w"> </span><span class="n">expected</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">oldBox</span>
+<a id="__codelineno-5-26" name="__codelineno-5-26" href="#__codelineno-5-26"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">node</span><span class="p">.</span><span class="n">valPtr</span><span class="p">.</span><span class="n">compareExchange</span><span class="p">(</span><span class="n">expected</span><span class="p">,</span><span class="w"> </span><span class="n">newBox</span><span class="p">,</span><span class="w"> </span><span class="n">moAcqRel</span><span class="p">):</span>
+<a id="__codelineno-5-27" name="__codelineno-5-27" href="#__codelineno-5-27"></a><span class="w">      </span><span class="c"># Success! Retire oldBox to Debra SMR</span>
+<a id="__codelineno-5-28" name="__codelineno-5-28" href="#__codelineno-5-28"></a><span class="w">      </span><span class="n">self</span><span class="p">.</span><span class="n">core</span><span class="p">.</span><span class="n">manager</span><span class="p">.</span><span class="n">retire</span><span class="p">(</span><span class="n">oldBox</span><span class="p">,</span><span class="w"> </span><span class="n">destroyVBoxCallback</span><span class="o">[</span><span class="n">V</span><span class="o">]</span><span class="p">)</span>
+<a id="__codelineno-5-29" name="__codelineno-5-29" href="#__codelineno-5-29"></a><span class="w">      </span><span class="k">return</span><span class="w"> </span><span class="n">some</span><span class="p">(</span><span class="n">newVal</span><span class="p">)</span>
+<a id="__codelineno-5-30" name="__codelineno-5-30" href="#__codelineno-5-30"></a><span class="w">    </span><span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-5-31" name="__codelineno-5-31" href="#__codelineno-5-31"></a><span class="w">      </span><span class="c"># Contention: Another thread updated or deleted this key</span>
+<a id="__codelineno-5-32" name="__codelineno-5-32" href="#__codelineno-5-32"></a><span class="w">      </span><span class="n">decRef</span><span class="p">(</span><span class="n">newBox</span><span class="p">)</span><span class="w"> </span><span class="c"># Prevent memory leak of speculative value!</span>
+<a id="__codelineno-5-33" name="__codelineno-5-33" href="#__codelineno-5-33"></a><span class="w">      </span><span class="n">backoffOnRetry</span><span class="p">(</span><span class="n">spins</span><span class="p">)</span>
+</code></pre></div>
+<p><strong>Complexity</strong>: $O(\log N)$ search + $O(1)$ lock-free CAS update.</p>
+<hr>
+<h2 id="4-safe-memory-reclamation-smr-nebr-discipline">4. Safe Memory Reclamation (SMR / NEBR) Discipline<a class="headerlink" href="#4-safe-memory-reclamation-smr-nebr-discipline" title="Permanent link">¶</a></h2>
+<h3 id="41-strict-ephemeral-pin-scopes">4.1 Strict Ephemeral Pin Scopes<a class="headerlink" href="#41-strict-ephemeral-pin-scopes" title="Permanent link">¶</a></h3>
+<p>All compound operations interact with shared pointers that may be concurrently retired and freed by other threads.</p>
+<p>To guarantee complete memory safety:
+1. <strong>Pin Before Dereference</strong>:
+   A thread MUST acquire an active Debra SMR pin before reading any node pointer:
+   </p><div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">let</span><span class="w"> </span><span class="n">pinGuard</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">self</span><span class="p">.</span><span class="n">manager</span><span class="p">.</span><span class="n">pin</span><span class="p">()</span>
+</code></pre></div>
+2. <strong>Never Hold Pins Across Thread Blocking / Suspension</strong>:
+   Pin scopes are strictly synchronous. As proven in Wave 3C (<code>DESIGN-LOCKFREE-ASYNC-BRIDGE-001</code>), yielding or blocking while holding a pin stalls the global epoch and leads to memory bloat.
+3. <strong>Retire Displaced Nodes &amp; Values</strong>:
+   When an <code>atomicUpdate</code> replaces a value:
+   - The old <code>VBox[V]</code> is NOT immediately freed (<code>free()</code>), because concurrent reader threads may currently be reading <code>oldBox.val</code>!
+   - The thread delegates the pointer to Debra SMR:
+     <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">self</span><span class="p">.</span><span class="n">manager</span><span class="p">.</span><span class="n">retire</span><span class="p">(</span><span class="n">oldBox</span><span class="p">,</span><span class="w"> </span><span class="n">destroyVBoxCallback</span><span class="o">[</span><span class="n">V</span><span class="o">]</span><span class="p">)</span>
+</code></pre></div>
+   - Debra guarantees that <code>destroyVBoxCallback</code> is only invoked when all threads have advanced past the epoch in which <code>oldBox</code> was displaced.<p></p>
+<h3 id="42-typestates-pragma-compliance">4.2 Typestates Pragma Compliance<a class="headerlink" href="#42-typestates-pragma-compliance" title="Permanent link">¶</a></h3>
+<p>Under the strict typestates enforcement of the <code>lockfree</code> substrate (<code>/Users/eek/.nimble/bin/typestates verify -W src/</code>), any procedure participating in SMR operations without altering the manager's typestate MUST be marked:
+</p><div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">proc</span><span class="w"> </span><span class="nf">computeIfAbsent</span><span class="o">*[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="o">]</span><span class="p">(...)</span><span class="w"> </span><span class="sx">{.notATransition.}</span>
+</code></pre></div>
+This ensures zero compilation warnings or type-state transition failures under strict verification.<p></p>
+<hr>
+<h2 id="5-closure-idempotency-contract">5. Closure Idempotency Contract<a class="headerlink" href="#5-closure-idempotency-contract" title="Permanent link">¶</a></h2>
+<h3 id="51-the-contention-re-execution-phenomenon">5.1 The Contention Re-execution Phenomenon<a class="headerlink" href="#51-the-contention-re-execution-phenomenon" title="Permanent link">¶</a></h3>
+<p>In lock-free algorithms, optimistic computation is followed by an atomic CAS. If $N$ threads concurrently attempt <code>atomicUpdate</code> or <code>computeIfAbsent</code> on the same key:
+- Exactly 1 thread succeeds on its CAS.
+- $N - 1$ threads fail their CAS, back off, reload the latest state, and <strong>re-execute the closure</strong>!</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>Thread A: val = 10 -&gt; f(10) = 11 -&gt; CAS SUCCESS -&gt; Value is 11
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>Thread B: val = 10 -&gt; f(10) = 11 -&gt; CAS FAILS!
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>Thread B (Retry): val = 11 -&gt; f(11) = 12 -&gt; CAS SUCCESS -&gt; Value is 12
+</code></pre></div>
+<h3 id="52-the-invariant-of-functional-purity">5.2 The Invariant of Functional Purity<a class="headerlink" href="#52-the-invariant-of-functional-purity" title="Permanent link">¶</a></h3>
+<p>To prevent catastrophic side-effect bugs, Wave 5A establishes the <strong>Closure Idempotency Contract</strong>:</p>
+<blockquote>
+<p><strong>ARCHITECTURAL INVARIANT</strong>:<br>
+The user-supplied closure (<code>mappingProc</code> or <code>updateProc</code>) MUST be a <strong>pure function</strong> free of external side-effects.<br>
+It MUST NOT:
+1. Perform network, socket, or file I/O.
+2. Mutate external non-thread-local state.
+3. Increment non-idempotent counters outside the map.
+4. Allocate external resources that cannot be safely rolled back upon CAS failure.</p>
+</blockquote>
+<hr>
+<h2 id="6-arcorc-memory-management-discard-safety">6. ARC/ORC Memory Management &amp; Discard Safety<a class="headerlink" href="#6-arcorc-memory-management-discard-safety" title="Permanent link">¶</a></h2>
+<h3 id="61-the-speculative-allocation-leak-hazard">6.1 The Speculative Allocation Leak Hazard<a class="headerlink" href="#61-the-speculative-allocation-leak-hazard" title="Permanent link">¶</a></h3>
+<p>When a thread prepares to perform a CAS in <code>computeIfAbsent</code> or <code>atomicUpdate</code>:
+1. It calls <code>newVBox(mappingProc(key))</code>.
+2. This allocates heap memory for <code>VBox[V]</code> and initializes <code>val: V</code>.
+3. Under Nim ARC/ORC, types like <code>string</code>, <code>seq[T]</code>, and <code>ref Object</code> hold internal reference counts or heap allocations.
+4. <strong>Hazard</strong>: If the CAS fails, the thread cannot simply overwrite its local pointer! Doing so leaks the newly allocated <code>VBox</code> and all heap memory owned by <code>val</code>!</p>
+<h3 id="62-the-guaranteed-discard-protocol">6.2 The Guaranteed Discard Protocol<a class="headerlink" href="#62-the-guaranteed-discard-protocol" title="Permanent link">¶</a></h3>
+<p>Wave 5A enforces the <strong>Guaranteed Discard Protocol</strong>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>Compute Speculative Value
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>         |
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>         v
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a>   newBox = allocVBox(newVal)
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a>         |
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a>         v
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>[Atomic CAS Attempt]
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a>         |
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a>    +----+----+
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a>    |         |
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a> SUCCESS    FAILURE
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a>    |         |
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a>    v         v
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a> Retire    decRef(newBox)   &lt;--- IMMEDIATELY DESTROYS SPECULATIVE VAL
+<a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a> oldBox       |                  AND RECLAIMS HEAP MEMORY
+<a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a>              v
+<a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a>       [Backoff &amp; Retry]
+</code></pre></div>
+<p></p><div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="k">proc</span><span class="w"> </span><span class="nf">decRef</span><span class="o">[</span><span class="n">V</span><span class="o">]</span><span class="p">(</span><span class="n">box</span><span class="p">:</span><span class="w"> </span><span class="k">ptr</span><span class="w"> </span><span class="n">VBox</span><span class="o">[</span><span class="n">V</span><span class="o">]</span><span class="p">)</span><span class="w"> </span><span class="sx">{.inline.}</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">box</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kp">nil</span><span class="p">:</span>
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">box</span><span class="p">.</span><span class="n">rc</span><span class="p">.</span><span class="n">fetchSub</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">moAcquireRelease</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">:</span>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">      </span><span class="k">when</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="p">(</span><span class="n">V</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="n">SomeNumber</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">V</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="nb">bool</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">V</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="nb">char</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">V</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="n">pointer</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">V</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="k">ptr</span><span class="p">):</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">        </span><span class="sx">{.cast(gcsafe).}:</span>
+<a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="sx">          `=destroy`(box.val)</span>
+<a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="sx">      deallocShared(box)</span>
+</code></pre></div>
+- On CAS success: <code>newBox</code> ownership is transferred to the map; <code>oldBox</code> is retired to SMR.
+- On CAS failure: <code>decRef(newBox)</code> is executed immediately, triggering <code>=destroy(newBox.val)</code> and <code>deallocShared(newBox)</code>. Zero memory leaks under all interleavings!<p></p>
+<hr>
+<h2 id="7-consistent-snapshot-iteration">7. Consistent Snapshot Iteration<a class="headerlink" href="#7-consistent-snapshot-iteration" title="Permanent link">¶</a></h2>
+<h3 id="71-ctriek-v-generational-snapshots-o1-time-work">7.1 <code>Ctrie[K, V]</code> Generational Snapshots ($O(1)$ Time &amp; Work)<a class="headerlink" href="#71-ctriek-v-generational-snapshots-o1-time-work" title="Permanent link">¶</a></h3>
+<p><code>Ctrie</code> achieves instantaneous, lock-free, wait-free point-in-time snapshots via <strong>Generational Stamping</strong> (Prokopec 2012):
+1. <code>ctrie.snapshot(): Ctrie[K, V]</code>:
+   - Allocates a new generation identifier <code>gen_new</code>.
+   - Prepares a fresh root <code>INode</code> pointing to the current main node.
+   - Atomically swaps the root with <code>moAcqRel</code>.
+2. <strong>Lazy Copy-On-Write (<code>GCopy</code>)</strong>:
+   - Mutator threads encountering nodes stamped with an older generation lazily clone only the path from the root to the modified leaf.
+   - Unmodified branches are shared immutably between the snapshot and the active tree!
+3. <strong>Iteration</strong>:
+   - <code>pairs(snap)</code> traverses the frozen trie without needing SMR pins, without locks, and with zero interference with concurrent writers.</p>
+<h3 id="72-skiplistmapk-v-consistent-iteration">7.2 <code>SkipListMap[K, V]</code> Consistent Iteration<a class="headerlink" href="#72-skiplistmapk-v-consistent-iteration" title="Permanent link">¶</a></h3>
+<p>Unlike <code>Ctrie</code>, a concurrent skip list does not have a single root node that can be swung to freeze the tree. Wave 5A specifies two complementary snapshot iteration models for <code>SkipListMap</code>:</p>
+<h4 id="model-1-ephemeral-pinned-streaming-iterator-iterator-pairs">Model 1: Ephemeral Pinned Streaming Iterator (<code>iterator pairs</code>)<a class="headerlink" href="#model-1-ephemeral-pinned-streaming-iterator-iterator-pairs" title="Permanent link">¶</a></h4>
+<ul>
+<li>Traverses Level-0 nodes from <code>head</code> to <code>tail</code> inside a single Debra SMR pin scope.</li>
+<li>Filters out logically marked nodes (<code>isMarked(node.next[0])</code>).</li>
+<li>Reads <code>node.valPtr</code> with <code>moAcquire</code>.</li>
+<li><strong>Guarantee</strong>: Provides weakly consistent, lock-free iteration. Guarantees every element visited was present at some point during the traversal and reflects a valid linearizable state. Zero heap allocations!</li>
+</ul>
+<h4 id="model-2-materialized-consistent-snapshot-proc-snapshotpairs">Model 2: Materialized Consistent Snapshot (<code>proc snapshotPairs</code>)<a class="headerlink" href="#model-2-materialized-consistent-snapshot-proc-snapshotpairs" title="Permanent link">¶</a></h4>
+<ul>
+<li>For callers requiring strict point-in-time isolation:</li>
+<li>Traverses Level-0 under Debra SMR and copies <code>(K, V)</code> pairs into a newly allocated <code>seq[(K, V)]</code>.</li>
+<li>Guarantees the resulting sequence is fully detached from concurrent writers.</li>
+</ul>
+<hr>
+<h2 id="8-c-abi-interoperability-layer">8. C ABI &amp; Interoperability Layer<a class="headerlink" href="#8-c-abi-interoperability-layer" title="Permanent link">¶</a></h2>
+<p>Wave 5A exports C99 bindings to allow foreign threads (e.g. C/C++, Rust, Go) to perform atomic associative map updates:</p>
+<h3 id="header-specification-includelockfree_associativeh">Header Specification: <code>include/lockfree_associative.h</code><a class="headerlink" href="#header-specification-includelockfree_associativeh" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="cp">#ifndef LOCKFREE_ASSOCIATIVE_H</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="cp">#define LOCKFREE_ASSOCIATIVE_H</span>
+<a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
+<a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdint.h&gt;</span>
+<a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdbool.h&gt;</span>
+<a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stddef.h&gt;</span>
+<a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a>
+<a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="cp">#ifdef __cplusplus</span>
+<a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="k">extern</span><span class="w"> </span><span class="s">"C"</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="cp">#endif</span>
+<a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a>
+<a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a><span class="k">typedef</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">lfq_ctrie_t</span><span class="p">;</span>
+<a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a><span class="k">typedef</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">lfq_skiplist_t</span><span class="p">;</span>
+<a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a>
+<a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a><span class="c1">// C-compatible callback signatures</span>
+<a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a><span class="k">typedef</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">lfq_mapping_fn</span><span class="p">)(</span><span class="k">const</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">key_len</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">user_data</span><span class="p">);</span>
+<a id="__codelineno-12-17" name="__codelineno-12-17" href="#__codelineno-12-17"></a><span class="k">typedef</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="p">(</span><span class="o">*</span><span class="n">lfq_update_fn</span><span class="p">)(</span><span class="k">const</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">old_val</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">old_val_len</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">user_data</span><span class="p">);</span>
+<a id="__codelineno-12-18" name="__codelineno-12-18" href="#__codelineno-12-18"></a>
+<a id="__codelineno-12-19" name="__codelineno-12-19" href="#__codelineno-12-19"></a><span class="c1">// Ctrie Atomic Operations</span>
+<a id="__codelineno-12-20" name="__codelineno-12-20" href="#__codelineno-12-20"></a><span class="kt">bool</span><span class="w"> </span><span class="nf">lfq_ctrie_compute_if_absent</span><span class="p">(</span>
+<a id="__codelineno-12-21" name="__codelineno-12-21" href="#__codelineno-12-21"></a><span class="w">    </span><span class="n">lfq_ctrie_t</span><span class="w"> </span><span class="n">trie</span><span class="p">,</span>
+<a id="__codelineno-12-22" name="__codelineno-12-22" href="#__codelineno-12-22"></a><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">key_len</span><span class="p">,</span>
+<a id="__codelineno-12-23" name="__codelineno-12-23" href="#__codelineno-12-23"></a><span class="w">    </span><span class="n">lfq_mapping_fn</span><span class="w"> </span><span class="n">mapping_fn</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">user_data</span><span class="p">,</span>
+<a id="__codelineno-12-24" name="__codelineno-12-24" href="#__codelineno-12-24"></a><span class="w">    </span><span class="kt">void</span><span class="o">**</span><span class="w"> </span><span class="n">out_val</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="o">*</span><span class="w"> </span><span class="n">out_val_len</span>
+<a id="__codelineno-12-25" name="__codelineno-12-25" href="#__codelineno-12-25"></a><span class="p">);</span>
+<a id="__codelineno-12-26" name="__codelineno-12-26" href="#__codelineno-12-26"></a>
+<a id="__codelineno-12-27" name="__codelineno-12-27" href="#__codelineno-12-27"></a><span class="kt">bool</span><span class="w"> </span><span class="nf">lfq_ctrie_atomic_update</span><span class="p">(</span>
+<a id="__codelineno-12-28" name="__codelineno-12-28" href="#__codelineno-12-28"></a><span class="w">    </span><span class="n">lfq_ctrie_t</span><span class="w"> </span><span class="n">trie</span><span class="p">,</span>
+<a id="__codelineno-12-29" name="__codelineno-12-29" href="#__codelineno-12-29"></a><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">key_len</span><span class="p">,</span>
+<a id="__codelineno-12-30" name="__codelineno-12-30" href="#__codelineno-12-30"></a><span class="w">    </span><span class="n">lfq_update_fn</span><span class="w"> </span><span class="n">update_fn</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">user_data</span><span class="p">,</span>
+<a id="__codelineno-12-31" name="__codelineno-12-31" href="#__codelineno-12-31"></a><span class="w">    </span><span class="kt">void</span><span class="o">**</span><span class="w"> </span><span class="n">out_val</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="o">*</span><span class="w"> </span><span class="n">out_val_len</span>
+<a id="__codelineno-12-32" name="__codelineno-12-32" href="#__codelineno-12-32"></a><span class="p">);</span>
+<a id="__codelineno-12-33" name="__codelineno-12-33" href="#__codelineno-12-33"></a>
+<a id="__codelineno-12-34" name="__codelineno-12-34" href="#__codelineno-12-34"></a><span class="c1">// SkipListMap Atomic Operations</span>
+<a id="__codelineno-12-35" name="__codelineno-12-35" href="#__codelineno-12-35"></a><span class="kt">bool</span><span class="w"> </span><span class="nf">lfq_skiplist_compute_if_absent</span><span class="p">(</span>
+<a id="__codelineno-12-36" name="__codelineno-12-36" href="#__codelineno-12-36"></a><span class="w">    </span><span class="n">lfq_skiplist_t</span><span class="w"> </span><span class="n">map</span><span class="p">,</span>
+<a id="__codelineno-12-37" name="__codelineno-12-37" href="#__codelineno-12-37"></a><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">key_len</span><span class="p">,</span>
+<a id="__codelineno-12-38" name="__codelineno-12-38" href="#__codelineno-12-38"></a><span class="w">    </span><span class="n">lfq_mapping_fn</span><span class="w"> </span><span class="n">mapping_fn</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">user_data</span><span class="p">,</span>
+<a id="__codelineno-12-39" name="__codelineno-12-39" href="#__codelineno-12-39"></a><span class="w">    </span><span class="kt">void</span><span class="o">**</span><span class="w"> </span><span class="n">out_val</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="o">*</span><span class="w"> </span><span class="n">out_val_len</span>
+<a id="__codelineno-12-40" name="__codelineno-12-40" href="#__codelineno-12-40"></a><span class="p">);</span>
+<a id="__codelineno-12-41" name="__codelineno-12-41" href="#__codelineno-12-41"></a>
+<a id="__codelineno-12-42" name="__codelineno-12-42" href="#__codelineno-12-42"></a><span class="kt">bool</span><span class="w"> </span><span class="nf">lfq_skiplist_atomic_update</span><span class="p">(</span>
+<a id="__codelineno-12-43" name="__codelineno-12-43" href="#__codelineno-12-43"></a><span class="w">    </span><span class="n">lfq_skiplist_t</span><span class="w"> </span><span class="n">map</span><span class="p">,</span>
+<a id="__codelineno-12-44" name="__codelineno-12-44" href="#__codelineno-12-44"></a><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">key_len</span><span class="p">,</span>
+<a id="__codelineno-12-45" name="__codelineno-12-45" href="#__codelineno-12-45"></a><span class="w">    </span><span class="n">lfq_update_fn</span><span class="w"> </span><span class="n">update_fn</span><span class="p">,</span><span class="w"> </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">user_data</span><span class="p">,</span>
+<a id="__codelineno-12-46" name="__codelineno-12-46" href="#__codelineno-12-46"></a><span class="w">    </span><span class="kt">void</span><span class="o">**</span><span class="w"> </span><span class="n">out_val</span><span class="p">,</span><span class="w"> </span><span class="kt">size_t</span><span class="o">*</span><span class="w"> </span><span class="n">out_val_len</span>
+<a id="__codelineno-12-47" name="__codelineno-12-47" href="#__codelineno-12-47"></a><span class="p">);</span>
+<a id="__codelineno-12-48" name="__codelineno-12-48" href="#__codelineno-12-48"></a>
+<a id="__codelineno-12-49" name="__codelineno-12-49" href="#__codelineno-12-49"></a><span class="cp">#ifdef __cplusplus</span>
+<a id="__codelineno-12-50" name="__codelineno-12-50" href="#__codelineno-12-50"></a><span class="p">}</span>
+<a id="__codelineno-12-51" name="__codelineno-12-51" href="#__codelineno-12-51"></a><span class="cp">#endif</span>
+<a id="__codelineno-12-52" name="__codelineno-12-52" href="#__codelineno-12-52"></a>
+<a id="__codelineno-12-53" name="__codelineno-12-53" href="#__codelineno-12-53"></a><span class="cp">#endif </span><span class="c1">// LOCKFREE_ASSOCIATIVE_H</span>
+</code></pre></div>
+<hr>
+<h2 id="9-formal-memory-ordering-synchronization-proofs">9. Formal Memory Ordering &amp; Synchronization Proofs<a class="headerlink" href="#9-formal-memory-ordering-synchronization-proofs" title="Permanent link">¶</a></h2>
+<h3 id="91-memory-ordering-invariant-table">9.1 Memory Ordering Invariant Table<a class="headerlink" href="#91-memory-ordering-invariant-table" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Operation</th>
+<th style="text-align: left;">Atomic Target</th>
+<th style="text-align: left;">Order</th>
+<th style="text-align: left;">Formal Justification</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><code>valPtr</code> CAS (SkipList)</td>
+<td style="text-align: left;"><code>Atomic[ptr VBox[V]]</code></td>
+<td style="text-align: left;"><code>moAcqRel</code></td>
+<td style="text-align: left;">Synchronizes the publisher of $V_{\text{new}}$ with subsequent readers; linearizes the update.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>valPtr</code> Load (SkipList)</td>
+<td style="text-align: left;"><code>Atomic[ptr VBox[V]]</code></td>
+<td style="text-align: left;"><code>moAcquire</code></td>
+<td style="text-align: left;">Establishes happens-before: reader observes fully initialized memory of <code>VBox[V]</code>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>INode.main</code> CAS (Ctrie)</td>
+<td style="text-align: left;"><code>Atomic[ptr MainNode]</code></td>
+<td style="text-align: left;"><code>moAcqRel</code></td>
+<td style="text-align: left;">Publishes new HAMT branch or leaf; linearizes tree mutation.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>INode.main</code> Load (Ctrie)</td>
+<td style="text-align: left;"><code>Atomic[ptr MainNode]</code></td>
+<td style="text-align: left;"><code>moAcquire</code></td>
+<td style="text-align: left;">Traversal observes valid branch structure and child nodes.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>VBox.rc</code> fetchSub</td>
+<td style="text-align: left;"><code>Atomic[int]</code></td>
+<td style="text-align: left;"><code>moAcqRel</code></td>
+<td style="text-align: left;">Ensures all reads of <code>val</code> complete before the final refcount drop triggers <code>=destroy</code>.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="92-linearization-points-invariants">9.2 Linearization Points &amp; Invariants<a class="headerlink" href="#92-linearization-points-invariants" title="Permanent link">¶</a></h3>
+<ol>
+<li><strong>Absence Confirmation</strong>: Linearizes at the atomic load of the terminal child/next pointer that proves the key does not exist.</li>
+<li><strong>Presence Confirmation</strong>: Linearizes at the atomic load of the node whose key matches the query.</li>
+<li><strong>Atomic Modification</strong>: Linearizes at the single atomic CAS instruction (<code>compareExchange</code>) that swaps the value pointer or root/branch pointer.</li>
+</ol>
+<hr>
+<h2 id="10-verification-strategy-two-key-gate-criteria">10. Verification Strategy &amp; Two-Key Gate Criteria<a class="headerlink" href="#10-verification-strategy-two-key-gate-criteria" title="Permanent link">¶</a></h2>
+<p>Wave 5A requires exhaustive concurrency stress testing, lost-update verification, and memory safety audits:</p>
+<ol>
+<li><strong>High-Contention Atomic Counter Stress (<code>tests/t_associative_contention.nim</code>)</strong>:</li>
+<li>32 threads concurrently execute <code>atomicUpdate(k, v =&gt; v + 1)</code> 100,000 times on the same shared key.</li>
+<li>Assert: Final value MUST equal exactly $32 \times 100,000 = 3,200,000$.</li>
+<li>Proves zero lost updates under extreme CAS contention.</li>
+<li><strong><code>computeIfAbsent</code> Race Fuzzing (<code>tests/t_associative_compute.nim</code>)</strong>:</li>
+<li>64 threads simultaneously invoke <code>computeIfAbsent(k, heavyInit)</code> on a missing key.</li>
+<li>Assert: Exactly one computed instance is retained in the map; all other threads receive that instance. Zero resource leaks.</li>
+<li><strong>Concurrent Snapshot Mutation Audit (<code>tests/t_associative_snapshot.nim</code>)</strong>:</li>
+<li>Thread A continuously mutates keys (insertions, deletions, updates).</li>
+<li>Thread B takes snapshots and iterates.</li>
+<li>Assert: Snapshots observe strictly monotonic key sets without torn values or internal trie inconsistency.</li>
+<li><strong>ThreadSanitizer &amp; ARC Leak Gate</strong>:</li>
+<li>Compile and execute under <code>--mm:orc</code> with <code>-fsanitize=thread</code>.</li>
+<li>Assert zero data races and zero memory leaks.</li>
+<li><strong>Two-Key Integration Gate</strong>:</li>
+<li>Key 1 Mechanical Gate: Clean merge-tree SHA against <code>main</code>.</li>
+<li>Key 2 Semantic Gate: 100% green compilation and test suite execution via <code>nimble test</code>.</li>
+</ol>
+
+
+
+
+
+
+
+  
+    
+  
+  
+    
+  
+
+
+  <aside class="md-source-file">
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Last update">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 9, 2026 05:40:37 UTC"><span class="timeago" datetime="2026-10-09T05:40:37+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 9, 2026 05:40:37 UTC">2026-10-09</span>
+  </span>
+
+    
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Created">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"></path></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 9, 2026 05:40:37 UTC"><span class="timeago" datetime="2026-10-09T05:40:37+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 9, 2026 05:40:37 UTC">2026-10-09</span>
+  </span>
+
+    
+    
+    
+  </aside>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/elijahr/lockfree" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.code.annotate", "navigation.instant", "navigation.sections", "navigation.expand", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../js/timeago.min.js"></script>
+      
+        <script src="../../js/timeago_mkdocs_material.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>
