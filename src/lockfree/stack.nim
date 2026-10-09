@@ -31,17 +31,20 @@ const
   EliminationSpins* = 32
     ## Spin count for a pusher waiting in an elimination slot for a concurrent popper.
 
+  ElimStateEmpty = 0
+  ElimStateBusy = 1
+  ElimStateWaiting = 2
+  ElimStateClaimed = 3
+  ElimStateDone = 4
+
 type
   StackNode[T] = object
     data: T
     next: ptr StackNode[T]
 
-  ExchangeNode[T] = object
-    value: T
-    state: Atomic[int] # 0 = waiting, 1 = claimed, 2 = completed, 3 = cancelled
-
   EliminationSlot[T] = object
-    node {.align: CacheLineBytes.}: Atomic[ptr ExchangeNode[T]]
+    state {.align: CacheLineBytes.}: Atomic[int]
+    value: T
 
   TreiberStack*[T] = object
     top {.align: CacheLineBytes.}: Atomic[Pair[uint64, uint64]]
@@ -99,63 +102,50 @@ proc tryEliminatePush[T](self: var TreiberStack[T], item: var T): bool =
   let idx = threadRandIndex(EliminationCapacity)
   let slot = addr self.elimination[idx]
 
-  if slot.node.load(moRelaxed) != nil:
+  var exp = ElimStateEmpty
+  if not slot.state.compareExchange(exp, ElimStateBusy, moAcquire, moRelaxed):
     return false
 
-  var myNode: ExchangeNode[T]
-  myNode.value = item
-  myNode.state.store(0, moRelaxed)
+  # Claimed slot exclusively. Install value and publish to poppers.
+  slot.value = move(item)
+  slot.state.store(ElimStateWaiting, moRelease)
 
-  var exp: ptr ExchangeNode[T] = nil
-  if not slot.node.compareExchange(exp, addr myNode, moRelease, moRelaxed):
-    reset(myNode.value)
-    return false
-
-  # Pusher is installed in slot, spin waiting for a peer popper
+  # Spin waiting for a peer popper
   for _ in 0 ..< EliminationSpins:
-    let st = myNode.state.load(moAcquire)
-    if st == 2:
-      var clearExp: ptr ExchangeNode[T] = addr myNode
-      discard slot.node.compareExchange(clearExp, nil, moRelease, moRelaxed)
-      reset(item)
+    let st = slot.state.load(moAcquire)
+    if st == ElimStateDone:
+      slot.state.store(ElimStateEmpty, moRelease)
       return true
     cpuPause()
 
-  # Timeout: attempt to cancel (0 -> 3)
-  var expState = 0
-  if myNode.state.compareExchange(expState, 3, moAcquireRelease, moRelaxed):
-    var clearExp: ptr ExchangeNode[T] = addr myNode
-    discard slot.node.compareExchange(clearExp, nil, moRelease, moRelaxed)
-    reset(myNode.value)
+  # Timeout: attempt to cancel (Waiting -> Busy)
+  var expWait = ElimStateWaiting
+  if slot.state.compareExchange(expWait, ElimStateBusy, moAcquireRelease, moRelaxed):
+    item = move(slot.value)
+    slot.state.store(ElimStateEmpty, moRelease)
     return false
 
-  # Popper claimed the slot right at timeout boundary (state == 1)
-  while myNode.state.load(moAcquire) != 2:
+  # Popper claimed the slot right at timeout boundary (state == Claimed)
+  while slot.state.load(moAcquire) != ElimStateDone:
     cpuPause()
 
-  var clearExp: ptr ExchangeNode[T] = addr myNode
-  discard slot.node.compareExchange(clearExp, nil, moRelease, moRelaxed)
-  reset(item)
+  slot.state.store(ElimStateEmpty, moRelease)
   return true
 
 proc tryEliminatePop[T](self: var TreiberStack[T]): Option[T] =
   let idx = threadRandIndex(EliminationCapacity)
   let slot = addr self.elimination[idx]
 
-  let node = slot.node.load(moAcquire)
-  if node == nil:
+  if slot.state.load(moAcquire) != ElimStateWaiting:
     return none(T)
 
-  var expState = 0
-  if not node.state.compareExchange(expState, 1, moAcquireRelease, moRelaxed):
+  var expWait = ElimStateWaiting
+  if not slot.state.compareExchange(expWait, ElimStateClaimed, moAcquireRelease, moRelaxed):
     return none(T)
 
   # Exclusively claimed: read value and signal completion
-  var res = some(move(node.value))
-  node.state.store(2, moRelease)
-
-  var clearExp: ptr ExchangeNode[T] = node
-  discard slot.node.compareExchange(clearExp, nil, moRelease, moRelaxed)
+  var res = some(move(slot.value))
+  slot.state.store(ElimStateDone, moRelease)
   return res
 
 proc tryPushTreiber[T](self: var TreiberStack[T], node: ptr StackNode[T]): bool =
@@ -344,5 +334,11 @@ proc `=destroy`*[T](self: var TreiberStack[T]) =
     curFree = next
   self.freeList.store(Pair[uint64, uint64](first: 0, second: 0), moSequentiallyConsistent)
   self.count.store(0, moRelaxed)
+
+  for i in 0 ..< EliminationCapacity:
+    let st = self.elimination[i].state.load(moRelaxed)
+    if st == ElimStateWaiting or st == ElimStateBusy:
+      reset(self.elimination[i].value)
+    self.elimination[i].state.store(ElimStateEmpty, moRelaxed)
 
 proc `=copy`*[T](dest: var TreiberStack[T], src: TreiberStack[T]) {.error: "Copying a ConcurrentStack is disallowed; share via reference or pointer across threads.".}

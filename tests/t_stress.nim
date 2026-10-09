@@ -4,7 +4,7 @@
 when not compileOption("threads"):
   {.error: "t_stress requires --threads:on option.".}
 
-import std/options
+import std/[options, os, algorithm]
 import unittest2
 import lockfree
 import lockfree/endpoint
@@ -12,6 +12,10 @@ import lockfree/role_tags
 import lockfree/atomics
 import lockfree/atomics/dsl
 import lockfree/atomics/backoff
+import lockfree/stack
+import lockfree/deque
+import lockfree/skiplist
+import lockfree/set
 
 const
   SmallBuffer = 16
@@ -19,6 +23,8 @@ const
   LargeBuffer = 4096
 
   Count10k = 10_000
+  Count20k = 20_000
+  Count40k = 40_000
   Count100k = 100_000
 
 type TestObject = object
@@ -925,4 +931,770 @@ suite "Stress - Unbounded Queue (Strict-LCRQ & NEBR)":
 
     check sent.load(moRelaxed) == Count100k
     check received.load(moRelaxed) == Count100k
+
+# =============================================================================
+# TreiberStack Stress Tests (Elimination-Backoff Array)
+# =============================================================================
+
+type
+  StackStressProdCtx = object
+    stack: ptr TreiberStack[int]
+    threadIdx: int
+    itemsPerThread: int
+    producersDone: ptr Atomic[int]
+
+  StackStressConsCtx = object
+    stack: ptr TreiberStack[int]
+    received: ptr UncheckedArray[Atomic[bool]]
+    duplicateFound: ptr Atomic[bool]
+    totalConsumed: ptr Atomic[int]
+    totalExpected: int
+    producersDone: ptr Atomic[int]
+    totalProducers: int
+
+  StackStressManagedProdCtx = object
+    stack: ptr TreiberStack[TestObjectRef]
+    threadIdx: int
+    itemsPerThread: int
+    producersDone: ptr Atomic[int]
+
+  StackStressManagedConsCtx = object
+    stack: ptr TreiberStack[TestObjectRef]
+    totalConsumed: ptr Atomic[int]
+    totalExpected: int
+    checksumErrors: ptr Atomic[int]
+    producersDone: ptr Atomic[int]
+    totalProducers: int
+
+proc stackStressProdWorker(ctx: ptr StackStressProdCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    let base = ctx.threadIdx * ctx.itemsPerThread
+    for i in 0 ..< ctx.itemsPerThread:
+      ctx.stack[].push(base + i)
+    if ctx.producersDone != nil:
+      discard ctx.producersDone[].fetchAdd(1, moRelease)
+
+proc stackStressConsWorker(ctx: ptr StackStressConsCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    while true:
+      let item = ctx.stack[].pop()
+      if item.isSome:
+        let val = item.get
+        if val >= 0 and val < ctx.totalExpected:
+          if ctx.received[val].exchange(true, moRelaxed):
+            ctx.duplicateFound[].store(true, moRelaxed)
+        if ctx.totalConsumed[].fetchAdd(1, moRelaxed) + 1 >= ctx.totalExpected:
+          break
+      elif ctx.producersDone[].load(moAcquire) >= ctx.totalProducers:
+        if ctx.totalConsumed[].load(moRelaxed) >= ctx.totalExpected:
+          break
+        cpuPause()
+      else:
+        cpuPause()
+
+proc stackStressManagedProdWorker(ctx: ptr StackStressManagedProdCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    let base = ctx.threadIdx * ctx.itemsPerThread
+    for i in 0 ..< ctx.itemsPerThread:
+      let id = base + i
+      let payload = "stack_payload_" & $id
+      let obj = TestObjectRef(id: id, payload: payload, checksum: computeChecksum(id, payload))
+      ctx.stack[].push(obj)
+    if ctx.producersDone != nil:
+      discard ctx.producersDone[].fetchAdd(1, moRelease)
+
+proc stackStressManagedConsWorker(ctx: ptr StackStressManagedConsCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    while true:
+      let item = ctx.stack[].pop()
+      if item.isSome:
+        let obj = item.get
+        if obj.checksum != computeChecksum(obj.id, obj.payload):
+          discard ctx.checksumErrors[].fetchAdd(1, moRelaxed)
+        if ctx.totalConsumed[].fetchAdd(1, moRelaxed) + 1 >= ctx.totalExpected:
+          break
+      elif ctx.producersDone[].load(moAcquire) >= ctx.totalProducers:
+        if ctx.totalConsumed[].load(moRelaxed) >= ctx.totalExpected:
+          break
+        cpuPause()
+      else:
+        cpuPause()
+
+suite "Stress - TreiberStack (Elimination-Backoff Array)":
+  test "TreiberStack 4P/1C High Volume (40k int)":
+    var s = initTreiberStack[int]()
+    let received = cast[ptr UncheckedArray[Atomic[bool]]](allocShared0(sizeof(Atomic[bool]) * Count40k))
+    var duplicateFound: Atomic[bool]
+    var producersDone, totalItemsConsumed: Atomic[int]
+    duplicateFound.store(false, moRelaxed)
+    producersDone.store(0, moRelaxed)
+    totalItemsConsumed.store(0, moRelaxed)
+
+    const PerProducer = Count40k div 4
+    var pctxs: array[4, StackStressProdCtx]
+    var pThreads: array[4, Thread[ptr StackStressProdCtx]]
+
+    for i in 0 ..< 4:
+      pctxs[i] = StackStressProdCtx(
+        stack: addr s, threadIdx: i, itemsPerThread: PerProducer,
+        producersDone: addr producersDone
+      )
+      createThread(pThreads[i], stackStressProdWorker, addr pctxs[i])
+
+    var cctx = StackStressConsCtx(
+      stack: addr s, received: received, duplicateFound: addr duplicateFound,
+      totalConsumed: addr totalItemsConsumed, totalExpected: Count40k,
+      producersDone: addr producersDone, totalProducers: 4
+    )
+    var cThread: Thread[ptr StackStressConsCtx]
+    createThread(cThread, stackStressConsWorker, addr cctx)
+
+    for i in 0 ..< 4:
+      joinThread(pThreads[i])
+    joinThread(cThread)
+
+    check not duplicateFound.load(moRelaxed)
+    check totalItemsConsumed.load(moRelaxed) == Count40k
+    check s.isEmpty
+    deallocShared(received)
+
+  test "TreiberStack 1P/4C High Volume (40k int)":
+    var s = initTreiberStack[int]()
+    let received = cast[ptr UncheckedArray[Atomic[bool]]](allocShared0(sizeof(Atomic[bool]) * Count40k))
+    var duplicateFound: Atomic[bool]
+    var producerDone: Atomic[int]
+    var totalItemsConsumed: Atomic[int]
+    duplicateFound.store(false, moRelaxed)
+    producerDone.store(0, moRelaxed)
+    totalItemsConsumed.store(0, moRelaxed)
+
+    var cctxs: array[4, StackStressConsCtx]
+    var cThreads: array[4, Thread[ptr StackStressConsCtx]]
+
+    for i in 0 ..< 4:
+      cctxs[i] = StackStressConsCtx(
+        stack: addr s, received: received, duplicateFound: addr duplicateFound,
+        totalConsumed: addr totalItemsConsumed, totalExpected: Count40k,
+        producersDone: addr producerDone, totalProducers: 1
+      )
+      createThread(cThreads[i], stackStressConsWorker, addr cctxs[i])
+
+    for i in 0 ..< Count40k:
+      s.push(i)
+    discard producerDone.fetchAdd(1, moRelease)
+
+    for i in 0 ..< 4:
+      joinThread(cThreads[i])
+
+    check not duplicateFound.load(moRelaxed)
+    check totalItemsConsumed.load(moRelaxed) == Count40k
+    check s.isEmpty
+    deallocShared(received)
+
+  test "TreiberStack 4P/4C Extreme MPMC Contention (40k int)":
+    var s = initTreiberStack[int]()
+    let received = cast[ptr UncheckedArray[Atomic[bool]]](allocShared0(sizeof(Atomic[bool]) * Count40k))
+    var duplicateFound: Atomic[bool]
+    var producersDone: Atomic[int]
+    var totalItemsConsumed: Atomic[int]
+    duplicateFound.store(false, moRelaxed)
+    producersDone.store(0, moRelaxed)
+    totalItemsConsumed.store(0, moRelaxed)
+
+    const PerProducer = Count40k div 4
+    var pctxs: array[4, StackStressProdCtx]
+    var cctxs: array[4, StackStressConsCtx]
+    var pThreads: array[4, Thread[ptr StackStressProdCtx]]
+    var cThreads: array[4, Thread[ptr StackStressConsCtx]]
+
+    for i in 0 ..< 4:
+      pctxs[i] = StackStressProdCtx(
+        stack: addr s, threadIdx: i, itemsPerThread: PerProducer,
+        producersDone: addr producersDone
+      )
+      cctxs[i] = StackStressConsCtx(
+        stack: addr s, received: received, duplicateFound: addr duplicateFound,
+        totalConsumed: addr totalItemsConsumed, totalExpected: Count40k,
+        producersDone: addr producersDone, totalProducers: 4
+      )
+      createThread(cThreads[i], stackStressConsWorker, addr cctxs[i])
+      createThread(pThreads[i], stackStressProdWorker, addr pctxs[i])
+
+    for i in 0 ..< 4:
+      joinThread(pThreads[i])
+      joinThread(cThreads[i])
+
+    check not duplicateFound.load(moRelaxed)
+    check totalItemsConsumed.load(moRelaxed) == Count40k
+    check s.isEmpty
+    deallocShared(received)
+
+  test "TreiberStack 4P/4C Managed Ref Objects (10k ref TestObject)":
+    var s = initTreiberStack[TestObjectRef]()
+    var producersDone: Atomic[int]
+    var totalItemsConsumed: Atomic[int]
+    var checksumErrors: Atomic[int]
+    producersDone.store(0, moRelaxed)
+    totalItemsConsumed.store(0, moRelaxed)
+    checksumErrors.store(0, moRelaxed)
+
+    const PerProducer = Count10k div 4
+    var pctxs: array[4, StackStressManagedProdCtx]
+    var cctxs: array[4, StackStressManagedConsCtx]
+    var pThreads: array[4, Thread[ptr StackStressManagedProdCtx]]
+    var cThreads: array[4, Thread[ptr StackStressManagedConsCtx]]
+
+    for i in 0 ..< 4:
+      pctxs[i] = StackStressManagedProdCtx(
+        stack: addr s, threadIdx: i, itemsPerThread: PerProducer,
+        producersDone: addr producersDone
+      )
+      cctxs[i] = StackStressManagedConsCtx(
+        stack: addr s, totalConsumed: addr totalItemsConsumed,
+        totalExpected: Count10k, checksumErrors: addr checksumErrors,
+        producersDone: addr producersDone, totalProducers: 4
+      )
+      createThread(cThreads[i], stackStressManagedConsWorker, addr cctxs[i])
+      createThread(pThreads[i], stackStressManagedProdWorker, addr pctxs[i])
+
+    for i in 0 ..< 4:
+      joinThread(pThreads[i])
+      joinThread(cThreads[i])
+
+    check checksumErrors.load(moRelaxed) == 0
+    check totalItemsConsumed.load(moRelaxed) == Count10k
+    check s.isEmpty
+
+# =============================================================================
+# ChaseLevDeque Stress Tests (Single-Worker / Multi-Thief Work Stealing)
+# =============================================================================
+
+type
+  DequeStressCtx = object
+    deque: ChaseLevDeque[int]
+    totalItems: int
+    poppedOrStolen: ptr UncheckedArray[Atomic[int]]
+    workerDone: ptr Atomic[bool]
+    totalProcessed: ptr Atomic[int]
+
+  DequeBatchStressCtx = object
+    deque: ChaseLevDeque[int]
+    totalItems: int
+    poppedOrStolen: ptr UncheckedArray[Atomic[int]]
+    workerDone: ptr Atomic[bool]
+    totalProcessed: ptr Atomic[int]
+
+  DequeManagedStressCtx = object
+    deque: ChaseLevDeque[TestObjectRef]
+    totalItems: int
+    workerDone: ptr Atomic[bool]
+    totalProcessed: ptr Atomic[int]
+    checksumErrors: ptr Atomic[int]
+
+proc dequeThiefWorker(ctx: ptr DequeStressCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    while true:
+      let item = ctx.deque.steal()
+      if item.isSome:
+        let val = item.get
+        if val >= 0 and val < ctx.totalItems:
+          discard ctx.poppedOrStolen[val].fetchAdd(1, moRelaxed)
+        discard ctx.totalProcessed[].fetchAdd(1, moRelaxed)
+      elif ctx.workerDone[].load(moAcquire):
+        if ctx.deque.isEmpty or ctx.totalProcessed[].load(moRelaxed) >= ctx.totalItems:
+          break
+        cpuPause()
+      else:
+        cpuPause()
+
+proc dequeBatchThiefWorker(ctx: ptr DequeBatchStressCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    var buf: array[16, int]
+    while true:
+      let count = ctx.deque.stealBatch(buf, maxItems = 8)
+      if count > 0:
+        for i in 0 ..< count:
+          let val = buf[i]
+          if val >= 0 and val < ctx.totalItems:
+            discard ctx.poppedOrStolen[val].fetchAdd(1, moRelaxed)
+        discard ctx.totalProcessed[].fetchAdd(count, moRelaxed)
+      elif ctx.workerDone[].load(moAcquire):
+        if ctx.deque.isEmpty or ctx.totalProcessed[].load(moRelaxed) >= ctx.totalItems:
+          break
+        cpuPause()
+      else:
+        cpuPause()
+
+proc dequeManagedThiefWorker(ctx: ptr DequeManagedStressCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    while true:
+      let item = ctx.deque.steal()
+      if item.isSome:
+        let obj = item.get
+        if obj.checksum != computeChecksum(obj.id, obj.payload):
+          discard ctx.checksumErrors[].fetchAdd(1, moRelaxed)
+        discard ctx.totalProcessed[].fetchAdd(1, moRelaxed)
+      elif ctx.workerDone[].load(moAcquire):
+        if ctx.deque.isEmpty or ctx.totalProcessed[].load(moRelaxed) >= ctx.totalItems:
+          break
+        cpuPause()
+      else:
+        cpuPause()
+
+suite "Stress - ChaseLevDeque (Single-Worker / Multi-Thief Work Stealing)":
+  test "ChaseLevDeque 1 Worker, 4 Concurrent Thieves (20k int)":
+    let deque = initChaseLevDeque[int](128)
+    let poppedOrStolen = cast[ptr UncheckedArray[Atomic[int]]](allocShared0(sizeof(Atomic[int]) * Count20k))
+    var workerDone: Atomic[bool]
+    var totalProcessed: Atomic[int]
+    workerDone.store(false, moRelaxed)
+    totalProcessed.store(0, moRelaxed)
+
+    var ctx = DequeStressCtx(
+      deque: deque, totalItems: Count20k,
+      poppedOrStolen: poppedOrStolen, workerDone: addr workerDone,
+      totalProcessed: addr totalProcessed
+    )
+    var thiefThreads: array[4, Thread[ptr DequeStressCtx]]
+    for i in 0 ..< 4:
+      createThread(thiefThreads[i], dequeThiefWorker, addr ctx)
+
+    for i in 0 ..< Count20k:
+      deque.pushBottom(i)
+      if i mod 8 == 0:
+        let popped = deque.popBottom()
+        if popped.isSome:
+          let val = popped.get
+          discard poppedOrStolen[val].fetchAdd(1, moRelaxed)
+          discard totalProcessed.fetchAdd(1, moRelaxed)
+
+    # Drain remaining items before signaling workerDone
+    while true:
+      let p = deque.popBottom()
+      if p.isSome:
+        let val = p.get
+        discard poppedOrStolen[val].fetchAdd(1, moRelaxed)
+        discard totalProcessed.fetchAdd(1, moRelaxed)
+      else:
+        break
+
+    workerDone.store(true, moRelease)
+    for i in 0 ..< 4:
+      joinThread(thiefThreads[i])
+
+    for i in 0 ..< Count20k:
+      check poppedOrStolen[i].load(moRelaxed) == 1
+    check totalProcessed.load(moRelaxed) == Count20k
+    check deque.isEmpty
+    deallocShared(poppedOrStolen)
+
+  test "ChaseLevDeque 1 Worker, 4 Concurrent Batch Thieves (20k int)":
+    let deque = initChaseLevDeque[int](128)
+    let poppedOrStolen = cast[ptr UncheckedArray[Atomic[int]]](allocShared0(sizeof(Atomic[int]) * Count20k))
+    var workerDone: Atomic[bool]
+    var totalProcessed: Atomic[int]
+    workerDone.store(false, moRelaxed)
+    totalProcessed.store(0, moRelaxed)
+
+    var ctx = DequeBatchStressCtx(
+      deque: deque, totalItems: Count20k,
+      poppedOrStolen: poppedOrStolen, workerDone: addr workerDone,
+      totalProcessed: addr totalProcessed
+    )
+    var thiefThreads: array[4, Thread[ptr DequeBatchStressCtx]]
+    for i in 0 ..< 4:
+      createThread(thiefThreads[i], dequeBatchThiefWorker, addr ctx)
+
+    for i in 0 ..< Count20k:
+      deque.pushBottom(i)
+      if i mod 10 == 0:
+        let popped = deque.popBottom()
+        if popped.isSome:
+          let val = popped.get
+          discard poppedOrStolen[val].fetchAdd(1, moRelaxed)
+          discard totalProcessed.fetchAdd(1, moRelaxed)
+
+    # Drain remaining items before signaling workerDone
+    while true:
+      let p = deque.popBottom()
+      if p.isSome:
+        let val = p.get
+        discard poppedOrStolen[val].fetchAdd(1, moRelaxed)
+        discard totalProcessed.fetchAdd(1, moRelaxed)
+      else:
+        break
+
+    workerDone.store(true, moRelease)
+    for i in 0 ..< 4:
+      joinThread(thiefThreads[i])
+
+    for i in 0 ..< Count20k:
+      check poppedOrStolen[i].load(moRelaxed) == 1
+    check totalProcessed.load(moRelaxed) == Count20k
+    check deque.isEmpty
+    deallocShared(poppedOrStolen)
+
+  test "ChaseLevDeque Dynamic Buffer Growth under Contention (initial cap = 16, 10k int)":
+    let deque = initChaseLevDeque[int](16)
+    let poppedOrStolen = cast[ptr UncheckedArray[Atomic[int]]](allocShared0(sizeof(Atomic[int]) * Count10k))
+    var workerDone: Atomic[bool]
+    var totalProcessed: Atomic[int]
+    workerDone.store(false, moRelaxed)
+    totalProcessed.store(0, moRelaxed)
+
+    var ctx = DequeStressCtx(
+      deque: deque, totalItems: Count10k,
+      poppedOrStolen: poppedOrStolen, workerDone: addr workerDone,
+      totalProcessed: addr totalProcessed
+    )
+    var thiefThreads: array[4, Thread[ptr DequeStressCtx]]
+    for i in 0 ..< 4:
+      createThread(thiefThreads[i], dequeThiefWorker, addr ctx)
+
+    for i in 0 ..< Count10k:
+      deque.pushBottom(i)
+
+    # Drain remaining items before signaling workerDone
+    while true:
+      let p = deque.popBottom()
+      if p.isSome:
+        let val = p.get
+        discard poppedOrStolen[val].fetchAdd(1, moRelaxed)
+        discard totalProcessed.fetchAdd(1, moRelaxed)
+      else:
+        break
+
+    workerDone.store(true, moRelease)
+    for i in 0 ..< 4:
+      joinThread(thiefThreads[i])
+
+    for i in 0 ..< Count10k:
+      check poppedOrStolen[i].load(moRelaxed) == 1
+    check totalProcessed.load(moRelaxed) == Count10k
+    deallocShared(poppedOrStolen)
+
+  test "ChaseLevDeque Managed Types (strings and ref objects) under Contention":
+    let deque = initChaseLevDeque[TestObjectRef](32)
+    var workerDone: Atomic[bool]
+    var totalProcessed: Atomic[int]
+    var checksumErrors: Atomic[int]
+    workerDone.store(false, moRelaxed)
+    totalProcessed.store(0, moRelaxed)
+    checksumErrors.store(0, moRelaxed)
+
+    const ManagedCount = 5_000
+    var ctx = DequeManagedStressCtx(
+      deque: deque, totalItems: ManagedCount,
+      workerDone: addr workerDone, totalProcessed: addr totalProcessed,
+      checksumErrors: addr checksumErrors
+    )
+    var thiefThreads: array[4, Thread[ptr DequeManagedStressCtx]]
+    for i in 0 ..< 4:
+      createThread(thiefThreads[i], dequeManagedThiefWorker, addr ctx)
+
+    for i in 0 ..< ManagedCount:
+      let payload = "deque_payload_" & $i
+      let obj = TestObjectRef(id: i, payload: payload, checksum: computeChecksum(i, payload))
+      deque.pushBottom(obj)
+
+    # Drain remaining items before signaling workerDone
+    while true:
+      let p = deque.popBottom()
+      if p.isSome:
+        let obj = p.get
+        if obj.checksum != computeChecksum(obj.id, obj.payload):
+          discard checksumErrors.fetchAdd(1, moRelaxed)
+        discard totalProcessed.fetchAdd(1, moRelaxed)
+      else:
+        break
+
+    workerDone.store(true, moRelease)
+    for i in 0 ..< 4:
+      joinThread(thiefThreads[i])
+
+    check checksumErrors.load(moRelaxed) == 0
+    check totalProcessed.load(moRelaxed) == ManagedCount
+    check deque.isEmpty
+
+# =============================================================================
+# SkipListMap Stress Tests (Fraser/Herlihy Debra SMR)
+# =============================================================================
+
+type
+  SkipListMapStressCtx = object
+    map: ptr SkipListMap[int, int]
+    threadIdx: int
+    itemsPerThread: int
+
+  SkipListMapOverlappingCtx = object
+    map: ptr SkipListMap[int, int]
+    threadIdx: int
+    opsPerThread: int
+    keyRange: int
+
+  SkipListMapMixedCtx = object
+    map: ptr SkipListMap[int, int]
+    threadIdx: int
+    itemsPerThread: int
+
+  SkipListMapManagedCtx = object
+    map: ptr SkipListMap[int, TestObjectRef]
+    threadIdx: int
+    itemsPerThread: int
+    checksumErrors: ptr Atomic[int]
+
+proc skipListMapDisjointWorker(ctx: ptr SkipListMapStressCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    let base = ctx.threadIdx * ctx.itemsPerThread
+    for i in 0 ..< ctx.itemsPerThread:
+      let k = base + i
+      discard ctx.map[].put(k, k * 2)
+
+proc skipListMapOverlappingWorker(ctx: ptr SkipListMapOverlappingCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    for i in 0 ..< ctx.opsPerThread:
+      let k = i mod ctx.keyRange
+      discard ctx.map[].put(k, k * 10 + ctx.threadIdx)
+
+proc skipListMapMixedWorker(ctx: ptr SkipListMapMixedCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    let base = ctx.threadIdx * ctx.itemsPerThread
+    for i in 0 ..< ctx.itemsPerThread:
+      let k = base + i
+      discard ctx.map[].put(k, k * 3)
+    for i in 0 ..< ctx.itemsPerThread:
+      let k = base + i
+      discard ctx.map[].get(k)
+    for i in 0 ..< ctx.itemsPerThread div 2:
+      let k = base + i
+      discard ctx.map[].delete(k)
+
+proc skipListMapManagedWorker(ctx: ptr SkipListMapManagedCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    let base = ctx.threadIdx * ctx.itemsPerThread
+    for i in 0 ..< ctx.itemsPerThread:
+      let id = base + i
+      let payload = "map_payload_" & $id
+      let obj = TestObjectRef(id: id, payload: payload, checksum: computeChecksum(id, payload))
+      discard ctx.map[].put(id, obj)
+    for i in 0 ..< ctx.itemsPerThread:
+      let id = base + i
+      let opt = ctx.map[].get(id)
+      if opt.isSome:
+        let obj = opt.get
+        if obj.checksum != computeChecksum(obj.id, obj.payload):
+          discard ctx.checksumErrors[].fetchAdd(1, moRelaxed)
+    for i in 0 ..< ctx.itemsPerThread div 2:
+      let id = base + i
+      discard ctx.map[].delete(id)
+
+suite "Stress - SkipListMap (Fraser/Herlihy Debra SMR)":
+  test "SkipListMap Concurrent Disjoint Insertions (10k items across 4 threads)":
+    var map = newSkipListMap[int, int]()
+    const Threads = 4
+    const PerThread = Count10k div Threads
+    var ctxs: array[Threads, SkipListMapStressCtx]
+    var threads: array[Threads, Thread[ptr SkipListMapStressCtx]]
+
+    for i in 0 ..< Threads:
+      ctxs[i] = SkipListMapStressCtx(map: addr map, threadIdx: i, itemsPerThread: PerThread)
+      createThread(threads[i], skipListMapDisjointWorker, addr ctxs[i])
+
+    for i in 0 ..< Threads:
+      joinThread(threads[i])
+
+    check map.len == Count10k
+    for i in 0 ..< Count10k:
+      let opt = map.get(i)
+      check opt.isSome
+      if opt.isSome:
+        check opt.get == i * 2
+
+    var count = 0
+    var prev = -1
+    for k in map.keys():
+      check k > prev
+      prev = k
+      inc count
+    check count == Count10k
+
+  test "SkipListMap High-Contention Overlapping Put (10k operations across 4 threads)":
+    var map = newSkipListMap[int, int]()
+    const Threads = 4
+    const OpsPerThread = 2500
+    const KeyRange = 500
+    var ctxs: array[Threads, SkipListMapOverlappingCtx]
+    var threads: array[Threads, Thread[ptr SkipListMapOverlappingCtx]]
+
+    for i in 0 ..< Threads:
+      ctxs[i] = SkipListMapOverlappingCtx(map: addr map, threadIdx: i, opsPerThread: OpsPerThread, keyRange: KeyRange)
+      createThread(threads[i], skipListMapOverlappingWorker, addr ctxs[i])
+
+    for i in 0 ..< Threads:
+      joinThread(threads[i])
+
+    check map.len == KeyRange
+    for k in 0 ..< KeyRange:
+      check map.contains(k)
+
+  test "SkipListMap Concurrent Mixed Workers (Put / Get / Delete under Debra SMR)":
+    var map = newSkipListMap[int, int]()
+    const Threads = 4
+    const PerThread = 1500
+    var ctxs: array[Threads, SkipListMapMixedCtx]
+    var threads: array[Threads, Thread[ptr SkipListMapMixedCtx]]
+
+    for i in 0 ..< Threads:
+      ctxs[i] = SkipListMapMixedCtx(map: addr map, threadIdx: i, itemsPerThread: PerThread)
+      createThread(threads[i], skipListMapMixedWorker, addr ctxs[i])
+
+    for i in 0 ..< Threads:
+      joinThread(threads[i])
+
+    let expectedRemaining = Threads * (PerThread - PerThread div 2)
+    check map.len == expectedRemaining
+
+    for t in 0 ..< Threads:
+      let base = t * PerThread
+      for i in 0 ..< PerThread div 2:
+        check not map.contains(base + i)
+      for i in (PerThread div 2) ..< PerThread:
+        check map.contains(base + i)
+
+  test "SkipListMap Managed Types (strings and ref objects)":
+    var map = newSkipListMap[int, TestObjectRef]()
+    var checksumErrors: Atomic[int]
+    checksumErrors.store(0, moRelaxed)
+
+    const Threads = 4
+    const PerThread = 1000
+    var ctxs: array[Threads, SkipListMapManagedCtx]
+    var threads: array[Threads, Thread[ptr SkipListMapManagedCtx]]
+
+    for i in 0 ..< Threads:
+      ctxs[i] = SkipListMapManagedCtx(
+        map: addr map, threadIdx: i, itemsPerThread: PerThread,
+        checksumErrors: addr checksumErrors
+      )
+      createThread(threads[i], skipListMapManagedWorker, addr ctxs[i])
+
+    for i in 0 ..< Threads:
+      joinThread(threads[i])
+
+    check checksumErrors.load(moRelaxed) == 0
+    let expectedRemaining = Threads * (PerThread - PerThread div 2)
+    check map.len == expectedRemaining
+
+# =============================================================================
+# SkipListSet Stress Tests (Fraser/Herlihy Debra SMR)
+# =============================================================================
+
+type
+  SkipListSetStressCtx = object
+    set: ptr SkipListSet[int]
+    threadIdx: int
+    itemsPerThread: int
+
+  SkipListSetOverlappingCtx = object
+    set: ptr SkipListSet[int]
+    threadIdx: int
+    itemsPerThread: int
+    keyRange: int
+
+  SkipListSetMixedCtx = object
+    set: ptr SkipListSet[int]
+    threadIdx: int
+    itemsPerThread: int
+
+proc skipListSetDisjointWorker(ctx: ptr SkipListSetStressCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    let base = ctx.threadIdx * ctx.itemsPerThread
+    for i in 0 ..< ctx.itemsPerThread:
+      discard ctx.set[].insert(base + i)
+
+proc skipListSetOverlappingWorker(ctx: ptr SkipListSetOverlappingCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    for i in 0 ..< ctx.itemsPerThread:
+      let val = i mod ctx.keyRange
+      discard ctx.set[].insert(val)
+
+proc skipListSetMixedWorker(ctx: ptr SkipListSetMixedCtx) {.thread.} =
+  {.cast(gcsafe).}:
+    let base = ctx.threadIdx * ctx.itemsPerThread
+    for i in 0 ..< ctx.itemsPerThread:
+      discard ctx.set[].insert(base + i)
+    for i in 0 ..< ctx.itemsPerThread:
+      discard ctx.set[].contains(base + i)
+    for i in 0 ..< ctx.itemsPerThread div 2:
+      discard ctx.set[].remove(base + i)
+
+suite "Stress - SkipListSet (Fraser/Herlihy Debra SMR)":
+  test "SkipListSet Concurrent Disjoint Insertions (10k items across 4 threads)":
+    var s = newSkipListSet[int]()
+    const Threads = 4
+    const PerThread = Count10k div Threads
+    var ctxs: array[Threads, SkipListSetStressCtx]
+    var threads: array[Threads, Thread[ptr SkipListSetStressCtx]]
+
+    for i in 0 ..< Threads:
+      ctxs[i] = SkipListSetStressCtx(set: addr s, threadIdx: i, itemsPerThread: PerThread)
+      createThread(threads[i], skipListSetDisjointWorker, addr ctxs[i])
+
+    for i in 0 ..< Threads:
+      joinThread(threads[i])
+
+    check s.len == Count10k
+    for i in 0 ..< Count10k:
+      check s.contains(i)
+
+    var count = 0
+    var prev = -1
+    for x in s:
+      check x > prev
+      prev = x
+      inc count
+    check count == Count10k
+
+  test "SkipListSet Concurrent Overlapping Insertions (Duplicate Rejection)":
+    var s = newSkipListSet[int]()
+    const Threads = 4
+    const OpsPerThread = 2500
+    const KeyRange = 500
+    var ctxs: array[Threads, SkipListSetOverlappingCtx]
+    var threads: array[Threads, Thread[ptr SkipListSetOverlappingCtx]]
+
+    for i in 0 ..< Threads:
+      ctxs[i] = SkipListSetOverlappingCtx(set: addr s, threadIdx: i, itemsPerThread: OpsPerThread, keyRange: KeyRange)
+      createThread(threads[i], skipListSetOverlappingWorker, addr ctxs[i])
+
+    for i in 0 ..< Threads:
+      joinThread(threads[i])
+
+    check s.len == KeyRange
+    for i in 0 ..< KeyRange:
+      check s.contains(i)
+
+  test "SkipListSet Concurrent Mixed Insert / Remove / Contains":
+    var s = newSkipListSet[int]()
+    const Threads = 4
+    const PerThread = 1500
+    var ctxs: array[Threads, SkipListSetMixedCtx]
+    var threads: array[Threads, Thread[ptr SkipListSetMixedCtx]]
+
+    for i in 0 ..< Threads:
+      ctxs[i] = SkipListSetMixedCtx(set: addr s, threadIdx: i, itemsPerThread: PerThread)
+      createThread(threads[i], skipListSetMixedWorker, addr ctxs[i])
+
+    for i in 0 ..< Threads:
+      joinThread(threads[i])
+
+    let expectedRemaining = Threads * (PerThread - PerThread div 2)
+    check s.len == expectedRemaining
+
+    for t in 0 ..< Threads:
+      let base = t * PerThread
+      for i in 0 ..< PerThread div 2:
+        check not s.contains(base + i)
+      for i in (PerThread div 2) ..< PerThread:
+        check s.contains(base + i)
 

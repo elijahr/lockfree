@@ -1053,14 +1053,19 @@ proc pop*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
       # Non-POD T (string, seq, ref) requires the unwrap. Mirrors the
       # Bound-endpoint pop surface.
       return some(unwrapOrIdentity[T](value))
-    let nextSeg = seg.next.load(moAcquire)
-    if nextSeg == nil:
-      return none(T)
-    let oldSeg = seg
-    self.headSegment.store(nextSeg, moRelease)
-    seg = nextSeg
-    discard self.segments.fetchSub(1, moRelaxed)
-    freeAligned(oldSeg)
+    if head >= S:
+      let nextSeg = seg.next.load(moAcquire)
+      if nextSeg == nil:
+        return none(T)
+      let oldSeg = seg
+      self.headSegment.store(nextSeg, moRelease)
+      seg = nextSeg
+      discard self.segments.fetchSub(1, moRelaxed)
+      freeAligned(oldSeg)
+    else:
+      let nextSeg = seg.next.load(moAcquire)
+      if nextSeg == nil:
+        return none(T)
 
 
 
@@ -1619,14 +1624,19 @@ proc pop*[
         when not defined(lockfreeDisableItemCount):
           discard self.queue.itemCount.fetchSub(1, moRelaxed)
         return some(unwrapOrIdentity[T](encoded))
-      let nextSeg = seg.next.load(moAcquire)
-      if nextSeg == nil:
-        return none(T)
-      let oldSeg = seg
-      self.queue.headSegment.store(nextSeg, moRelease)
-      seg = nextSeg
-      discard self.queue.segments.fetchSub(1, moRelaxed)
-      freeAligned(oldSeg)
+      if head >= S:
+        let nextSeg = seg.next.load(moAcquire)
+        if nextSeg == nil:
+          return none(T)
+        let oldSeg = seg
+        self.queue.headSegment.store(nextSeg, moRelease)
+        seg = nextSeg
+        discard self.queue.segments.fetchSub(1, moRelaxed)
+        freeAligned(oldSeg)
+      else:
+        let nextSeg = seg.next.load(moAcquire)
+        if nextSeg == nil:
+          return none(T)
   else:
     # MPSC: ccMulti producer × ccSingle consumer. The single consumer
     # owns the head walk but still pins the epoch via debra so
@@ -1662,18 +1672,23 @@ proc pop*[
           # before the final drain, so the window is closed by the time a
           # genuine end-of-stream `none` is returned.
           break
-        let nextSeg = seg.next.load(moAcquire)
-        if nextSeg == nil:
-          break
-        self.queue[].retireOnPublish(
-          scope,
-          self.queue.headSegment,
-          nextSeg,
-          segmentDestructor[T, ccMulti, ccSingle, S],
-        )
-        when ST != stManual:
-          discard self.queue.segments.fetchSub(1, moRelaxed)
-        seg = nextSeg
+        if seg.head >= S:
+          let nextSeg = seg.next.load(moAcquire)
+          if nextSeg == nil:
+            break
+          self.queue[].retireOnPublish(
+            scope,
+            self.queue.headSegment,
+            nextSeg,
+            segmentDestructor[T, ccMulti, ccSingle, S],
+          )
+          when ST != stManual:
+            discard self.queue.segments.fetchSub(1, moRelaxed)
+          seg = nextSeg
+        else:
+          let nextSeg = seg.next.load(moAcquire)
+          if nextSeg == nil:
+            break
     when ST == stEager:
       if h.advanceEvery(LockFreeQueuesAdvanceEvery):
         discard reclaimNow(h)

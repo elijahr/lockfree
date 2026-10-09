@@ -287,55 +287,32 @@ proc trySteal*[T](self: ChaseLevDeque[T], item: var T): bool =
   return false
 
 proc stealBatch*[T](self: ChaseLevDeque[T], dest: var openArray[T], maxItems: int = -1): int =
-  ## Steals a batch of items from the top of the deque in a single atomic CAS.
+  ## Steals a batch of items from the top of the deque.
   ## Writes stolen items to `dest[0 ..< stolenCount]` in FIFO order and returns `stolenCount`.
-  ## If `maxItems <= 0`, defaults to stealing up to `min(dest.len, (available + 1) div 2)`.
+  ## If `maxItems <= 0`, defaults to stealing up to `min(dest.len, max(1, self.len div 2))`.
   if unlikely(self.core == nil or dest.len == 0): return 0
-  let core = self.core
-  var t = core.top.load(moAcquire)
-  threadFence(moSequentiallyConsistent)
-  var b = core.bottom.load(moAcquire)
-
-  var n = b - t
-  if n <= 0:
-    return 0
-
-  var limit = if maxItems > 0: min(maxItems, int(n)) else: max(1, int((n + 1) div 2))
-  limit = min(limit, dest.len)
-  if limit <= 0:
-    return 0
-
-  var buf = core.buffer.load(moAcquire)
-
-  var expectedTop = t
-  if core.top.compareExchangeStrong(expectedTop, t + int64(limit), moSequentiallyConsistent, moRelaxed):
-    # This thief uniquely won the right to slots [t ..< t + limit]
-    for i in 0 ..< limit:
-      let idx = int((t + int64(i)) and int64(buf.mask))
-      let encoded = buf.data[idx]
-      dest[i] = unwrapOrIdentity[T](encoded)
-    return limit
-  else:
-    # CAS contention
-    return 0
+  let avail = self.len
+  if avail <= 0: return 0
+  let target = if maxItems > 0: min(maxItems, dest.len) else: min(dest.len, max(1, (avail + 1) div 2))
+  var count = 0
+  while count < target:
+    let item = self.steal()
+    if item.isNone:
+      break
+    dest[count] = item.get
+    inc count
+  return count
 
 proc stealBatch*[T](self: ChaseLevDeque[T], maxItems: int = -1): seq[T] =
   ## Steals a batch of items from the top of the deque into a new `seq[T]`.
   ## If `maxItems <= 0`, defaults to stealing up to `(available + 1) div 2`.
   if unlikely(self.core == nil): return @[]
-  let core = self.core
-  var t = core.top.load(moAcquire)
-  threadFence(moSequentiallyConsistent)
-  var b = core.bottom.load(moAcquire)
-
-  var n = b - t
-  if n <= 0:
-    return @[]
-
-  var limit = if maxItems > 0: min(maxItems, int(n)) else: max(1, int((n + 1) div 2))
-  var res = newSeq[T](limit)
-  let actual = self.stealBatch(res, limit)
-  if actual < limit:
+  let avail = self.len
+  if avail <= 0: return @[]
+  let target = if maxItems > 0: maxItems else: max(1, (avail + 1) div 2)
+  var res = newSeq[T](target)
+  let actual = self.stealBatch(res, target)
+  if actual < target:
     res.setLen(actual)
   return res
 
