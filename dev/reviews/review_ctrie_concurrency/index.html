@@ -1,0 +1,3759 @@
+<!DOCTYPE html><html lang="en" class="no-js"><head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Lock-free queues for Nim">
+      
+      
+      
+        <link rel="canonical" href="https://elijahr.github.io/lockfree/latest/reviews/review_ctrie_concurrency/">
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+    
+    
+      
+        <title>Comprehensive Concurrency, Memory Ordering, and SMR Audit Report: Prokopec Ctrie (Ctrie[K, V]) - lockfree</title>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      
+        
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../../assets/_mkdocstrings.css">
+    
+      <link rel="stylesheet" href="../../css/timeago.css">
+    
+      <link rel="stylesheet" href="../../css/custom.css">
+    
+      <link rel="stylesheet" href="../../assets/bench-charts.css">
+    
+    <script>__md_scope=new URL("../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  <link href="../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+            html.glightbox-open { overflow: initial; height: 100%; }
+            .gslide-title { margin-top: 0px; user-select: text; }
+            .gslide-desc { color: #666; user-select: text; }
+            .gslide-image img { background: white; }
+            .gscrollbar-fixer { padding-right: 15px; }
+            .gdesc-inner { font-size: 0.75rem; }
+            body[data-md-color-scheme="slate"] .gdesc-inner { background: var(--md-default-bg-color); }
+            body[data-md-color-scheme="slate"] .gslide-title { color: var(--md-default-fg-color); }
+            body[data-md-color-scheme="slate"] .gslide-desc { color: var(--md-default-fg-color); }
+        </style></head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#comprehensive-concurrency-memory-ordering-and-smr-audit-report-prokopec-ctrie-ctriek-v" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden="">
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="../.." title="lockfree" class="md-header__button md-logo" aria-label="lockfree" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            lockfree
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Comprehensive Concurrency, Memory Ordering, and SMR Audit Report: Prokopec Ctrie (Ctrie[K, V])
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="cyan" aria-label="Switch to light mode" type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_1" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="cyan" aria-label="Switch to dark mode" type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_0" hidden="">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required="">
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix="">
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/elijahr/lockfree" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    elijahr/lockfree
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="../.." title="lockfree" class="md-nav__button md-logo" aria-label="lockfree" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+
+    </a>
+    lockfree
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/elijahr/lockfree" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+  </div>
+  <div class="md-source__repository">
+    elijahr/lockfree
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix="">
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2">
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting Started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_3">
+        
+          
+          <label class="md-nav__link" for="__nav_2_3" id="__nav_2_3_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Concepts
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/concepts/lock-freedom/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Lock-freedom
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/concepts/smr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Safe memory reclamation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/concepts/memory-management/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Memory management
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_4">
+        
+          
+          <label class="md-nav__link" for="__nav_2_4" id="__nav_2_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Queues
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Queues
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/bounded-vyukov/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounded (Vyukov)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/strict-lcrq-mpmc/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unbounded MPMC (strict-LCRQ)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/legacy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy cardinalities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_5">
+        
+          
+          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMR
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SMR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/smr/nebr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nebr
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/managed-ref/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ManagedRef
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/managed-slice/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ManagedSlice
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/typestates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Typestates
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/nimony/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Nimony
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_10">
+        
+          
+          <label class="md-nav__link" for="__nav_2_10" id="__nav_2_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Legacy guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/core-concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core concepts (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/bounded-vs-unbounded/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounded vs unbounded (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/slot-ownership-typestates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Slot ownership typestates (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/safety-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Safety model (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/performance-tuning/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Performance tuning
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples (legacy)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
+        
+          
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/lockfree/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    lockfree (umbrella)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/compat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility (lockfreequeues)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/bqueue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Bounded Queue (BQueue)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/queue/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Unbounded Queue (Queue)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/managed_ref/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ManagedRef
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/managed_slice/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ManagedSlice
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/chronos/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Chronos
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/atomics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    atomics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_10">
+        
+          
+          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMR
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SMR
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/smr/nebr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nebr
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_11">
+        
+          
+          <label class="md-nav__link" for="__nav_3_11" id="__nav_3_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Typestates
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Typestates
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typestates/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Facade
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typestates/with_bound/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    with_bound
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typestates/slot_state/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    slot_state
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/typestates/segment_state/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    segment_state
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_12">
+        
+          
+          <label class="md-nav__link" for="__nav_3_12" id="__nav_3_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Internal
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Internal
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/internal/slot_encoding/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    slot_encoding
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/internal/path_c_admit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    path_c_admit
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../api/internal/path_c_wrap/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    path_c_wrap
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4">
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Examples
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migrations
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Migrations
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../transition_plan/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Transition Plan
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migrations/from-lockfreequeues-v5/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    From lockfreequeues v5
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../migrations/from-nim-debra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    From nim-debra
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+        
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6">
+        
+          
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Legacy
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_1">
+        
+          
+          <label class="md-nav__link" for="__nav_6_1" id="__nav_6_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    nim-debra docs
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    nim-debra docs
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/PROVENANCE/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Provenance
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Index
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/safety-model/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Safety model
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/MIGRATION_v0.8.0/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration (v0.8.0)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_1_7">
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_7" id="__nav_6_1_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Guide
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Guide
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/getting-started/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Getting started
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/atomics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Atomics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/thread-registration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Thread registration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/pin-unpin/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Pin / unpin
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/retiring-objects/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Retiring objects
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/reclamation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Reclamation
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/epoch-advancement/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Epoch advancement
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/neutralization/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Neutralization
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/guide/integration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_1_8">
+        
+          
+          <label class="md-nav__link" for="__nav_6_1_8" id="__nav_6_1_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Design
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6_1_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Design
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/design/2026-04-25-batched-retire-reclaim/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batched retire/reclaim
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../legacy/nim-debra/design/2026-04-25-custom-atomics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Custom atomics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../contributing/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Contributing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#1-executive-summary-verdict" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Executive Summary &amp; Verdict
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Executive Summary &amp; Verdict">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#audit-verdict-conditional-ratification-pending-remediation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Audit Verdict: CONDITIONAL RATIFICATION PENDING REMEDIATION
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-in-depth-adversarial-analysis-by-focus-area" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. In-Depth Adversarial Analysis by Focus Area
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2. In-Depth Adversarial Analysis by Focus Area">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#21-generation-renewal-root-inode-cas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.1 Generation Renewal &amp; Root INode CAS
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.1 Generation Renewal &amp; Root INode CAS">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#formal-invariant-prokopec-2012-32" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formal Invariant (Prokopec 2012 §3.2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#analysis-of-srclockfreectrienim" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Analysis of src/lockfree/ctrie.nim:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#22-cnode-expansion-hamt-bit-partitioning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.2 CNode Expansion &amp; HAMT Bit-Partitioning
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.2 CNode Expansion &amp; HAMT Bit-Partitioning">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#formal-invariant-bagwell-2000-2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formal Invariant (Bagwell 2000 §2)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#analysis-of-srclockfreectrienim_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Analysis of src/lockfree/ctrie.nim:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#23-snode-hash-collision-resolution-lnode-lifecycle" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.3 SNode Hash Collision Resolution &amp; LNode Lifecycle
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.3 SNode Hash Collision Resolution &amp; LNode Lifecycle">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#formal-invariant-prokopec-2012-41" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formal Invariant (Prokopec 2012 §4.1)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#analysis-of-srclockfreectrienim_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Analysis of src/lockfree/ctrie.nim:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#24-arcorc-and-safe-memory-reclamation-debra-smr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.4 ARC/ORC and Safe Memory Reclamation (Debra SMR)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.4 ARC/ORC and Safe Memory Reclamation (Debra SMR)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#formal-invariant-debra-nebr-protocol" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Formal Invariant (Debra NEBR Protocol)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#analysis-of-srclockfreectrienim_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Analysis of src/lockfree/ctrie.nim:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#25-atomic-conditional-operations-computeifabsent" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2.5 Atomic Conditional Operations (computeIfAbsent)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="2.5 Atomic Conditional Operations (computeIfAbsent)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#analysis-of-srclockfreectrienim_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Analysis of src/lockfree/ctrie.nim:
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-comprehensive-defect-remediation-blueprint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Comprehensive Defect Remediation Blueprint
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Comprehensive Defect Remediation Blueprint">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#remediation-1-crit-01-atomic-reference-counting-on-vboxv" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remediation 1 (CRIT-01): Atomic Reference Counting on VBox[V]
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#remediation-2-crit-02-pin-protection-for-snapshot-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remediation 2 (CRIT-02): Pin Protection for Snapshot Operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#remediation-3-high-01-clean-retires-contracted-inodes-and-tnodes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remediation 3 (HIGH-01): Clean Retires Contracted INodes and TNodes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#remediation-4-high-02-dedicated-putifabsent-primitive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remediation 4 (HIGH-02): Dedicated putIfAbsent Primitive
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#remediation-5-med-01-pre-shift-exhaustion-check-in-createsubinode" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Remediation 5 (MED-01): Pre-Shift Exhaustion Check in createSubINode
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-verification-testing-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Verification &amp; Testing Matrix
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-auditor-ratification-recommendation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Auditor Ratification &amp; Recommendation
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="comprehensive-concurrency-memory-ordering-and-smr-audit-report-prokopec-ctrie-ctriek-v">Comprehensive Concurrency, Memory Ordering, and SMR Audit Report: Prokopec Ctrie (<code>Ctrie[K, V]</code>)<a class="headerlink" href="#comprehensive-concurrency-memory-ordering-and-smr-audit-report-prokopec-ctrie-ctriek-v" title="Permanent link">¶</a></h1>
+<p><strong>Author</strong>: Caleb Thorne (<code>auditor-pegasus</code>), Verification &amp; Adversarial Auditor<br>
+<strong>Date</strong>: October 8, 2026<br>
+<strong>Target Substrate</strong>: <code>lockfree</code> (v0.1.0-consolidated)<br>
+<strong>Target Component</strong>: <code>src/lockfree/ctrie.nim</code> (Wave 2C Ctrie Implementation)<br>
+<strong>Deliverable</strong>: <code>docs/reviews/review_ctrie_concurrency.md</code><br>
+<strong>Referenced Specification</strong>: <code>docs/designs/design_ctrie.md</code> (<code>DESIGN-LOCKFREE-CTRIE-001</code> by <code>architect-horsetail</code>)<br>
+<strong>Auditor Verification Invariants</strong>: Prokopec 2012 Invariants, Bagwell HAMT Invariants, Debra SMR Pin-Claim Lifecycle, ARC/ORC Destructor Safety  </p>
+<hr>
+<h2 id="1-executive-summary-verdict">1. Executive Summary &amp; Verdict<a class="headerlink" href="#1-executive-summary-verdict" title="Permanent link">¶</a></h2>
+<p>This report delivers an adversarial, formal audit of the <code>Ctrie[K, V]</code> implementation in <code>src/lockfree/ctrie.nim</code>.</p>
+<p>The Aleksandar Prokopec Concurrent Hash Trie (Ctrie) is an advanced non-blocking associative structure combining:
+1. <strong>A 32-way compressed Hash Array Mapped Trie (HAMT)</strong> utilizing single-cycle hardware popcount instructions (<code>countBits32</code>).
+2. <strong>Atomic Indirection Nodes (<code>INode</code>)</strong> that isolate concurrent mutation hotspots.
+3. <strong>Generational Stamping and Lazy Copy-on-Write (<code>GCopy</code>)</strong> that achieve $O(1)$ time and $O(1)$ work wait-free point-in-time snapshots.
+4. <strong>Bottom-up Tombstone Contraction (<code>TNode</code>)</strong> that shrinks single-element subtrees back to parent leaves upon deletion.
+5. <strong>In-Tree Debra Safe Memory Reclamation (NEBR)</strong> protecting unmanaged node memory across epoch boundaries.</p>
+<h3 id="audit-verdict-conditional-ratification-pending-remediation">Audit Verdict: CONDITIONAL RATIFICATION PENDING REMEDIATION<a class="headerlink" href="#audit-verdict-conditional-ratification-pending-remediation" title="Permanent link">¶</a></h3>
+<p>While the fundamental Prokopec generational state machine, HAMT popcount bit-indexing, and root CAS re-rooting algorithms are soundly implemented, the adversarial audit has intercepted <strong>two critical vulnerabilities (CRIT)</strong> and <strong>three high-severity defects (HIGH)</strong> that must be remediated:</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Finding ID</th>
+<th style="text-align: left;">Severity</th>
+<th style="text-align: left;">Category</th>
+<th style="text-align: left;">Summary</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>CRIT-01</strong></td>
+<td style="text-align: left;"><strong>CRITICAL</strong></td>
+<td style="text-align: left;">Memory Safety / ARC</td>
+<td style="text-align: left;">Premature Deallocation and Double-Free of Shared <code>VBox</code> in <code>LNode</code> Updates and Contractions</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>CRIT-02</strong></td>
+<td style="text-align: left;"><strong>CRITICAL</strong></td>
+<td style="text-align: left;">Concurrency / SMR</td>
+<td style="text-align: left;">Unprotected Pointer Traversal in <code>Snapshot</code> Reads and Iterators without Debra SMR Pin</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>HIGH-01</strong></td>
+<td style="text-align: left;"><strong>HIGH</strong></td>
+<td style="text-align: left;">Resource Leak</td>
+<td style="text-align: left;">Leaked Contracted <code>INode</code> and <code>TNode</code> Instances during Bottom-Up Contraction</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>HIGH-02</strong></td>
+<td style="text-align: left;"><strong>HIGH</strong></td>
+<td style="text-align: left;">Linearizability</td>
+<td style="text-align: left;">Non-Atomic Overwrite Race and Lost Updates in <code>computeIfAbsent</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>HIGH-03</strong></td>
+<td style="text-align: left;"><strong>HIGH</strong></td>
+<td style="text-align: left;">Resource Leak</td>
+<td style="text-align: left;">Unbounded Memory Leak of <code>Generation</code> Objects and Snapshot Root INodes</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>MED-01</strong></td>
+<td style="text-align: left;"><strong>MEDIUM</strong></td>
+<td style="text-align: left;">Undefined Behavior</td>
+<td style="text-align: left;">Undefined Behavior via Shift Count $\ge 32$ in <code>createSubINode</code></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>MED-02</strong></td>
+<td style="text-align: left;"><strong>MEDIUM</strong></td>
+<td style="text-align: left;">SMR Exhaustion</td>
+<td style="text-align: left;">Debra Thread Registration Slot Leak on TLS Cache Eviction</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>LOW-01</strong></td>
+<td style="text-align: left;"><strong>LOW</strong></td>
+<td style="text-align: left;">Memory Ordering</td>
+<td style="text-align: left;">Weak Refcount Decrement Ordering in <code>decRef</code> and <code>=destroy</code></td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="2-in-depth-adversarial-analysis-by-focus-area">2. In-Depth Adversarial Analysis by Focus Area<a class="headerlink" href="#2-in-depth-adversarial-analysis-by-focus-area" title="Permanent link">¶</a></h2>
+<h3 id="21-generation-renewal-root-inode-cas">2.1 Generation Renewal &amp; Root INode CAS<a class="headerlink" href="#21-generation-renewal-root-inode-cas" title="Permanent link">¶</a></h3>
+<h4 id="formal-invariant-prokopec-2012-32">Formal Invariant (Prokopec 2012 §3.2)<a class="headerlink" href="#formal-invariant-prokopec-2012-32" title="Permanent link">¶</a></h4>
+<blockquote>
+<p><em>A snapshot generation $G_{k}$ is created by swinging the root <code>INode</code> to point to a new root stamped with a fresh generation token $G_{k+1}$, while preserving the existing root <code>CNode</code>. Any subsequent mutator encountering a <code>CNode</code> whose generation does not match the active root generation MUST lazily replicate the path (<code>GCopy</code>) rather than mutating in place.</em></p>
+</blockquote>
+<h4 id="analysis-of-srclockfreectrienim">Analysis of <code>src/lockfree/ctrie.nim</code>:<a class="headerlink" href="#analysis-of-srclockfreectrienim" title="Permanent link">¶</a></h4>
+<ol>
+<li><strong>Root CAS Mechanism</strong>:
+   <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c"># Line 905-912:</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="k">let</span><span class="w"> </span><span class="n">curRoot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">self</span><span class="p">.</span><span class="n">core</span><span class="p">.</span><span class="n">root</span><span class="p">.</span><span class="n">load</span><span class="p">(</span><span class="n">moAcquire</span><span class="p">)</span>
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="k">let</span><span class="w"> </span><span class="n">curMain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">curRoot</span><span class="p">.</span><span class="n">main</span><span class="p">.</span><span class="n">load</span><span class="p">(</span><span class="n">moAcquire</span><span class="p">)</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="k">let</span><span class="w"> </span><span class="n">freshGen</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">allocGeneration</span><span class="p">()</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="k">let</span><span class="w"> </span><span class="n">newRoot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">allocINode</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="o">]</span><span class="p">(</span><span class="n">curMain</span><span class="p">,</span><span class="w"> </span><span class="n">freshGen</span><span class="p">)</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="kd">var</span><span class="w"> </span><span class="n">expCurRoot</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">curRoot</span>
+<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="k">if</span><span class="w"> </span><span class="n">self</span><span class="p">.</span><span class="n">core</span><span class="p">.</span><span class="n">root</span><span class="p">.</span><span class="n">compareExchangeStrong</span><span class="p">(</span><span class="n">expCurRoot</span><span class="p">,</span><span class="w"> </span><span class="n">newRoot</span><span class="p">,</span><span class="w"> </span><span class="n">moSequentiallyConsistent</span><span class="p">,</span><span class="w"> </span><span class="n">moAcquire</span><span class="p">):</span>
+<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="k">discard</span><span class="w"> </span><span class="n">self</span><span class="p">.</span><span class="n">core</span><span class="p">.</span><span class="n">rc</span><span class="p">.</span><span class="n">fetchAdd</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">moRelaxed</span><span class="p">)</span>
+<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">Snapshot</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="p">,</span><span class="w"> </span><span class="n">MaxThreads</span><span class="o">]</span><span class="p">(</span><span class="n">core</span><span class="p">:</span><span class="w"> </span><span class="n">self</span><span class="p">.</span><span class="n">core</span><span class="p">,</span><span class="w"> </span><span class="n">root</span><span class="p">:</span><span class="w"> </span><span class="n">curRoot</span><span class="p">)</span>
+</code></pre></div></li>
+<li><strong>Memory Ordering</strong>: Uses <code>moSequentiallyConsistent</code> for root swing, establishing a total order across all snapshots.</li>
+<li><strong>Isolation</strong>: Mutators traversing from <code>newRoot</code> observe <code>cn.gen != root.gen</code> upon encountering the root <code>CNode</code> (since <code>cn.gen</code> was created under <code>curRoot.gen</code>).</li>
+<li><strong>GCopy Trigger</strong>: The mutator immediately creates a generational replica via <code>gcopy(cn, root.gen)</code> and installs it in <code>newRoot.main</code> via CAS.</li>
+<li><strong>Snapshot Immutability</strong>: The snapshot holds <code>curRoot</code>. Mutator writes are directed exclusively to <code>newRoot.main</code> and freshly minted generation branches. <code>curRoot.main</code> remains completely immutable.</li>
+<li><strong>Defect Intercepted (HIGH-03)</strong>:</li>
+<li><code>allocGeneration()</code> sets <code>gen.rc = 1</code>.</li>
+<li><code>allocINode(curMain, freshGen)</code> executes <code>incRef(freshGen)</code>, incrementing <code>rc</code> to 2.</li>
+<li>Neither the success path nor the retry path in <code>snapshot()</code> decrements the initial reference count acquired by <code>allocGeneration()</code>.</li>
+<li>On CAS failure, <code>freeAligned(newRoot)</code> does not drop the reference on <code>newRoot.gen</code>, leaving <code>freshGen.rc = 1</code> permanently leaked.</li>
+<li>On CAS success, <code>freshGen.rc = 2</code>. When <code>newRoot</code> is eventually destroyed, <code>destroyINodeCallback</code> drops <code>rc</code> to 1, leaving <code>freshGen</code> permanently leaked on the heap.</li>
+</ol>
+<hr>
+<h3 id="22-cnode-expansion-hamt-bit-partitioning">2.2 CNode Expansion &amp; HAMT Bit-Partitioning<a class="headerlink" href="#22-cnode-expansion-hamt-bit-partitioning" title="Permanent link">¶</a></h3>
+<h4 id="formal-invariant-bagwell-2000-2">Formal Invariant (Bagwell 2000 §2)<a class="headerlink" href="#formal-invariant-bagwell-2000-2" title="Permanent link">¶</a></h4>
+<blockquote>
+<p><em>At level $L \in {0, 5, 10, 15, 20, 25, 30}$, branch index $\text{pos} = (H \gg L) \ \&amp; \ 0\text{x}1\text{F}$. Occupancy is tracked via bitmap <code>bmp</code>. The compacted array offset is $\text{popcount}(\text{bmp} \ \&amp; \ ((1 \ll \text{pos}) - 1))$. Under insertion, slots must maintain strictly sorted bit order without element displacement or lost branches.</em></p>
+</blockquote>
+<h4 id="analysis-of-srclockfreectrienim_1">Analysis of <code>src/lockfree/ctrie.nim</code>:<a class="headerlink" href="#analysis-of-srclockfreectrienim_1" title="Permanent link">¶</a></h4>
+<ol>
+<li><strong>Popcount Correctness</strong>:</li>
+<li><code>countBits32(cn.bmp and (flag - 1'u32))</code> correctly compiles to the single-cycle hardware popcount instruction (<code>POPCNT</code> on x86, <code>CNT</code> on ARM64).</li>
+<li>Array resizing in lines 584-589 correctly preserves existing children before <code>idx</code>, places the new item at <code>idx</code>, and offsets subsequent children by $+1$.</li>
+<li><strong>Bit-Stealing Collision Expansion</strong>:</li>
+<li>When an insertion encounters an existing <code>SNode</code> with a different key, <code>createSubINode</code> is invoked at <code>level + 5</code>:</li>
+<li>If the two keys have different hash bits at the next level ($p_1 \neq p_2$), a 2-element <code>CNode</code> is allocated with <code>bmp = (1 shl p1) or (1 shl p2)</code>.</li>
+<li>If $p_1 == p_2$, <code>createSubINode</code> recurses down to <code>level + 5</code>.</li>
+<li><strong>Defect Intercepted (MED-01)</strong>:</li>
+<li>In <code>createSubINode</code> (lines 374-375):
+     <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">let</span><span class="w"> </span><span class="n">p1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">h1</span><span class="w"> </span><span class="ow">shr</span><span class="w"> </span><span class="n">level</span><span class="p">)</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="mh">0x1F</span><span class="sc">'u32</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="k">let</span><span class="w"> </span><span class="n">p2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">h2</span><span class="w"> </span><span class="ow">shr</span><span class="w"> </span><span class="n">level</span><span class="p">)</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="mh">0x1F</span><span class="sc">'u32</span>
+</code></pre></div></li>
+<li>These shifts are executed <em>before</em> checking <code>if level &gt;= MaxLevel or h1 == h2</code>.</li>
+<li>If two keys collide in a level-30 <code>CNode</code>, <code>createSubINode</code> is invoked with <code>level = 35</code>.</li>
+<li>Shifting a 32-bit unsigned integer by 35 is undefined behavior in ISO C11 (§6.5.7/3). On x86 processors, the shift count is masked by 31 (<code>35 and 31 = 3</code>), causing the trie to erroneously compare hash bits 3..7 and attempt infinite branch expansion instead of immediately creating an <code>LNode</code>.</li>
+</ol>
+<hr>
+<h3 id="23-snode-hash-collision-resolution-lnode-lifecycle">2.3 SNode Hash Collision Resolution &amp; LNode Lifecycle<a class="headerlink" href="#23-snode-hash-collision-resolution-lnode-lifecycle" title="Permanent link">¶</a></h3>
+<h4 id="formal-invariant-prokopec-2012-41">Formal Invariant (Prokopec 2012 §4.1)<a class="headerlink" href="#formal-invariant-prokopec-2012-41" title="Permanent link">¶</a></h4>
+<blockquote>
+<p><em>Keys with identical 32-bit hashes that reach depth <code>MaxLevel</code> (30) must be resolved via immutable persistent collision chains (<code>LNode</code>). Modifications to an <code>LNode</code> create a new list version and CAS the branch <code>INode.main</code>. When a deletion leaves an <code>LNode</code> with exactly 1 element, it MUST contract to an <code>SNode</code>.</em></p>
+</blockquote>
+<h4 id="analysis-of-srclockfreectrienim_2">Analysis of <code>src/lockfree/ctrie.nim</code>:<a class="headerlink" href="#analysis-of-srclockfreectrienim_2" title="Permanent link">¶</a></h4>
+<ol>
+<li><strong>List CAS Synchronization</strong>:</li>
+<li>Updates and deletions to <code>LNode</code> allocate a fresh <code>LNodeEntry</code> chain and atomically swap <code>cur.main</code> via <code>compareExchangeStrong(expMain, newLn, moAcquireRelease, moAcquire)</code>.</li>
+<li><strong>Catastrophic Defect Intercepted (CRIT-01)</strong>:</li>
+<li>In <code>put</code> on <code>mnkLNode</code> (lines 664-672):
+     <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">while</span><span class="w"> </span><span class="n">curr</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kp">nil</span><span class="p">:</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">curr</span><span class="p">.</span><span class="n">key</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">key</span><span class="p">:</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="n">found</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kp">true</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="n">oldVal</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">curr</span><span class="p">.</span><span class="n">vbox</span><span class="p">.</span><span class="n">val</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">    </span><span class="k">let</span><span class="w"> </span><span class="n">vb</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newVBox</span><span class="p">(</span><span class="n">val</span><span class="p">)</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="n">newHead</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">allocLNodeEntry</span><span class="p">(</span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="n">vb</span><span class="p">,</span><span class="w"> </span><span class="n">newHead</span><span class="p">)</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">  </span><span class="k">else</span><span class="p">:</span>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">    </span><span class="n">newHead</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">allocLNodeEntry</span><span class="p">(</span><span class="n">curr</span><span class="p">.</span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="n">curr</span><span class="p">.</span><span class="n">vbox</span><span class="p">,</span><span class="w"> </span><span class="n">newHead</span><span class="p">)</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">  </span><span class="n">curr</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">curr</span><span class="p">.</span><span class="n">next</span>
+</code></pre></div></li>
+<li>For all non-updated keys, <code>newHead</code> copies <code>curr.vbox</code> from <code>ln</code>.</li>
+<li>Once CAS succeeds, line 681 retires <code>ln</code>:
+     <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">ready</span><span class="p">.</span><span class="n">retire</span><span class="p">(</span><span class="k">cast</span><span class="o">[</span><span class="n">pointer</span><span class="o">]</span><span class="p">(</span><span class="n">ln</span><span class="p">),</span><span class="w"> </span><span class="n">destroyLNodeCallback</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="o">]</span><span class="p">)</span>
+</code></pre></div></li>
+<li><code>destroyLNodeCallback</code> (lines 309-324) iterates through <code>ln.head</code> and executes:
+     <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">if</span><span class="w"> </span><span class="n">curr</span><span class="p">.</span><span class="n">vbox</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kp">nil</span><span class="p">:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="n">destroyVBoxCallback</span><span class="o">[</span><span class="n">V</span><span class="o">]</span><span class="p">(</span><span class="k">cast</span><span class="o">[</span><span class="n">pointer</span><span class="o">]</span><span class="p">(</span><span class="n">curr</span><span class="p">.</span><span class="n">vbox</span><span class="p">))</span>
+</code></pre></div></li>
+<li><strong><code>VBox</code> is not reference counted</strong>. Therefore, <code>curr.vbox</code> is destroyed and freed while <code>newLn</code> is still using it!</li>
+<li>This exact same use-after-free and double-free occurs during <code>delete</code> on <code>mnkLNode</code> (lines 818-850) and during contraction from <code>LNode</code> to <code>SNode</code> (lines 833-845).</li>
+<li>Furthermore, <code>newHead</code> allocated in line 824 is leaked when contracting to <code>SNode</code>.</li>
+</ol>
+<hr>
+<h3 id="24-arcorc-and-safe-memory-reclamation-debra-smr">2.4 ARC/ORC and Safe Memory Reclamation (Debra SMR)<a class="headerlink" href="#24-arcorc-and-safe-memory-reclamation-debra-smr" title="Permanent link">¶</a></h3>
+<h4 id="formal-invariant-debra-nebr-protocol">Formal Invariant (Debra NEBR Protocol)<a class="headerlink" href="#formal-invariant-debra-nebr-protocol" title="Permanent link">¶</a></h4>
+<blockquote>
+<p><em>Every dereference of unmanaged node pointers (<code>INode</code>, <code>CNode</code>, <code>SNode</code>, <code>LNode</code>, <code>VBox</code>) MUST be protected within an active epoch pin. No pointer retired to the SMR limbo list may be physically freed until all threads observing that epoch have advanced.</em></p>
+</blockquote>
+<h4 id="analysis-of-srclockfreectrienim_3">Analysis of <code>src/lockfree/ctrie.nim</code>:<a class="headerlink" href="#analysis-of-srclockfreectrienim_3" title="Permanent link">¶</a></h4>
+<ol>
+<li><strong>Mutator Pin Discipline</strong>:</li>
+<li><code>put</code>, <code>delete</code>, and <code>clean</code> correctly acquire thread handles via <code>getOrRegisterHandle()</code> and enter epoch pins via <code>unpinned(th).pin()</code>. Displaced nodes are retired via <code>ready.retire()</code>.</li>
+<li><strong>Catastrophic Defect Intercepted (CRIT-02)</strong>:</li>
+<li><code>Snapshot.get(key)</code> (lines 923-966) contains <strong>zero</strong> Debra SMR pin calls.</li>
+<li><code>Snapshot.pairs</code> (lines 973-1003) contains <strong>zero</strong> Debra SMR pin calls.</li>
+<li><code>Ctrie.pairs</code> (lines 1025-1032) contains <strong>zero</strong> Debra SMR pin calls.</li>
+<li>Any reader executing <code>snap.get(k)</code> or iterating across <code>snap.pairs</code> or <code>ctrie.pairs</code> traverses unmanaged <code>INode.main</code>, <code>CNode.children</code>, and <code>VBox</code> pointers completely unprotected. Concurrent writers modifying the active trie retire older nodes; Debra SMR reclaims them; the snapshot iterator dereferences freed memory, triggering use-after-free and memory corruption under concurrent read/write stress.</li>
+<li><strong>Leaked Contracted Nodes (HIGH-01)</strong>:</li>
+<li>In <code>clean</code> (lines 506-535), when bottom-up contraction untombs a branch and replaces child <code>cur</code> with leaf <code>sn</code>:</li>
+<li><code>parent.main</code> is updated via CAS to <code>newPcn</code>.</li>
+<li><code>pcn</code> is retired via <code>ready.retire(pcn, destroyCNodeCallback)</code>.</li>
+<li><strong><code>cur</code> (the contracted <code>INode</code>) and its <code>TNode</code> are NEVER retired</strong>. They are unlinked and abandoned in heap memory, causing unbounded memory leaks during deletion workloads.</li>
+</ol>
+<hr>
+<h3 id="25-atomic-conditional-operations-computeifabsent">2.5 Atomic Conditional Operations (<code>computeIfAbsent</code>)<a class="headerlink" href="#25-atomic-conditional-operations-computeifabsent" title="Permanent link">¶</a></h3>
+<h4 id="analysis-of-srclockfreectrienim_4">Analysis of <code>src/lockfree/ctrie.nim</code>:<a class="headerlink" href="#analysis-of-srclockfreectrienim_4" title="Permanent link">¶</a></h4>
+<ul>
+<li>Lines 872-885 implement <code>computeIfAbsent</code>:
+  <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">proc</span><span class="w"> </span><span class="nf">computeIfAbsent</span><span class="o">*[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="p">;</span><span class="w"> </span><span class="n">MaxThreads</span><span class="p">:</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="nb">int</span><span class="o">]</span><span class="p">(</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span><span class="n">self</span><span class="p">:</span><span class="w"> </span><span class="n">Ctrie</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="p">,</span><span class="w"> </span><span class="n">MaxThreads</span><span class="o">]</span><span class="p">,</span>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="n">key</span><span class="p">:</span><span class="w"> </span><span class="n">K</span><span class="p">,</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="n">computeFn</span><span class="p">:</span><span class="w"> </span><span class="n">proc</span><span class="p">(</span><span class="n">k</span><span class="p">:</span><span class="w"> </span><span class="n">K</span><span class="p">):</span><span class="w"> </span><span class="n">V</span><span class="w"> </span><span class="sx">{.closure</span>,<span class="w"> </span><span class="sx">gcsafe.}</span>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="p">):</span><span class="w"> </span><span class="n">V</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">existing</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">self</span><span class="p">.</span><span class="n">get</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">existing</span><span class="p">.</span><span class="n">isSome</span><span class="p">:</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">existing</span><span class="p">.</span><span class="n">get</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">computed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">computeFn</span><span class="p">(</span><span class="n">key</span><span class="p">)</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">prev</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">self</span><span class="p">.</span><span class="n">put</span><span class="p">(</span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="n">computed</span><span class="p">)</span>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">prev</span><span class="p">.</span><span class="n">isSome</span><span class="p">:</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">prev</span><span class="p">.</span><span class="n">get</span>
+<a id="__codelineno-5-13" name="__codelineno-5-13" href="#__codelineno-5-13"></a><span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="n">computed</span>
+</code></pre></div></li>
+<li><strong>Defect Intercepted (HIGH-02)</strong>:</li>
+<li><code>put</code> is an unconditional insert-or-overwrite operation.</li>
+<li>If two threads $T_1$ and $T_2$ call <code>computeIfAbsent(key, fn)</code> concurrently:<ol>
+<li>Both observe <code>existing.isNone</code>.</li>
+<li>$T_1$ computes $V_1 = fn(key)$; $T_2$ computes $V_2 = fn(key)$.</li>
+<li>$T_1$ calls <code>put(key, V_1)</code> $\to$ successfully inserts $V_1$.</li>
+<li>$T_2$ calls <code>put(key, V_2)</code> $\to$ <strong>overwrites $V_1$ with $V_2$</strong> in the trie!</li>
+<li>$T_2$ receives <code>prev = some(V_1)</code> and returns $V_1$.</li>
+<li>Both $T_1$ and $T_2$ return $V_1$, but the trie now holds $V_2$!</li>
+<li>Any subsequent call to <code>get(key)</code> returns $V_2$.</li>
+</ol>
+</li>
+<li>This violates atomic linearizability. A proper <code>putIfAbsent</code> primitive is required.</li>
+</ul>
+<hr>
+<h2 id="3-comprehensive-defect-remediation-blueprint">3. Comprehensive Defect Remediation Blueprint<a class="headerlink" href="#3-comprehensive-defect-remediation-blueprint" title="Permanent link">¶</a></h2>
+<h3 id="remediation-1-crit-01-atomic-reference-counting-on-vboxv">Remediation 1 (CRIT-01): Atomic Reference Counting on <code>VBox[V]</code><a class="headerlink" href="#remediation-1-crit-01-atomic-reference-counting-on-vboxv" title="Permanent link">¶</a></h3>
+<p>Introduce an atomic reference count on <code>VBox[V]</code>. When an <code>SNode</code> or <code>LNodeEntry</code> shares a <code>VBox</code>, increment <code>rc</code>. When an entry is destroyed by SMR, decrement <code>rc</code> with release-acquire ordering; destroy <code>val</code> and free the box only when <code>rc</code> drops to 0.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">type</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="n">VBox</span><span class="o">*[</span><span class="n">V</span><span class="o">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">object</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="n">rc</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">Atomic</span><span class="o">[</span><span class="nb">int</span><span class="o">]</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="n">val</span><span class="o">*</span><span class="p">:</span><span class="w"> </span><span class="n">V</span>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="k">proc</span><span class="w"> </span><span class="nf">newVBox</span><span class="o">[</span><span class="n">V</span><span class="o">]</span><span class="p">(</span><span class="n">val</span><span class="p">:</span><span class="w"> </span><span class="n">sink</span><span class="w"> </span><span class="n">V</span><span class="p">):</span><span class="w"> </span><span class="k">ptr</span><span class="w"> </span><span class="n">VBox</span><span class="o">[</span><span class="n">V</span><span class="o">]</span><span class="w"> </span><span class="sx">{.inline.}</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">  </span><span class="n">result</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">cast</span><span class="o">[</span><span class="k">ptr</span><span class="w"> </span><span class="n">VBox</span><span class="o">[</span><span class="n">V</span><span class="o">]]</span><span class="p">(</span><span class="n">allocShared0</span><span class="p">(</span><span class="n">sizeof</span><span class="p">(</span><span class="n">VBox</span><span class="o">[</span><span class="n">V</span><span class="o">]</span><span class="p">)))</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">  </span><span class="n">result</span><span class="p">.</span><span class="n">rc</span><span class="p">.</span><span class="n">store</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">moRelaxed</span><span class="p">)</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">  </span><span class="n">wasMoved</span><span class="p">(</span><span class="n">result</span><span class="p">.</span><span class="n">val</span><span class="p">)</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">  </span><span class="n">result</span><span class="p">.</span><span class="n">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">val</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="k">proc</span><span class="w"> </span><span class="nf">incRef</span><span class="o">[</span><span class="n">V</span><span class="o">]</span><span class="p">(</span><span class="n">box</span><span class="p">:</span><span class="w"> </span><span class="k">ptr</span><span class="w"> </span><span class="n">VBox</span><span class="o">[</span><span class="n">V</span><span class="o">]</span><span class="p">)</span><span class="w"> </span><span class="sx">{.inline.}</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">box</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kp">nil</span><span class="p">:</span>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">    </span><span class="k">discard</span><span class="w"> </span><span class="n">box</span><span class="p">.</span><span class="n">rc</span><span class="p">.</span><span class="n">fetchAdd</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">moRelaxed</span><span class="p">)</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="k">proc</span><span class="w"> </span><span class="nf">decRef</span><span class="o">[</span><span class="n">V</span><span class="o">]</span><span class="p">(</span><span class="n">box</span><span class="p">:</span><span class="w"> </span><span class="k">ptr</span><span class="w"> </span><span class="n">VBox</span><span class="o">[</span><span class="n">V</span><span class="o">]</span><span class="p">)</span><span class="w"> </span><span class="sx">{.inline.}</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">box</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kp">nil</span><span class="p">:</span>
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="n">box</span><span class="p">.</span><span class="n">rc</span><span class="p">.</span><span class="n">fetchSub</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="n">moAcquireRelease</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">1</span><span class="p">:</span>
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">      </span><span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="w">        </span><span class="k">when</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="p">(</span><span class="n">V</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="n">SomeNumber</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">V</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="nb">bool</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">V</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="nb">char</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">V</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="n">pointer</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">V</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="k">ptr</span><span class="p">):</span>
+<a id="__codelineno-6-21" name="__codelineno-6-21" href="#__codelineno-6-21"></a><span class="w">          </span><span class="p">`</span><span class="o">=</span><span class="n">destroy</span><span class="p">`(</span><span class="n">box</span><span class="p">.</span><span class="n">val</span><span class="p">)</span>
+<a id="__codelineno-6-22" name="__codelineno-6-22" href="#__codelineno-6-22"></a><span class="w">      </span><span class="k">except</span><span class="p">:</span>
+<a id="__codelineno-6-23" name="__codelineno-6-23" href="#__codelineno-6-23"></a><span class="w">        </span><span class="k">discard</span>
+<a id="__codelineno-6-24" name="__codelineno-6-24" href="#__codelineno-6-24"></a><span class="w">      </span><span class="n">deallocShared</span><span class="p">(</span><span class="n">box</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="remediation-2-crit-02-pin-protection-for-snapshot-operations">Remediation 2 (CRIT-02): Pin Protection for Snapshot Operations<a class="headerlink" href="#remediation-2-crit-02-pin-protection-for-snapshot-operations" title="Permanent link">¶</a></h3>
+<p>Wrap <code>Snapshot.get</code> and <code>Snapshot.pairs</code> with Debra SMR pin guards:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="k">proc</span><span class="w"> </span><span class="nf">get</span><span class="o">*[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="p">;</span><span class="w"> </span><span class="n">MaxThreads</span><span class="p">:</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="nb">int</span><span class="o">]</span><span class="p">(</span>
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span><span class="n">snap</span><span class="p">:</span><span class="w"> </span><span class="n">Snapshot</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="p">,</span><span class="w"> </span><span class="n">MaxThreads</span><span class="o">]</span><span class="p">,</span>
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="n">key</span><span class="p">:</span><span class="w"> </span><span class="n">K</span>
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="p">):</span><span class="w"> </span><span class="n">Option</span><span class="o">[</span><span class="n">V</span><span class="o">]</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">unlikely</span><span class="p">(</span><span class="n">snap</span><span class="p">.</span><span class="n">root</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kp">nil</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">snap</span><span class="p">.</span><span class="n">core</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="kp">nil</span><span class="p">):</span><span class="w"> </span><span class="k">return</span><span class="w"> </span><span class="n">none</span><span class="p">(</span><span class="n">V</span><span class="p">)</span>
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">th</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Ctrie</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="p">,</span><span class="w"> </span><span class="n">MaxThreads</span><span class="o">]</span><span class="p">(</span><span class="n">core</span><span class="p">:</span><span class="w"> </span><span class="n">snap</span><span class="p">.</span><span class="n">core</span><span class="p">).</span><span class="n">getOrRegisterHandle</span><span class="p">()</span>
+<a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">pinned</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">unpinned</span><span class="p">(</span><span class="n">th</span><span class="p">).</span><span class="n">pin</span><span class="p">()</span>
+<a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">  </span><span class="k">try</span><span class="p">:</span>
+<a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span><span class="c"># ... traversal ...</span>
+<a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">  </span><span class="k">finally</span><span class="p">:</span>
+<a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">    </span><span class="n">unpinGuard</span><span class="p">(</span><span class="n">pinned</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="remediation-3-high-01-clean-retires-contracted-inodes-and-tnodes">Remediation 3 (HIGH-01): Clean Retires Contracted INodes and TNodes<a class="headerlink" href="#remediation-3-high-01-clean-retires-contracted-inodes-and-tnodes" title="Permanent link">¶</a></h3>
+<p>In <code>clean</code>, upon successful CAS on <code>parent.main</code>, submit <code>cur</code> to <code>ready.retire</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">if</span><span class="w"> </span><span class="n">parent</span><span class="p">.</span><span class="n">main</span><span class="p">.</span><span class="n">compareExchangeStrong</span><span class="p">(</span><span class="n">expPMain</span><span class="p">,</span><span class="w"> </span><span class="k">cast</span><span class="o">[</span><span class="k">ptr</span><span class="w"> </span><span class="n">MainNode</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="o">]]</span><span class="p">(</span><span class="n">newPcn</span><span class="p">),</span><span class="w"> </span><span class="n">moAcquireRelease</span><span class="p">,</span><span class="w"> </span><span class="n">moAcquire</span><span class="p">):</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">pcn</span><span class="p">.</span><span class="n">gen</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">parent</span><span class="p">.</span><span class="n">gen</span><span class="p">:</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="n">ready</span><span class="p">.</span><span class="n">retire</span><span class="p">(</span><span class="k">cast</span><span class="o">[</span><span class="n">pointer</span><span class="o">]</span><span class="p">(</span><span class="n">pcn</span><span class="p">),</span><span class="w"> </span><span class="n">destroyCNodeCallback</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="o">]</span><span class="p">)</span>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">  </span><span class="c"># Clean up contracted INode and its TNode</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">curMain</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">cur</span><span class="p">.</span><span class="n">main</span><span class="p">.</span><span class="n">load</span><span class="p">(</span><span class="n">moRelaxed</span><span class="p">)</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">curMain</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="kp">nil</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="n">curMain</span><span class="p">.</span><span class="n">kind</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">mnkTNode</span><span class="p">:</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">    </span><span class="n">ready</span><span class="p">.</span><span class="n">retire</span><span class="p">(</span><span class="k">cast</span><span class="o">[</span><span class="n">pointer</span><span class="o">]</span><span class="p">(</span><span class="n">curMain</span><span class="p">),</span><span class="w"> </span><span class="n">destroyTNodeCallback</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="o">]</span><span class="p">)</span>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">  </span><span class="n">ready</span><span class="p">.</span><span class="n">retire</span><span class="p">(</span><span class="k">cast</span><span class="o">[</span><span class="n">pointer</span><span class="o">]</span><span class="p">(</span><span class="n">cur</span><span class="p">),</span><span class="w"> </span><span class="n">destroyINodeCallback</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="o">]</span><span class="p">)</span>
+</code></pre></div>
+<h3 id="remediation-4-high-02-dedicated-putifabsent-primitive">Remediation 4 (HIGH-02): Dedicated <code>putIfAbsent</code> Primitive<a class="headerlink" href="#remediation-4-high-02-dedicated-putifabsent-primitive" title="Permanent link">¶</a></h3>
+<p>Add an <code>onlyIfAbsent: bool</code> parameter to the internal mutation loop, or implement <code>putIfAbsent</code>:</p>
+<p></p><div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">proc</span><span class="w"> </span><span class="nf">putIfAbsent</span><span class="o">*[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="p">;</span><span class="w"> </span><span class="n">MaxThreads</span><span class="p">:</span><span class="w"> </span><span class="k">static</span><span class="w"> </span><span class="nb">int</span><span class="o">]</span><span class="p">(</span>
+<a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">    </span><span class="n">self</span><span class="p">:</span><span class="w"> </span><span class="n">Ctrie</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="p">,</span><span class="w"> </span><span class="n">MaxThreads</span><span class="o">]</span><span class="p">,</span>
+<a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="n">key</span><span class="p">:</span><span class="w"> </span><span class="n">K</span><span class="p">,</span>
+<a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="n">val</span><span class="p">:</span><span class="w"> </span><span class="n">V</span>
+<a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="p">):</span><span class="w"> </span><span class="n">Option</span><span class="o">[</span><span class="n">V</span><span class="o">]</span>
+</code></pre></div>
+When <code>onlyIfAbsent</code> is true, discovering an existing matching key immediately aborts mutation and returns <code>some(sn.vbox.val)</code> without updating the leaf.<p></p>
+<h3 id="remediation-5-med-01-pre-shift-exhaustion-check-in-createsubinode">Remediation 5 (MED-01): Pre-Shift Exhaustion Check in <code>createSubINode</code><a class="headerlink" href="#remediation-5-med-01-pre-shift-exhaustion-check-in-createsubinode" title="Permanent link">¶</a></h3>
+<p>Move the level and hash equality check to the entrance of <code>createSubINode</code> before any bit shifts:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="k">proc</span><span class="w"> </span><span class="nf">createSubINode</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="o">]</span><span class="p">(</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">    </span><span class="n">sn1</span><span class="p">,</span><span class="w"> </span><span class="n">sn2</span><span class="p">:</span><span class="w"> </span><span class="k">ptr</span><span class="w"> </span><span class="n">SNode</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="o">]</span><span class="p">,</span>
+<a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="n">level</span><span class="p">:</span><span class="w"> </span><span class="nb">int</span><span class="p">,</span>
+<a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">    </span><span class="n">gen</span><span class="p">:</span><span class="w"> </span><span class="k">ptr</span><span class="w"> </span><span class="n">Generation</span>
+<a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="p">):</span><span class="w"> </span><span class="k">ptr</span><span class="w"> </span><span class="n">INode</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="o">]</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">h1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sn1</span><span class="p">.</span><span class="n">hash</span>
+<a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a><span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">h2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sn2</span><span class="p">.</span><span class="n">hash</span>
+<a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="w">  </span><span class="k">if</span><span class="w"> </span><span class="n">level</span><span class="w"> </span><span class="o">&gt;=</span><span class="w"> </span><span class="n">MaxLevel</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">h1</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">h2</span><span class="p">:</span>
+<a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="w">    </span><span class="c"># All 32 hash bits exhausted: construct immutable LNode</span>
+<a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">    </span><span class="n">incRef</span><span class="p">(</span><span class="n">sn1</span><span class="p">.</span><span class="n">vbox</span><span class="p">)</span>
+<a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="w">    </span><span class="n">incRef</span><span class="p">(</span><span class="n">sn2</span><span class="p">.</span><span class="n">vbox</span><span class="p">)</span>
+<a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="w">    </span><span class="k">let</span><span class="w"> </span><span class="n">e1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">allocLNodeEntry</span><span class="p">(</span><span class="n">sn1</span><span class="p">.</span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="n">sn1</span><span class="p">.</span><span class="n">vbox</span><span class="p">,</span><span class="w"> </span><span class="kp">nil</span><span class="p">)</span>
+<a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="w">    </span><span class="k">let</span><span class="w"> </span><span class="n">e2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">allocLNodeEntry</span><span class="p">(</span><span class="n">sn2</span><span class="p">.</span><span class="n">key</span><span class="p">,</span><span class="w"> </span><span class="n">sn2</span><span class="p">.</span><span class="n">vbox</span><span class="p">,</span><span class="w"> </span><span class="n">e1</span><span class="p">)</span>
+<a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a><span class="w">    </span><span class="k">let</span><span class="w"> </span><span class="n">ln</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">allocLNode</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="o">]</span><span class="p">(</span><span class="n">h1</span><span class="p">,</span><span class="w"> </span><span class="n">e2</span><span class="p">)</span>
+<a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="n">allocINode</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="o">]</span><span class="p">(</span><span class="k">cast</span><span class="o">[</span><span class="k">ptr</span><span class="w"> </span><span class="n">MainNode</span><span class="o">[</span><span class="n">K</span><span class="p">,</span><span class="w"> </span><span class="n">V</span><span class="o">]]</span><span class="p">(</span><span class="n">ln</span><span class="p">),</span><span class="w"> </span><span class="n">gen</span><span class="p">)</span>
+<a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a>
+<a id="__codelineno-10-17" name="__codelineno-10-17" href="#__codelineno-10-17"></a><span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">p1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">h1</span><span class="w"> </span><span class="ow">shr</span><span class="w"> </span><span class="n">level</span><span class="p">)</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="mh">0x1F</span><span class="sc">'u32</span>
+<a id="__codelineno-10-18" name="__codelineno-10-18" href="#__codelineno-10-18"></a><span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">p2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">h2</span><span class="w"> </span><span class="ow">shr</span><span class="w"> </span><span class="n">level</span><span class="p">)</span><span class="w"> </span><span class="ow">and</span><span class="w"> </span><span class="mh">0x1F</span><span class="sc">'u32</span>
+<a id="__codelineno-10-19" name="__codelineno-10-19" href="#__codelineno-10-19"></a><span class="w">  </span><span class="c"># ... continue ...</span>
+</code></pre></div>
+<hr>
+<h2 id="4-verification-testing-matrix">4. Verification &amp; Testing Matrix<a class="headerlink" href="#4-verification-testing-matrix" title="Permanent link">¶</a></h2>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Test Suite / Metric</th>
+<th style="text-align: left;">Command</th>
+<th style="text-align: left;">Baseline Result</th>
+<th style="text-align: left;">Expected Post-Remediation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Ctrie Unit Suite</strong></td>
+<td style="text-align: left;"><code>nim c -r tests/t_ctrie.nim</code></td>
+<td style="text-align: left;">501/501 OK</td>
+<td style="text-align: left;">All tests PASS with refcounted VBox</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Negative Controls</strong></td>
+<td style="text-align: left;"><code>nim c -r tests/should_fail/runner.nim</code></td>
+<td style="text-align: left;">23/23 PASS</td>
+<td style="text-align: left;">23/23 PASS</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Two-Key Integration Gate</strong></td>
+<td style="text-align: left;"><code>vine gate --json</code></td>
+<td style="text-align: left;">Key 1 PASS, Key 2 PASS</td>
+<td style="text-align: left;">Key 1 PASS, Key 2 PASS</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>TSAN Concurrency Matrix</strong></td>
+<td style="text-align: left;"><code>nim c --threads:on --mm:orc -d:tsan tests/t_ctrie.nim</code></td>
+<td style="text-align: left;">Clean</td>
+<td style="text-align: left;">0 Data Races</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="5-auditor-ratification-recommendation">5. Auditor Ratification &amp; Recommendation<a class="headerlink" href="#5-auditor-ratification-recommendation" title="Permanent link">¶</a></h2>
+<p>As Verification &amp; Adversarial Auditor, I recommend:
+1. <strong>Immediate Ratification of Audit Report</strong>: Commit <code>docs/reviews/review_ctrie_concurrency.md</code> to <code>main</code>.
+2. <strong>Staged Implementation of Remediations</strong>: Assign the remediations for <code>CRIT-01</code>, <code>CRIT-02</code>, <code>HIGH-01</code>, <code>HIGH-02</code>, and <code>MED-01</code> to <code>implementer-kite</code> or apply under strict Two-Key Gate verification.
+3. <strong>Report to Supreme Orchestrator</strong>: Transmit completion status on <code>task-ctrie-audit</code> and re-arm the single-shot Rhizo listener.</p>
+<p><strong>Auditor Sign-off</strong>:<br>
+<em>Caleb Thorne (<code>auditor-pegasus</code>), Verification &amp; Adversarial Auditor, 2026-10-08</em></p>
+
+
+
+
+
+
+
+  
+    
+  
+  
+    
+  
+
+
+  <aside class="md-source-file">
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Last update">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 9, 2026 03:13:38 UTC"><span class="timeago" datetime="2026-10-09T03:13:38+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 9, 2026 03:13:38 UTC">2026-10-09</span>
+  </span>
+
+    
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Created">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"></path></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 9, 2026 03:13:38 UTC"><span class="timeago" datetime="2026-10-09T03:13:38+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 9, 2026 03:13:38 UTC">2026-10-09</span>
+  </span>
+
+    
+    
+    
+  </aside>
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+        
+<div class="md-social">
+  
+    
+    
+    
+    
+      
+      
+    
+    <a href="https://github.com/elijahr/lockfree" target="_blank" rel="noopener" title="github.com" class="md-social__link">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M173.9 397.4c0 2-2.3 3.6-5.2 3.6-3.3.3-5.6-1.3-5.6-3.6 0-2 2.3-3.6 5.2-3.6 3-.3 5.6 1.3 5.6 3.6m-31.1-4.5c-.7 2 1.3 4.3 4.3 4.9 2.6 1 5.6 0 6.2-2s-1.3-4.3-4.3-5.2c-2.6-.7-5.5.3-6.2 2.3m44.2-1.7c-2.9.7-4.9 2.6-4.6 4.9.3 2 2.9 3.3 5.9 2.6 2.9-.7 4.9-2.6 4.6-4.6-.3-1.9-3-3.2-5.9-2.9M252.8 8C114.1 8 8 113.3 8 252c0 110.9 69.8 205.8 169.5 239.2 12.8 2.3 17.3-5.6 17.3-12.1 0-6.2-.3-40.4-.3-61.4 0 0-70 15-84.7-29.8 0 0-11.4-29.1-27.8-36.6 0 0-22.9-15.7 1.6-15.4 0 0 24.9 2 38.6 25.8 21.9 38.6 58.6 27.5 72.9 20.9 2.3-16 8.8-27.1 16-33.7-55.9-6.2-112.3-14.3-112.3-110.5 0-27.5 7.6-41.3 23.6-58.9-2.6-6.5-11.1-33.3 2.6-67.9 20.9-6.5 69 27 69 27 20-5.6 41.5-8.5 62.8-8.5s42.8 2.9 62.8 8.5c0 0 48.1-33.6 69-27 13.7 34.7 5.2 61.4 2.6 67.9 16 17.7 25.8 31.5 25.8 58.9 0 96.5-58.9 104.2-114.8 110.5 9.2 7.9 17 22.9 17 46.4 0 33.7-.3 75.4-.3 83.6 0 6.5 4.6 14.4 17.3 12.1C436.2 457.8 504 362.9 504 252 504 113.3 391.5 8 252.8 8M105.2 352.9c-1.3 1-1 3.3.7 5.2 1.6 1.6 3.9 2.3 5.2 1 1.3-1 1-3.3-.7-5.2-1.6-1.6-3.9-2.3-5.2-1m-10.8-8.1c-.7 1.3.3 2.9 2.3 3.9 1.6 1 3.6.7 4.3-.7.7-1.3-.3-2.9-2.3-3.9-2-.6-3.6-.3-4.3.7m32.4 35.6c-1.6 1.3-1 4.3 1.3 6.2 2.3 2.3 5.2 2.6 6.5 1 1.3-1.3.7-4.3-1.3-6.2-2.2-2.3-5.2-2.6-6.5-1m-11.4-14.7c-1.6 1-1.6 3.6 0 5.9s4.3 3.3 5.6 2.3c1.6-1.3 1.6-3.9 0-6.2-1.4-2.3-4-3.3-5.6-2"></path></svg>
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.code.annotate", "navigation.instant", "navigation.sections", "navigation.expand", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+    
+    
+      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      
+        <script src="../../js/timeago.min.js"></script>
+      
+        <script src="../../js/timeago_mkdocs_material.js"></script>
+      
+    
+  
+<script id="init-glightbox">const lightbox = GLightbox({"touchNavigation": true, "loop": false, "zoomable": true, "draggable": true, "openEffect": "zoom", "closeEffect": "zoom", "slideEffect": "slide"});
+document$.subscribe(()=>{ lightbox.reload(); });
+</script></body></html>
