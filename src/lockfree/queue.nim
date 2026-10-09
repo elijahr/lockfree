@@ -1,3 +1,7 @@
+## ===========================================================================
+## Concurrency Topology: SPSC, SPMC, MPSC, MPMC Unbounded Linked-Segment Queues (`Queue`)
+## ===========================================================================
+##
 ## Unbounded `Queue` generic.
 ##
 ##     Queue[T, ccProd, ccCons, ST, S, MaxThreads]

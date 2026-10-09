@@ -1,3 +1,7 @@
+## ===========================================================================
+## Concurrency Topology: SPSC, SPMC, MPSC, MPMC Bounded Ring-Buffer Queues (`BQueue`)
+## ===========================================================================
+##
 ## Bounded lock-free queue — `BQueue[T, ccProd, ccCons, N, P, C]`.
 ##
 ## A 6-param bounded ring-buffer surface with no debra integration and
