@@ -25,6 +25,7 @@ when not compileOption("threads"):
   {.error: "lockfree/skiplist requires --threads:on".}
 
 import std/[options]
+import typestates
 import ./atomics
 import ./smr/nebr
 import ./internal/aligned_alloc
@@ -119,7 +120,7 @@ proc allocSkipListId(): uint64 =
 
 proc toPinned[MaxThreads: static int, CC: static PinScopeCardinality](
     ready: RetireReady[MaxThreads, CC]
-): Pinned[MaxThreads, CC] {.inline.} =
+): Pinned[MaxThreads, CC] {.inline, notATransition.} =
   let ctx = RetireContext[MaxThreads, CC](ready)
   Pinned[MaxThreads, CC](EpochGuardContext[MaxThreads, CC](handle: ctx.handle, epoch: ctx.epoch))
 
@@ -369,7 +370,7 @@ proc find[K, V; MaxThreads, MaxLevel: static int](
     preds: var array[MaxLevel, ptr SkipListNode[K, V, MaxLevel]],
     succs: var array[MaxLevel, ptr SkipListNode[K, V, MaxLevel]],
     ready: var RetireReady[MaxThreads, ccMulti]
-): bool =
+): bool {.notATransition.} =
   while true:
     var pred = self.core.head
     var restart = false
