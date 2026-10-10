@@ -201,7 +201,7 @@ proc park*(p: var Parker) {.inline.} =
   elif defined(windows):
     var expected: int32 = 0
     while p.word.load(moAcquire) == 0:
-      discard WaitOnAddress(cast[pointer](addr p.word), addr expected, sizeof(int32), 0xFFFFFFFF'u32)
+      discard WaitOnAddress(cast[pointer](addr p.word), cast[pointer](addr expected), csize_t(sizeof(int32)), 0xFFFFFFFF'u32)
   else:
     acquire(p.lock)
     while not p.signaled.load(moAcquire):
@@ -240,7 +240,7 @@ proc parkTimeout*(p: var Parker, timeoutMs: int): bool =
     var expected: int32 = 0
     let dwMs: uint32 = uint32(timeoutMs)
     if p.word.load(moAcquire) == 0:
-      discard WaitOnAddress(cast[pointer](addr p.word), addr expected, sizeof(int32), dwMs)
+      discard WaitOnAddress(cast[pointer](addr p.word), cast[pointer](addr expected), csize_t(sizeof(int32)), dwMs)
     return p.word.load(moAcquire) != 0
   else:
     let deadline = epochTime() + (timeoutMs.float64 / 1000.0)
