@@ -159,7 +159,7 @@ proc unpark*(p: var Parker) {.inline.} =
     discard syscall(clong(SYS_futex), cast[pointer](addr p.word), clong(FUTEX_WAKE_PRIVATE), clong(1), nil, nil, clong(0))
   elif defined(windows):
     p.word.store(1, moRelease)
-    WakeByAddressSingle(addr p.word)
+    WakeByAddressSingle(cast[pointer](addr p.word))
   else:
     p.signaled.store(true, moRelease)
     acquire(p.lock)
@@ -183,7 +183,7 @@ proc park*(p: var Parker) {.inline.} =
   elif defined(windows):
     var expected: int32 = 0
     while p.word.load(moAcquire) == 0:
-      discard WaitOnAddress(addr p.word, addr expected, sizeof(int32), 0xFFFFFFFF'u32)
+      discard WaitOnAddress(cast[pointer](addr p.word), cast[pointer](addr expected), csize_t(sizeof(int32)), 0xFFFFFFFF'u32)
   else:
     acquire(p.lock)
     while not p.signaled.load(moAcquire):
@@ -218,7 +218,7 @@ proc parkTimeout*(p: var Parker, timeoutMs: int): bool =
     return p.word.load(moAcquire) != 0
   elif defined(windows):
     var expected: int32 = 0
-    discard WaitOnAddress(addr p.word, addr expected, sizeof(int32), uint32(timeoutMs))
+    discard WaitOnAddress(cast[pointer](addr p.word), cast[pointer](addr expected), csize_t(sizeof(int32)), uint32(timeoutMs))
     return p.word.load(moAcquire) != 0
   else:
     acquire(p.lock)
