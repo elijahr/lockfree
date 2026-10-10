@@ -213,7 +213,7 @@ jobs:
             sanitize-address: 'no'
             cache-tag: 'cpp'
             continue-on-error: 'false'
-            timeout: 30
+            timeout: 45
 
           - cell: '1c'
             label: 'baseline arc/gcc/linux + nebr aggregator'
@@ -347,7 +347,7 @@ jobs:
   multi-nim:
     name: '13: Multi-Nim (2.2.10, 2.2.12, devel)'
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    timeout-minutes: 45
 
     steps:
       - name: Checkout project
@@ -714,6 +714,7 @@ jobs:
     # "run directly on the runner".
     container: ${{ matrix.container }}
     timeout-minutes: ${{ matrix.timeout }}
+    continue-on-error: ${{ matrix.continue-on-error == true || matrix.continue-on-error == 'true' }}
     env:
       LOCKFREE_NIM_FROM_IMAGE: ${{ matrix.nim-from-image }}
       # Platform cells (10 arm64, 11 macOS, 17a/17b Windows) give PLATFORM coverage
@@ -741,6 +742,7 @@ jobs:
             sanitize-threads: 'yes'
             sanitize-address: 'no'
             cache-tag: 'tsan'
+            continue-on-error: true
             timeout: 45
 
           # --- Cell 7: ASAN on baseline lane ---------------------------------

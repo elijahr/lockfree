@@ -113,8 +113,8 @@ elif defined(linux):
   proc syscall(number: clong): clong {.varargs, importc: "syscall", header: "<unistd.h>".}
 
 elif defined(windows):
-  proc WaitOnAddress(Address: pointer, CompareAddress: pointer, AddressSize: csize_t, dwMilliseconds: uint32): bool {.stdcall, dynlib: "kernel32", importc: "WaitOnAddress".}
-  proc WakeByAddressSingle(Address: pointer) {.stdcall, dynlib: "kernel32", importc: "WakeByAddressSingle".}
+  proc WaitOnAddress(Address: pointer, CompareAddress: pointer, AddressSize: csize_t, dwMilliseconds: uint32): bool {.stdcall, dynlib: "api-ms-win-core-synch-l1-2-0.dll|kernelbase.dll|kernel32.dll", importc: "WaitOnAddress".}
+  proc WakeByAddressSingle(Address: pointer) {.stdcall, dynlib: "api-ms-win-core-synch-l1-2-0.dll|kernelbase.dll|kernel32.dll", importc: "WakeByAddressSingle".}
 
 type
   Parker* = object

@@ -241,7 +241,8 @@ proc decRef[V](box: ptr VBox[V]) {.inline.} =
     if box.rc.fetchSub(1, moAcquireRelease) == 1:
       try:
         when not (V is SomeNumber or V is bool or V is char or V is pointer or V is ptr):
-          `=destroy`(box.val)
+          {.cast(gcsafe).}:
+            `=destroy`(box.val)
       except:
         discard
       deallocShared(box)
@@ -274,7 +275,8 @@ proc destroySNodeCallback[K, V](p: pointer) {.nimcall, raises: [].} =
       decRef(sn.vbox)
     try:
       when not (K is SomeNumber or K is bool or K is char or K is pointer or K is ptr):
-        `=destroy`(sn.key)
+        {.cast(gcsafe).}:
+          `=destroy`(sn.key)
     except:
       discard
     deallocShared(sn)
@@ -327,7 +329,8 @@ proc destroyLNodeCallback[K, V](p: pointer) {.nimcall, raises: [].} =
         decRef(curr.vbox)
       try:
         when not (K is SomeNumber or K is bool or K is char or K is pointer or K is ptr):
-          `=destroy`(curr.key)
+          {.cast(gcsafe).}:
+            `=destroy`(curr.key)
       except:
         discard
       deallocShared(curr)
