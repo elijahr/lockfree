@@ -144,7 +144,8 @@ proc destroyNodeCallback[T; MaxLevel: static int](p: pointer) {.nimcall, raises:
   if n != nil:
     try:
       when not (T is SomeNumber or T is bool or T is char or T is pointer or T is ptr):
-        `=destroy`(n.val)
+        {.cast(gcsafe).}:
+          `=destroy`(n.val)
     except:
       discard
     deallocShared(n)
@@ -152,7 +153,8 @@ proc destroyNodeCallback[T; MaxLevel: static int](p: pointer) {.nimcall, raises:
 proc freeNodeDirect[T; MaxLevel: static int](n: ptr SkipListNode[T, MaxLevel]) {.gcsafe.} =
   if n != nil:
     when not (T is SomeNumber or T is bool or T is char or T is pointer or T is ptr):
-      `=destroy`(n.val)
+      {.cast(gcsafe).}:
+        `=destroy`(n.val)
     deallocShared(n)
 
 # ---------------------------------------------------------------------------
