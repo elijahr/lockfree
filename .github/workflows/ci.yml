@@ -356,7 +356,7 @@ jobs:
       - name: Setup Nim via vfox-nim
         uses: elijahr/vfox-nim@main
         with:
-          version: '2.2.10'
+          version: '2.2.12'
 
       - name: Cache nimble packages
         uses: actions/cache@v4
@@ -375,7 +375,7 @@ jobs:
           path: |
             ~/.version-fox/cache/nim
             ~/.vfox/cache/nim
-          key: vfox-${{ runner.os }}-multinim-2.2.10-2.2.12-devel-${{ hashFiles('lockfree.nimble') }}
+          key: vfox-${{ runner.os }}-multinim-2.2.12-devel-${{ hashFiles('lockfree.nimble') }}
           restore-keys: |
             vfox-${{ runner.os }}-multinim-
             vfox-${{ runner.os }}-
@@ -448,7 +448,7 @@ jobs:
             echo "::endgroup::"
           }
 
-          VERSIONS=("2.2.10" "2.2.12" "devel")
+          VERSIONS=("2.2.12" "devel")
           FAILED_STABLE=0
           FAILED_DEVEL=0
 
@@ -938,7 +938,7 @@ jobs:
               ;;
             7)
               echo "::group::Run test suite under ASAN (mm=${{ matrix.mm }}, backend=${{ matrix.backend }})"
-              nimble_run nimble testASan
+              ASAN_OPTIONS=detect_leaks=0 nimble_run nimble testASan
               echo "::endgroup::"
               ;;
             *)

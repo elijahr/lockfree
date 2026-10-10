@@ -830,7 +830,7 @@ proc compareExchangeStrong*[T](
     # to match the C11 / __atomic_compare_exchange contract. Always-strong (no
     # spurious failure on x86_64).
     when sizeof(T) == 1:
-      let exp8 = cast[int8](expected)
+      let exp8 = cast[cchar](expected)
       let prev = msvcInterlockedCompareExchange8(
         cast[ptr cchar](addr loc.value), cast[cchar](desired), exp8
       )
