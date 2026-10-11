@@ -3,7 +3,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Lock-free queues for Nim">
+        <meta name="description" content="Lock-free concurrency primitives, data structures, and safe memory reclamation for Nim and C">
       
       
       
@@ -91,7 +91,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#lockfreequeues" class="md-skip">
+        <a href="#lockfree" class="md-skip">
           Skip to content
         </a>
       
@@ -337,33 +337,22 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
+  <a href="#the-10-core-collections-architecture" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Overview
+        The 10 Core Collections &amp; Architecture
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Overview">
+    <nav class="md-nav" aria-label="The 10 Core Collections &amp; Architecture">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#bounded-bqueue-fixed-capacity" class="md-nav__link">
+  <a href="#additional-concurrency-primitives" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Bounded BQueue (Fixed Capacity)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#unbounded-queue-dynamic-capacity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Unbounded Queue (Dynamic Capacity)
+        Additional Concurrency Primitives
       
     </span>
   </a>
@@ -376,10 +365,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#compatibility" class="md-nav__link">
+  <a href="#installation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Compatibility
+        Installation
       
     </span>
   </a>
@@ -387,10 +376,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
+  <a href="#compatibility" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Installation
+        Compatibility
       
     </span>
   </a>
@@ -410,10 +399,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#bounded-queue" class="md-nav__link">
+  <a href="#1-bounded-unbounded-queues" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Bounded Queue
+        1. Bounded &amp; Unbounded Queues
       
     </span>
   </a>
@@ -421,10 +410,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#unbounded-queue-single-producer-single-consumer" class="md-nav__link">
+  <a href="#2-csp-channels" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Unbounded Queue (single-producer, single-consumer)
+        2. CSP Channels
       
     </span>
   </a>
@@ -432,10 +421,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#unbounded-queue-multi-producer-multi-consumer" class="md-nav__link">
+  <a href="#3-concurrent-map-ctrie-with-o1-snapshots" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Unbounded Queue (multi-producer, multi-consumer)
+        3. Concurrent Map (Ctrie) with $O(1)$ Snapshots
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-work-stealing-taskpool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Work-Stealing TaskPool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-c-abi-includelockfreeh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. C ABI (include/lockfree.h)
       
     </span>
   </a>
@@ -448,32 +459,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#choosing-a-queue" class="md-nav__link">
+  <a href="#detailed-guides-documentation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Choosing a Queue
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Examples
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#references" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        References
+        Detailed Guides &amp; Documentation
       
     </span>
   </a>
@@ -484,6 +473,33 @@
   
 </nav>
       
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="guides/user_guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
     </li>
   
 
@@ -510,10 +526,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
             
   
   
@@ -531,8 +547,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -541,62 +557,6 @@
 
           </label>
           <ul class="md-nav__list" data-md-scrollfix="">
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="guides/user_guide/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    User Guide
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="guides/smr_nebr_lifecycle/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    SMR &amp; NEBR Lifecycle
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
             
               
                 
@@ -673,10 +633,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_5">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3">
         
           
-          <label class="md-nav__link" for="__nav_2_5" id="__nav_2_5_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
             
   
   
@@ -694,8 +654,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_5">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_3">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -816,10 +776,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_6">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4">
         
           
-          <label class="md-nav__link" for="__nav_2_6" id="__nav_2_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
             
   
   
@@ -837,8 +797,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_6">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -987,17 +947,17 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_7">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_5">
         
           
-          <label class="md-nav__link" for="__nav_2_7" id="__nav_2_7_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_5" id="__nav_3_5_label" tabindex="0">
             
   
   
   <span class="md-ellipsis">
     
   
-    SMR
+    Channels
   
 
     
@@ -1008,12 +968,12 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_7">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_5">
             <span class="md-nav__icon md-icon"></span>
             
   
-    SMR
+    Channels
   
 
           </label>
@@ -1026,14 +986,70 @@
   
   
     <li class="md-nav__item">
-      <a href="guide/smr/nebr/" class="md-nav__link">
+      <a href="guide/channels/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    nebr
+    Channels &amp; Rendezvous
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designs/design_rendezvous_channel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rendezvous Dual-Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designs/design_async_bridge/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Async Bridge
   
 
     
@@ -1054,6 +1070,918 @@
   
 
               
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_6">
+        
+          
+          <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maps &amp; Sets
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Maps &amp; Sets
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="guide/maps-sets/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designs/design_ctrie/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrent Hash Trie (Ctrie)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designs/design_atomic_associative/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SkipList Map &amp; Set
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_7">
+        
+          
+          <label class="md-nav__link" for="__nav_3_7" id="__nav_3_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stacks &amp; Deques
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stacks &amp; Deques
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="guide/stacks-deques/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_8">
+        
+          
+          <label class="md-nav__link" for="__nav_3_8" id="__nav_3_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broadcast &amp; Rendezvous
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Broadcast &amp; Rendezvous
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="guide/broadcast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broadcast Ring &amp; TopicBus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designs/design_broadcast_ring/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broadcast Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designs/design_rendezvous_channel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rendezvous Dual-Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_9">
+        
+          
+          <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TaskPool
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    TaskPool
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="guide/taskpool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Work-Stealing Scheduler
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_10">
+        
+          
+          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rate Limiting &amp; Streaming
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_10">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Rate Limiting &amp; Streaming
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="guide/ratelimit-streambuffer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designs/design_ratelimit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rate Limiting Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="designs/design_streambuffer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StreamBuffer Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_11">
+        
+          
+          <label class="md-nav__link" for="__nav_3_11" id="__nav_3_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C ABI
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    C ABI
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="guide/cabi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview &amp; C99 Header
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="design/2026-10-07-ergonomics-metaprogramming-c-abi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture &amp; Interop
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_12">
+        
+          
+          <label class="md-nav__link" for="__nav_3_12" id="__nav_3_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMR &amp; Hardware Atomics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SMR &amp; Hardware Atomics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="guide/smr/nebr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NEBR SMR Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="guides/smr_nebr_lifecycle/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NEBR Lifecycle
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="guide/atomics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Hardware Atomics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_13">
+        
+          
+          <label class="md-nav__link" for="__nav_3_13" id="__nav_3_13_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Managed Payloads
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_13">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Managed Payloads
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
             
               
                 
@@ -1106,6 +2034,14 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
     </li>
   
 
@@ -1186,10 +2122,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_2_12">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_16">
         
           
-          <label class="md-nav__link" for="__nav_2_12" id="__nav_2_12_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_16" id="__nav_3_16_label" tabindex="0">
             
   
   
@@ -1207,8 +2143,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_12_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2_12">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_16_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_16">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1423,10 +2359,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4">
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
             
   
   
@@ -1444,8 +2380,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1517,15 +2453,30 @@
   
   
   
-    <li class="md-nav__item">
-      <a href="api/compat/" class="md-nav__link">
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
         
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_3">
+        
+          
+          <label class="md-nav__link" for="__nav_4_3" id="__nav_4_3_label" tabindex="0">
+            
   
   
   <span class="md-ellipsis">
     
   
-    Compatibility (lockfreequeues)
+    Queues
   
 
     
@@ -1533,11 +2484,19 @@
   
   
 
-      </a>
-    </li>
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_3">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Queues
   
 
-              
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
             
               
                 
@@ -1594,6 +2553,839 @@
   
 
               
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_4">
+        
+          
+          <label class="md-nav__link" for="__nav_4_4" id="__nav_4_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Channels
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Channels
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/channel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Channel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/rendezvous/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RendezvousChannel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_5">
+        
+          
+          <label class="md-nav__link" for="__nav_4_5" id="__nav_4_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Maps &amp; Sets
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Maps &amp; Sets
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/ctrie/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ctrie (Table)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/skiplist/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SkipListMap (SortedTable)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/set/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SkipListSet (Set)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_6">
+        
+          
+          <label class="md-nav__link" for="__nav_4_6" id="__nav_4_6_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Stacks &amp; Deques
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_6">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Stacks &amp; Deques
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/stack/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TreiberStack
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/deque/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    ChaseLevDeque
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_7">
+        
+          
+          <label class="md-nav__link" for="__nav_4_7" id="__nav_4_7_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broadcast &amp; Rendezvous
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_7">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Broadcast &amp; Rendezvous
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/broadcast/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    BroadcastRing &amp; TopicBus
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/rendezvous/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RendezvousChannel
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/taskpool/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TaskPool
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_9">
+        
+          
+          <label class="md-nav__link" for="__nav_4_9" id="__nav_4_9_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rate Limiting &amp; Streaming
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_9_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_9">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Rate Limiting &amp; Streaming
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/ratelimit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    RateLimiter
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/streambuffer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StreamBuffer
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/cabi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C ABI
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_11">
+        
+          
+          <label class="md-nav__link" for="__nav_4_11" id="__nav_4_11_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SMR &amp; Hardware Atomics
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_11_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SMR &amp; Hardware Atomics
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/smr/nebr/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NEBR SMR
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="api/atomics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    atomics
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_12">
+        
+          
+          <label class="md-nav__link" for="__nav_4_12" id="__nav_4_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Managed Payloads &amp; Async
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_12">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Managed Payloads &amp; Async
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
             
               
                 
@@ -1679,113 +3471,6 @@
 
               
             
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="api/atomics/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    atomics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-    
-    
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_10">
-        
-          
-          <label class="md-nav__link" for="__nav_3_10" id="__nav_3_10_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    SMR
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_10_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_10">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    SMR
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix="">
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="api/smr/nebr/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    nebr
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
           </ul>
         </nav>
       
@@ -1813,10 +3498,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_11">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_13">
         
           
-          <label class="md-nav__link" for="__nav_3_11" id="__nav_3_11_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4_13" id="__nav_4_13_label" tabindex="0">
             
   
   
@@ -1834,8 +3519,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_11_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_11">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_13">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1971,6 +3656,34 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="api/compat/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Compatibility (lockfreequeues)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
     
     
     
@@ -1984,10 +3697,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_12">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4_15">
         
           
-          <label class="md-nav__link" for="__nav_3_12" id="__nav_3_12_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4_15" id="__nav_4_15_label" tabindex="0">
             
   
   
@@ -2005,8 +3718,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_12_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_12">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_4_15_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4_15">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2137,10 +3850,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_4">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
         
           
-          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="">
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
             
   
   
@@ -2158,8 +3871,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_4">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2226,10 +3939,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_5">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6">
         
           
-          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
             
   
   
@@ -2247,8 +3960,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_5">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_6">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2399,10 +4112,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7">
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="">
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
             
   
   
@@ -2420,8 +4133,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2450,10 +4163,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_1">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_1">
         
           
-          <label class="md-nav__link" for="__nav_6_1" id="__nav_6_1_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7_1" id="__nav_7_1_label" tabindex="0">
             
   
   
@@ -2471,8 +4184,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_6_1_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6_1">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_1">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2669,10 +4382,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_1_7">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_1_7">
         
           
-          <label class="md-nav__link" for="__nav_6_1_7" id="__nav_6_1_7_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7_1_7" id="__nav_7_1_7_label" tabindex="0">
             
   
   
@@ -2690,8 +4403,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_7_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6_1_7">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_1_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_1_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3008,10 +4721,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_6_1_8">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_1_8">
         
           
-          <label class="md-nav__link" for="__nav_6_1_8" id="__nav_6_1_8_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7_1_8" id="__nav_7_1_8_label" tabindex="0">
             
   
   
@@ -3029,8 +4742,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_6_1_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6_1_8">
+        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_1_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7_1_8">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -3200,33 +4913,22 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
+  <a href="#the-10-core-collections-architecture" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Overview
+        The 10 Core Collections &amp; Architecture
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Overview">
+    <nav class="md-nav" aria-label="The 10 Core Collections &amp; Architecture">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#bounded-bqueue-fixed-capacity" class="md-nav__link">
+  <a href="#additional-concurrency-primitives" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Bounded BQueue (Fixed Capacity)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#unbounded-queue-dynamic-capacity" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Unbounded Queue (Dynamic Capacity)
+        Additional Concurrency Primitives
       
     </span>
   </a>
@@ -3239,10 +4941,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#compatibility" class="md-nav__link">
+  <a href="#installation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Compatibility
+        Installation
       
     </span>
   </a>
@@ -3250,10 +4952,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#installation" class="md-nav__link">
+  <a href="#compatibility" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Installation
+        Compatibility
       
     </span>
   </a>
@@ -3273,10 +4975,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#bounded-queue" class="md-nav__link">
+  <a href="#1-bounded-unbounded-queues" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Bounded Queue
+        1. Bounded &amp; Unbounded Queues
       
     </span>
   </a>
@@ -3284,10 +4986,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#unbounded-queue-single-producer-single-consumer" class="md-nav__link">
+  <a href="#2-csp-channels" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Unbounded Queue (single-producer, single-consumer)
+        2. CSP Channels
       
     </span>
   </a>
@@ -3295,10 +4997,32 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#unbounded-queue-multi-producer-multi-consumer" class="md-nav__link">
+  <a href="#3-concurrent-map-ctrie-with-o1-snapshots" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Unbounded Queue (multi-producer, multi-consumer)
+        3. Concurrent Map (Ctrie) with $O(1)$ Snapshots
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-work-stealing-taskpool" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Work-Stealing TaskPool
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-c-abi-includelockfreeh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. C ABI (include/lockfree.h)
       
     </span>
   </a>
@@ -3311,32 +5035,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#choosing-a-queue" class="md-nav__link">
+  <a href="#detailed-guides-documentation" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Choosing a Queue
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#examples" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Examples
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#references" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        References
+        Detailed Guides &amp; Documentation
       
     </span>
   </a>
@@ -3363,232 +5065,254 @@
   
 
 
-<h1 id="lockfreequeues">lockfreequeues<a class="headerlink" href="#lockfreequeues" title="Permanent link">¶</a></h1>
-<p>Lock-free queues for Nim, implemented as ring buffers (bounded) and linked segments (unbounded).</p>
-<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">¶</a></h2>
-<p>v5 exposes two unified, cardinality-parameterized queue types —
-<a href="api/bqueue/"><code>BQueue</code></a> (bounded) and <a href="api/queue/"><code>Queue</code></a>
-(unbounded). Each covers all four producer/consumer combinations,
-selected at compile time via the <code>ccProd</code> / <code>ccCons</code> parameters.</p>
-<h3 id="bounded-bqueue-fixed-capacity">Bounded <code>BQueue</code> (Fixed Capacity)<a class="headerlink" href="#bounded-bqueue-fixed-capacity" title="Permanent link">¶</a></h3>
-<p>Ring buffer with compile-time capacity. Best for predictable memory usage and embedded systems. <a href="api/bqueue/"><code>BQueue</code></a> covers:</p>
+<h1 id="lockfree">lockfree<a class="headerlink" href="#lockfree" title="Permanent link">¶</a></h1>
+<p>Lock-free concurrency primitives, data structures, and safe memory reclamation for Nim and C.</p>
+<p><code>lockfree</code> provides production-grade, non-blocking concurrent data structures
+designed for maximum multicore scalability, deterministic latency, and zero
+mutual-exclusion overhead. Every collection is engineered from first principles
+using hardware atomics, adaptive backoff, and robust safe memory reclamation (SMR).</p>
+<hr>
+<h2 id="the-10-core-collections-architecture">The 10 Core Collections &amp; Architecture<a class="headerlink" href="#the-10-core-collections-architecture" title="Permanent link">¶</a></h2>
 <table>
 <thead>
 <tr>
-<th>Cardinality</th>
-<th>Producers</th>
-<th>Consumers</th>
-<th>Push</th>
-<th>Pop</th>
+<th style="text-align: left;">Collection</th>
+<th style="text-align: left;">Canonical Type</th>
+<th style="text-align: left;">Underlying Algorithm</th>
+<th style="text-align: left;">Concurrency Topology</th>
+<th style="text-align: left;">Progress Guarantee</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>SPSC</td>
-<td>Single</td>
-<td>Single</td>
-<td>Wait-free</td>
-<td>Wait-free</td>
+<td style="text-align: left;"><strong>Bounded Queue</strong></td>
+<td style="text-align: left;"><code>BQueue[T, ...]</code></td>
+<td style="text-align: left;">Dmitry Vyukov Per-Slot Sequence Counters</td>
+<td style="text-align: left;">SPSC, MPSC, SPMC, MPMC</td>
+<td style="text-align: left;">SPSC: <strong>Wait-Free</strong><br>MPMC: <strong>Lock-Free</strong></td>
 </tr>
 <tr>
-<td>SPMC</td>
-<td>Single</td>
-<td>Multiple</td>
-<td>Wait-free</td>
-<td>Lock-free</td>
+<td style="text-align: left;"><strong>Unbounded Queue</strong></td>
+<td style="text-align: left;"><code>Queue[T, ...]</code></td>
+<td style="text-align: left;">Morrison &amp; Afek Strict-LCRQ with 128-bit DWCAS</td>
+<td style="text-align: left;">SPSC, MPSC, SPMC, MPMC</td>
+<td style="text-align: left;">SPSC: <strong>Wait-Free</strong><br>MPMC: <strong>Lock-Free</strong></td>
 </tr>
 <tr>
-<td>MPSC</td>
-<td>Multiple</td>
-<td>Single</td>
-<td>Lock-free</td>
-<td>Wait-free</td>
+<td style="text-align: left;"><strong>Concurrent Channel</strong></td>
+<td style="text-align: left;"><code>Channel[T]</code></td>
+<td style="text-align: left;">Facade over <code>BQueue</code> / <code>Queue</code> with TLS Auto-Registration</td>
+<td style="text-align: left;">MPMC (Multi-Producer Multi-Consumer)</td>
+<td style="text-align: left;"><strong>Lock-Free</strong></td>
 </tr>
 <tr>
-<td>MPMC</td>
-<td>Multiple</td>
-<td>Multiple</td>
-<td>Lock-free</td>
-<td>Lock-free</td>
+<td style="text-align: left;"><strong>Synchronous Rendezvous</strong></td>
+<td style="text-align: left;"><code>RendezvousChannel[T]</code></td>
+<td style="text-align: left;">Scherer &amp; Scott Synchronous Dual Queue with OS Futex</td>
+<td style="text-align: left;">MPMC (Multi-Producer Multi-Consumer)</td>
+<td style="text-align: left;">Match: <strong>Lock-Free</strong><br>Wait: <strong>Kernel Futex</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Concurrent Map / Table</strong></td>
+<td style="text-align: left;"><code>Ctrie[K, V]</code></td>
+<td style="text-align: left;">Aleksandar Prokopec Concurrent Hash Array Mapped Trie</td>
+<td style="text-align: left;">MPMC (Multi-Producer Multi-Consumer)</td>
+<td style="text-align: left;">Lookup: <strong>Wait-Free</strong><br>Mutation: <strong>Lock-Free</strong><br>Snapshot: <strong>$O(1)$ Wait-Free</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Sorted Map / Table</strong></td>
+<td style="text-align: left;"><code>SkipListMap[K, V]</code></td>
+<td style="text-align: left;">Fraser &amp; Herlihy SkipList with Harris Logical Marking</td>
+<td style="text-align: left;">MPMC (Multi-Producer Multi-Consumer)</td>
+<td style="text-align: left;">Lookup: <strong>Wait-Free</strong><br>Mutation: <strong>Lock-Free</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Concurrent Set</strong></td>
+<td style="text-align: left;"><code>SkipListSet[T]</code></td>
+<td style="text-align: left;">Fraser &amp; Herlihy SkipList with Harris Logical Marking</td>
+<td style="text-align: left;">MPMC (Multi-Producer Multi-Consumer)</td>
+<td style="text-align: left;">Membership: <strong>Wait-Free</strong><br>Mutation: <strong>Lock-Free</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Concurrent Stack</strong></td>
+<td style="text-align: left;"><code>TreiberStack[T]</code></td>
+<td style="text-align: left;">Treiber Stack with Hendler Elimination-Backoff Array</td>
+<td style="text-align: left;">MPMC (Multi-Producer Multi-Consumer)</td>
+<td style="text-align: left;"><strong>Lock-Free</strong> (linear scaling under contention)</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Work-Stealing Deque</strong></td>
+<td style="text-align: left;"><code>ChaseLevDeque[T]</code></td>
+<td style="text-align: left;">Chase-Lev Dynamic Circular Deque with C11 Fences</td>
+<td style="text-align: left;">Single-Worker / Multi-Thief</td>
+<td style="text-align: left;">Worker: <strong>Lock-Free</strong><br>Thieves: <strong>Lock-Free</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Broadcast Ring / Pub-Sub</strong></td>
+<td style="text-align: left;"><code>BroadcastRing[T]</code></td>
+<td style="text-align: left;">Lock-Free Multicast Ring with Dynamic Reader Cursors</td>
+<td style="text-align: left;">SPMC / MPMC Fan-Out</td>
+<td style="text-align: left;">Readers: <strong>Wait-Free / Lock-Free</strong><br>Writers: <strong>Lock-Free</strong></td>
 </tr>
 </tbody>
 </table>
-<h3 id="unbounded-queue-dynamic-capacity">Unbounded <code>Queue</code> (Dynamic Capacity)<a class="headerlink" href="#unbounded-queue-dynamic-capacity" title="Permanent link">¶</a></h3>
-<p>Linked segments that grow as needed. The MP/MC shapes use DEBRA+ epoch-based reclamation (via <a href="https://github.com/elijahr/nim-debra">nim-debra</a>) for safe memory deallocation; the SPSC shape frees retired segments inline (no manager). <a href="api/queue/"><code>Queue</code></a> covers:</p>
-<table>
-<thead>
-<tr>
-<th>Cardinality</th>
-<th>Producers</th>
-<th>Consumers</th>
-<th>Push</th>
-<th>Pop</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>SPSC</td>
-<td>Single</td>
-<td>Single</td>
-<td>Wait-free</td>
-<td>Wait-free</td>
-</tr>
-<tr>
-<td>SPMC</td>
-<td>Single</td>
-<td>Multiple</td>
-<td>Wait-free</td>
-<td>Lock-free</td>
-</tr>
-<tr>
-<td>MPSC</td>
-<td>Multiple</td>
-<td>Single</td>
-<td>Lock-free</td>
-<td>Wait-free</td>
-</tr>
-<tr>
-<td>MPMC</td>
-<td>Multiple</td>
-<td>Multiple</td>
-<td>Lock-free</td>
-<td>Lock-free</td>
-</tr>
-</tbody>
-</table>
+<h3 id="additional-concurrency-primitives">Additional Concurrency Primitives<a class="headerlink" href="#additional-concurrency-primitives" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Work-Stealing TaskPool (<code>TaskPool</code>)</strong>: Multi-threaded scheduler coordinating per-worker <code>ChaseLevDeque</code> instances and global <code>TreiberStack</code> task injection.</li>
+<li><strong>Traffic Shaping (<code>RateLimiter</code>)</strong>: Hardware 128-bit DWCAS <code>TokenBucket</code> and <code>LeakyBucket</code> (GCRA) rate limiters.</li>
+<li><strong>Byte Streaming (<code>StreamBuffer</code>)</strong>: High-throughput circular byte stream ring buffer for packet framing and audio streams.</li>
+<li><strong>Safe Memory Reclamation (<code>nebr</code>)</strong>: Neutralizable Epoch-Based Reclamation with <code>SIGUSR1</code> thread neutralization.</li>
+<li><strong>C Foreign Function Interface (<code>lockfree.h</code>, <code>libcabi</code>)</strong>: C99-compliant interface exposing all primitives with zero-copy pointer transport and an exception firewall.</li>
+</ul>
+<hr>
+<h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">¶</a></h2>
+<p>Install via Nimble:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>nimble<span class="w"> </span>install<span class="w"> </span>lockfree
+</code></pre></div>
+<p>Or add to your <code>.nimble</code> package file:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">requires</span><span class="w"> </span><span class="s">"lockfree &gt;= 0.1.0"</span>
+</code></pre></div>
+<hr>
 <h2 id="compatibility">Compatibility<a class="headerlink" href="#compatibility" title="Permanent link">¶</a></h2>
 <table>
 <thead>
 <tr>
-<th>Requirement</th>
-<th>Supported</th>
+<th style="text-align: left;">Dimension</th>
+<th style="text-align: left;">Supported Matrix</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td>Nim</td>
-<td><code>&gt;= 2.2.10</code></td>
+<td style="text-align: left;"><strong>Nim Compiler</strong></td>
+<td style="text-align: left;"><code>&gt;= 2.2.10</code></td>
 </tr>
 <tr>
-<td>Memory managers</td>
-<td><code>orc</code> (default), <code>arc</code>, <code>refc</code>, <code>atomicArc</code></td>
+<td style="text-align: left;"><strong>Memory Managers</strong></td>
+<td style="text-align: left;"><code>orc</code> (default), <code>arc</code>, <code>atomicArc</code>, <code>refc</code>, <code>none</code></td>
 </tr>
 <tr>
-<td>Backends</td>
-<td>C, C++</td>
+<td style="text-align: left;"><strong>Backends</strong></td>
+<td style="text-align: left;">C, C++</td>
 </tr>
 <tr>
-<td>Threads</td>
-<td><code>--threads:on</code> required (default in Nim 2.2+)</td>
+<td style="text-align: left;"><strong>Threading</strong></td>
+<td style="text-align: left;"><code>--threads:on</code> required (default in Nim 2.2+)</td>
 </tr>
 <tr>
-<td>Platforms (CI-verified)</td>
-<td>Linux x86_64, Linux arm64, macOS arm64</td>
+<td style="text-align: left;"><strong>Platforms (CI-verified)</strong></td>
+<td style="text-align: left;">Linux x86_64, Linux arm64, macOS arm64, Windows</td>
 </tr>
 <tr>
-<td>Sanitisers (CI-verified)</td>
-<td>ThreadSanitizer (under <code>atomicArc</code>), AddressSanitizer</td>
+<td style="text-align: left;"><strong>Sanitizers (CI-verified)</strong></td>
+<td style="text-align: left;">ThreadSanitizer (TSan under <code>atomicArc</code>), AddressSanitizer (ASan)</td>
 </tr>
 <tr>
-<td>Dependencies</td>
-<td><a href="https://github.com/elijahr/nim-typestates"><code>typestates</code></a> <code>&gt;= 0.12.0</code> (DEBRA reclamation is bundled in-tree as <code>lockfree/smr/nebr</code>)</td>
+<td style="text-align: left;"><strong>C ABI</strong></td>
+<td style="text-align: left;">C99 / C++11 header <code>include/lockfree.h</code>, shared &amp; static libraries</td>
 </tr>
 <tr>
-<td>License</td>
-<td>MIT</td>
+<td style="text-align: left;"><strong>License</strong></td>
+<td style="text-align: left;">MIT</td>
 </tr>
 </tbody>
 </table>
-<p><strong>Item types.</strong> Value types and <code>ptr T</code> are stored directly in the slot
-array. <code>ref T</code>, <code>string</code>, and <code>seq</code> are admitted through Path-C: each slot
-holds an 8-byte <code>ManagedRef</code> / <code>ManagedSlice</code> token (<code>distinct uint</code>) rather
-than the payload, so no refcount or buffer mutation races against the
-concurrent slot read/write. No opt-in flag is required. The unbounded MPMC
-arm (<code>Queue[T, ccMulti, ccMulti, …]</code>) requires
-<code>supportsCopyMem(T) AND sizeof(T) &lt;= 8</code> (strict-LCRQ migration);
-for wider or move-only <code>T</code>, use <code>BQueue[T, ccMulti, ccMulti, …]</code> or wrap
-as <code>ptr T</code>. See <a href="guide/managed-ref/">ManagedRef — <code>ref T</code> payloads</a> and
-<a href="migrations/from-lockfreequeues-v5/">From lockfreequeues v5</a>.</p>
-<p><strong>Atomics.</strong> All atomics route through <code>debra/atomics</code>, which statically
-rejects any <code>Atomic[T]</code> instantiation that would fall back to libatomic
-spinlocks. Enforcement is on by default; opt out with
-<code>-d:debraAllowNonLockFreeAtomics</code> (per-call-site warning fires).</p>
-<h2 id="installation">Installation<a class="headerlink" href="#installation" title="Permanent link">¶</a></h2>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>nimble<span class="w"> </span>install<span class="w"> </span>lockfreequeues
-</code></pre></div>
+<hr>
 <h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">¶</a></h2>
-<h3 id="bounded-queue">Bounded Queue<a class="headerlink" href="#bounded-queue" title="Permanent link">¶</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfreequeues</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c"># Single-producer, single-consumer bounded queue with capacity 16.</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="kd">var</span><span class="w"> </span><span class="n">queue</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newSpscQueue</span><span class="o">[</span><span class="nb">int</span><span class="p">,</span><span class="w"> </span><span class="mi">16</span><span class="o">]</span><span class="p">()</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="k">discard</span><span class="w"> </span><span class="n">queue</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="k">discard</span><span class="w"> </span><span class="n">queue</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="mi">123</span><span class="p">)</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="k">let</span><span class="w"> </span><span class="n">item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">queue</span><span class="p">.</span><span class="n">pop</span><span class="p">()</span><span class="w">  </span><span class="c"># some(42)</span>
-</code></pre></div>
-<h3 id="unbounded-queue-single-producer-single-consumer">Unbounded Queue (single-producer, single-consumer)<a class="headerlink" href="#unbounded-queue-single-producer-single-consumer" title="Permanent link">¶</a></h3>
-<p>The SPSC <code>Queue</code> shape does not need DEBRA reclamation: the producer and
-consumer each hold their own segment pointer and the consumer-side advance is
-the only freer.</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfreequeues</span>
+<h3 id="1-bounded-unbounded-queues">1. Bounded &amp; Unbounded Queues<a class="headerlink" href="#1-bounded-unbounded-queues" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfree</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="c"># Unbounded SPSC queue with segment size 64.</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="kd">var</span><span class="w"> </span><span class="n">queue</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newQueue</span><span class="p">(</span><span class="n">Queue</span><span class="o">[</span><span class="nb">int</span><span class="p">,</span><span class="w"> </span><span class="n">ccSingle</span><span class="p">,</span><span class="w"> </span><span class="n">ccSingle</span><span class="p">,</span><span class="w"> </span><span class="n">stEager</span><span class="p">,</span><span class="w"> </span><span class="mi">64</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="o">]</span><span class="p">)</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="kd">var</span><span class="w"> </span><span class="n">p</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">queue</span><span class="p">.</span><span class="n">getProducer</span><span class="p">()</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">p</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span><span class="w">              </span><span class="c"># never fails — grows as needed</span>
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="k">let</span><span class="w"> </span><span class="n">item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">queue</span><span class="p">.</span><span class="n">pop</span><span class="p">()</span><span class="w">  </span><span class="c"># some(42)</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="c"># Fixed-capacity wait-free SPSC ring buffer (zero allocation)</span>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="kd">var</span><span class="w"> </span><span class="n">boundedQ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newSpscQueue</span><span class="o">[</span><span class="nb">int</span><span class="p">,</span><span class="w"> </span><span class="mi">64</span><span class="o">]</span><span class="p">()</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="k">discard</span><span class="w"> </span><span class="n">boundedQ</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">assert</span><span class="w"> </span><span class="n">boundedQ</span><span class="p">.</span><span class="n">pop</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">some</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="c"># Dynamic unbounded MPMC queue backed by Debra SMR</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="kd">var</span><span class="w"> </span><span class="n">unboundedQ</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newMpmcQueue</span><span class="o">[</span><span class="nb">string</span><span class="p">,</span><span class="w"> </span><span class="mi">64</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="o">]</span><span class="p">()</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="kd">var</span><span class="w"> </span><span class="n">prod</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">unboundedQ</span><span class="p">.</span><span class="n">getProducerHere</span><span class="p">()</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="kd">var</span><span class="w"> </span><span class="n">cons</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">unboundedQ</span><span class="p">.</span><span class="n">getConsumerHere</span><span class="p">()</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="n">prod</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="s">"hello lockfree"</span><span class="p">)</span>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="n">assert</span><span class="w"> </span><span class="n">cons</span><span class="p">.</span><span class="n">pop</span><span class="p">()</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">some</span><span class="p">(</span><span class="s">"hello lockfree"</span><span class="p">)</span>
 </code></pre></div>
-<h3 id="unbounded-queue-multi-producer-multi-consumer">Unbounded Queue (multi-producer, multi-consumer)<a class="headerlink" href="#unbounded-queue-multi-producer-multi-consumer" title="Permanent link">¶</a></h3>
-<p>The MP/MC unbounded shapes use a <code>DebraManager</code> for safe segment
-reclamation. The auto-create constructor heap-allocates a private manager;
-each operating thread then <code>attach()</code>es its view on the thread that will
-push/pop through it (DEBRA registration is thread-affine):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfreequeues</span>
+<h3 id="2-csp-channels">2. CSP Channels<a class="headerlink" href="#2-csp-channels" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfree</span>
 <a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c"># Auto-create MPMC: segment size 64, registry capacity 4.</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="kd">var</span><span class="w"> </span><span class="n">queue</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newQueue</span><span class="p">(</span><span class="n">Queue</span><span class="o">[</span><span class="nb">int</span><span class="p">,</span><span class="w"> </span><span class="n">ccMulti</span><span class="p">,</span><span class="w"> </span><span class="n">ccMulti</span><span class="p">,</span><span class="w"> </span><span class="n">stEager</span><span class="p">,</span><span class="w"> </span><span class="mi">64</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="o">]</span><span class="p">)</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="kd">var</span><span class="w"> </span><span class="n">producer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">queue</span><span class="p">.</span><span class="n">getProducerHere</span><span class="p">()</span><span class="w">  </span><span class="c"># registers this thread</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">producer</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="mi">42</span><span class="p">)</span><span class="w">                       </span><span class="c"># may raise DebraRegistrationError</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="kd">var</span><span class="w"> </span><span class="n">consumer</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">queue</span><span class="p">.</span><span class="n">getConsumerHere</span><span class="p">()</span>
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="k">let</span><span class="w"> </span><span class="n">item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">consumer</span><span class="p">.</span><span class="n">pop</span><span class="p">()</span><span class="w">               </span><span class="c"># some(42)</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="kd">var</span><span class="w"> </span><span class="p">(</span><span class="n">tx</span><span class="p">,</span><span class="w"> </span><span class="n">rx</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newChannel</span><span class="o">[</span><span class="nb">int</span><span class="o">]</span><span class="p">(</span><span class="n">capacity</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">32</span><span class="p">)</span>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="c"># Thread-local auto-registration caches handles automatically</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">tx</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="mi">1337</span><span class="p">)</span>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="kd">var</span><span class="w"> </span><span class="n">received</span><span class="p">:</span><span class="w"> </span><span class="nb">int</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="k">if</span><span class="w"> </span><span class="n">rx</span><span class="p">.</span><span class="n">recv</span><span class="p">(</span><span class="n">received</span><span class="p">):</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">  </span><span class="n">echo</span><span class="w"> </span><span class="s">"Received: "</span><span class="p">,</span><span class="w"> </span><span class="n">received</span>
 </code></pre></div>
-<p>The <code>*Here</code> templates are sugar for <code>getProducer()</code> + <code>attach()</code> (and
-<code>getConsumer()</code> + <code>attach()</code>) when the calling thread is also the
-operating thread. For the producer-to-worker handoff pattern (a
-parent thread obtains the view and hands it off to a worker thread
-that does the push/pop), use the explicit <code>getProducer()</code> +
-<code>attach()</code> pair so the debra registration lands on the worker thread.
-See the <a href="api/queue/">Queue API reference</a> for details.</p>
-<h2 id="choosing-a-queue">Choosing a Queue<a class="headerlink" href="#choosing-a-queue" title="Permanent link">¶</a></h2>
-<p><strong>Use bounded queues when:</strong></p>
-<ul>
-<li>Memory usage must be predictable</li>
-<li>Working in embedded or real-time systems</li>
-<li>Producer/consumer counts are known at compile time</li>
-</ul>
-<p><strong>Use unbounded queues when:</strong></p>
-<ul>
-<li>Workload is bursty or unpredictable</li>
-<li>Producer/consumer threads are created dynamically</li>
-<li>Memory growth is acceptable</li>
-</ul>
-<h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">¶</a></h2>
-<p>Examples are in the <a href="https://github.com/elijahr/lockfreequeues/tree/devel/examples">examples</a> directory:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>nimble<span class="w"> </span>examples
+<h3 id="3-concurrent-map-ctrie-with-o1-snapshots">3. Concurrent Map (<code>Ctrie</code>) with $O(1)$ Snapshots<a class="headerlink" href="#3-concurrent-map-ctrie-with-o1-snapshots" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfree</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="kd">var</span><span class="w"> </span><span class="n">map</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newCtrie</span><span class="o">[</span><span class="nb">string</span><span class="p">,</span><span class="w"> </span><span class="nb">int</span><span class="o">]</span><span class="p">()</span>
+<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="k">discard</span><span class="w"> </span><span class="n">map</span><span class="p">.</span><span class="n">put</span><span class="p">(</span><span class="s">"counter"</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="k">discard</span><span class="w"> </span><span class="n">map</span><span class="p">.</span><span class="n">putIfAbsent</span><span class="p">(</span><span class="s">"users"</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">)</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>
+<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="c"># Atomic transformation</span>
+<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="k">discard</span><span class="w"> </span><span class="n">map</span><span class="p">.</span><span class="n">atomicUpdate</span><span class="p">(</span><span class="s">"counter"</span><span class="p">,</span><span class="w"> </span><span class="n">proc</span><span class="p">(</span><span class="n">v</span><span class="p">:</span><span class="w"> </span><span class="nb">int</span><span class="p">):</span><span class="w"> </span><span class="nb">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">v</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="p">)</span>
+<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="c"># O(1) wait-free point-in-time snapshot</span>
+<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="k">let</span><span class="w"> </span><span class="n">snap</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">map</span><span class="p">.</span><span class="n">snapshot</span><span class="p">()</span>
+<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="n">v</span><span class="p">)</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="n">snap</span><span class="p">.</span><span class="n">pairs</span><span class="p">():</span>
+<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="w">  </span><span class="n">echo</span><span class="w"> </span><span class="n">k</span><span class="p">,</span><span class="w"> </span><span class="s">" = "</span><span class="p">,</span><span class="w"> </span><span class="n">v</span>
 </code></pre></div>
-<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">¶</a></h2>
+<h3 id="4-work-stealing-taskpool">4. Work-Stealing TaskPool<a class="headerlink" href="#4-work-stealing-taskpool" title="Permanent link">¶</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">lockfree</span>
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="kd">var</span><span class="w"> </span><span class="n">pool</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">newTaskPool</span><span class="p">(</span><span class="n">numThreads</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">)</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
+<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">for</span><span class="w"> </span><span class="n">i</span><span class="w"> </span><span class="ow">in</span><span class="w"> </span><span class="mf">1</span><span class="p">..</span><span class="mi">10</span><span class="p">:</span>
+<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">  </span><span class="n">pool</span><span class="p">.</span><span class="n">spawn</span><span class="p">(</span><span class="n">proc</span><span class="p">()</span><span class="w"> </span><span class="o">=</span>
+<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">    </span><span class="c"># Executed concurrently across worker deques</span>
+<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="k">discard</span>
+<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a><span class="w">  </span><span class="p">)</span>
+<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>
+<a id="__codelineno-5-11" name="__codelineno-5-11" href="#__codelineno-5-11"></a><span class="n">pool</span><span class="p">.</span><span class="n">sync</span><span class="p">()</span>
+<a id="__codelineno-5-12" name="__codelineno-5-12" href="#__codelineno-5-12"></a><span class="n">pool</span><span class="p">.</span><span class="n">shutdown</span><span class="p">()</span>
+</code></pre></div>
+<h3 id="5-c-abi-includelockfreeh">5. C ABI (<code>include/lockfree.h</code>)<a class="headerlink" href="#5-c-abi-includelockfreeh" title="Permanent link">¶</a></h3>
+<p>Any C or C++ application can include <code>lockfree.h</code> and link against <code>liblockfree</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">"lockfree.h"</span>
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;stdio.h&gt;</span>
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;assert.h&gt;</span>
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">void</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="n">lfq_queue_t</span><span class="o">*</span><span class="w"> </span><span class="n">q</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span><span class="n">lfq_status_t</span><span class="w"> </span><span class="n">rc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">lfq_bounded_create</span><span class="p">(</span><span class="mi">1024</span><span class="p">,</span><span class="w"> </span><span class="k">sizeof</span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="p">),</span><span class="w"> </span><span class="o">&amp;</span><span class="n">q</span><span class="p">);</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">    </span><span class="n">assert</span><span class="p">(</span><span class="n">rc</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LFQ_OK</span><span class="p">);</span>
+<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">999</span><span class="p">;</span>
+<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span><span class="n">rc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">lfq_bounded_push</span><span class="p">(</span><span class="n">q</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">val</span><span class="p">);</span>
+<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">    </span><span class="n">assert</span><span class="p">(</span><span class="n">rc</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LFQ_OK</span><span class="p">);</span>
+<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>
+<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">    </span><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">popped</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">    </span><span class="n">rc</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">lfq_bounded_pop</span><span class="p">(</span><span class="n">q</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">popped</span><span class="p">);</span>
+<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a><span class="w">    </span><span class="n">assert</span><span class="p">(</span><span class="n">rc</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LFQ_OK</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="o">*</span><span class="p">(</span><span class="kt">int</span><span class="o">*</span><span class="p">)</span><span class="n">popped</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">999</span><span class="p">);</span>
+<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>
+<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a><span class="w">    </span><span class="n">lfq_bounded_destroy</span><span class="p">(</span><span class="n">q</span><span class="p">);</span>
+<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a><span class="w">    </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-6-20" name="__codelineno-6-20" href="#__codelineno-6-20"></a><span class="p">}</span>
+</code></pre></div>
+<hr>
+<h2 id="detailed-guides-documentation">Detailed Guides &amp; Documentation<a class="headerlink" href="#detailed-guides-documentation" title="Permanent link">¶</a></h2>
 <ul>
-<li>Juho Snellman, <a href="https://www.snellman.net/blog/archive/2016-12-13-ring-buffers/">"I've been writing ring buffers wrong all these years"</a>.</li>
-<li>Mamy Ratsimbazafy, <a href="https://github.com/mratsim/weave/blob/master/weave/cross_thread_com/channels_spsc.md#litterature">research on SPSC channels</a> for weave.</li>
-<li>Henrique F. Bucher, <a href="http://www.vitorian.com/x1/archives/370">"Yes, You Have Been Writing SPSC Queues Wrong Your Entire Life"</a>.</li>
-<li>Maged M. Michael and Michael L. Scott, "Simple, Fast, and Practical Non-Blocking and Blocking Concurrent Queue Algorithms" (PODC 1996) — the lock-free linked-list queue that the unbounded segment chain generalises.</li>
-<li>Dmitry Vyukov's writings on bounded MPMC ring buffers and CAS-based coordination patterns — the per-slot sequence counter protocol used by the bounded multi-cardinality variants.</li>
-<li>Trevor Brown, <a href="https://www.cs.utoronto.ca/~tabrown/debra/">"Reclaiming Memory for Lock-Free Data Structures: There has to be a Better Way"</a> (DEBRA, the epoch-based reclamation scheme used by the unbounded multi-cardinality queues via <a href="https://github.com/elijahr/nim-debra">nim-debra</a>).</li>
+<li><a href="guides/user_guide/">User Guide</a> — Exhaustive guide mapping colloquial data structure names to <code>lockfree</code> types.</li>
+<li><a href="guide/queues/">Queues Guide</a> — Deep dive into Vyukov bounded and strict-LCRQ unbounded queues.</li>
+<li><a href="guide/channels/">Channels &amp; Rendezvous</a> — Buffered CSP channels and synchronous zero-capacity handoffs.</li>
+<li><a href="guide/maps-sets/">Maps &amp; Sets</a> — Concurrent Hash Trie (Ctrie) and Fraser &amp; Herlihy SkipLists.</li>
+<li><a href="guide/stacks-deques/">Stacks &amp; Deques</a> — Treiber stack with elimination backoff and Chase-Lev work-stealing.</li>
+<li><a href="guide/broadcast/">Broadcast Ring</a> — Multicast ring buffers and topic-based pub-sub.</li>
+<li><a href="guide/taskpool/">TaskPool</a> — Work-stealing scheduler and parallel loops.</li>
+<li><a href="guide/cabi/">C ABI</a> — C99 Foreign Function Interface and library integration.</li>
+<li><a href="guide/smr/nebr/">Safe Memory Reclamation (nebr)</a> — Epoch-based reclamation and thread neutralization.</li>
+<li><a href="guide/atomics/">Hardware Atomics</a> — Memory orderings, 128-bit DWCAS, and adaptive backoff loops.</li>
+<li><a href="api/">API Reference</a> — Complete module and symbol reference.</li>
+<li><a href="migration/">Migration Guide</a> — Migration paths from <code>lockfreequeues</code> and <code>nim-debra</code>.</li>
 </ul>
 
 
@@ -3612,7 +5336,7 @@ See the <a href="api/queue/">Queue API reference</a> for details.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 13, 2026 08:52:54 UTC"><span class="timeago" datetime="2026-06-13T08:52:54+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 13, 2026 08:52:54 UTC">2026-06-13</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 11, 2026 10:21:35 UTC"><span class="timeago" datetime="2026-10-11T10:21:35+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 11, 2026 10:21:35 UTC">2026-10-11</span>
   </span>
 
     

@@ -37,11 +37,31 @@
          <lastmod>2026-10-11</lastmod>
     </url>
     <url>
+         <loc>https://elijahr.github.io/lockfree/latest/api/broadcast/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/api/cabi/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/api/channel/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/chronos/</loc>
          <lastmod>2026-10-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/compat/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/api/ctrie/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/api/deque/</loc>
          <lastmod>2026-10-11</lastmod>
     </url>
     <url>
@@ -58,6 +78,34 @@
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/queue/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/api/ratelimit/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/api/rendezvous/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/api/set/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/api/skiplist/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/api/stack/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/api/streambuffer/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/api/taskpool/</loc>
          <lastmod>2026-10-11</lastmod>
     </url>
     <url>
@@ -133,7 +181,23 @@
          <lastmod>2026-10-11</lastmod>
     </url>
     <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/atomics/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/bounded-vs-unbounded/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/broadcast/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/cabi/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/channels/</loc>
          <lastmod>2026-10-11</lastmod>
     </url>
     <url>
@@ -157,6 +221,10 @@
          <lastmod>2026-10-11</lastmod>
     </url>
     <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/maps-sets/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/nimony/</loc>
          <lastmod>2026-10-11</lastmod>
     </url>
@@ -165,11 +233,23 @@
          <lastmod>2026-10-11</lastmod>
     </url>
     <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/ratelimit-streambuffer/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/safety-model/</loc>
          <lastmod>2026-10-11</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/slot-ownership-typestates/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/stacks-deques/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/taskpool/</loc>
          <lastmod>2026-10-11</lastmod>
     </url>
     <url>
@@ -298,6 +378,14 @@
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/reviews/audit_dead_code/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/reviews/audit_docs_accuracy_deslop_plain_english/</loc>
+         <lastmod>2026-10-11</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/reviews/audit_ruling_post_cleanup_facades/</loc>
          <lastmod>2026-10-11</lastmod>
     </url>
     <url>
