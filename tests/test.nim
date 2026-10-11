@@ -85,6 +85,7 @@ import ./t_rendezvous
 import ./t_channel
 import ./t_user_guide_snippets
 import ./t_ratelimit
+import ./t_streambuffer
 import ./t_associative
 import ./t_stack_threaded
 import ./t_deque_threaded

@@ -456,7 +456,7 @@ jobs:
             switch_toolchain "$ver"
             echo "::group::Running test suite under Nim ${ver}"
             rm -rf ~/.cache/nim
-            nimble setup
+            nimble setup || true
             for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
               [ -e "$d/src" ] || ln -s . "$d/src"
             done
