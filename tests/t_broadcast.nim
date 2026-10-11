@@ -165,34 +165,36 @@ suite "BroadcastRing — Backpressure & Flow-Control (omBackoff)":
     # After cursor unsubscribes, ring is no longer blocked by slow consumer
     check ring.tryPublish(102)
 
-suite "BroadcastRing — ARC/ORC Lifecycle Management":
-  type TrackedObj = ref object
-    id: int
+when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc):
+  suite "BroadcastRing — ARC/ORC Lifecycle Management":
+    type TrackedObj = ref object
+      id: int
 
-  var gDestructCount {.global.}: Atomic[int]
+    var gDestructCount {.global.}: Atomic[int]
 
-  proc `=destroy`(x: var typeof(TrackedObj()[])) =
-    if x.id > 0:
-      discard gDestructCount.fetchAdd(1, moRelaxed)
+    proc `=destroy`(x: var typeof(TrackedObj()[])) =
+      if x.id > 0:
+        discard gDestructCount.fetchAdd(1, moRelaxed)
 
-  test "managed ref objects correctly freed on overwrite and ring destruction":
-    gDestructCount.store(0, moRelaxed)
-    const Total = 50
-    block:
-      let ring = initBroadcastRing[TrackedObj](capacity = 16, overflowMode = omDropOldest)
-      var cursor = ring.subscribe(soFromLatest)
+    test "managed ref objects correctly freed on overwrite and ring destruction":
+      gDestructCount.store(0, moRelaxed)
+      const Total = 50
+      block:
+        let ring = initBroadcastRing[TrackedObj](capacity = 16, overflowMode = omDropOldest)
+        var cursor = ring.subscribe(soFromLatest)
 
-      for i in 1 .. Total:
-        ring.publish(TrackedObj(id: i))
-        if i mod 3 == 0:
-          var obj: TrackedObj
-          discard cursor.tryRead(obj)
+        for i in 1 .. Total:
+          ring.publish(TrackedObj(id: i))
+          if i mod 3 == 0:
+            var obj: TrackedObj
+            discard cursor.tryRead(obj)
 
-      cursor.unsubscribe()
+        cursor.unsubscribe()
 
-    # When ring and all objects leave scope, all 50 allocated objects must be destroyed
-    check gDestructCount.load(moRelaxed) == Total
+      # When ring and all objects leave scope, all 50 allocated objects must be destroyed
+      check gDestructCount.load(moRelaxed) == Total
 
+suite "BroadcastRing — Managed String and Seq Payloads":
   test "strings and seqs under broadcast":
     let ring = initBroadcastRing[string](capacity = 32)
     var c = ring.subscribe(soFromLatest)
