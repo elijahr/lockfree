@@ -39,6 +39,7 @@ plugins:
       canonical_version: latest
   - git-revision-date-localized:
       enable_creation_date: true
+      enable_git_follow: false
       type: timeago
   - glightbox
   - mkdocstrings:
