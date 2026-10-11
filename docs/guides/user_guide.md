@@ -1,8 +1,8 @@
-# Lock-Free Data Structures User Guide: From Colloquial Names to High-Performance Concurrency
+# Lock-Free Data Structures User Guide: Mapping Standard Names to Non-Blocking Primitives
 
-Welcome to the definitive user guide for `lockfree`. Whether you are building an ultra-low latency financial order router, a high-throughput network service, a real-time audio pipeline, or a multi-threaded game engine in Nim, `lockfree` provides production-grade, non-blocking concurrent data structures designed for maximum scalability, deterministic latency, and zero mutual-exclusion overhead.
+The `lockfree` library provides non-blocking concurrent data structures for multithreaded Nim programs, designed without locks or OS-level mutual exclusion.
 
-This guide bridges everyday, colloquial data structure names (like `Table`, `Set`, `Stack`, `Queue`, `Channel`, `Deque`, and `BroadcastRing`) to their high-performance lock-free implementations in `lockfree`. It breaks down algorithmic tradeoffs, provides copy-pasteable code examples, and details the memory management foundations (ARC/ORC and Debra/NEBR Safe Memory Reclamation) that keep your multi-threaded systems leak-free and crash-proof.
+This guide maps standard abstract data type interfaces (such as `Table`, `Set`, `Stack`, `Queue`, `Channel`, and `Deque`) to their non-blocking implementations in `lockfree`. It documents algorithmic tradeoffs, code examples, and safe memory reclamation (NEBR and ARC/ORC) across threads.
 
 ---
 

@@ -88,7 +88,7 @@ type Node {.acyclic.} = ref object
 ```
 
 `{.acyclic.}` skips the cycle collector for this type. Only mark
-types that genuinely cannot form a cycle through their `ref` fields.
+types that cannot form reference cycles.
 
 Under `--mm:arc`, cycles leak; the manager does not collect them. Use
 `--mm:arc` only when payloads are known acyclic.

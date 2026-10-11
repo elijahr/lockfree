@@ -113,7 +113,7 @@ requires "debra >= 0.3.0"
 
 ### Foundational Papers
 
-- [DEBRA+: Efficient Memory Reclamation (Brown, 2017)](https://arxiv.org/abs/1712.01044) - The DEBRA+ algorithm with signal-based neutralization
+- [DEBRA+: Reclaiming Memory for Lock-Free Data Structures (Brown, 2015)](https://dl.acm.org/doi/10.1145/2767386.2767436) - The DEBRA+ algorithm with signal-based neutralization (ACM PODC 2015)
 - [Epoch-Based Reclamation (Fraser, 2004)](https://www.cl.cam.ac.uk/techreports/UCAM-CL-TR-579.pdf) - Original epoch-based memory reclamation approach
 
 ### Related Projects

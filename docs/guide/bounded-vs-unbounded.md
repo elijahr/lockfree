@@ -45,10 +45,9 @@ if not queue.push(sample):
   discard
 ```
 
-The bounded queue forces you to confront the question. An unbounded queue
-silently accepts the work, which is either fine (event aggregation) or a
-production incident waiting to happen (a slow consumer turning into a
-runaway memory leak).
+The bounded queue requires explicit handling of full states. An unbounded queue
+accepts work until memory limits are reached, which can result in unbounded memory
+growth if the consumer stalls.
 
 ### Memory upper bound is a hard requirement
 
@@ -253,7 +252,7 @@ proc producePersistent(item: int) =
     sleep(0)  # Yield; do NOT busy-spin without a yield.
 ```
 
-This is appropriate when you genuinely cannot drop and the producer can
+This is appropriate when items cannot be dropped and the producer can
 afford to wait. It is inappropriate on a real-time audio thread, on a
 GC thread, or anywhere with a deadline.
 

@@ -66,7 +66,7 @@ For maximum safety and portability:
   ManagedSlice); the memory manager owns the payload lifetime. `ptr T` with
   manual lifetime management remains available if you prefer it.
 - **Test on the target platform**: lock-free atomic availability is
-  platform-dependent. `debra/atomics` rejects non-lock-free `Atomic[T]`
+  platform-dependent. `lockfree/atomics` rejects non-lock-free `Atomic[T]`
   by default; build on your deployment target to surface any rejection,
   or pass `-d:debraAllowNonLockFreeAtomics` to opt into the libatomic
   spinlock fallback (with a per-call-site warning).

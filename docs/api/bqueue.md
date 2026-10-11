@@ -58,7 +58,7 @@ while preserving ownership.
 - `C: static int` — Consumer-registry capacity. Required `> 0` when
   `ccCons == ccMulti`; must be `0` when `ccCons == ccSingle`.
 
-The parameter order is load-bearing: `T, ccProd, ccCons, N, P, C`.
+The generic parameter sequence is fixed: `T, ccProd, ccCons, N, P, C`.
 
 ## Constructors
 

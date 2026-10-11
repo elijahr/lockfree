@@ -7,25 +7,23 @@
 
 # lockfree
 
-> **Ultra-high-performance lock-free queues, typestate-safe channels, and epoch-based memory reclamation (NEBR) for Nim, with native C ABI bindings.**  
-> *Consolidated successor to `lockfreequeues` and `nim-debra`.*
+Lock-free concurrent data structures, communication channels, and safe memory reclamation for Nim and C.
 
-`lockfree` delivers wait-free and lock-free concurrent data structures across the full single/multi-producer and single/multi-consumer matrix. Bounded queues operate as zero-allocation ring buffers; unbounded queues use linked segments with in-tree epoch-based memory reclamation (NEBR / DEBRA+).
+The `lockfree` library provides non-blocking concurrent programming primitives across single-producer, multi-producer, single-consumer, and multi-consumer topologies. It consolidates the implementations previously published under `lockfreequeues` and `nim-debra`.
 
-Under heavy multi-producer multi-consumer contention, `lockfree` sustains **18,209 ops/ms** — **10.6x faster than Nim's standard library `Channel`**.
-
----
-
-## Key Features
-
-- **Full Cardinality Matrix**: SPSC, SPMC, MPSC, and MPMC topologies across both bounded (`BQueue`) and unbounded (`Queue`) variants.
-- **Modern Channel Facade**: High-level `Channel[T]` providing CSP-style channels with split sender/receiver refcounts, bounded thread-local caching, and auto-close semantics.
-- **Path-C GC Safety**: Store `ref T`, `string`, `seq`, pointers, and value types transparently across threads. Payloads are lowered to 8-byte tokens (`ManagedRef` / `ManagedSlice`), preventing GC refcount races on the queue slot array across `orc`, `arc`, `atomicArc`, and `refc`.
-- **Strict LCRQ Unbounded MPMC**: Implements the Morrison-Afek LCRQ algorithm using Double-Word CAS (DWCAS) with close-CAS-on-empty progress rules.
-- **NEBR Memory Reclamation**: Built-in Neutralization-Enhanced Bounded Reclamation (DEBRA+ algorithm with signal-based stalled-thread neutralization) — no external SMR dependencies required.
-- **Batch Processing Primitives**: High-throughput `popBatch` and `popChunk` primitives for bulk operations with amortized atomic book-keeping.
-- **Cross-Language C ABI**: First-class C headers (`include/lockfree.h`) and shared library symbols (`cabi.nim`) for zero-overhead integration with C, C++, Rust, Zig, and Python.
-- **Verified Zero-Race Safety**: 500+ tests verified clean under Clang **ThreadSanitizer (TSAN)** and **AddressSanitizer (ASAN)**, with 23 negative compile-fail safety tripwires.
+The package provides:
+- Bounded ring buffers (`BQueue`) with static memory allocation.
+- Unbounded dynamic-segment queues (`Queue`) using Morrison-Afek strict-LCRQ with 128-bit DWCAS.
+- Communication channels (`Channel`) with automatic thread-local registration.
+- Synchronous zero-buffer dual queues (`RendezvousChannel`) with kernel futex wait/wake.
+- Associative maps (`Ctrie`, `SkipListMap`) and concurrent sets (`SkipListSet`).
+- LIFO stacks (`TreiberStack`) with elimination backoff and work-stealing deques (`ChaseLevDeque`).
+- Multicast fan-out rings (`BroadcastRing`, `TopicBus`) with configurable overflow policies.
+- Work-stealing task pool and scheduler (`TaskPool`).
+- Rate limiters (`TokenBucket`, `LeakyBucket`) and circular byte streaming (`StreamBuffer`).
+- Safe memory reclamation via Neutralization-Enhanced Bounded Epoch Reclamation (`lockfree/smr/nebr`).
+- Foreign function interface exports via C ABI headers (`include/lockfree.h`).
+- Verified safety with 500+ tests under ThreadSanitizer (TSAN) and AddressSanitizer (ASAN), with 23 negative compile-time rejection controls.
 
 ---
 

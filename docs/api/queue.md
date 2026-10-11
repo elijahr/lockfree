@@ -63,7 +63,7 @@ carries an additional `T`-width constraint documented below.
   `> 0`). A type-uniform phantom on the SPSC shape, which consumes no
   registry slots.
 
-The parameter order is load-bearing: `T, ccProd, ccCons, ST, S, MaxThreads`.
+The generic parameter sequence is fixed: `T, ccProd, ccCons, ST, S, MaxThreads`.
 
 !!! warning "lockfree v0.1.0 — unbounded MPMC `T` constraint"
 

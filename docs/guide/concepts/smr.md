@@ -30,14 +30,13 @@ You cannot solve this with more CASes. You need a *protocol* that
 keeps `node` alive until every thread that could be reading it has
 moved on.
 
-## The four standard solutions
+## Standard approaches
 
 | Family | How it works | Cost |
 |--------|--------------|------|
 | **EBR** (Epoch-Based Reclamation) | Threads announce an *epoch* before each critical section. Memory retired in epoch `e` is freed after every thread has been observed past epoch `e`. | Cheap per-pin (`fetchAdd` + announce write). Reclamation amortised. Stalled threads block reclamation. |
 | **HP** (Hazard Pointers) | Threads publish per-pointer protection slots before dereferencing. Reclaimer scans all slots before freeing. | Expensive per-dereference (publication + fence). Robust to stalled threads. |
 | **IBR** (Interval-Based Reclamation) | Generalization of EBR with per-pointer epoch ranges. Reduces the "stalled thread blocks everyone" weakness. | Mid-cost; more bookkeeping than EBR, less per-deref than HP. |
-| **NBR** (Neutralization-Based Reclamation, Brown 2017) | A different algorithm from DEBRA+; uses signal-driven neutralization but with a distinct safety argument. | Active research. Not what `lockfree` ships — see the [nebr deviation table](../smr/nebr.md#deviations-from-brown-2015-debra). |
 
 `lockfree` ships **EBR with signal-driven neutralization** under the
 name `nebr` (Neutralizable EBR). The signal-driven neutralization
