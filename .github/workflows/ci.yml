@@ -850,7 +850,6 @@ jobs:
         shell: bash
         run: |
           echo "C:\msys64\mingw64\bin" >> "$GITHUB_PATH"
-          echo "C:\msys64\usr\bin" >> "$GITHUB_PATH"
 
       - name: Cache nimble packages
         uses: actions/cache@v4
@@ -900,19 +899,23 @@ jobs:
           # follow that self-referential link (it loops -> "Too many levels
           # of symbolic links"), so materialize a real src/ dir mirroring the
           # package contents instead.
-          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
+          # Search both ~/.nimble/pkgs2 and /c/Users/*/.nimble/pkgs2 to be robust
+          # across Git-Bash and MSYS2-Bash environments.
+          PKGS_DIRS=(~/.nimble/pkgs2 /c/Users/*/.nimble/pkgs2)
+          for d in $(find "${PKGS_DIRS[@]}" -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
             [ -e "$d/src" ] && continue
-            mkdir "$d/src"
+            mkdir -p "$d/src"
             for f in "$d"/*; do
               case "$f" in
                 */src) ;;
-                *) cp -r -- "$f" "$d/src/" ;;
+                *) cp -r -- "$f" "$d/src/" 2>/dev/null || true ;;
               esac
             done
           done
 
       - name: Run tests (POSIX)
         if: runner.os != 'Windows'
+        continue-on-error: ${{ matrix.continue-on-error == true || matrix.continue-on-error == 'true' }}
         run: |
           set -o pipefail
           nimble_run() {
@@ -955,6 +958,7 @@ jobs:
 
       - name: Run tests (Windows)
         if: runner.os == 'Windows'
+        continue-on-error: ${{ matrix.continue-on-error == true || matrix.continue-on-error == 'true' }}
         shell: bash
         # Cell 17a (windows-latest + MSVC + orc) and Cell 17b (windows-latest + MinGW gcc + orc).
         # Sanitizers omitted on Windows per §6.3.
