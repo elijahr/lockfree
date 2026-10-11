@@ -69,9 +69,9 @@ suite "LimboBag":
     bag.objects[1] = RetiredObject(data: nil, destructor: nil)
     bag.count = 2
 
-    # Should not crash
+    # Should not crash and dummyData must remain uncorrupted
     reclaimBag(bag)
-    check true # If we reach here, test passed
+    check dummyData == 42
 
   test "reclaimBag with mixed destructors":
     var counter1 = 0

@@ -19,10 +19,10 @@ when not defined(windows):
 
   suite "Signal Handler":
     test "installSignalHandler is idempotent":
-      # Should not crash when called multiple times
       installSignalHandler()
+      check isSignalHandlerInstalled()
       installSignalHandler()
-      check true
+      check isSignalHandlerInstalled()
 
     test "isSignalHandlerInstalled returns true after install":
       installSignalHandler()

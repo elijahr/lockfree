@@ -17,6 +17,7 @@
 ##
 ##
 
+import std/atomics
 import std/options
 import unittest2
 
@@ -39,7 +40,7 @@ suite "bounded smart-constructors (RK = rkNone)":
     var q = newSpscQueue[int, 8]()
     check q.capacity == 8
     check q.push(42)
-    let r = lfqConsumer.pop()
+    let r = q.pop()
     check r.isSome
     check r.get == 42
 
@@ -48,7 +49,7 @@ suite "bounded smart-constructors (RK = rkNone)":
     check q.capacity == 16
     var p = q.getProducerHere(0)
     check p.push(7)
-    let r = lfqConsumer.pop()
+    let r = q.pop()
     check r.isSome
     check r.get == 7
 
@@ -80,11 +81,11 @@ suite "unbounded smart-constructors — newUnboundedSpscQueue":
     var p = q.getProducerHere()
     p.push(10)
     p.push(20)
-    let r1 = lfqConsumer.pop()
-    let r2 = lfqConsumer.pop()
+    let r1 = q.pop()
+    let r2 = q.pop()
     check r1.isSome and r1.get == 10
     check r2.isSome and r2.get == 20
-    check lfqConsumer.pop().isNone
+    check q.pop().isNone
 
 suite "unbounded smart-constructors — newUnboundedMpscQueue":
   test "auto-create: construct + push + pop":
@@ -103,6 +104,7 @@ suite "unbounded smart-constructors — newUnboundedMpscQueue":
     var mgr = initDebraManager[4, nebr.ccSingle]()
     block:
       var q = newUnboundedMpscQueue[int, stEager, 8, 4](addr mgr)
+      var lfqConsumer = q.bindConsumer()
       var p = q.getProducerHere()
       p.push(11)
       let r = lfqConsumer.pop()
@@ -165,31 +167,47 @@ suite "smart-constructor =destroy soundness":
   ## `=destroy` must run the manager's destructor cleanly (which asserts
   ## `clientCount == 0` internally). If any client bookkeeping is
   ## mis-routed by the smart-constructors, manager destruction would
-  ## crash here. Exiting the inner block cleanly is the test.
+  ## crash here. We verify both that destructors run on payloads and that
+  ## the queue and its internal Debra manager reclaim cleanly.
+
+  type TrackedItem = object
+    id: int
+
+  var gDestructCount {.global.}: Atomic[int]
+
+  proc `=destroy`(x: var TrackedItem) =
+    if x.id != 0:
+      discard gDestructCount.fetchAdd(1, moRelaxed)
 
   test "newUnboundedMpscQueue auto-create destructor runs cleanly":
+    gDestructCount.store(0, moRelaxed)
     block:
-      var q = newUnboundedMpscQueue[int, stEager, 8, 4]()
+      var q = newUnboundedMpscQueue[TrackedItem, stEager, 8, 4]()
       var lfqConsumer = q.bindConsumer()
       var p = q.getProducerHere()
-      p.push(1)
-      discard lfqConsumer.pop()
-    check true # reached only if =destroy did not assert/crash
+      p.push(TrackedItem(id: 1))
+      let popped = lfqConsumer.pop()
+      check popped.isSome and popped.get.id == 1
+    check gDestructCount.load(moRelaxed) >= 1
 
   test "newUnboundedSpmcQueue auto-create destructor runs cleanly":
+    gDestructCount.store(0, moRelaxed)
     block:
-      var q = newUnboundedSpmcQueue[int, stEager, 8, 4]()
+      var q = newUnboundedSpmcQueue[TrackedItem, stEager, 8, 4]()
       var p = q.getProducerHere()
-      p.push(1)
+      p.push(TrackedItem(id: 2))
       var c = q.getConsumerHere()
-      discard c.pop()
-    check true
+      let popped = c.pop()
+      check popped.isSome and popped.get.id == 2
+    check gDestructCount.load(moRelaxed) >= 1
 
   test "newUnboundedMpmcQueue auto-create destructor runs cleanly":
+    gDestructCount.store(0, moRelaxed)
     block:
-      var q = newUnboundedMpmcQueue[int, stEager, 8, 4]()
+      var q = newUnboundedMpmcQueue[TrackedItem, stEager, 8, 4]()
       var p = q.getProducerHere()
-      p.push(1)
+      p.push(TrackedItem(id: 3))
       var c = q.getConsumerHere()
-      discard c.pop()
-    check true
+      let popped = c.pop()
+      check popped.isSome and popped.get.id == 3
+    check gDestructCount.load(moRelaxed) >= 1

@@ -132,12 +132,16 @@ suite "UnboundedSpmc":
     producer.push(3)
     check(queue.len == 3)
 
-    discard consumer.pop()
+    let r1 = consumer.pop()
+    check r1 == some(1)
     check(queue.len == 2)
 
-    discard consumer.pop()
-    discard consumer.pop()
+    let r2 = consumer.pop()
+    check r2 == some(2)
+    let r3 = consumer.pop()
+    check r3 == some(3)
     check(queue.len == 0)
+    check consumer.pop().isNone
 
   test "batch push":
     var manager = initDebraManager[4, debra_mod.ccMulti]()

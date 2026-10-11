@@ -91,7 +91,8 @@ suite "UnboundedSpsc":
       for i in 1 .. 8:
         p.push(i)
       for i in 1 .. 8:
-        discard queue.pop()
+        let r = queue.pop()
+        check r == some(i)
 
     # Should have reclaimed segments automatically (single consumer can free directly)
     check(queue.segmentCount >= 1)
@@ -109,12 +110,16 @@ suite "UnboundedSpsc":
     p.push(3)
     check(queue.len == 3)
 
-    discard queue.pop()
+    let r1 = queue.pop()
+    check r1 == some(1)
     check(queue.len == 2)
 
-    discard queue.pop()
-    discard queue.pop()
+    let r2 = queue.pop()
+    check r2 == some(2)
+    let r3 = queue.pop()
+    check r3 == some(3)
     check(queue.len == 0)
+    check queue.pop().isNone
 
   test "batch push":
     var queue = newUnboundedSpscQueue[int, stEager, 8, MT]()
