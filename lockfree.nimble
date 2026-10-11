@@ -11,7 +11,7 @@ entryPoints    = @["tests/test.nim"]
 # Dependencies
 requires "nim >= 2.2.10"
 requires "unittest2"
-requires "typestates >= 0.12.2"
+requires "typestates >= 0.13.0"
 
 # Optional dependencies (flag-only opt-in). chronos is the async-adapter
 # backend pulled in only when callers build with `-d:lockfreeChronos`.
