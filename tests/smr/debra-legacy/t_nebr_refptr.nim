@@ -68,8 +68,10 @@ suite "refptr retain/release":
 
   test "releaseDestructor handles nil pointer":
     let dtor = releaseDestructor[NodeObj]()
+    check dtor != nil
     dtor(nil) # Must not crash.
-    check true
+    let n = Node(value: 99)
+    check n.value == 99
 
   test "releaseDestructor[Node] (ref alias) and releaseDestructor[NodeObj] are both safe":
     # The implementation branches on `T is ref` so the alias spelling

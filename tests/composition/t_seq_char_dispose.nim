@@ -68,12 +68,18 @@ template assertSeqRouted(body: untyped) =
     check countStringDispose() == 0
   else:
     body
-    echo "SKIPPED: seq[char] dispose routing requires " &
-      "-d:lockfreeSliceDisposeTrace (run `nimble testSliceDispose` for " &
-      "the real assertion)"
-    # Compile / crash-free coverage arm only; the REAL assertion is the
-    # trace arm above.
-    check true
+    # GM-05: Purge tautological `check true`. In non-trace builds, verify that
+    # seq[char] payloads survive queue transport with exact data preservation
+    # and clean destruction.
+    var vq = newSpscQueue[seq[char], Cap]()
+    for i in 0 ..< N:
+      let s = seqCharPayload(i)
+      check vq.push(s)
+    for i in 0 ..< N:
+      let popped = vq.pop()
+      check popped.isSome
+      check popped.get() == seqCharPayload(i)
+    check vq.pop().isNone
 
 suite "seq[char] dispose routing (overload-collision regression)":
   test "BQueue SPSC: residual seq[char] slots use the seq disposer":

@@ -42,12 +42,7 @@ suite "Lockfree Stack Typestates":
     let (popResult, itemOpt) = nonEmpty.pop()
 
     # Should get Empty state
-    case popResult.kind
-    of pEmpty:
-      check true # Expected
-    of pNonempty:
-      checkpoint "Expected Empty but got NonEmpty"
-      check false
+    check popResult.kind == pEmpty
 
     # Item should be Some (successfully popped)
     check itemOpt.isSome
@@ -64,17 +59,16 @@ suite "Lockfree Stack Typestates":
     let (popResult, itemOpt) = nonEmpty.pop()
 
     # Should get NonEmpty state
-    case popResult.kind
-    of pEmpty:
-      checkpoint "Expected NonEmpty but got Empty"
-      check false
-    of pNonempty:
-      check true # Expected
+    check popResult.kind == pNonempty
+    check itemOpt.isSome
+    if itemOpt.isSome:
+      check Item[int](itemOpt.get).value == 3
+    if popResult.kind == pNonempty:
       # Verify we can pop again
       let (popResult2, itemOpt2) = popResult.nonempty.pop()
       check itemOpt2.isSome
-
-    check itemOpt.isSome
+      if itemOpt2.isSome:
+        check Item[int](itemOpt2.get).value == 2
 
   test "LIFO ordering (Last In First Out)":
     let stack = initStack[int](addr manager)
@@ -137,11 +131,7 @@ suite "Lockfree Stack Typestates":
     # If we could somehow call pop on the old NonEmpty reference again
     # (which typestates prevent at compile time), we would get None.
     # For now, verify the state is Empty after first pop.
-    case popResult1.kind
-    of pEmpty:
-      check true
-    of pNonempty:
-      check false
+    check popResult1.kind == pEmpty
 
   test "Memory reclamation after pop":
     # Verify that items are retired and reclamation is attempted

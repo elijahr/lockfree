@@ -342,6 +342,11 @@ when compileOption("threads"):
       var doneFlag: Atomic[bool]
       doneFlag.store(false, moRelaxed)
 
+      var totalPushed {.global.}: Atomic[int]
+      var totalPopped {.global.}: Atomic[int]
+      totalPushed.store(0, moRelaxed)
+      totalPopped.store(0, moRelaxed)
+
       type WorkerCtx = object
         stack: ptr TreiberStack[int]
         done: ptr Atomic[bool]
@@ -350,7 +355,10 @@ when compileOption("threads"):
         {.cast(gcsafe).}:
           for i in 0 ..< OpsPerThread:
             ctx.stack[].push(i)
-            discard ctx.stack[].pop()
+            discard totalPushed.fetchAdd(1, moRelaxed)
+            let item = ctx.stack[].pop()
+            if item.isSome:
+              discard totalPopped.fetchAdd(1, moRelaxed)
 
       var wCtx: array[4, WorkerCtx]
       var wThreads: array[4, Thread[ptr WorkerCtx]]
@@ -361,7 +369,10 @@ when compileOption("threads"):
       for i in 0 ..< 4:
         joinThread(wThreads[i])
 
-      # Drain any remaining items and ensure stack integrity
-      discard s.drain()
+      # Drain any remaining items and ensure stack integrity & item conservation
+      let drained = s.drain()
+      check totalPushed.load(moRelaxed) == 4 * OpsPerThread
+      check totalPopped.load(moRelaxed) > 0
+      check totalPushed.load(moRelaxed) == totalPopped.load(moRelaxed) + drained.len
       check s.isEmpty
       check s.len == 0

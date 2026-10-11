@@ -130,12 +130,16 @@ suite "UnboundedMpsc":
     producer.push(3)
     check(queue.len == 3)
 
-    discard lfqConsumer.pop()
+    let r1 = lfqConsumer.pop()
+    check r1 == some(1)
     check(queue.len == 2)
 
-    discard lfqConsumer.pop()
-    discard lfqConsumer.pop()
+    let r2 = lfqConsumer.pop()
+    check r2 == some(2)
+    let r3 = lfqConsumer.pop()
+    check r3 == some(3)
     check(queue.len == 0)
+    check lfqConsumer.pop().isNone
 
   test "batch push":
     var manager = initDebraManager[4]()

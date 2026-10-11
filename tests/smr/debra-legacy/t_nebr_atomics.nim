@@ -301,20 +301,24 @@ suite "compareExchange":
 
 suite "fences":
   test "threadFence compiles and executes for each order":
+    var a: Atomic[int]
+    a.store(1, moRelaxed)
     threadFence(moRelaxed)
     threadFence(moAcquire)
     threadFence(moRelease)
     threadFence(moAcquireRelease)
     threadFence(moSequentiallyConsistent)
-    check true
+    check a.load(moRelaxed) == 1
 
   test "signalFence compiles and executes for each order":
+    var a: Atomic[int]
+    a.store(2, moRelaxed)
     signalFence(moRelaxed)
     signalFence(moAcquire)
     signalFence(moRelease)
     signalFence(moAcquireRelease)
     signalFence(moSequentiallyConsistent)
-    check true
+    check a.load(moRelaxed) == 2
 
 suite "AtomicFlag":
   test "testAndSet on a fresh flag returns false then true":

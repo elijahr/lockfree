@@ -60,12 +60,13 @@ suite "DEBRA Convenience API":
 
     let n = RefNode(value: 123)
     let raw = retain(n)
+    check raw != nil
     retireAndReclaim(
       handle, cast[pointer](raw), releaseDestructor[RefNodeObj](), eager = true
     )
 
-    # The retain is balanced by releaseDestructor at reclamation time.
-    check true
+    # The retain is balanced by releaseDestructor at reclamation time; n remains valid
+    check n.value == 123
 
 # ---------------------------------------------------------------------------
 # Batched retire/reclaim API tests
