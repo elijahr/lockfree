@@ -192,6 +192,7 @@ section below.
 
 <div markdown="0">
   <div id="bench-status" class="bench-status" hidden></div>
+  <div id="bench-toolbar" class="bench-toolbar"></div>
 
   <div id="bench-hero" class="bench-panel bench-panel-hero">
     <noscript>
@@ -215,6 +216,12 @@ section below.
 
 <div markdown="0">
   <div id="bench-latency" class="bench-panel"></div>
+</div>
+
+#### Interactive Workload Estimator & Queue Recommender
+
+<div markdown="0">
+  <div id="bench-recommender" class="bench-panel bench-panel-recommender"></div>
 
   <script src="../assets/echarts-5.5.1.min.js"></script>
   <script src="../assets/bench-charts.js"></script>

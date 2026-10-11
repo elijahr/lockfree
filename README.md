@@ -210,18 +210,33 @@ At the core of `lockfree`'s Morrison-Afek LCRQ unbounded MPMC queue and NEBR rec
 
 ---
 
+<!-- BENCHMARK_METRICS_START -->
 ## Performance Benchmarks
 
-The benchmark suite tests throughput against Nim's standard library `system/Channel` across representative thread topologies (`ubuntu-latest`, 4 vCPU x86_64):
+> Continuous verification measured on standard GitHub-hosted `ubuntu-22.04` (4 vCPU x86_64).
+> Throughput numbers reflect 1,000,000 messages across active producer and consumer threads.
 
-| Topology | Variant | Shape | Throughput (ops/ms) | vs `system/Channel` |
-| :--- | :--- | :--- | :---: | :---: |
-| **MPMC** | `BQueue` | 4 producers, 4 consumers | **18,209 ops/ms** | **10.6x faster** (1,723 ops/ms) |
-| **SPMC** | `BQueue` | 1 producer, 2 consumers | **22,399 ops/ms** | — *(stdlib has no SPMC)* |
-| **MPSC** | `BQueue` | 4 producers, 1 consumer | **13,667 ops/ms** | **3.7x faster** (3,667 ops/ms) |
-| **SPSC** | `BQueue` | 1 producer, 1 consumer | **7,592 ops/ms** | — *(stdlib has no SPSC)* |
+<p align="center">
+  <img src="docs/assets/bench-results/hero-throughput.svg" alt="Lock-Free Throughput vs Alternatives" width="100%">
+</p>
 
-*Run benchmarks locally with `nimble benchmarks` or view the interactive chart at [elijahr.github.io/lockfree/latest/benchmarks/](https://elijahr.github.io/lockfree/latest/benchmarks/).*
+### High-Contention Throughput Matrix
+
+| Topology | Engine | Shape | Throughput (ops/ms) | Throughput (ops/sec) | vs Nim stdlib `system/Channel` |
+| :--- | :--- | :--- | :---: | :---: | :---: |
+| **MPMC** | `BQueue` (Bounded) | 4 producers, 4 consumers | **16,188 ops/ms** | **16,187,752 ops/s** | **9.0x faster** (1,802 ops/ms) |
+| **SPMC** | `BQueue` (Bounded) | 1 producer, 2 consumers | **14,123 ops/ms** | **14,122,655 ops/s** | — *(stdlib has no SPMC)* |
+| **MPSC** | `BQueue` (Bounded) | 4 producers, 1 consumer | **8,719 ops/ms** | **8,718,857 ops/s** | **1.8x faster** (4,788 ops/ms) |
+| **SPSC** | `Queue` (Unbounded) | 1 producer, 1 consumer | **29,399 ops/ms** | **29,399,038 ops/s** | — *(stdlib has no SPSC)* |
+
+### Ping-Pong Round-Trip Latency
+
+<p align="center">
+  <img src="docs/assets/bench-results/latency-ladder.svg" alt="Ping-Pong Latency Percentiles" width="100%">
+</p>
+
+*Run benchmarks locally with `nimble benchmarks` or explore multi-language comparisons, interactive filters, and latency curves on the [Interactive Benchmarks Portal](https://elijahr.github.io/lockfree/latest/benchmarks/).*
+<!-- BENCHMARK_METRICS_END -->
 
 ---
 

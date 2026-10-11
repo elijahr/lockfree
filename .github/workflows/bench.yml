@@ -855,7 +855,13 @@ jobs:
           # every devel push so it tracks the latest measured snapshot
           # without requiring hand-curation between releases.
           cp merged.json docs/assets/bench-results/example.json
-          git add docs/assets/bench-results/
+          # Auto-generate dual-theme SVGs and update README benchmark tables
+          python3 benchmarks/scripts/generate_readme_benchmarks.py \
+            --bmf docs/assets/bench-results/latest.json \
+            --svg-hero docs/assets/bench-results/hero-throughput.svg \
+            --svg-latency docs/assets/bench-results/latency-ladder.svg \
+            --readme README.md
+          git add docs/assets/bench-results/ README.md
           # Nothing to commit if merged.json is byte-identical to the
           # currently-checked-in latest.json (rare but possible on a
           # docs-only retrigger). `git diff --cached --quiet` exits 0
@@ -930,7 +936,12 @@ jobs:
           cp merged.json "docs/assets/bench-results/${SHA}.json"
           cp merged.json docs/assets/bench-results/latest.json
           cp merged.json docs/assets/bench-results/example.json
-          git add docs/assets/bench-results/
+          python3 benchmarks/scripts/generate_readme_benchmarks.py \
+            --bmf docs/assets/bench-results/latest.json \
+            --svg-hero docs/assets/bench-results/hero-throughput.svg \
+            --svg-latency docs/assets/bench-results/latency-ladder.svg \
+            --readme README.md
+          git add docs/assets/bench-results/ README.md
           if git diff --cached --quiet; then
             echo "::notice::PR-branch snapshot identical to current checked-in copy; skipping commit."
             exit 0
