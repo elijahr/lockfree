@@ -207,3 +207,170 @@
     min-width: 320px;
   }
 }
+
+/* ── interactive toolbar & filter chips ──────────────────────────── */
+.bench-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25em;
+  align-items: center;
+  background: var(--md-code-bg-color, rgba(0, 0, 0, 0.04));
+  border: 1px solid var(--md-default-fg-color--lightest, rgba(0, 0, 0, 0.1));
+  border-radius: 8px;
+  padding: 0.75em 1em;
+  margin-bottom: 1.25em;
+}
+
+.bench-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  font-size: 0.85em;
+}
+
+.bench-filter-label {
+  font-weight: 600;
+  color: var(--md-default-fg-color--light, #888);
+  margin-right: 0.25em;
+}
+
+.bench-chip-group {
+  display: inline-flex;
+  background: var(--md-default-bg-color, #fff);
+  border: 1px solid var(--md-default-fg-color--lightest, #ddd);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.bench-chip {
+  background: transparent;
+  border: none;
+  padding: 0.3em 0.7em;
+  font-size: 0.85em;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--md-default-fg-color, #333);
+  transition: background 0.15s ease, color 0.15s ease;
+  user-select: none;
+}
+
+.bench-chip:not(:last-child) {
+  border-right: 1px solid var(--md-default-fg-color--lightest, #ddd);
+}
+
+.bench-chip:hover {
+  background: var(--md-accent-fg-color--transparent, rgba(63, 81, 181, 0.08));
+}
+
+.bench-chip.active {
+  background: var(--md-accent-fg-color, #3f51b5);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* ── workload estimator & queue recommender ───────────────────────── */
+.bench-panel-recommender {
+  background: var(--md-code-bg-color, rgba(0, 0, 0, 0.04));
+  border: 1px solid var(--md-default-fg-color--lightest, rgba(0, 0, 0, 0.1));
+  border-radius: 8px;
+  padding: 1.25em;
+  margin-top: 1.5em;
+}
+
+.bench-recommender-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5em;
+  align-items: start;
+}
+
+.bench-recommender-inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 1em;
+}
+
+.bench-slider-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25em;
+}
+
+.bench-slider-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.85em;
+}
+
+.bench-slider-header label {
+  font-weight: 600;
+}
+
+.bench-slider-val {
+  font-family: var(--md-code-font, monospace);
+  font-weight: 700;
+  color: var(--md-accent-fg-color, #3f51b5);
+}
+
+.bench-slider-row input[type="range"] {
+  width: 100%;
+  cursor: pointer;
+}
+
+.bench-recommendation-card {
+  background: var(--md-default-bg-color, #ffffff);
+  border: 1px solid var(--md-accent-fg-color, #3f51b5);
+  border-radius: 8px;
+  padding: 1em 1.25em;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+
+.bench-rec-badge {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 0.2em 0.6em;
+  font-size: 0.75em;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-radius: 4px;
+  background: rgba(63, 81, 181, 0.12);
+  color: var(--md-accent-fg-color, #3f51b5);
+}
+
+.bench-rec-title {
+  font-size: 1.15em;
+  font-weight: 700;
+  margin: 0;
+  font-family: var(--md-code-font, monospace);
+}
+
+.bench-rec-desc {
+  font-size: 0.85em;
+  color: var(--md-default-fg-color--light, #666);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.bench-rec-specs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5em;
+  margin-top: 0.5em;
+  padding-top: 0.5em;
+  border-top: 1px solid var(--md-default-fg-color--lightest, #eee);
+  font-size: 0.8em;
+}
+
+.bench-rec-spec-item strong {
+  display: block;
+  color: var(--md-default-fg-color--light, #888);
+}
+
+@media (max-width: 767px) {
+  .bench-recommender-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

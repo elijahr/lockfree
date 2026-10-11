@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 850 200" width="100%" height="200">  <style>
+    :root {
+      --bg: #ffffff;
+      --card-bg: #f8fafc;
+      --card-border: #e2e8f0;
+      --inner-card-bg: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0d1117;
+        --card-bg: #161b22;
+        --card-border: #30363d;
+        --inner-card-bg: #0d1117;
+        --text-main: #f0f6fc;
+        --text-muted: #8b949e;
+      }
+    }
+    .card { fill: var(--card-bg); stroke: var(--card-border); stroke-width: 1px; rx: 12px; }
+    .inner-card { fill: var(--inner-card-bg); stroke: var(--card-border); stroke-width: 1px; rx: 8px; }
+    .title { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 16px; font-weight: 700; fill: var(--text-main); }
+    .subtitle { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; font-weight: 400; fill: var(--text-muted); }
+    .metric-name { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 12px; font-weight: 600; fill: var(--text-muted); text-anchor: middle; }
+    .metric-val { font-family: 'SF Mono', Consolas, monospace; font-size: 20px; font-weight: 700; text-anchor: middle; }
+    .metric-unit { font-size: 12px; font-weight: 400; fill: var(--text-muted); }
+  </style>
+  <rect x="1" y="1" width="848" height="198" class="card" />
+  <text x="32" y="35" class="title">Ping-Pong Round-Trip Latency Percentiles</text>
+  <text x="32" y="54" class="subtitle">100,000 RTT sample iterations at 1P:1C (nanoseconds, lower is better)</text>
+  <rect x="35" y="75" width="180" height="95" class="inner-card" />
+  <rect x="35" y="75" width="180" height="4" rx="2" fill="#10b981" />
+  <text x="125.0" y="107" class="metric-name">Median (p50)</text>
+  <text x="125.0" y="143" class="metric-val" fill="#10b981">260 <tspan class="metric-unit">ns</tspan></text>
+  <rect x="235" y="75" width="180" height="95" class="inner-card" />
+  <rect x="235" y="75" width="180" height="4" rx="2" fill="#3b82f6" />
+  <text x="325.0" y="107" class="metric-name">95th percentile</text>
+  <text x="325.0" y="143" class="metric-val" fill="#3b82f6">301 <tspan class="metric-unit">ns</tspan></text>
+  <rect x="435" y="75" width="180" height="95" class="inner-card" />
+  <rect x="435" y="75" width="180" height="4" rx="2" fill="#6366f1" />
+  <text x="525.0" y="107" class="metric-name">99th percentile</text>
+  <text x="525.0" y="143" class="metric-val" fill="#6366f1">326 <tspan class="metric-unit">ns</tspan></text>
+  <rect x="635" y="75" width="180" height="95" class="inner-card" />
+  <rect x="635" y="75" width="180" height="4" rx="2" fill="#8b5cf6" />
+  <text x="725.0" y="107" class="metric-name">99.9th percentile</text>
+  <text x="725.0" y="143" class="metric-val" fill="#8b5cf6">475 <tspan class="metric-unit">ns</tspan></text>
+</svg>
