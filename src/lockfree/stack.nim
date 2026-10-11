@@ -43,7 +43,7 @@ const
 type
   StackNode[T] = object
     data: T
-    next: ptr StackNode[T]
+    next: Atomic[ptr StackNode[T]]
 
   EliminationSlot[T] = object
     state {.align: CacheLineBytes.}: Atomic[int]
@@ -75,10 +75,10 @@ proc popFromFreeList[T](self: var TreiberStack[T]): ptr StackNode[T] =
   var oldFree = self.freeList.load(moSequentiallyConsistent)
   while oldFree.first != 0:
     let node = cast[ptr StackNode[T]](oldFree.first)
-    let nextNode = node.next
+    let nextNode = node.next.load(moAcquire)
     let newFree = Pair[uint64, uint64](first: cast[uint64](nextNode), second: oldFree.second + 1)
     if self.freeList.compareExchange(oldFree, newFree, moSequentiallyConsistent, moSequentiallyConsistent):
-      node.next = nil
+      node.next.store(nil, moRelease)
       return node
     cpuPause()
     oldFree = self.freeList.load(moSequentiallyConsistent)
@@ -87,7 +87,7 @@ proc popFromFreeList[T](self: var TreiberStack[T]): ptr StackNode[T] =
 proc recycleNode[T](self: var TreiberStack[T], node: ptr StackNode[T]) =
   var oldFree = self.freeList.load(moSequentiallyConsistent)
   while true:
-    node.next = cast[ptr StackNode[T]](oldFree.first)
+    node.next.store(cast[ptr StackNode[T]](oldFree.first), moRelease)
     let newFree = Pair[uint64, uint64](first: cast[uint64](node), second: oldFree.second + 1)
     if self.freeList.compareExchange(oldFree, newFree, moSequentiallyConsistent, moSequentiallyConsistent):
       return
@@ -99,7 +99,7 @@ proc allocOrReuseNode[T](self: var TreiberStack[T], item: sink T): ptr StackNode
   if result == nil:
     result = allocAligned[StackNode[T]]()
   result.data = item
-  result.next = nil
+  result.next.store(nil, moRelease)
 
 proc tryEliminatePush[T](self: var TreiberStack[T], item: var T): bool =
   let idx = threadRandIndex(EliminationCapacity)
@@ -153,7 +153,7 @@ proc tryEliminatePop[T](self: var TreiberStack[T]): Option[T] =
 
 proc tryPushTreiber[T](self: var TreiberStack[T], node: ptr StackNode[T]): bool =
   var oldTop = self.top.load(moSequentiallyConsistent)
-  node.next = cast[ptr StackNode[T]](oldTop.first)
+  node.next.store(cast[ptr StackNode[T]](oldTop.first), moRelease)
   let newTop = Pair[uint64, uint64](first: cast[uint64](node), second: oldTop.second + 1)
   if self.top.compareExchange(oldTop, newTop, moSequentiallyConsistent, moSequentiallyConsistent):
     discard self.count.fetchAdd(1, moRelaxed)
@@ -166,7 +166,7 @@ proc tryPopTreiber[T](self: var TreiberStack[T], item: var T): bool =
     if oldTop.first == 0:
       return false
     let node = cast[ptr StackNode[T]](oldTop.first)
-    let nextNode = node.next
+    let nextNode = node.next.load(moAcquire)
     let newTop = Pair[uint64, uint64](first: cast[uint64](nextNode), second: oldTop.second + 1)
     if self.top.compareExchange(oldTop, newTop, moSequentiallyConsistent, moSequentiallyConsistent):
       item = move(node.data)
@@ -270,7 +270,7 @@ proc drain*[T](self: var TreiberStack[T]): seq[T] =
       var cur = cast[ptr StackNode[T]](oldTop.first)
       var drainedCount = 0
       while cur != nil:
-        let next = cur.next
+        let next = cur.next.load(moAcquire)
         result.add(move(cur.data))
         self.recycleNode(cur)
         inc drainedCount
@@ -292,7 +292,7 @@ proc drainInto*[T](self: var TreiberStack[T], dest: var seq[T]) =
       var cur = cast[ptr StackNode[T]](oldTop.first)
       var drainedCount = 0
       while cur != nil:
-        let next = cur.next
+        let next = cur.next.load(moAcquire)
         dest.add(move(cur.data))
         self.recycleNode(cur)
         inc drainedCount
@@ -326,7 +326,7 @@ proc `=destroy`*[T](self: var TreiberStack[T]) =
   ## Cleans up all resources, freeing active and pooled nodes.
   var curTop = cast[ptr StackNode[T]](self.top.load(moSequentiallyConsistent).first)
   while curTop != nil:
-    let next = curTop.next
+    let next = curTop.next.load(moRelaxed)
     reset(curTop.data)
     freeAligned(curTop)
     curTop = next
@@ -334,7 +334,7 @@ proc `=destroy`*[T](self: var TreiberStack[T]) =
 
   var curFree = cast[ptr StackNode[T]](self.freeList.load(moSequentiallyConsistent).first)
   while curFree != nil:
-    let next = curFree.next
+    let next = curFree.next.load(moRelaxed)
     freeAligned(curFree)
     curFree = next
   self.freeList.store(Pair[uint64, uint64](first: 0, second: 0), moSequentiallyConsistent)

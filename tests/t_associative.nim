@@ -183,24 +183,24 @@ suite "Wave 5A: Single-Threaded Atomic Associative Operations":
 suite "Wave 5A: Multi-Threaded Concurrency & Lost Update Stress":
   type
     CounterContextCtrie = object
-      map: ptr Ctrie[string, int, 64]
+      map: ptr Ctrie[int, int, 64]
       increments: int
 
     CounterContextSkipList = object
-      map: ptr SkipListMap[string, int, 64, 16]
+      map: ptr SkipListMap[int, int, 64, 16]
       increments: int
 
   proc ctrieCounterWorker(ctx: ptr CounterContextCtrie) {.thread.} =
     for _ in 0 ..< ctx.increments:
-      discard ctx.map[].atomicUpdate("shared_key", proc(oldVal: int): int = oldVal + 1)
+      discard ctx.map[].atomicUpdate(42, proc(oldVal: int): int = oldVal + 1)
 
   proc skipListCounterWorker(ctx: ptr CounterContextSkipList) {.thread.} =
     for _ in 0 ..< ctx.increments:
-      discard ctx.map[].atomicUpdate("shared_key", proc(oldVal: int): int = oldVal + 1)
+      discard ctx.map[].atomicUpdate(42, proc(oldVal: int): int = oldVal + 1)
 
   test "Ctrie atomicUpdate 8 threads concurrent counter (zero lost updates)":
-    var map = newCtrie[string, int, 64]()
-    discard map.put("shared_key", 0)
+    var map = newCtrie[int, int, 64]()
+    discard map.put(42, 0)
 
     const NumThreads = 8
     const IncrementsPerThread = 5000
@@ -218,12 +218,12 @@ suite "Wave 5A: Multi-Threaded Concurrency & Lost Update Stress":
       joinThread(threads[i])
 
     let expected = NumThreads * IncrementsPerThread
-    let actual = map.get("shared_key").get
+    let actual = map.get(42).get
     check actual == expected
 
   test "SkipListMap atomicUpdate 8 threads concurrent counter (zero lost updates)":
-    var map = newSkipListMap[string, int, 64, 16]()
-    discard map.put("shared_key", 0)
+    var map = newSkipListMap[int, int, 64, 16]()
+    discard map.put(42, 0)
 
     const NumThreads = 8
     const IncrementsPerThread = 5000
@@ -241,7 +241,7 @@ suite "Wave 5A: Multi-Threaded Concurrency & Lost Update Stress":
       joinThread(threads[i])
 
     let expected = NumThreads * IncrementsPerThread
-    let actual = map.get("shared_key").get
+    let actual = map.get(42).get
     check actual == expected
 
   type

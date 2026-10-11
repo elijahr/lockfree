@@ -211,11 +211,13 @@ suite "TaskPool - Concurrency & Graceful Teardown":
 
     var threads: array[NumThreads, Thread[ProducerArg]]
 
+    proc producerTask(arg: pointer) {.nimcall, gcsafe.} =
+      let cnt = cast[ptr Atomic[int64]](arg)
+      discard cnt[].fetchAdd(1'i64, moRelaxed)
+
     proc producerThread(arg: ProducerArg) {.thread.} =
       for i in 0 ..< TasksPerThread:
-        arg.p.spawn(proc() =
-          discard arg.outCount[].fetchAdd(1'i64, moRelaxed)
-        )
+        arg.p.spawn(producerTask, cast[pointer](arg.outCount))
 
     for i in 0 ..< NumThreads:
       createThread(threads[i], producerThread, ProducerArg(p: pool, outCount: addr totalExecuted))

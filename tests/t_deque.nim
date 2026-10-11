@@ -185,52 +185,53 @@ suite "ChaseLevDeque — Ergonomic Aliases":
     q2.pushBottom("chase-lev")
     check q2.steal().get() == "chase-lev"
 
-suite "ChaseLevDeque — ARC/ORC Managed Types":
-  type TrackedObj = ref object
-    id: int
+when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc):
+  suite "ChaseLevDeque — ARC/ORC Managed Types":
+    type TrackedObj = ref object
+      id: int
 
-  var gDestructCount {.global.}: Atomic[int]
+    var gDestructCount {.global.}: Atomic[int]
 
-  proc `=destroy`(x: var typeof(TrackedObj()[])) =
-    if x.id > 0:
-      discard gDestructCount.fetchAdd(1, moRelaxed)
+    proc `=destroy`(x: var typeof(TrackedObj()[])) =
+      if x.id > 0:
+        discard gDestructCount.fetchAdd(1, moRelaxed)
 
-  test "ref types correctly retain and balance refcounts":
-    gDestructCount.store(0, moRelaxed)
-    block:
-      let d = initChaseLevDeque[TrackedObj](16)
-      for i in 1 .. 50:
-        d.pushBottom(TrackedObj(id: i))
+    test "ref types correctly retain and balance refcounts":
+      gDestructCount.store(0, moRelaxed)
+      block:
+        let d = initChaseLevDeque[TrackedObj](16)
+        for i in 1 .. 50:
+          d.pushBottom(TrackedObj(id: i))
 
-      # Pop 20 from bottom
-      for _ in 1 .. 20:
-        let obj = d.popBottom()
-        check obj.isSome
-        check obj.get().id > 0
+        # Pop 20 from bottom
+        for _ in 1 .. 20:
+          let obj = d.popBottom()
+          check obj.isSome
+          check obj.get().id > 0
 
-      # Steal 20 from top
-      for _ in 1 .. 20:
-        let obj = d.steal()
-        check obj.isSome
-        check obj.get().id > 0
+        # Steal 20 from top
+        for _ in 1 .. 20:
+          let obj = d.steal()
+          check obj.isSome
+          check obj.get().id > 0
 
-      # 10 remaining in deque when block ends and deque is destroyed
-      check d.len == 10
+        # 10 remaining in deque when block ends and deque is destroyed
+        check d.len == 10
 
-    # Total 50 objects created; when popped/stolen items leave scope and deque is destroyed,
-    # all 50 MUST be destroyed without leaks.
-    check gDestructCount.load(moRelaxed) == 50
+      # Total 50 objects created; when popped/stolen items leave scope and deque is destroyed,
+      # all 50 MUST be destroyed without leaks.
+      check gDestructCount.load(moRelaxed) == 50
 
-  test "strings and seqs":
-    let d = initChaseLevDeque[string](16)
-    d.pushBottom("alpha")
-    d.pushBottom("beta")
-    d.pushBottom("gamma")
+    test "strings and seqs":
+      let d = initChaseLevDeque[string](16)
+      d.pushBottom("alpha")
+      d.pushBottom("beta")
+      d.pushBottom("gamma")
 
-    check d.steal().get() == "alpha"
-    check d.popBottom().get() == "gamma"
-    check d.popBottom().get() == "beta"
-    check d.isEmpty
+      check d.steal().get() == "alpha"
+      check d.popBottom().get() == "gamma"
+      check d.popBottom().get() == "beta"
+      check d.isEmpty
 
 suite "ChaseLevDeque — Concurrent Multi-Thief Stress Tests":
   type

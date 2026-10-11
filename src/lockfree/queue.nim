@@ -1038,9 +1038,7 @@ proc pop*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
       discard self.segments.fetchSub(1, moRelaxed)
       freeAligned(oldSeg)
     else:
-      let nextSeg = seg.next.load(moAcquire)
-      if nextSeg == nil:
-        return none(T)
+      return none(T)
 
 
 
@@ -1593,9 +1591,7 @@ proc pop*[
         discard self.queue.segments.fetchSub(1, moRelaxed)
         freeAligned(oldSeg)
       else:
-        let nextSeg = seg.next.load(moAcquire)
-        if nextSeg == nil:
-          return none(T)
+        return none(T)
   else:
     # MPSC: ccMulti producer × ccSingle consumer. The single consumer owns the
     # head walk but still pins the epoch via debra so `retireOnPublish` knows a
@@ -1643,9 +1639,7 @@ proc pop*[
             discard self.queue.segments.fetchSub(1, moRelaxed)
           seg = nextSeg
         else:
-          let nextSeg = seg.next.load(moAcquire)
-          if nextSeg == nil:
-            break
+          break
     when ST == stEager:
       if h.advanceEvery(LockFreeQueuesAdvanceEvery):
         discard reclaimNow(h)

@@ -330,19 +330,19 @@ suite "Ctrie Remediations: HIGH-02 putIfAbsent & computeIfAbsent Concurrency":
 
   type
     ComputeContext = object
-      map: ptr Ctrie[string, int, 64]
+      map: ptr Ctrie[int, int, 64]
       results: ptr array[8, int]
       threadId: int
 
   proc computeWorker(ctx: ptr ComputeContext) {.thread.} =
-    let res = ctx.map[].computeIfAbsent("shared_counter", proc(k: string): int =
+    let res = ctx.map[].computeIfAbsent(1001, proc(k: int): int =
       # Thread-specific compute attempt
       (ctx.threadId + 1) * 100
     )
     ctx.results[ctx.threadId] = res
 
   test "8 threads concurrent computeIfAbsent on single key":
-    var map = newCtrie[string, int, 64]()
+    var map = newCtrie[int, int, 64]()
     const NumThreads = 8
     var threads: array[NumThreads, Thread[ptr ComputeContext]]
     var ctxs: array[NumThreads, ComputeContext]
@@ -360,7 +360,7 @@ suite "Ctrie Remediations: HIGH-02 putIfAbsent & computeIfAbsent Concurrency":
       joinThread(threads[i])
 
     check map.len == 1
-    let winner = map.get("shared_counter")
+    let winner = map.get(1001)
     check winner.isSome
     # Every thread must observe the exact same value without lost updates
     for i in 0 ..< NumThreads:
@@ -369,11 +369,11 @@ suite "Ctrie Remediations: HIGH-02 putIfAbsent & computeIfAbsent Concurrency":
 suite "Ctrie Remediations: CRIT-02 Snapshot SMR Pinning & Concurrent Mutation":
   type
     MutatorContext = object
-      map: ptr Ctrie[int, string, 64]
+      map: ptr Ctrie[int, int, 64]
       stopFlag: ptr Atomic[bool]
 
     ReaderContext = object
-      snap: Snapshot[int, string, 64]
+      snap: Snapshot[int, int, 64]
       stopFlag: ptr Atomic[bool]
       readCount: int
 
@@ -383,12 +383,12 @@ suite "Ctrie Remediations: CRIT-02 Snapshot SMR Pinning & Concurrent Mutation":
       inc iter
       # Overwrite existing keys to retire nodes
       for k in 1 .. 50:
-        ctx.map[].put(k, "mutated_" & $iter & "_" & $k)
+        ctx.map[].put(k, iter * 1000 + k)
       # Delete and reinsert
       for k in 26 .. 50:
         discard ctx.map[].delete(k)
       for k in 26 .. 50:
-        ctx.map[].put(k, "reinserted_" & $iter & "_" & $k)
+        ctx.map[].put(k, iter * 2000 + k)
 
   proc readerThread(ctx: ptr ReaderContext) {.thread.} =
     while not ctx.stopFlag[].load(moAcquire):
@@ -396,14 +396,14 @@ suite "Ctrie Remediations: CRIT-02 Snapshot SMR Pinning & Concurrent Mutation":
         inc ctx.readCount
         if k in 1 .. 50:
           # In the snapshot, all keys 1..50 must have their original snapshot values!
-          assert v == "snap_init_" & $k
+          assert v == k * 10
       let v1 = ctx.snap.get(1)
-      assert v1 == some("snap_init_1")
+      assert v1 == some(10)
 
   test "concurrent mutator and snapshot reader under SMR epoch transitions":
-    var map = newCtrie[int, string, 64]()
+    var map = newCtrie[int, int, 64]()
     for i in 1 .. 50:
-      map[i] = "snap_init_" & $i
+      map[i] = i * 10
 
     let snap = map.snapshot()
     var stopFlag: Atomic[bool]
@@ -429,5 +429,5 @@ suite "Ctrie Remediations: CRIT-02 Snapshot SMR Pinning & Concurrent Mutation":
     # Final check: snapshot must still be 100% intact
     check snap.len == 50
     for i in 1 .. 50:
-      check snap.get(i) == some("snap_init_" & $i)
+      check snap.get(i) == some(i * 10)
 
