@@ -46,7 +46,7 @@
 #   O10 No macOS x86_64 (v0.2 backlog).
 #
 # Inherited from the retired build.yml (preserved load-bearing patterns):
-#   - typestates v0.12.0 srcDir flattening workaround (self-referential
+#   - typestates srcDir flattening workaround (self-referential
 #     `src` symlink inside the pkg dir).
 #   - nimble v0.20.x exit-code workaround (`nimble_run` wrapper greps
 #     stdout for `Error:` and forces non-zero exit when nimble exits 0
@@ -127,8 +127,8 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          # typestates v0.12.0 srcDir flattening workaround.
-          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          # typestates srcDir flattening workaround.
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
 
@@ -142,7 +142,7 @@ jobs:
         # resolves the binary regardless of the exec context's PATH (same
         # rationale as the nim/nimble symlinks in the image).
         run: |
-          nimble install -y 'typestates@0.12.0'
+          nimble install -y 'typestates@>= 0.13.0'
           ln -sf ~/.nimble/bin/typestates /usr/local/bin/typestates
           typestates --help >/dev/null 2>&1 || true
           command -v typestates
@@ -278,7 +278,7 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
 
@@ -395,7 +395,7 @@ jobs:
           export PATH="$HOME/.nimble/bin:$PATH"
           nimble install -dy
           nimble setup
-          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
 
@@ -457,7 +457,7 @@ jobs:
             echo "::group::Running test suite under Nim ${ver}"
             rm -rf ~/.cache/nim
             nimble setup
-            for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+            for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
               [ -e "$d/src" ] || ln -s . "$d/src"
             done
 
@@ -529,7 +529,7 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
           nimble install -y 'chronos@>= 4.0.0 & < 5.0.0'
@@ -591,7 +591,7 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
 
@@ -658,7 +658,7 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
 
@@ -885,7 +885,7 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
 
@@ -895,12 +895,12 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          # typestates v0.12.0 srcDir flattening workaround (Windows variant).
+          # typestates srcDir flattening workaround (Windows variant).
           # The POSIX cells symlink `src -> .`; Git-Bash on Windows cannot
           # follow that self-referential link (it loops -> "Too many levels
           # of symbolic links"), so materialize a real src/ dir mirroring the
           # package contents instead.
-          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
             [ -e "$d/src" ] && continue
             mkdir "$d/src"
             for f in "$d"/*; do
@@ -1042,7 +1042,7 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
 
@@ -1129,7 +1129,7 @@ jobs:
         run: |
           nimble install -dy
           nimble setup
-          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-0.12.0-*" 2>/dev/null); do
+          for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
 
