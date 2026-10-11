@@ -5360,10 +5360,9 @@ absorbs a glitch and moves on.</p>
 <a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">  </span><span class="c"># whatever your domain wants. Do NOT block the audio thread.</span>
 <a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">  </span><span class="k">discard</span>
 </code></pre></div>
-<p>The bounded queue forces you to confront the question. An unbounded queue
-silently accepts the work, which is either fine (event aggregation) or a
-production incident waiting to happen (a slow consumer turning into a
-runaway memory leak).</p>
+<p>The bounded queue requires explicit handling of full states. An unbounded queue
+accepts work until memory limits are reached, which can result in unbounded memory
+growth if the consumer stalls.</p>
 <h3 id="memory-upper-bound-is-a-hard-requirement">Memory upper bound is a hard requirement<a class="headerlink" href="#memory-upper-bound-is-a-hard-requirement" title="Permanent link">¶</a></h3>
 <p>Embedded targets, kernel-adjacent code, and any deployment with a hard
 memory ceiling cannot tolerate "the queue might allocate". A bounded queue
@@ -5524,7 +5523,7 @@ not starve the consumer:</p>
 <a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="w">  </span><span class="k">while</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="n">queue</span><span class="p">.</span><span class="n">push</span><span class="p">(</span><span class="n">item</span><span class="p">):</span>
 <a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="w">    </span><span class="n">sleep</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span><span class="w">  </span><span class="c"># Yield; do NOT busy-spin without a yield.</span>
 </code></pre></div>
-<p>This is appropriate when you genuinely cannot drop and the producer can
+<p>This is appropriate when items cannot be dropped and the producer can
 afford to wait. It is inappropriate on a real-time audio thread, on a
 GC thread, or anywhere with a deadline.</p>
 <h3 id="fail-fast-option-bool-returns">Fail-fast (<code>Option</code> / <code>bool</code> returns)<a class="headerlink" href="#fail-fast-option-bool-returns" title="Permanent link">¶</a></h3>
@@ -5677,7 +5676,7 @@ is not an acceptable behaviour for any reason.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 11, 2026 10:21:35 UTC"><span class="timeago" datetime="2026-10-11T10:21:35+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 11, 2026 10:21:35 UTC">2026-10-11</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 11, 2026 10:44:40 UTC"><span class="timeago" datetime="2026-10-11T10:44:40+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 11, 2026 10:44:40 UTC">2026-10-11</span>
   </span>
 
     
