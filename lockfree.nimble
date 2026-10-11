@@ -27,6 +27,16 @@ task should_fail, "Verifies compile-fail negative controls":
   # nebr 0.8.0's `tests/should_fail/runner.nim` harness.
   exec "nim r --hints:off --warnings:off --path:src tests/should_fail/runner.nim"
 
+task testUnit, "Runs fast Tier 1 behavioral and unit tests (<15s)":
+  let nimcacheBase = getHomeDir() / ".cache" / "nim"
+  exec "nim c --mm:orc --threads:on --path:src " &
+       "--nimcache:" & (nimcacheBase / "test_unit_orc") & " -r tests/unit/runner.nim"
+
+task testThreaded, "Runs Tier 2 multithreaded concurrency tests":
+  let nimcacheBase = getHomeDir() / ".cache" / "nim"
+  exec "nim c --mm:orc --threads:on --path:src " &
+       "--nimcache:" & (nimcacheBase / "test_threaded_orc") & " -r tests/concurrency/runner.nim"
+
 task test, "Runs the test suite":
   # Compile-fail negative controls. Runs first so a
   # regression in the (γ) bounded-asymmetry guard or Strategy/cardinality
@@ -35,17 +45,8 @@ task test, "Runs the test suite":
   exec "nim r --hints:off --warnings:off --path:src tests/should_fail/runner.nim"
 
   # Per-lane nimcache subdirs prevent the 4 MM lanes from clobbering
-  # each other's .c.o files (default subdir `test_d` is shared across
-  # all `nim c tests/test.nim` invocations, leaving only the last lane's
-  # cache surviving and forcing the other 3 lanes to recompile cold on
-  # warm reruns). Paths live under `~/.cache/nim/` so the existing
-  # actions/cache@v4 step on that dir catches all four.
-  #
-  # LFQ_TEST_VARIANT env var (default "all") selects which MM lane to
-  # run. CI splits the lanes across 4 parallel matrix cells (1a/1b/1c/1d)
-  # to collapse wall-clock from sum-of-lanes to max-of-lanes; local
-  # `nimble test` still defaults to the full 4-lane sequential sweep so
-  # developer-machine signal matches the per-push GHA gate.
+  # each other's .c.o files.
+  # LFQ_TEST_VARIANT env var (default "all") selects which MM lane to run.
   let nimcacheBase = getHomeDir() / ".cache" / "nim"
   let variant = getEnv("LFQ_TEST_VARIANT", "orc")
   let ccEnv = getEnv("LFQ_CC", "")
@@ -53,27 +54,24 @@ task test, "Runs the test suite":
 
   proc runOrc =
     # C with default MM (orc)
-    exec "nim c" & ccFlag & " --mm:orc --threads:on --nimcache:" & (nimcacheBase / "test_orc") & " -r tests/test.nim"
+    exec "nim c" & ccFlag & " --mm:orc --threads:on --path:src --nimcache:" & (nimcacheBase / "test_unit_orc") & " -r tests/unit/runner.nim"
+    exec "nim c" & ccFlag & " --mm:orc --threads:on --path:src --nimcache:" & (nimcacheBase / "test_threaded_orc") & " -r tests/concurrency/runner.nim"
 
   proc runCpp =
     # C++
-    exec "nim cpp --mm:orc --threads:on --nimcache:" & (nimcacheBase / "test_cpp") & " -r tests/test.nim"
+    exec "nim cpp --mm:orc --threads:on --path:src --nimcache:" & (nimcacheBase / "test_unit_cpp") & " -r tests/unit/runner.nim"
+    exec "nim cpp --mm:orc --threads:on --path:src --nimcache:" & (nimcacheBase / "test_threaded_cpp") & " -r tests/concurrency/runner.nim"
 
   proc runArc =
     # Test with arc MM
-    exec "nim c" & ccFlag & " --mm:arc --threads:on --nimcache:" & (nimcacheBase / "test_arc") & " -r tests/test.nim"
+    exec "nim c" & ccFlag & " --mm:arc --threads:on --path:src --nimcache:" & (nimcacheBase / "test_unit_arc") & " -r tests/unit/runner.nim"
+    exec "nim c" & ccFlag & " --mm:arc --threads:on --path:src --nimcache:" & (nimcacheBase / "test_threaded_arc") & " -r tests/concurrency/runner.nim"
     # NEBR (nebr) lifted test suite.
-    # Runs under arc only here; CI cells will refine the matrix
-    # (orc/refc/atomicArc + TSan/ASan) and may also lift the upstream
-    # `should_fail/runner.nim` + `compile_only/` + `bench/` + `probes/`
-    # harnesses currently sitting at tests/smr/debra-legacy/ alongside
-    # the aggregator. Two tests (item_processing, lockfree_stack_typestates)
-    # are excluded from the aggregator pending example-source lift.
     exec "nim c" & ccFlag & " --mm:arc --threads:on --nimcache:" & (nimcacheBase / "nebr_aggregator_arc") & " -r tests/smr/debra-legacy/t_nebr_all.nim"
 
   proc runRefc =
     # Test with refc MM
-    exec "nim c" & ccFlag & " --mm:refc --threads:on --nimcache:" & (nimcacheBase / "test_refc") & " -r tests/test.nim"
+    exec "nim c" & ccFlag & " --mm:refc --threads:on --path:src --nimcache:" & (nimcacheBase / "test_unit_refc") & " -r tests/unit/runner.nim"
 
   case variant
   of "all":
@@ -90,16 +88,17 @@ task test, "Runs the test suite":
       " (expected: all, orc, cpp, arc, refc)"
 
 
-task testTSan, "Runs the test suite under ThreadSanitizer (TSAN)":
+task testTSan, "Runs Tier 2 concurrency tests under ThreadSanitizer (TSAN)":
   # ThreadSanitizer requires atomicArc MM for thread-safe refcounting.
   # Uses clang because gcc's TSAN runtime has historically been buggier
   # for our queue idioms (DWCAS shims, mach_absolute_time on darwin).
-  # Cell 6 (test-heavy/ubuntu-latest) invokes this directly.
+  # Targeted to Tier 2 concurrency runner to eliminate 14-min compiler bloat.
   let nimcacheBase = getHomeDir() / ".cache" / "nim"
   exec "nim r --hints:off --warnings:off --path:src tests/should_fail/runner.nim"
-  exec "nim c --cc:clang --mm:atomicArc --threads:on " &
+  exec "nim c --cc:clang --mm:atomicArc --threads:on --path:src " &
     "--passC:\"-fsanitize=thread\" --passL:\"-fsanitize=thread\" " &
-    "--nimcache:" & (nimcacheBase / "test_tsan") & " -r tests/test.nim"
+    "--nimcache:" & (nimcacheBase / "test_tsan") & " -r tests/concurrency/runner.nim"
+
 
 
 task testRefcountTrace, "Runs the refcount-balance matrix under -d:lockfreeRefcountTrace":
@@ -156,18 +155,17 @@ task testDestructorWalkTrace, "Runs the destructor-walk string/seq slot-count re
 
 
 task testStress, "Runs the high-volume (100k) bounded-queue stress suite":
-  # tests/t_stress.nim drives 100k-message fills across SPSC/MPSC/SPMC/MPMC
+  # tests/stress/runner.nim drives 100k-message fills across SPSC/MPSC/SPMC/MPMC
   # bounded queues (int, string, and a ref-object checksum arm). It is NOT
-  # imported by the umbrella (tests/test.nim): a 100k x many-types run on
+  # imported by the unit umbrella: a 100k x many-types run on
   # every umbrella lane would dominate wall-clock. This dedicated task runs
-  # it on its own. Two MM lanes: orc (default) and arc (the destructor-
-  # driven ManagedRef refcount path the ref-object arm exercises). Per-lane
-  # nimcache subdirs keep the two lanes from clobbering each other's .c.o.
+  # it on its own. Two MM lanes: orc (default) and arc.
   let nimcacheBase = getHomeDir() / ".cache" / "nim"
-  exec "nim c --threads:on " &
-    "--nimcache:" & (nimcacheBase / "t_stress_orc") & " -r tests/t_stress.nim"
-  exec "nim c --mm:arc --threads:on " &
-    "--nimcache:" & (nimcacheBase / "t_stress_arc") & " -r tests/t_stress.nim"
+  exec "nim c --threads:on --path:src " &
+    "--nimcache:" & (nimcacheBase / "t_stress_orc") & " -r tests/stress/runner.nim"
+  exec "nim c --mm:arc --threads:on --path:src " &
+    "--nimcache:" & (nimcacheBase / "t_stress_arc") & " -r tests/stress/runner.nim"
+
 
 
 task testShell, "Runs the standalone shell-test regression scripts":

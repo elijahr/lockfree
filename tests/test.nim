@@ -85,8 +85,17 @@ import ./t_rendezvous
 import ./t_channel
 import ./t_user_guide_snippets
 import ./t_ratelimit
-import ./t_streambuffer
 import ./t_associative
+import ./t_stack_threaded
+import ./t_deque_threaded
+import ./t_skiplist_threaded
+import ./t_set_threaded
+import ./t_ctrie_threaded
+import ./t_broadcast_threaded
+import ./t_channel_threaded
+import ./t_ratelimit_threaded
+import ./t_streambuffer_threaded
+import ./t_associative_threaded
 
 # chronos adapter tests gated on chronos availability
 # (chronos is NOT in lockfree.nimble requires). When chronos

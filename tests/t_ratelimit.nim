@@ -148,38 +148,6 @@ suite "Wave 4A 128-Bit DWCAS Rate Limiters":
     # Should have waited at least ~8ms
     check dur >= 7_000_000'u64
 
-  test "TokenBucket multithreaded contention stress":
-    const NumThreads = 16
-    const OpsPerThread = 2000
-    const TotalTokens = 16000'u64
-
-    var tb = initTokenBucket(capacityTokens = TotalTokens, refillRatePerSec = 0, initialTokens = TotalTokens)
-
-    type WorkerArg = object
-      tb: ptr TokenBucket
-      acquired: ptr Atomic[int]
-
-    proc worker(arg: WorkerArg) {.thread.} =
-      var localAcquired = 0
-      for _ in 1 .. OpsPerThread:
-        if arg.tb[].tryAcquire(1):
-          inc localAcquired
-      discard arg.acquired[].fetchAdd(localAcquired)
-
-    var totalAcquired: Atomic[int]
-    totalAcquired.store(0)
-
-    var threads: array[NumThreads, Thread[WorkerArg]]
-    for i in 0 ..< NumThreads:
-      createThread(threads[i], worker, WorkerArg(tb: addr tb, acquired: addr totalAcquired))
-
-    for i in 0 ..< NumThreads:
-      joinThread(threads[i])
-
-    # Exactly TotalTokens should have been acquired, none lost, none duplicated
-    check totalAcquired.load() == int(TotalTokens)
-    check tb.available == 0
-
   test "LeakyBucket (GCRA) zero burst tolerance uniform pacing":
     # Rate: 10 tokens/sec = 100ms per cell
     var lb = initLeakyBucket(burstToleranceNs = 0, leakRatePerSec = 10)
