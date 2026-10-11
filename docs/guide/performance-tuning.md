@@ -1,6 +1,6 @@
 # Performance Tuning
 
-Practical guidance for getting the most out of `lockfreequeues`: how to size
+Practical guidance for getting the most out of `lockfree`: how to size
 capacity (or segments), where to place producer and consumer threads, how
 batch sizing changes amortized cost, and which compile-time settings matter.
 
@@ -29,7 +29,7 @@ floor.
 A reasonable starting trio:
 
 ```nim
-import lockfreequeues
+import lockfree
 
 # Audio frame queue: 64 samples × 4 bytes = 256 B; 1 cache line of slack.
 var audio = newSpscQueue[float32, 64]()
@@ -53,7 +53,7 @@ For the conceptual rationale, see
 
 ### NUMA awareness (or lack thereof)
 
-`lockfreequeues` is NUMA-naïve. The library does no remote-vs-local
+`lockfree` is NUMA-naïve. The library does no remote-vs-local
 detection, no per-socket queue partitioning, no first-touch allocation.
 A queue allocated by thread A on socket 0 lives on socket 0 forever; a
 consumer running on socket 1 pays a remote-memory penalty on every
@@ -106,7 +106,7 @@ on the producer side and an integer count on the consumer side:
 
 ```nim
 import options
-import lockfreequeues
+import lockfree
 
 var queue = newSpscQueue[int, 256]()
 let items = @[1, 2, 3, 4, 5, 6, 7, 8]

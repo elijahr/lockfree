@@ -13,14 +13,7 @@ documented deviations from the original paper. See the
 [provenance discussion](https://github.com/elijahr/lockfree/blob/devel/docs/internal/debra-plus-provenance.md)
 for the full diff. The implementation is functionally adjacent to the
 Brown 2015 paper's neutralization model with simplifications around
-hazard pointers and `sigsetjmp` recovery; the name slot
-`debra_plus.nim` is **reserved for a future faithful Brown 2015 port**.
-
-> **Not to be confused with Brown 2017 NBR.** Brown 2017
-> "Neutralization-Based Reclamation" is a distinct algorithm with
-> related goals but different safety arguments. Earlier prose in the
-> upstream `nim-debra` README cited Brown 2017; that citation has been
-> corrected here per Q-FAITHFUL.
+hazard pointers and `sigsetjmp` recovery.
 
 ## When you reach for `nebr`
 
@@ -247,9 +240,6 @@ quiescent-bit + sigsetjmp-recovery + HP machinery with a
 linked-list-of-stamped-bags + unconditional-advance + separate-flags +
 operator-driven-neutralize design. The "+" (fault tolerance) is
 **partially** preserved.
-
-A faithful Brown 2015 port — `debra_plus.nim` — is held as future
-work. The name slot is reserved.
 
 ## Safety argument
 

@@ -34,7 +34,7 @@ absorbs a glitch and moves on.
 The bounded `push` returns `false` exactly to enable that policy:
 
 ```nim
-import lockfreequeues
+import lockfree
 
 var queue = newSpscQueue[float32, 64]()
 var sample = 0.5'f32
@@ -58,7 +58,7 @@ allocates exactly once at construction — `N * sizeof(T)` plus a few
 cache-line-aligned counters — and never again.
 
 ```nim
-import lockfreequeues
+import lockfree
 
 # Total queue memory: ~(256 * 8) + 2 * 64 = 2176 bytes for an int64 queue.
 # Predictable enough to fit in an L2 cache budget.
@@ -90,7 +90,7 @@ signal:
 
 ```nim
 import options
-import lockfreequeues
+import lockfree
 
 # stEager strategy, segment size 64, debra registry capacity 8.
 var queue = newUnboundedMpscQueue[int, stEager, 64, 8]()
@@ -145,14 +145,14 @@ deallocation strategy switch.
 
 There is a folk rule in lock-free queue lore: "always pick a power of
 two for the capacity, so the modulo wrap reduces to a bitmask".
-`lockfreequeues` does not require this — any positive `N` compiles, and
+`lockfree` does not require this — any positive `N` compiles, and
 the wrap is implemented with arithmetic that handles arbitrary `N`. But
 on hot paths the compiler can sometimes lower `idx mod N` to
 `idx and (N-1)` when `N` is a power of two, which is a single AND
 instruction instead of an integer divide.
 
 ```nim
-import lockfreequeues
+import lockfree
 
 # Power-of-2: bitmask wrap is plausible.
 var q1 = newSpscQueue[int, 1024]()
@@ -222,7 +222,7 @@ Two regimes pull `S` in opposite directions:
   keeps the per-segment overhead small and lets DEBRA reclaim sooner.
 
 ```nim
-import lockfreequeues
+import lockfree
 
 # Sustained ingest, 1 MHz event rate: minimize allocation churn.
 var ingest = newUnboundedMpscQueue[int, stEager, 1024, 8]()
@@ -244,7 +244,7 @@ not starve the consumer:
 
 ```nim
 import os
-import lockfreequeues
+import lockfree
 
 var queue = newSpscQueue[int, 16]()
 
@@ -264,7 +264,7 @@ The bounded queues' `push` returns `bool`; their `pop` returns
 
 ```nim
 import options
-import lockfreequeues
+import lockfree
 
 var queue = newSpscQueue[int, 16]()
 
@@ -291,7 +291,7 @@ not burn CPU:
 
 ```nim
 import os
-import lockfreequeues
+import lockfree
 
 var queue = newSpscQueue[int, 64]()
 

@@ -59,7 +59,7 @@ Two progress guarantees, in increasing strength:
 Mutex-based code is neither. A holder that gets preempted while holding
 the lock blocks every other thread until it is rescheduled.
 
-### Where lockfreequeues sits
+### Where lockfree sits
 
 | Cardinality shape | push | pop |
 |-------------------|------|-----|
@@ -150,7 +150,7 @@ distinguish full from empty without a separate count field).
 
 ```nim
 import options
-import lockfreequeues
+import lockfree
 
 # Capacity 8: 8 slots usable, plus 1 sentinel for SPSC.
 var queue = newSpscQueue[int, 8]()
@@ -179,7 +179,7 @@ shapes) hand the retired segment to DEBRA for safe reclamation.
 
 ```nim
 import options
-import lockfreequeues
+import lockfree
 
 # Segment size 64 — each segment holds 64 ints. `stEager` is the
 # deallocation strategy; the trailing 4 is the debra registry capacity

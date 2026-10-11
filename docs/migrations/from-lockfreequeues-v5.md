@@ -53,7 +53,7 @@ Submodule imports likewise:
 The library is structured the same way; only the umbrella name
 changes.
 
-## Removed: `-d:allowNonLockFreeQueueItems`
+## Removed: `-d:allowNonLockFreeQueueItems` {: #path-c-ref-t-and-string-seq-t-payloads }
 
 In v5, `Queue[ref T]` was rejected at compile time unless you set
 `-d:allowNonLockFreeQueueItems`. v0.1.0 supports `ref T` directly via

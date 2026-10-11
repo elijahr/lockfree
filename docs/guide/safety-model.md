@@ -1,6 +1,6 @@
 # Safety Model
 
-This document covers the thread-safety contract of `lockfreequeues`: what the
+This document covers the thread-safety contract of `lockfree`: what the
 queues guarantee, what they require of item types, and how the test matrix
 exercises both.
 
@@ -9,10 +9,10 @@ For the slot-level state machine that backs push and pop, see
 
 ## Item type requirements
 
-By default, `lockfreequeues` requires queue item types to be lock-free.
+By default, `lockfree` requires queue item types to be lock-free.
 
 ```nim
-import lockfreequeues
+import lockfree
 
 # These work — lock-free types.
 var q1 = newUnboundedSpscQueue[int, stEager, 64, 4]()

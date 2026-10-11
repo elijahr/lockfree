@@ -79,47 +79,12 @@ The reclamation algorithm itself is unchanged. The behavioral
 contract (pin / unpin / retire / reclaim / neutralize) is unchanged.
 Only the names of the package and the submodule prefix change.
 
-## Attribution change (Brown 2015 DEBRA+, not Brown 2017 NBR)
+## Attribution
 
-The upstream `nim-debra` README originally cited Brown 2017
-("Neutralization-Based Reclamation"). This attribution was
-**incorrect**: the implementation is inspired by Brown 2015 DEBRA+
-(Distributed Epoch-Based Reclamation, "+" variant with signal-based
-neutralization), not Brown 2017 NBR. The two are distinct algorithms
-with related goals.
-
-v0.1.0 corrects the attribution:
-
-```diff
-- This implementation follows Brown 2017, including the SIGUSR1 protocol
-- for neutralizing threads that have stalled inside a critical section.
-+ This implementation is inspired by Brown 2015 DEBRA+, with documented
-+ deviations from the original paper. See guide/smr/nebr.md for the
-+ deviation table; see internal/debra-plus-provenance.md for the full
-+ bibliographic discussion.
-```
-
-If you cited "Brown 2017" or "NBR" in your own README based on the
-nim-debra attribution, update those citations to "Brown 2015 DEBRA+
-(inspired by; see deviation table)" or similar.
-
-For the full deviation analysis (D1–D9), see the
-[nebr deviation table](../guide/smr/nebr.md#deviations-from-brown-2015-debra)
-and the
-[internal provenance document](https://github.com/elijahr/lockfree/blob/devel/docs/internal/debra-plus-provenance.md).
-
-## The `debra_plus.nim` name slot
-
-`lockfree` reserves the name `lockfree/smr/debra_plus` for a future
-**faithful** Brown 2015 DEBRA+ port (with `sigsetjmp` recovery and
-hazard pointers). v0.1.0 does **not** ship a `debra_plus`
-implementation; the slot is held to make the future migration path
-explicit.
-
-If you need a faithful Brown 2015 port today, it is not available
-through `lockfree`. The existing `nebr` covers the
-neutralization-protocol use case; the `debra_plus` slot is reserved
-for the cases where the deviations matter to your safety argument.
+The implementation is inspired by Brown 2015 DEBRA+ (Distributed Epoch-Based
+Reclamation, "+" variant with signal-based neutralization). See
+[guide/smr/nebr.md](../guide/smr/nebr.md) for the deviation table and implementation
+details.
 
 ## Test of the migration
 

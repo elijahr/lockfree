@@ -1,78 +1,78 @@
 # API Reference
 
-`lockfree` v0.1.0 exposes two unified, cardinality-parameterized queue types (`BQueue` and `Queue`). Each
-covers all four producer/consumer combinations (SPSC, MPSC, SPMC, MPMC),
-selected at compile time via the `ccProd` and `ccCons` parameters. For callers migrating
-from `lockfreequeues` (v4.2.0 / v5.0.0), a full backwards-compatibility layer
-is provided in `lockfree/compat/lockfreequeues` and `lockfreequeues.nim`.
+`lockfree` provides a comprehensive suite of production-grade, non-blocking
+concurrent data structures and synchronization primitives for Nim and C.
 
-## Bounded Queue
+Most callers only need:
 
-Fixed-capacity ring buffer. Capacity and thread-registry sizes are
-compile-time constants; the bounded body owns no heap state and needs no
-memory-reclamation manager.
+```nim
+import lockfree
+```
 
-- **[BQueue](bqueue.md)** — `BQueue[T, ccProd, ccCons, N, P, C]`. SPSC
-  is wait-free; multi-producer / multi-consumer shapes are lock-free.
-  Multi sides use the Vyukov per-slot `seq`-counter protocol.
+Below is the complete API reference categorized by architectural function.
 
-## Unbounded Queue
+---
 
-Dynamic-capacity linked-segment buffer; grows as needed. The SPSC shape
-frees retired segments inline (no manager); the MP/MC shapes use in-tree
-nebr epoch-based memory reclamation (`lockfree/smr/nebr`), with attach-time
-thread registration.
+## 1. FIFO Queues
 
-- **[Queue](queue.md)** — `Queue[T, ccProd, ccCons, ST, S, MaxThreads]`.
-  SPSC is wait-free; multi-producer / multi-consumer shapes are
-  lock-free.
+- **[BQueue (Bounded Queue)](bqueue.md)** — Fixed-capacity circular ring buffer based on Dmitry Vyukov's per-slot sequence counter protocol. Covers SPSC (wait-free), SPMC, MPSC, and MPMC (lock-free). Zero runtime allocations in steady state.
+- **[Queue (Unbounded Queue)](queue.md)** — Dynamic-capacity linked-segment queue. MPMC uses the Morrison & Afek strict-LCRQ algorithm with 128-bit hardware DWCAS; SPSC, SPMC, and MPSC use committed-flag segment chains. Backed by in-tree Debra/NEBR safe memory reclamation.
 
-## Support Types
+---
 
-- **DeallocationStrategy** — Memory reclamation policy (unbounded
-  reclaiming shapes):
-  - `stManual` — Retire segments to the `DebraManager`. The user calls
-    reclamation periodically. Best for `--mm:none`.
-  - `stEager` — Retire segments and reclaim eagerly. Best for GC
-    environments.
-- **PinScopeCardinality** — `ccSingle` / `ccMulti`, the values supplied
-  for the `ccProd` / `ccCons` type parameters.
+## 2. Channels & Synchronization
 
-## Performance Guarantees
+- **[Channel](channel.md)** — Go-style CSP channel facade over `BQueue` or `Queue` with automatic thread-local endpoint registration (`Sender[T]` and `Receiver[T]`).
+- **[RendezvousChannel](rendezvous.md)** — Synchronous zero-capacity dual-queue handoff based on Scherer & Scott's algorithm with kernel futex parking.
 
-| Guarantee | Meaning |
-|-----------|---------|
-| Wait-free | Operation completes in bounded steps regardless of other threads |
-| Lock-free | At least one thread makes progress; individual threads may retry |
+---
 
-## Segment Size Selection (Unbounded `Queue`)
+## 3. Concurrent Maps & Sets
 
-| Use Case | Recommended Size | Rationale |
-|----------|------------------|-----------|
-| Small items, high throughput | 256-1024 | Amortize allocation overhead |
-| Large items (>1KB) | 16-64 | Avoid memory bloat |
-| Low latency | 64-128 | Smaller = faster reclamation |
-| Batch processing | 512-2048 | Match batch sizes |
+- **[Ctrie](ctrie.md)** — Aleksandar Prokopec's lock-free Concurrent Hash Array Mapped Trie (HAMT) featuring $O(1)$ wait-free snapshots and wait-free lookups. Aliases: `Table`, `ConcurrentTable`, `ConcurrentMap`.
+- **[SkipListMap](skiplist.md)** — Fraser & Herlihy multi-level lock-free SkipList with Harris logical marking and total key ordering. Aliases: `SortedTable`, `OrderedTable`.
+- **[SkipListSet](set.md)** — Concurrent lock-free set with ordered iteration. Aliases: `Set`, `ConcurrentSet`.
 
-Segment size should be a power of 2 and ideally a multiple of cache line
-size (64 bytes on most systems).
+---
 
-## Cache Line Considerations
+## 4. Stacks & Deques
 
-### Bounded `BQueue`
+- **[TreiberStack](stack.md)** — High-throughput LIFO stack with Hendler et al. Elimination-Backoff Array for linear scalability under contention. Aliases: `Stack`, `ConcurrentStack`.
+- **[ChaseLevDeque](deque.md)** — Asymmetric work-stealing circular deque with C11 fences. Lock-free LIFO worker operations and lock-free FIFO thief stealing. Aliases: `Deque`, `ConcurrentDeque`.
 
-The bounded queue uses cache line alignment for head/tail pointers to
-prevent false sharing. Capacity should be chosen to avoid unnecessary
-padding:
+---
 
-- **Good**: 16, 32, 64, 128, 256 (power of 2)
-- **Avoid**: Arbitrary values that don't align well
+## 5. Multicast & Scheduling
 
-### Unbounded `Queue`
+- **[BroadcastRing & TopicBus](broadcast.md)** — Multicast fan-out ring buffer with independent reader cursors and selectable overflow policies (`omDropOldest` vs `omBackpressure`).
+- **[TaskPool](taskpool.md)** — Production work-stealing task pool and scheduler coordinating worker Chase-Lev deques and Treiber stack injection (`spawn`, `sync`, `parallelFor`).
 
-Segment size affects memory layout. Larger segments mean fewer
-allocations but slower reclamation. Consider:
+---
 
-- Each segment has fixed overhead (~64 bytes for metadata)
-- Item count per segment = segment size parameter
-- Total segment memory = (segment size × item size) + overhead
+## 6. Rate Limiting & Streaming
+
+- **[RateLimiter](ratelimit.md)** — Hardware 128-bit DWCAS Token Bucket and Leaky Bucket (GCRA) traffic shapers.
+- **[StreamBuffer](streambuffer.md)** — Lock-free continuous byte streaming ring buffer for packet framing and audio streams.
+
+---
+
+## 7. C ABI Interoperability
+
+- **[C ABI](cabi.md)** — C99 Foreign Function Interface (`include/lockfree.h`, `liblockfree`), opaque handles, status codes, zero-copy pointer transport, and an exception firewall.
+
+---
+
+## 8. SMR & Hardware Atomics
+
+- **[nebr (Safe Memory Reclamation)](smr/nebr.md)** — Neutralizable Epoch-Based Reclamation with `SIGUSR1` thread neutralization.
+- **[atomics](atomics.md)** — Strongly-typed C11 hardware atomics, 128-bit DWCAS, and adaptive contention backoff loops.
+
+---
+
+## 9. Managed Payloads & Typestates
+
+- **[ManagedRef](managed_ref.md)** — Path-C zero-leak encapsulation for `ref T` payloads across all memory managers (`orc`, `arc`, `atomicArc`, `refc`, `none`).
+- **[ManagedSlice](managed_slice.md)** — Path-C encapsulation for `string` and `seq[T]` payloads.
+- **[Chronos](chronos.md)** — Async channel adapter for Status Chronos.
+- **[Typestates](typestates.md)** — Compile-time endpoint state machine and `withBoundEndpoint` RAII wrapper.
+- **[Compatibility Shim](compat.md)** — Drop-in backwards-compatibility layer for `lockfreequeues` v4/v5 callers.

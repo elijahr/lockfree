@@ -1,159 +1,181 @@
-# lockfreequeues
+# lockfree
 
-Lock-free queues for Nim, implemented as ring buffers (bounded) and linked segments (unbounded).
+Lock-free concurrency primitives, data structures, and safe memory reclamation for Nim and C.
 
-## Overview
+`lockfree` provides production-grade, non-blocking concurrent data structures
+designed for maximum multicore scalability, deterministic latency, and zero
+mutual-exclusion overhead. Every collection is engineered from first principles
+using hardware atomics, adaptive backoff, and robust safe memory reclamation (SMR).
 
-v5 exposes two unified, cardinality-parameterized queue types —
-[`BQueue`](api/bqueue.md) (bounded) and [`Queue`](api/queue.md)
-(unbounded). Each covers all four producer/consumer combinations,
-selected at compile time via the `ccProd` / `ccCons` parameters.
+---
 
-### Bounded `BQueue` (Fixed Capacity)
+## The 10 Core Collections & Architecture
 
-Ring buffer with compile-time capacity. Best for predictable memory usage and embedded systems. [`BQueue`](api/bqueue.md) covers:
+| Collection | Canonical Type | Underlying Algorithm | Concurrency Topology | Progress Guarantee |
+| :--- | :--- | :--- | :--- | :--- |
+| **Bounded Queue** | `BQueue[T, ...]` | Dmitry Vyukov Per-Slot Sequence Counters | SPSC, MPSC, SPMC, MPMC | SPSC: **Wait-Free**<br>MPMC: **Lock-Free** |
+| **Unbounded Queue** | `Queue[T, ...]` | Morrison & Afek Strict-LCRQ with 128-bit DWCAS | SPSC, MPSC, SPMC, MPMC | SPSC: **Wait-Free**<br>MPMC: **Lock-Free** |
+| **Concurrent Channel** | `Channel[T]` | Facade over `BQueue` / `Queue` with TLS Auto-Registration | MPMC (Multi-Producer Multi-Consumer) | **Lock-Free** |
+| **Synchronous Rendezvous** | `RendezvousChannel[T]` | Scherer & Scott Synchronous Dual Queue with OS Futex | MPMC (Multi-Producer Multi-Consumer) | Match: **Lock-Free**<br>Wait: **Kernel Futex** |
+| **Concurrent Map / Table** | `Ctrie[K, V]` | Aleksandar Prokopec Concurrent Hash Array Mapped Trie | MPMC (Multi-Producer Multi-Consumer) | Lookup: **Wait-Free**<br>Mutation: **Lock-Free**<br>Snapshot: **$O(1)$ Wait-Free** |
+| **Sorted Map / Table** | `SkipListMap[K, V]` | Fraser & Herlihy SkipList with Harris Logical Marking | MPMC (Multi-Producer Multi-Consumer) | Lookup: **Wait-Free**<br>Mutation: **Lock-Free** |
+| **Concurrent Set** | `SkipListSet[T]` | Fraser & Herlihy SkipList with Harris Logical Marking | MPMC (Multi-Producer Multi-Consumer) | Membership: **Wait-Free**<br>Mutation: **Lock-Free** |
+| **Concurrent Stack** | `TreiberStack[T]` | Treiber Stack with Hendler Elimination-Backoff Array | MPMC (Multi-Producer Multi-Consumer) | **Lock-Free** (linear scaling under contention) |
+| **Work-Stealing Deque** | `ChaseLevDeque[T]` | Chase-Lev Dynamic Circular Deque with C11 Fences | Single-Worker / Multi-Thief | Worker: **Lock-Free**<br>Thieves: **Lock-Free** |
+| **Broadcast Ring / Pub-Sub** | `BroadcastRing[T]` | Lock-Free Multicast Ring with Dynamic Reader Cursors | SPMC / MPMC Fan-Out | Readers: **Wait-Free / Lock-Free**<br>Writers: **Lock-Free** |
 
-| Cardinality | Producers | Consumers | Push | Pop |
-|-------------|-----------|-----------|------|-----|
-| SPSC | Single | Single | Wait-free | Wait-free |
-| SPMC | Single | Multiple | Wait-free | Lock-free |
-| MPSC | Multiple | Single | Lock-free | Wait-free |
-| MPMC | Multiple | Multiple | Lock-free | Lock-free |
+### Additional Concurrency Primitives
 
-### Unbounded `Queue` (Dynamic Capacity)
+- **Work-Stealing TaskPool (`TaskPool`)**: Multi-threaded scheduler coordinating per-worker `ChaseLevDeque` instances and global `TreiberStack` task injection.
+- **Traffic Shaping (`RateLimiter`)**: Hardware 128-bit DWCAS `TokenBucket` and `LeakyBucket` (GCRA) rate limiters.
+- **Byte Streaming (`StreamBuffer`)**: High-throughput circular byte stream ring buffer for packet framing and audio streams.
+- **Safe Memory Reclamation (`nebr`)**: Neutralizable Epoch-Based Reclamation with `SIGUSR1` thread neutralization.
+- **C Foreign Function Interface (`lockfree.h`, `libcabi`)**: C99-compliant interface exposing all primitives with zero-copy pointer transport and an exception firewall.
 
-Linked segments that grow as needed. The MP/MC shapes use DEBRA+ epoch-based reclamation (via [nim-debra](https://github.com/elijahr/nim-debra)) for safe memory deallocation; the SPSC shape frees retired segments inline (no manager). [`Queue`](api/queue.md) covers:
-
-| Cardinality | Producers | Consumers | Push | Pop |
-|-------------|-----------|-----------|------|-----|
-| SPSC | Single | Single | Wait-free | Wait-free |
-| SPMC | Single | Multiple | Wait-free | Lock-free |
-| MPSC | Multiple | Single | Lock-free | Wait-free |
-| MPMC | Multiple | Multiple | Lock-free | Lock-free |
-
-## Compatibility
-
-| Requirement | Supported |
-|-------------|-----------|
-| Nim         | `>= 2.2.10` |
-| Memory managers | `orc` (default), `arc`, `refc`, `atomicArc` |
-| Backends    | C, C++ |
-| Threads     | `--threads:on` required (default in Nim 2.2+) |
-| Platforms (CI-verified) | Linux x86_64, Linux arm64, macOS arm64 |
-| Sanitisers (CI-verified) | ThreadSanitizer (under `atomicArc`), AddressSanitizer |
-| Dependencies | [`typestates`](https://github.com/elijahr/nim-typestates) `>= 0.12.0` (DEBRA reclamation is bundled in-tree as `lockfree/smr/nebr`) |
-| License     | MIT |
-
-**Item types.** Value types and `ptr T` are stored directly in the slot
-array. `ref T`, `string`, and `seq` are admitted through Path-C: each slot
-holds an 8-byte `ManagedRef` / `ManagedSlice` token (`distinct uint`) rather
-than the payload, so no refcount or buffer mutation races against the
-concurrent slot read/write. No opt-in flag is required. The unbounded MPMC
-arm (`Queue[T, ccMulti, ccMulti, …]`) requires
-`supportsCopyMem(T) AND sizeof(T) <= 8` (strict-LCRQ migration);
-for wider or move-only `T`, use `BQueue[T, ccMulti, ccMulti, …]` or wrap
-as `ptr T`. See [ManagedRef — `ref T` payloads](guide/managed-ref.md) and
-[From lockfreequeues v5](migrations/from-lockfreequeues-v5.md).
-
-**Atomics.** All atomics route through `debra/atomics`, which statically
-rejects any `Atomic[T]` instantiation that would fall back to libatomic
-spinlocks. Enforcement is on by default; opt out with
-`-d:debraAllowNonLockFreeAtomics` (per-call-site warning fires).
+---
 
 ## Installation
 
+Install via Nimble:
+
 ```sh
-nimble install lockfreequeues
+nimble install lockfree
 ```
+
+Or add to your `.nimble` package file:
+
+```nim
+requires "lockfree >= 0.1.0"
+```
+
+---
+
+## Compatibility
+
+| Dimension | Supported Matrix |
+| :--- | :--- |
+| **Nim Compiler** | `>= 2.2.10` |
+| **Memory Managers** | `orc` (default), `arc`, `atomicArc`, `refc`, `none` |
+| **Backends** | C, C++ |
+| **Threading** | `--threads:on` required (default in Nim 2.2+) |
+| **Platforms (CI-verified)** | Linux x86_64, Linux arm64, macOS arm64, Windows |
+| **Sanitizers (CI-verified)** | ThreadSanitizer (TSan under `atomicArc`), AddressSanitizer (ASan) |
+| **C ABI** | C99 / C++11 header `include/lockfree.h`, shared & static libraries |
+| **License** | MIT |
+
+---
 
 ## Quick Start
 
-### Bounded Queue
+### 1. Bounded & Unbounded Queues
 
 ```nim
-import lockfreequeues
+import lockfree
 
-# Single-producer, single-consumer bounded queue with capacity 16.
-var queue = newSpscQueue[int, 16]()
+# Fixed-capacity wait-free SPSC ring buffer (zero allocation)
+var boundedQ = newSpscQueue[int, 64]()
+discard boundedQ.push(42)
+assert boundedQ.pop() == some(42)
 
-discard queue.push(42)
-discard queue.push(123)
+# Dynamic unbounded MPMC queue backed by Debra SMR
+var unboundedQ = newMpmcQueue[string, 64, 4]()
+var prod = unboundedQ.getProducerHere()
+var cons = unboundedQ.getConsumerHere()
 
-let item = queue.pop()  # some(42)
+prod.push("hello lockfree")
+assert cons.pop() == some("hello lockfree")
 ```
 
-### Unbounded Queue (single-producer, single-consumer)
-
-The SPSC `Queue` shape does not need DEBRA reclamation: the producer and
-consumer each hold their own segment pointer and the consumer-side advance is
-the only freer.
+### 2. CSP Channels
 
 ```nim
-import lockfreequeues
+import lockfree
 
-# Unbounded SPSC queue with segment size 64.
-var queue = newQueue(Queue[int, ccSingle, ccSingle, stEager, 64, 1])
+var (tx, rx) = newChannel[int](capacity = 32)
 
-var p = queue.getProducer()
-p.push(42)              # never fails — grows as needed
-let item = queue.pop()  # some(42)
+# Thread-local auto-registration caches handles automatically
+tx.send(1337)
+var received: int
+if rx.recv(received):
+  echo "Received: ", received
 ```
 
-### Unbounded Queue (multi-producer, multi-consumer)
-
-The MP/MC unbounded shapes use a `DebraManager` for safe segment
-reclamation. The auto-create constructor heap-allocates a private manager;
-each operating thread then `attach()`es its view on the thread that will
-push/pop through it (DEBRA registration is thread-affine):
+### 3. Concurrent Map (`Ctrie`) with $O(1)$ Snapshots
 
 ```nim
-import lockfreequeues
+import lockfree
 
-# Auto-create MPMC: segment size 64, registry capacity 4.
-var queue = newQueue(Queue[int, ccMulti, ccMulti, stEager, 64, 4])
+var map = newCtrie[string, int]()
 
-var producer = queue.getProducerHere()  # registers this thread
-producer.push(42)                       # may raise DebraRegistrationError
+discard map.put("counter", 1)
+discard map.putIfAbsent("users", 100)
 
-var consumer = queue.getConsumerHere()
-let item = consumer.pop()               # some(42)
+# Atomic transformation
+discard map.atomicUpdate("counter", proc(v: int): int = v + 1)
+
+# O(1) wait-free point-in-time snapshot
+let snap = map.snapshot()
+for (k, v) in snap.pairs():
+  echo k, " = ", v
 ```
 
-The `*Here` templates are sugar for `getProducer()` + `attach()` (and
-`getConsumer()` + `attach()`) when the calling thread is also the
-operating thread. For the producer-to-worker handoff pattern (a
-parent thread obtains the view and hands it off to a worker thread
-that does the push/pop), use the explicit `getProducer()` +
-`attach()` pair so the debra registration lands on the worker thread.
-See the [Queue API reference](api/queue.md) for details.
+### 4. Work-Stealing TaskPool
 
-## Choosing a Queue
+```nim
+import lockfree
 
-**Use bounded queues when:**
+var pool = newTaskPool(numThreads = 4)
 
-- Memory usage must be predictable
-- Working in embedded or real-time systems
-- Producer/consumer counts are known at compile time
+for i in 1..10:
+  pool.spawn(proc() =
+    # Executed concurrently across worker deques
+    discard
+  )
 
-**Use unbounded queues when:**
-
-- Workload is bursty or unpredictable
-- Producer/consumer threads are created dynamically
-- Memory growth is acceptable
-
-## Examples
-
-Examples are in the [examples](https://github.com/elijahr/lockfreequeues/tree/devel/examples) directory:
-
-```sh
-nimble examples
+pool.sync()
+pool.shutdown()
 ```
 
-## References
+### 5. C ABI (`include/lockfree.h`)
 
-- Juho Snellman, ["I've been writing ring buffers wrong all these years"](https://www.snellman.net/blog/archive/2016-12-13-ring-buffers/).
-- Mamy Ratsimbazafy, [research on SPSC channels](https://github.com/mratsim/weave/blob/master/weave/cross_thread_com/channels_spsc.md#litterature) for weave.
-- Henrique F. Bucher, ["Yes, You Have Been Writing SPSC Queues Wrong Your Entire Life"](http://www.vitorian.com/x1/archives/370).
-- Maged M. Michael and Michael L. Scott, "Simple, Fast, and Practical Non-Blocking and Blocking Concurrent Queue Algorithms" (PODC 1996) — the lock-free linked-list queue that the unbounded segment chain generalises.
-- Dmitry Vyukov's writings on bounded MPMC ring buffers and CAS-based coordination patterns — the per-slot sequence counter protocol used by the bounded multi-cardinality variants.
-- Trevor Brown, ["Reclaiming Memory for Lock-Free Data Structures: There has to be a Better Way"](https://www.cs.utoronto.ca/~tabrown/debra/) (DEBRA, the epoch-based reclamation scheme used by the unbounded multi-cardinality queues via [nim-debra](https://github.com/elijahr/nim-debra)).
+Any C or C++ application can include `lockfree.h` and link against `liblockfree`:
+
+```c
+#include "lockfree.h"
+#include <stdio.h>
+#include <assert.h>
+
+int main(void) {
+    lfq_queue_t* q = NULL;
+    lfq_status_t rc = lfq_bounded_create(1024, sizeof(void*), &q);
+    assert(rc == LFQ_OK);
+
+    int val = 999;
+    rc = lfq_bounded_push(q, &val);
+    assert(rc == LFQ_OK);
+
+    void* popped = NULL;
+    rc = lfq_bounded_pop(q, &popped);
+    assert(rc == LFQ_OK && *(int*)popped == 999);
+
+    lfq_bounded_destroy(q);
+    return 0;
+}
+```
+
+---
+
+## Detailed Guides & Documentation
+
+- [User Guide](guides/user_guide.md) — Exhaustive guide mapping colloquial data structure names to `lockfree` types.
+- [Queues Guide](guide/queues/index.md) — Deep dive into Vyukov bounded and strict-LCRQ unbounded queues.
+- [Channels & Rendezvous](guide/channels.md) — Buffered CSP channels and synchronous zero-capacity handoffs.
+- [Maps & Sets](guide/maps-sets.md) — Concurrent Hash Trie (Ctrie) and Fraser & Herlihy SkipLists.
+- [Stacks & Deques](guide/stacks-deques.md) — Treiber stack with elimination backoff and Chase-Lev work-stealing.
+- [Broadcast Ring](guide/broadcast.md) — Multicast ring buffers and topic-based pub-sub.
+- [TaskPool](guide/taskpool.md) — Work-stealing scheduler and parallel loops.
+- [C ABI](guide/cabi.md) — C99 Foreign Function Interface and library integration.
+- [Safe Memory Reclamation (nebr)](guide/smr/nebr.md) — Epoch-based reclamation and thread neutralization.
+- [Hardware Atomics](guide/atomics.md) — Memory orderings, 128-bit DWCAS, and adaptive backoff loops.
+- [API Reference](api/index.md) — Complete module and symbol reference.
+- [Migration Guide](migration.md) — Migration paths from `lockfreequeues` and `nim-debra`.

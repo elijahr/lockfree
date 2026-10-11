@@ -1,5 +1,5 @@
 site_name: lockfree
-site_description: Lock-free queues for Nim
+site_description: Lock-free concurrency primitives, data structures, and safe memory reclamation for Nim and C
 site_url: https://elijahr.github.io/lockfree/
 
 repo_name: elijahr/lockfree
@@ -84,9 +84,8 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - User Guide: guides/user_guide.md
   - Guide:
-    - User Guide: guides/user_guide.md
-    - SMR & NEBR Lifecycle: guides/smr_nebr_lifecycle.md
     - Overview: guide/index.md
     - Getting Started: guide/getting-started.md
     - Concepts:
@@ -98,10 +97,36 @@ nav:
       - Bounded (Vyukov): guide/queues/bounded-vyukov.md
       - Unbounded MPMC (strict-LCRQ): guide/queues/strict-lcrq-mpmc.md
       - Legacy cardinalities: guide/queues/legacy.md
-    - SMR:
-      - nebr: guide/smr/nebr.md
-    - ManagedRef: guide/managed-ref.md
-    - ManagedSlice: guide/managed-slice.md
+    - Channels:
+      - Channels & Rendezvous: guide/channels.md
+      - Rendezvous Dual-Queue: designs/design_rendezvous_channel.md
+      - Async Bridge: designs/design_async_bridge.md
+    - Maps & Sets:
+      - Overview: guide/maps-sets.md
+      - Concurrent Hash Trie (Ctrie): designs/design_ctrie.md
+      - SkipList Map & Set: designs/design_atomic_associative.md
+    - Stacks & Deques:
+      - Overview: guide/stacks-deques.md
+    - Broadcast & Rendezvous:
+      - Broadcast Ring & TopicBus: guide/broadcast.md
+      - Broadcast Architecture: designs/design_broadcast_ring.md
+      - Rendezvous Dual-Queue: designs/design_rendezvous_channel.md
+    - TaskPool:
+      - Work-Stealing Scheduler: guide/taskpool.md
+    - Rate Limiting & Streaming:
+      - Overview: guide/ratelimit-streambuffer.md
+      - Rate Limiting Architecture: designs/design_ratelimit.md
+      - StreamBuffer Architecture: designs/design_streambuffer.md
+    - C ABI:
+      - Overview & C99 Header: guide/cabi.md
+      - Architecture & Interop: design/2026-10-07-ergonomics-metaprogramming-c-abi.md
+    - SMR & Hardware Atomics:
+      - NEBR SMR Architecture: guide/smr/nebr.md
+      - NEBR Lifecycle: guides/smr_nebr_lifecycle.md
+      - Hardware Atomics: guide/atomics.md
+    - Managed Payloads:
+      - ManagedRef: guide/managed-ref.md
+      - ManagedSlice: guide/managed-slice.md
     - Typestates: guide/typestates.md
     - Nimony: guide/nimony.md
     # Legacy pre-umbrella guide pages (retained until next major rework)
@@ -115,20 +140,40 @@ nav:
   - API Reference:
     - Overview: api/index.md
     - lockfree (umbrella): api/lockfree.md
-    - Compatibility (lockfreequeues): api/compat.md
-    - Bounded Queue (BQueue): api/bqueue.md
-    - Unbounded Queue (Queue): api/queue.md
-    - ManagedRef: api/managed_ref.md
-    - ManagedSlice: api/managed_slice.md
-    - Chronos: api/chronos.md
-    - atomics: api/atomics.md
-    - SMR:
-      - nebr: api/smr/nebr.md
+    - Queues:
+      - Bounded Queue (BQueue): api/bqueue.md
+      - Unbounded Queue (Queue): api/queue.md
+    - Channels:
+      - Channel: api/channel.md
+      - RendezvousChannel: api/rendezvous.md
+    - Maps & Sets:
+      - Ctrie (Table): api/ctrie.md
+      - SkipListMap (SortedTable): api/skiplist.md
+      - SkipListSet (Set): api/set.md
+    - Stacks & Deques:
+      - TreiberStack: api/stack.md
+      - ChaseLevDeque: api/deque.md
+    - Broadcast & Rendezvous:
+      - BroadcastRing & TopicBus: api/broadcast.md
+      - RendezvousChannel: api/rendezvous.md
+    - TaskPool: api/taskpool.md
+    - Rate Limiting & Streaming:
+      - RateLimiter: api/ratelimit.md
+      - StreamBuffer: api/streambuffer.md
+    - C ABI: api/cabi.md
+    - SMR & Hardware Atomics:
+      - NEBR SMR: api/smr/nebr.md
+      - atomics: api/atomics.md
+    - Managed Payloads & Async:
+      - ManagedRef: api/managed_ref.md
+      - ManagedSlice: api/managed_slice.md
+      - Chronos: api/chronos.md
     - Typestates:
       - Facade: api/typestates.md
       - with_bound: api/typestates/with_bound.md
       - slot_state: api/typestates/slot_state.md
       - segment_state: api/typestates/segment_state.md
+    - Compatibility (lockfreequeues): api/compat.md
     - Internal:
       - slot_encoding: api/internal/slot_encoding.md
       - path_c_admit: api/internal/path_c_admit.md

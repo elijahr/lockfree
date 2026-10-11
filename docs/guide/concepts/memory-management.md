@@ -121,7 +121,7 @@ nim c --threads:on --mm:refc -r myprog.nim
 If you are starting fresh, prefer `orc` over `refc`. `refc` is
 maintained for downstream projects that have not migrated.
 
-### `--mm:none`
+### `--mm:none` {: #-mm-none }
 
 `--mm:none` disables Nim's runtime memory management entirely. This is
 the right choice for audio, embedded real-time, and any environment
