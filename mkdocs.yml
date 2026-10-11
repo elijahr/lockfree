@@ -39,8 +39,11 @@ plugins:
       canonical_version: latest
   - git-revision-date-localized:
       enable_creation_date: true
-      enable_git_follow: false
       type: timeago
+      exclude:
+        - internal/*
+        - reviews/*
+        - transitions/*
   - glightbox
   - mkdocstrings:
       default_handler: nim
