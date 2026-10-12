@@ -313,7 +313,12 @@ def build_markdown_section(
     # MPMC 4p4c
     lfq_mpmc_4p4c = get_first_throughput(
         data,
-        ["lockfreequeues_queue_bounded_mpmc/mpmc/4p4c", "lockfreequeues_mpmc/mpmc/4p4c"],
+        [
+            "lockfree_queue_bounded_mpmc/mpmc/4p4c",
+            "lockfree_mpmc/mpmc/4p4c",
+            "lockfreequeues_queue_bounded_mpmc/mpmc/4p4c",
+            "lockfreequeues_mpmc/mpmc/4p4c",
+        ],
     ) or 16187.8
     std_mpmc_4p4c = get_first_throughput(
         data, ["nim_channels/mpmc/4p4c", "nim_channel/mpmc/4p4c"]
@@ -323,13 +328,23 @@ def build_markdown_section(
     # SPMC 1p2c
     lfq_spmc_1p2c = get_first_throughput(
         data,
-        ["lockfreequeues_queue_bounded_spmc/mpmc/1p2c", "lockfreequeues_spmc/mpmc/1p2c"],
+        [
+            "lockfree_queue_bounded_spmc/mpmc/1p2c",
+            "lockfree_spmc/mpmc/1p2c",
+            "lockfreequeues_queue_bounded_spmc/mpmc/1p2c",
+            "lockfreequeues_spmc/mpmc/1p2c",
+        ],
     ) or 14122.7
 
     # MPSC 4p1c
     lfq_mpsc_4p1c = get_first_throughput(
         data,
-        ["lockfreequeues_queue_bounded_mpsc/mpsc/4p1c", "lockfreequeues_mpsc/mpsc/4p1c"],
+        [
+            "lockfree_queue_bounded_mpsc/mpsc/4p1c",
+            "lockfree_mpsc/mpsc/4p1c",
+            "lockfreequeues_queue_bounded_mpsc/mpsc/4p1c",
+            "lockfreequeues_mpsc/mpsc/4p1c",
+        ],
     ) or 8718.9
     std_mpsc_4p1c = get_first_throughput(
         data, ["nim_channel/mpsc/4p1c", "nim_channels/mpsc/4p1c"]
@@ -340,6 +355,9 @@ def build_markdown_section(
     lfq_spsc_1p1c = get_first_throughput(
         data,
         [
+            "lockfree_unbounded_spsc/spsc_unbounded/1p1c",
+            "lockfree_queue_bounded_spsc/spsc/1p1c",
+            "lockfree_spsc/spsc/1p1c",
             "lockfreequeues_unbounded_spsc/spsc_unbounded/1p1c",
             "lockfreequeues_queue_bounded_spsc/spsc/1p1c",
             "lockfreequeues_spsc/spsc/1p1c",
@@ -419,10 +437,19 @@ def main() -> None:
     # 1. Prepare items for Hero Throughput SVG
     lfq_mpmc_4p4c = get_first_throughput(
         data,
-        ["lockfreequeues_queue_bounded_mpmc/mpmc/4p4c", "lockfreequeues_mpmc/mpmc/4p4c"],
+        [
+            "lockfree_queue_bounded_mpmc/mpmc/4p4c",
+            "lockfree_mpmc/mpmc/4p4c",
+            "lockfreequeues_queue_bounded_mpmc/mpmc/4p4c",
+            "lockfreequeues_mpmc/mpmc/4p4c",
+        ],
     ) or 16187.8
     lfq_unbounded_4p4c = get_first_throughput(
-        data, ["lockfreequeues_unbounded_mpmc/mpmc_unbounded/4p4c"]
+        data,
+        [
+            "lockfree_unbounded_mpmc/mpmc_unbounded/4p4c",
+            "lockfreequeues_unbounded_mpmc/mpmc_unbounded/4p4c",
+        ],
     )
     std_mpmc_4p4c = get_first_throughput(
         data, ["nim_channels/mpmc/4p4c", "nim_channel/mpmc/4p4c"]
@@ -488,16 +515,24 @@ def main() -> None:
 
     # 2. Prepare Latency Ladder SVG
     latency_dict = {
-        "p50": get_metric(data, "lockfreequeues_mpmc/mpmc/1p1c", "latency_p50_ns")
+        "p50": get_metric(data, "lockfree_mpmc/mpmc/1p1c", "latency_p50_ns")
+        or get_metric(data, "lockfree_queue_bounded_mpmc/mpmc/1p1c", "latency_p50_ns")
+        or get_metric(data, "lockfreequeues_mpmc/mpmc/1p1c", "latency_p50_ns")
         or get_metric(data, "lockfreequeues_queue_bounded_mpmc/mpmc/1p1c", "latency_p50_ns")
         or 260.0,
-        "p95": get_metric(data, "lockfreequeues_mpmc/mpmc/1p1c", "latency_p95_ns")
+        "p95": get_metric(data, "lockfree_mpmc/mpmc/1p1c", "latency_p95_ns")
+        or get_metric(data, "lockfree_queue_bounded_mpmc/mpmc/1p1c", "latency_p95_ns")
+        or get_metric(data, "lockfreequeues_mpmc/mpmc/1p1c", "latency_p95_ns")
         or get_metric(data, "lockfreequeues_queue_bounded_mpmc/mpmc/1p1c", "latency_p95_ns")
         or 300.0,
-        "p99": get_metric(data, "lockfreequeues_mpmc/mpmc/1p1c", "latency_p99_ns")
+        "p99": get_metric(data, "lockfree_mpmc/mpmc/1p1c", "latency_p99_ns")
+        or get_metric(data, "lockfree_queue_bounded_mpmc/mpmc/1p1c", "latency_p99_ns")
+        or get_metric(data, "lockfreequeues_mpmc/mpmc/1p1c", "latency_p99_ns")
         or get_metric(data, "lockfreequeues_queue_bounded_mpmc/mpmc/1p1c", "latency_p99_ns")
         or 326.0,
-        "p999": get_metric(data, "lockfreequeues_mpmc/mpmc/1p1c", "latency_p999_ns")
+        "p999": get_metric(data, "lockfree_mpmc/mpmc/1p1c", "latency_p999_ns")
+        or get_metric(data, "lockfree_queue_bounded_mpmc/mpmc/1p1c", "latency_p999_ns")
+        or get_metric(data, "lockfreequeues_mpmc/mpmc/1p1c", "latency_p999_ns")
         or get_metric(data, "lockfreequeues_queue_bounded_mpmc/mpmc/1p1c", "latency_p999_ns")
         or 474.0,
     }

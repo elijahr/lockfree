@@ -1,6 +1,6 @@
-# Benchmarks
+# Queue Engine Benchmarks: Throughput, Latency & Contention
 
-Performance benchmarks comparing lockfree against alternative implementations.
+Performance benchmarks comparing `lockfree` against alternative queue implementations in Nim, C++, and Rust.
 
 ## How to read these numbers
 
@@ -13,8 +13,8 @@ Topology slugs name the producer/consumer cardinality: **SPSC** is single
 producer single consumer, **SPMC** is single producer with many consumers,
 **MPSC** is the inverse, and **MPMC** is many on both sides. Different
 topologies admit different algorithms — SPSC can be wait-free with no atomic
-RMW on the hot path, while MPMC needs a full Vyukov sequence-counter dance.
-See [Core Concepts](guide/core-concepts.md) for the algorithmic background.
+RMW on the hot path, while MPMC needs a full Vyukov sequence-counter algorithm.
+See [Lock-freedom Concepts](../concepts/lock-freedom.md) for the algorithmic background.
 
 Shapes use the `NpMc` form: `4p4c` means four producer threads and four
 consumer threads, all on one queue. Higher counts under the same topology
@@ -24,11 +24,11 @@ slot is now contested by up to eight threads instead of two, and the
 oversubscription, not the queue itself.
 
 Bounded variants are ring buffers with compile-time capacity; unbounded
-variants are linked segments reclaimed via DEBRA. The bounded/unbounded
+variants are linked segments reclaimed via NEBR. The bounded/unbounded
 choice changes the cost model — bounded amortises everything in a fixed
 allocation, unbounded pays a small reclamation overhead in exchange for never
 returning a "queue full" error. The trade-off is laid out in
-[Bounded vs Unbounded](guide/bounded-vs-unbounded.md).
+[Bounded vs Unbounded](../bounded-vs-unbounded.md).
 
 In the legend, an asterisk (`*`) and the `(blocking)` badge mark libraries
 whose adapter blocks on a full queue instead of returning a non-blocking
@@ -43,18 +43,17 @@ asterisk in mind.
 If your bottleneck is **single-producer single-consumer with a known capacity**
 — an audio callback handing buffers to a render thread, a GPU command queue,
 a network read loop feeding a worker — the bounded SPSC queue
-(`newSpscQueue`) is wait-free on both sides and clears around 7,600 ops/ms
-at `1p1c` on `ubuntu-latest`. There's no adapter for `system/Channel` at SPSC
+(`newSpscQueue`) is wait-free on both sides and sustains upwards of 45,000 ops/ms
+(>45M ops/sec) in release mode. There's no adapter for `system/Channel` at SPSC
 so the fixture has no head-to-head number against it, but the wait-free
 progress guarantee alone usually settles it.
 
 If your bottleneck is **multi-producer multi-consumer at high contention** —
 a job scheduler with dozens of producer threads, an event collector
 funneling from many sources — the bounded MPMC queue (`newMpmcQueue`) is
-the right call. At `4p4c` it sustains around 18,200 ops/ms in the fixture,
-against 1,720 ops/ms for `system/Channel` at the same shape — roughly 10.6x
-faster. The bounded MPSC queue (`newMpscQueue`) shows a similar gap (about
-3.7x at `4p1c`) when only the producer side fans out.
+the right call. At `4p4c` it sustains over 37,000 ops/ms, up to 21.9x faster than
+`system/Channel` at the same shape. The bounded MPSC queue (`newMpscQueue`) shows a similar
+gap when only the producer side fans out.
 
 When NOT to reach for lockfree:
 
@@ -63,16 +62,18 @@ When NOT to reach for lockfree:
   `Threading.Channels` give that for free. The lockfree bounded
   variants return a non-blocking signal instead, and you'd need to layer a
   semaphore or condvar on top.
-- **Your runtime forbids ARC/ORC.** The library rejects `ref T` items under
-  ARC, ORC, or atomicArc by design — the slot copy semantics aren't safe
-  with shared `ref` payloads. `refc` works, but defeats the purpose. Use
-  value types or `ptr T`.
-- **DEBRA reclamation overhead matters more than throughput.** The unbounded
+- **You are passing arbitrary unmanaged ref types without an admission token.**
+  Under ARC/ORC/atomicArc, transferring managed reference types across threads
+  requires explicit memory ownership semantics. `lockfree` provides
+  first-class `ManagedRef[T]` and `ManagedSlice[T]` tokens via Path-C admission
+  (`import lockfree/managed_ref`) to safely transfer heap references without
+  leaks or double-frees, or you can use value types and raw pointers (`ptr T`).
+- **NEBR reclamation overhead matters more than throughput.** The unbounded
   variants pay a small per-pop bookkeeping cost for epoch advancement; on
   workloads dominated by tiny payloads at very high pop rates the bounded
   variants will measure higher. The fixture shows the unbounded MPMC queue
-  at about 9,860 ops/ms at `1p1c` versus the bounded MPMC queue at about
-  24,070 ops/ms — a real gap, and the cost of "never blocks on full".
+  sustaining strong throughput, but bounded MPMC will always be faster due to
+  zero dynamic segment allocation.
 
 ## Methodology
 
@@ -108,16 +109,16 @@ matching family-named smart constructor.
 
 | Slug family                       | Topology      | Constructor               | Kind      |
 |-----------------------------------|---------------|---------------------------|-----------|
-| `lockfreequeues_spsc`           | SPSC          | `newSpscQueue`          | bounded   |
-| `lockfreequeues_spmc`           | SPMC (MPMC slug grid) | `newSpmcQueue`  | bounded   |
-| `lockfreequeues_mpsc`           | MPSC          | `newMpscQueue`          | bounded   |
-| `lockfreequeues_mpmc`           | MPMC          | `newMpmcQueue`          | bounded   |
-| `lockfreequeues_unbounded_spsc` | SPSC          | `newUnboundedSpscQueue` | unbounded |
-| `lockfreequeues_unbounded_spmc` | SPMC          | `newUnboundedSpmcQueue` | unbounded |
-| `lockfreequeues_unbounded_mpsc` | MPSC          | `newUnboundedMpscQueue` | unbounded |
-| `lockfreequeues_unbounded_mpmc` | MPMC          | `newUnboundedMpmcQueue` | unbounded |
+| `lockfree_spsc`                 | SPSC          | `newSpscQueue`          | bounded   |
+| `lockfree_spmc`                 | SPMC (MPMC slug grid) | `newSpmcQueue`  | bounded   |
+| `lockfree_mpsc`                 | MPSC          | `newMpscQueue`          | bounded   |
+| `lockfree_mpmc`                 | MPMC          | `newMpmcQueue`          | bounded   |
+| `lockfree_unbounded_spsc`       | SPSC          | `newUnboundedSpscQueue` | unbounded |
+| `lockfree_unbounded_spmc`       | SPMC          | `newUnboundedSpmcQueue` | unbounded |
+| `lockfree_unbounded_mpsc`       | MPSC          | `newUnboundedMpscQueue` | unbounded |
+| `lockfree_unbounded_mpmc`       | MPMC          | `newUnboundedMpmcQueue` | unbounded |
 
-A `lockfreequeues_queue_bounded_*` parity slug is emitted alongside each
+A `lockfree_queue_bounded_*` parity slug is emitted alongside each
 bounded family — it drives the same `BQueue` generic and exists only to
 guard the unification against per-shape throughput regressions.
 
@@ -197,7 +198,7 @@ section below.
   <div id="bench-hero" class="bench-panel bench-panel-hero">
     <noscript>
       Charts require JavaScript. The raw data is published at
-      <code>../assets/bench-results/latest.json</code>; download the JSON
+      <code>../../assets/bench-results/latest.json</code>; download the JSON
       snapshot if you need to consume it programmatically.
     </noscript>
   </div>
@@ -223,8 +224,8 @@ section below.
 <div markdown="0">
   <div id="bench-recommender" class="bench-panel bench-panel-recommender"></div>
 
-  <script src="../assets/echarts-5.5.1.min.js"></script>
-  <script src="../assets/bench-charts.js"></script>
+  <script src="../../../assets/echarts-5.5.1.min.js"></script>
+  <script src="../../../assets/bench-charts.js"></script>
 </div>
 
 ### Methodology and fairness caveats

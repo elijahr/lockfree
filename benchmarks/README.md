@@ -448,13 +448,13 @@ The four-row summary inside the `<!-- BENCHMARKS:start -->` /
 `<!-- BENCHMARKS:end -->` markers in the project root `README.md` is
 hand-curated at release prep, NOT auto-rendered. The "always fresh"
 promise lives at the chart page
-(<https://elijahr.github.io/lockfreequeues/latest/benchmarks/>); the
+(<https://elijahr.github.io/lockfree/latest/benchmarks/>); the
 README values may lag by up to one release cycle.
 
 **Procedure (run once per release PR):**
 
 1. Open the latest devel snapshot at
-   <https://elijahr.github.io/lockfreequeues/dev/benchmarks/>.
+   <https://elijahr.github.io/lockfree/dev/benchmarks/>.
 2. Read the throughput chart for these four shapes:
    - `lockfree_spsc/spsc/1p1c`
    - `lockfree_spmc/mpmc/1p2c`

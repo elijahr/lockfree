@@ -16,7 +16,7 @@ by the managed-payload types.
   motivation and lifecycle.
 - [nebr user guide](../../guide/smr/nebr.md) — usage patterns and
   attach/detach examples.
-- [docs/legacy/nim-debra/](../../legacy/nim-debra/index.md) —
-  upstream DEBRA documentation preserved at the T0 merge point.
+- [Migration from nim-debra](../../migrations/from-nim-debra.md) —
+  migration guide for upstream nim-debra users.
 
 ::: lockfree/smr/nebr

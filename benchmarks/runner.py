@@ -1,38 +1,39 @@
 #!/usr/bin/env python3
-"""Benchmark runner for lockfreequeues.
+"""Benchmark runner for lockfree.
 
-Orchestrates benchmark execution across languages and collects results.
-PR 2 (bench-rollup) replaced the single `bench_throughput` driver with
-topology-split binaries; v5.0.0 B3 further split the MPMC slice into a
-per-family pair (bench_mpmc_bounded + bench_spmc_bounded);
-applied the same mitigation to the unbounded slice, fanning the legacy
-`bench_unbounded` binary out into four per-family binaries
-(bench_unbounded_spsc + bench_unbounded_spmc +
-bench_unbounded_mpsc + bench_unbounded_mpmc) so each unbounded
-family no longer shares a release binary (cross-family iCache contention
-reproduced -17% to -34% throughput regressions on unbounded_mpmc/2p2c,
-unbounded_mpsc/2p1c, and unbounded_mpsc/4p1c in 3.3.9 retry #4).
-This runner builds + runs all nine binaries in sequence and merges the
-BMF fragments via `merge_bmf.py` so callers keep getting one combined
-JSON file.
+Orchestrates multi-language benchmark compilation and execution across
+Nim, C++, and Rust.
+
+Topology-split binaries:
+- bench_spsc
+- bench_mpsc
+- bench_mpmc_bounded
+- bench_spmc_bounded
+- bench_unbounded_spsc
+- bench_unbounded_spmc
+- bench_unbounded_mpsc
+- bench_unbounded_mpmc
+- bench_latency
+
+Each binary is compiled with relevant C++ and Rust comparison adapters enabled,
+executed independently, and merged into a single Bencher Metric Format (BMF) JSON
+document via `merge_bmf.py`.
 """
+
+from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import subprocess
 import sys
 from datetime import datetime
 from pathlib import Path
 
-BENCHMARK_DIR = Path(__file__).parent
+BENCHMARK_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = BENCHMARK_DIR.parent
 RESULTS_DIR = BENCHMARK_DIR / "results"
 
-# topology-split
-# binaries with the MPMC slice further split per family AND the
-# unbounded slice fanned out into four per-family binaries. Each is
-# built and run separately; merge_bmf.py unions the fragments before
-# downstream consumers see a single JSON.
 NIM_BINARIES = (
     "bench_spsc",
     "bench_mpsc",
@@ -46,38 +47,156 @@ NIM_BINARIES = (
 )
 
 
-def build_nim():
-    """Build all Nim topology-split benchmark binaries.
+def find_nimble_pkgs() -> tuple[list[str], dict[str, bool]]:
+    """Detect available packages in ~/.nimble/pkgs2."""
+    home = Path.home()
+    pkgs2 = home / ".nimble" / "pkgs2"
+    paths: list[str] = []
+    available: dict[str, bool] = {}
+    if pkgs2.exists():
+        for d in pkgs2.iterdir():
+            if not d.is_dir():
+                continue
+            name = d.name.lower()
+            if name.startswith("threading-"):
+                paths.append(str(d))
+                available["threading"] = True
+            elif name.startswith("loony-"):
+                paths.append(str(d))
+                available["loony"] = True
+            elif name.startswith("arc-"):
+                paths.append(str(d))
+                available["arc"] = True
+    return paths, available
 
-    Uses default {.intdefine.} run shapes (1M messages * 33 runs for
-    bounded throughput, 500K * 3 for unbounded, 100K * 33 for latency).
-    For tighter wall-clock budgets pass `-d:` overrides to nim
-    directly; the runner does not surface those through its CLI.
-    """
-    print("Building Nim topology-split benchmarks...")
+
+def build_rust() -> bool:
+    """Build the Rust bench-ffi-crossbeam crate if cargo is present."""
+    rust_dir = BENCHMARK_DIR / "rust" / "bench-ffi-crossbeam"
+    if not rust_dir.exists():
+        return False
+    cargo = shutil.which("cargo")
+    if not cargo:
+        print("cargo not found; skipping Rust adapter build.")
+        return False
+
+    print("Building Rust bench-ffi-crossbeam crate...")
+    subprocess.run(["cargo", "build", "--release"], cwd=rust_dir, check=True)
+    return True
+
+
+def has_rust_lib() -> bool:
+    """Check if the compiled Rust shared library exists."""
+    rust_target = BENCHMARK_DIR / "rust" / "bench-ffi-crossbeam" / "target" / "release"
+    for name in ("libbench_ffi_crossbeam.dylib", "libbench_ffi_crossbeam.so", "bench_ffi_crossbeam.dll"):
+        if (rust_target / name).exists():
+            return True
+    return False
+
+
+def build_nim(quick: bool = False):
+    """Build all Nim topology-split benchmark binaries with comparison adapters."""
+    # Ensure rust crate is built if possible
+    build_rust()
+
+    rust_available = has_rust_lib()
+    rust_target = BENCHMARK_DIR / "rust" / "bench-ffi-crossbeam" / "target" / "release"
+    nimble_paths, nimble_pkgs = find_nimble_pkgs()
+
+    vendor_dir = BENCHMARK_DIR / "vendor"
+    has_atomic_queue = (vendor_dir / "atomic_queue" / "atomic_queue.h").exists()
+    has_rigtorp_spsc = (vendor_dir / "rigtorp" / "SPSCQueue.h").exists()
+    has_rigtorp_mpmc = (vendor_dir / "rigtorp" / "MPMCQueue.h").exists()
+    has_moodycamel = (vendor_dir / "concurrentqueue" / "concurrentqueue.h").exists()
+
+    print("Building Nim topology-split benchmarks with multi-language adapters...")
+    print(f"  Adapters: Rust={rust_available}, atomic_queue={has_atomic_queue}, rigtorp={has_rigtorp_mpmc}, moodycamel={has_moodycamel}, loony={nimble_pkgs.get('loony', False)}, threading={nimble_pkgs.get('threading', False)}")
+
     for bin_name in NIM_BINARIES:
         src = BENCHMARK_DIR / "nim" / f"{bin_name}.nim"
+        cmd = ["nim", "cpp", "-d:release", "-d:danger", "--threads:on"]
+
+        for p in nimble_paths:
+            cmd.append(f"--path:{p}")
+
+        if rust_available:
+            cmd.append(f"--passL:-L{rust_target} -lbench_ffi_crossbeam")
+
+        # Adapter defines per binary
+        if bin_name == "bench_spsc":
+            if has_atomic_queue:
+                cmd.append("-d:adapter_atomic_queue_available")
+            if has_rigtorp_spsc:
+                cmd.append("-d:adapter_rigtorp_spsc_available")
+            if rust_available:
+                cmd.append("-d:adapter_kanal_available")
+            if quick:
+                cmd.extend(["-d:BenchSpscRuns=5", "-d:BenchSpscMessageCount=200000", "-d:BenchSpscWarmup=1"])
+
+        elif bin_name == "bench_mpsc":
+            cmd.append("-d:adapter_nim_channel_available")
+            if quick:
+                cmd.extend(["-d:BenchMpscRuns=5", "-d:BenchMpscMessageCount=200000", "-d:BenchMpscWarmup=1"])
+
+        elif bin_name == "bench_mpmc_bounded":
+            if has_atomic_queue:
+                cmd.append("-d:adapter_atomic_queue_available")
+            if has_rigtorp_mpmc:
+                cmd.append("-d:adapter_rigtorp_mpmc_available")
+            if rust_available:
+                cmd.extend([
+                    "-d:adapter_crossbeam_array_queue_available",
+                    "-d:adapter_flume_available",
+                    "-d:adapter_kanal_available",
+                ])
+            if nimble_pkgs.get("threading"):
+                cmd.append("-d:adapter_threading_channels_available")
+            if quick:
+                cmd.extend(["-d:BenchMpmcRuns=5", "-d:BenchMpmcMessageCount=200000", "-d:BenchMpmcWarmup=1"])
+
+        elif bin_name == "bench_spmc_bounded":
+            if quick:
+                cmd.extend(["-d:BenchSpmcRuns=5", "-d:BenchSpmcMessageCount=200000", "-d:BenchSpmcWarmup=1"])
+
+        elif bin_name == "bench_unbounded_spsc":
+            if quick:
+                cmd.extend(["-d:UnboundedSpscRuns=3", "-d:UnboundedSpscMessageCount=100000", "-d:BenchUnboundedWarmup=1"])
+
+        elif bin_name == "bench_unbounded_spmc":
+            if quick:
+                cmd.extend(["-d:UnboundedSpmcRuns=3", "-d:UnboundedSpmcMessageCount=100000"])
+
+        elif bin_name == "bench_unbounded_mpsc":
+            if quick:
+                cmd.extend(["-d:UnboundedMpscRuns=3", "-d:UnboundedMpscMessageCount=100000"])
+
+        elif bin_name == "bench_unbounded_mpmc":
+            if has_moodycamel:
+                cmd.append("-d:adapter_moodycamel_available")
+            if nimble_pkgs.get("loony") and nimble_pkgs.get("arc"):
+                cmd.append("-d:adapter_loony_available")
+            if rust_available:
+                cmd.extend([
+                    "-d:adapter_crossbeam_seg_queue_available",
+                    "-d:adapter_flume_available",
+                    "-d:adapter_kanal_available",
+                ])
+            if quick:
+                cmd.extend(["-d:UnboundedMpmcRuns=2", "-d:UnboundedMpmcMessageCount=50000"])
+
+        elif bin_name == "bench_latency":
+            if quick:
+                cmd.extend(["-d:BenchLatencyRuns=5", "-d:BenchLatencyIterations=50000"])
+
+        cmd.append(str(src))
         print(f"  -> {bin_name}")
-        # Match the CI compile shape in `.github/workflows/bench.yml`
-        # (`-d:release -d:danger`). `-d:danger` strips runtime checks
-        # the queue hot path treats as cold-path overhead in production
-        # benches; without it, locally produced numbers are not
-        # comparable to the cloud baseline.
-        subprocess.run(
-            ["nim", "c", "-d:release", "-d:danger", "--threads:on", str(src)],
-            check=True,
-        )
-    print("Nim benchmarks built.")
+        subprocess.run(cmd, check=True)
+
+    print("All benchmark binaries built.")
 
 
 def run_nim(runs: int, output_file: Path):
-    """Run every Nim topology-split binary and merge their BMF outputs.
-
-    The `runs` argument is honored at compile time (via per-binary
-    `-d:Bench<Topo>Runs=<n>` overrides) — kept as a no-op runtime arg
-    for CLI back-compat. Use `python3 benchmarks/runner.py build` with
-    explicit `nim c -d:` flags ahead of `run` to set the run count.
-    """
+    """Run every Nim topology-split binary and merge their BMF outputs."""
     print(f"Running Nim topology-split benchmarks ({runs} runs)...")
     fragments: list[Path] = []
     try:
@@ -90,9 +209,7 @@ def run_nim(runs: int, output_file: Path):
                 check=True,
             )
             fragments.append(out)
-        # Merge the per-binary BMF fragments into the requested output
-        # file via merge_bmf.py. Unions per-slug measure dicts and exits
-        # 1 on (slug, measure) collisions.
+
         print(f"Merging {len(fragments)} fragments -> {output_file}")
         subprocess.run(
             [
@@ -105,51 +222,50 @@ def run_nim(runs: int, output_file: Path):
         )
         print(f"Combined results written to {output_file}")
     finally:
-        # The merged file at output_file is the canonical artifact; the
-        # per-binary fragments are intermediate. Drop them so RESULTS_DIR
-        # doesn't accumulate one set per invocation. `finally` so a
-        # bench-binary failure or a merge collision still cleans up
-        # whatever fragments were produced.
         for f in fragments:
             f.unlink(missing_ok=True)
 
 
 def build(args):
     """Build benchmark binaries."""
-    if args.language in ("nim", "all"):
-        build_nim()
+    build_nim(quick=getattr(args, "quick", False))
 
 
 def run(args):
     """Run benchmarks."""
     RESULTS_DIR.mkdir(exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    output_file = RESULTS_DIR / f"nim-{timestamp}.json"
 
-    if args.language in ("nim", "all"):
-        output_file = RESULTS_DIR / f"nim-{timestamp}.json"
-        run_nim(args.runs, output_file)
+    # Always ensure binaries are built if missing
+    first_bin = PROJECT_ROOT / ".tmp" / NIM_BINARIES[0]
+    if not first_bin.exists():
+        build_nim(quick=getattr(args, "quick", False))
 
-        if args.output:
-            # Copy to specified output file.
-            with open(output_file) as f:
-                data = json.load(f)
-            with open(args.output, "w") as f:
-                json.dump(data, f, indent=2)
-            print(f"Combined results written to {args.output}")
+    run_nim(args.runs, output_file)
+
+    if args.output:
+        dest = Path(args.output)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        with open(output_file, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        with open(dest, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
+        print(f"Combined results written to {dest}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Benchmark runner for lockfreequeues")
+    parser = argparse.ArgumentParser(description="Benchmark runner for lockfree")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # Build command
     build_parser = subparsers.add_parser("build", help="Build benchmark binaries")
-    build_parser.add_argument("--language", default="all", choices=["nim", "cpp", "rust", "java", "all"])
+    build_parser.add_argument("--language", default="all", choices=["nim", "cpp", "rust", "all"])
+    build_parser.add_argument("--quick", action="store_true", help="Compile with smaller test sizes for rapid validation")
 
-    # Run command
     run_parser = subparsers.add_parser("run", help="Run benchmarks")
-    run_parser.add_argument("--language", default="all", choices=["nim", "cpp", "rust", "java", "all"])
+    run_parser.add_argument("--language", default="all", choices=["nim", "cpp", "rust", "all"])
     run_parser.add_argument("--runs", type=int, default=33, help="Number of benchmark runs")
+    run_parser.add_argument("--quick", action="store_true", help="Run with quick test parameters")
     run_parser.add_argument("--output", "-o", help="Output file for combined results")
 
     args = parser.parse_args()
