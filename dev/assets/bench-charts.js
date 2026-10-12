@@ -69,6 +69,12 @@
     // with another adapter. Same library, same blocking-on-full
     // semantics — keep the color in sync with `nim_channel`.
     nim_channels:                    '#546e7a',
+    atomic_queue:                    '#2e7d32',
+    rigtorp_mpmc:                    '#1565c0',
+    rigtorp_spsc:                    '#0277bd',
+    flume:                           '#d84315',
+    kanal:                           '#c2185b',
+    liblfds:                         '#455a64',
   });
   // CONTRACT-TEST-PARSED-END LIBRARY_COLORS
 
@@ -169,15 +175,15 @@
   // a real source target produces a broken link.
   const BENCH_SOURCE_URLS = Object.freeze({
     'bench-throughput-spsc':
-      'https://github.com/elijahr/lockfreequeues/blob/devel/benchmarks/nim/bench_bounded.nim',
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_spsc.nim',
     'bench-throughput-mpsc':
-      'https://github.com/elijahr/lockfreequeues/blob/devel/benchmarks/nim/bench_bounded.nim',
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_mpsc.nim',
     'bench-throughput-mpmc-bounded':
-      'https://github.com/elijahr/lockfreequeues/blob/devel/benchmarks/nim/bench_bounded.nim',
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_mpmc_bounded.nim',
     'bench-throughput-mpmc-unbounded':
-      'https://github.com/elijahr/lockfreequeues/blob/devel/benchmarks/nim/bench_unbounded_mpmc.nim',
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_unbounded_mpmc.nim',
     'bench-latency':
-      'https://github.com/elijahr/lockfreequeues/blob/devel/benchmarks/nim/bench_latency.nim',
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_latency.nim',
   });
 
   // Build the small "↗ source" anchor next to a panel heading. Uses
@@ -1080,39 +1086,57 @@
   // ── module: fallback chain ──────────────────────────────────────────
 
   async function loadBMF() {
-    try {
-      const resp = await fetch(SNAPSHOT_URL, { cache: 'no-cache' });
-      if (resp.ok) {
-        const data = await resp.json();
-        if (data && data._status === 'fallback') {
-          const cause = data._reason
-            || (data._merge_outcome
-                ? 'merge_bmf outcome=' + data._merge_outcome
-                : 'snapshot pipeline produced fallback');
-          return await tryFixture(cause);
+    const candidates = [
+      '../../../assets/bench-results/latest.json',
+      '../../assets/bench-results/latest.json',
+      '../assets/bench-results/latest.json',
+      'assets/bench-results/latest.json'
+    ];
+    let lastErr = null;
+    for (const url of candidates) {
+      try {
+        const resp = await fetch(url, { cache: 'no-cache' });
+        if (resp.ok) {
+          const data = await resp.json();
+          if (data && data._status === 'fallback') {
+            const cause = data._reason
+              || (data._merge_outcome
+                  ? 'merge_bmf outcome=' + data._merge_outcome
+                  : 'snapshot pipeline produced fallback');
+            return await tryFixture(cause);
+          }
+          return { data, status: 'live', reason: null };
         }
-        return { data, status: 'live', reason: null };
+      } catch (err) {
+        lastErr = err;
       }
-      return await tryFixture('latest.json HTTP ' + resp.status);
-    } catch (err) {
-      return await tryFixture('latest.json fetch failed: ' +
-        (err && err.message ? err.message : err));
     }
+    return await tryFixture('latest.json fetch failed: ' +
+      (lastErr && lastErr.message ? lastErr.message : 'no response'));
   }
 
   async function tryFixture(reason) {
-    try {
-      const resp = await fetch(FIXTURE_URL, { cache: 'no-cache' });
-      if (!resp.ok) throw new Error('example.json HTTP ' + resp.status);
-      const data = await resp.json();
-      return { data, status: 'fixture', reason };
-    } catch (err) {
-      return {
-        data: null, status: 'error',
-        reason: reason + '; example.json also unavailable: ' +
-          (err && err.message ? err.message : err),
-      };
+    const candidates = [
+      '../../../assets/bench-results/example.json',
+      '../../assets/bench-results/example.json',
+      '../assets/bench-results/example.json',
+      'assets/bench-results/example.json'
+    ];
+    for (const url of candidates) {
+      try {
+        const resp = await fetch(url, { cache: 'no-cache' });
+        if (resp.ok) {
+          const data = await resp.json();
+          return { data, status: 'fixture', reason };
+        }
+      } catch (err) {
+        // try next candidate
+      }
     }
+    return {
+      data: null, status: 'error',
+      reason: reason + '; example.json also unavailable',
+    };
   }
 
   function renderStatusBanner(host, status, reason) {
@@ -1343,7 +1367,7 @@
           recTitle = 'newUnboundedSpscQueue[T]()';
           recDesc = 'Wait-free single-producer single-consumer with dynamically linked segments. Never blocks on full.';
           progress = 'Wait-Free Push / Pop';
-          memory = 'Segmented linked lists (DEBRA epoch reclamation)';
+          memory = 'Segmented linked lists';
           speedup = '~3x–4x vs channel';
           contention = 'Zero contention (1P:1C)';
         }
@@ -1357,9 +1381,9 @@
           contention = pCount + 'P competing on head index';
         } else {
           recTitle = 'newUnboundedMpscQueue[T]()';
-          recDesc = 'Dynamic multi-producer single-consumer queue. Reclaims retired segment nodes safely via NEBR/DEBRA.';
+          recDesc = 'Dynamic multi-producer single-consumer queue. Reclaims retired segment nodes safely via NEBR.';
           progress = 'Lock-Free Push / Pop';
-          memory = 'Segmented linked chunks';
+          memory = 'Segmented linked chunks (NEBR)';
           speedup = '1.5x–2.5x vs channel';
           contention = pCount + 'P competing on head';
         }
@@ -1389,16 +1413,16 @@
           contention = pCount + 'P / ' + cCount + 'C full concurrent contention';
         } else {
           recTitle = 'newUnboundedMpmcQueue[T]()';
-          recDesc = 'Strict LCRQ (Linked Concurrent Ring Queue) with DEBRA epoch reclamation. High-throughput unbounded MPMC that never blocks on full.';
+          recDesc = 'Strict LCRQ (Linked Concurrent Ring Queue) with NEBR epoch reclamation. High-throughput unbounded MPMC that never blocks on full.';
           progress = 'Lock-Free (Strict LCRQ)';
-          memory = 'Ring buffer segments in linked list + epoch tracker';
+          memory = 'Ring buffer segments in linked list + NEBR manager';
           speedup = '5.0x–6.5x vs system/Channel';
           contention = pCount + 'P / ' + cCount + 'C double-word CAS contention';
         }
       }
 
       card.appendChild(el('span', { class: 'bench-rec-badge' }, recBadge));
-      card.appendChild(el('h5', { class: 'bench-rec-title' }, recTitle));
+      card.appendChild(el('div', { class: 'bench-rec-title' }, el('code', null, recTitle)));
       card.appendChild(el('p', { class: 'bench-rec-desc' }, recDesc));
 
       const specs = el('div', { class: 'bench-rec-specs' },

@@ -5,10 +5,6 @@
          <lastmod>2026-10-12</lastmod>
     </url>
     <url>
-         <loc>https://elijahr.github.io/lockfree/latest/benchmarks/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
          <loc>https://elijahr.github.io/lockfree/latest/contributing/</loc>
          <lastmod>2026-10-12</lastmod>
     </url>
@@ -273,6 +269,10 @@
          <lastmod>2026-10-12</lastmod>
     </url>
     <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/queues/benchmarks/</loc>
+         <lastmod>2026-10-12</lastmod>
+    </url>
+    <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/queues/bounded-vyukov/</loc>
          <lastmod>2026-10-12</lastmod>
     </url>
@@ -294,78 +294,6 @@
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guides/user_guide/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/MIGRATION_v0.8.0/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/PROVENANCE/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/api/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/contributing/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/safety-model/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/design/2026-04-25-batched-retire-reclaim/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/design/2026-04-25-custom-atomics/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/atomics/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/concepts/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/epoch-advancement/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/getting-started/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/integration/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/neutralization/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/pin-unpin/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/reclamation/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/retiring-objects/</loc>
-         <lastmod>2026-10-12</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/thread-registration/</loc>
          <lastmod>2026-10-12</lastmod>
     </url>
     <url>

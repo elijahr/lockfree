@@ -344,6 +344,16 @@
   font-weight: 700;
   margin: 0;
   font-family: var(--md-code-font, monospace);
+  text-transform: none !important;
+}
+
+.bench-rec-title code {
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  text-transform: none !important;
+  background: transparent;
+  padding: 0;
 }
 
 .bench-rec-desc {

@@ -7,31 +7,31 @@
       
       
       
-        <link rel="canonical" href="https://elijahr.github.io/lockfree/latest/legacy/nim-debra/guide/retiring-objects/">
+        <link rel="canonical" href="https://elijahr.github.io/lockfree/latest/guide/queues/benchmarks/">
       
       
-        <link rel="prev" href="../pin-unpin/">
+        <link rel="prev" href="../legacy/">
       
       
-        <link rel="next" href="../reclamation/">
+        <link rel="next" href="../../channels/">
       
       
         
       
       
-      <link rel="icon" href="../../../../assets/images/favicon.png">
+      <link rel="icon" href="../../../assets/images/favicon.png">
       <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
-        <title>Retiring objects - lockfree</title>
+        <title>Benchmarks - lockfree</title>
       
     
     
-      <link rel="stylesheet" href="../../../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
-        <link rel="stylesheet" href="../../../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
       
       
 
@@ -50,21 +50,21 @@
       
     
     
-      <link rel="stylesheet" href="../../../../assets/_mkdocstrings.css">
+      <link rel="stylesheet" href="../../../assets/_mkdocstrings.css">
     
-      <link rel="stylesheet" href="../../../../css/timeago.css">
+      <link rel="stylesheet" href="../../../css/timeago.css">
     
-      <link rel="stylesheet" href="../../../../css/custom.css">
+      <link rel="stylesheet" href="../../../css/custom.css">
     
-      <link rel="stylesheet" href="../../../../assets/bench-charts.css">
+      <link rel="stylesheet" href="../../../assets/bench-charts.css">
     
-    <script>__md_scope=new URL("../../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    <script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
     
       
 
     
     
-  <link href="../../../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
+  <link href="../../../assets/stylesheets/glightbox.min.css" rel="stylesheet"><script src="../../../assets/javascripts/glightbox.min.js"></script><style id="glightbox-style">
             html.glightbox-open { overflow: initial; height: 100%; }
             .gslide-title { margin-top: 0px; user-select: text; }
             .gslide-desc { color: #666; user-select: text; }
@@ -93,7 +93,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#retiring-objects" class="md-skip">
+        <a href="#queue-engine-benchmarks-throughput-latency-contention" class="md-skip">
           Skip to content
         </a>
       
@@ -113,7 +113,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="../../../.." title="lockfree" class="md-header__button md-logo" aria-label="lockfree" data-md-component="logo">
+    <a href="../../.." title="lockfree" class="md-header__button md-logo" aria-label="lockfree" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -133,7 +133,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Retiring objects
+              Benchmarks
             
           </span>
         </div>
@@ -249,7 +249,7 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="../../../.." title="lockfree" class="md-nav__button md-logo" aria-label="lockfree" data-md-component="logo">
+    <a href="../../.." title="lockfree" class="md-nav__button md-logo" aria-label="lockfree" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
@@ -279,7 +279,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../.." class="md-nav__link">
+      <a href="../../.." class="md-nav__link">
         
   
   
@@ -306,7 +306,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guides/user_guide/" class="md-nav__link">
+      <a href="../../../guides/user_guide/" class="md-nav__link">
         
   
   
@@ -330,8 +330,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -342,13 +344,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked="">
         
           
           <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
@@ -369,7 +369,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -387,7 +387,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/" class="md-nav__link">
+      <a href="../../" class="md-nav__link">
         
   
   
@@ -415,7 +415,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/getting-started/" class="md-nav__link">
+      <a href="../../getting-started/" class="md-nav__link">
         
   
   
@@ -494,7 +494,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/concepts/lock-freedom/" class="md-nav__link">
+      <a href="../../concepts/lock-freedom/" class="md-nav__link">
         
   
   
@@ -522,7 +522,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/concepts/smr/" class="md-nav__link">
+      <a href="../../concepts/smr/" class="md-nav__link">
         
   
   
@@ -550,7 +550,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/concepts/memory-management/" class="md-nav__link">
+      <a href="../../concepts/memory-management/" class="md-nav__link">
         
   
   
@@ -583,6 +583,8 @@
                 
   
   
+    
+  
   
   
     
@@ -592,13 +594,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4">
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_4" checked="">
         
           
           <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
@@ -619,7 +619,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3_4">
             <span class="md-nav__icon md-icon"></span>
             
@@ -637,7 +637,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/queues/" class="md-nav__link">
+      <a href="../" class="md-nav__link">
         
   
   
@@ -665,7 +665,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/queues/bounded-vyukov/" class="md-nav__link">
+      <a href="../bounded-vyukov/" class="md-nav__link">
         
   
   
@@ -693,7 +693,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/queues/strict-lcrq-mpmc/" class="md-nav__link">
+      <a href="../strict-lcrq-mpmc/" class="md-nav__link">
         
   
   
@@ -721,7 +721,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/queues/legacy/" class="md-nav__link">
+      <a href="../legacy/" class="md-nav__link">
         
   
   
@@ -737,6 +737,281 @@
   
 
       </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#how-to-read-these-numbers" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How to read these numbers
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#when-to-pick-lockfree" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        When to pick lockfree
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#methodology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methodology
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Methodology">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#throughput-benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Throughput Benchmark
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#latency-benchmark" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Latency Benchmark
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#running-benchmarks" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running Benchmarks
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#queue-types-compared" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Queue Types Compared
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Queue Types Compared">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lockfree-variants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        lockfree variants
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross-library-comparison-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-library comparison set
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#live-charts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Live charts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Live charts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#headline-lockfree-vs-alternatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Headline: lockfree vs alternatives
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#throughput-by-topology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Throughput by topology
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#latency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Latency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interactive-workload-estimator-queue-recommender" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interactive Workload Estimator &amp; Queue Recommender
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#methodology-and-fairness-caveats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methodology and fairness caveats
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
     </li>
   
 
@@ -808,7 +1083,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/channels/" class="md-nav__link">
+      <a href="../../channels/" class="md-nav__link">
         
   
   
@@ -836,7 +1111,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../designs/design_rendezvous_channel/" class="md-nav__link">
+      <a href="../../../designs/design_rendezvous_channel/" class="md-nav__link">
         
   
   
@@ -864,7 +1139,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../designs/design_async_bridge/" class="md-nav__link">
+      <a href="../../../designs/design_async_bridge/" class="md-nav__link">
         
   
   
@@ -951,7 +1226,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/maps-sets/" class="md-nav__link">
+      <a href="../../maps-sets/" class="md-nav__link">
         
   
   
@@ -979,7 +1254,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../designs/design_ctrie/" class="md-nav__link">
+      <a href="../../../designs/design_ctrie/" class="md-nav__link">
         
   
   
@@ -1007,7 +1282,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../designs/design_atomic_associative/" class="md-nav__link">
+      <a href="../../../designs/design_atomic_associative/" class="md-nav__link">
         
   
   
@@ -1094,7 +1369,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/stacks-deques/" class="md-nav__link">
+      <a href="../../stacks-deques/" class="md-nav__link">
         
   
   
@@ -1181,7 +1456,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/broadcast/" class="md-nav__link">
+      <a href="../../broadcast/" class="md-nav__link">
         
   
   
@@ -1209,7 +1484,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../designs/design_broadcast_ring/" class="md-nav__link">
+      <a href="../../../designs/design_broadcast_ring/" class="md-nav__link">
         
   
   
@@ -1237,7 +1512,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../designs/design_rendezvous_channel/" class="md-nav__link">
+      <a href="../../../designs/design_rendezvous_channel/" class="md-nav__link">
         
   
   
@@ -1324,7 +1599,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/taskpool/" class="md-nav__link">
+      <a href="../../taskpool/" class="md-nav__link">
         
   
   
@@ -1411,7 +1686,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/ratelimit-streambuffer/" class="md-nav__link">
+      <a href="../../ratelimit-streambuffer/" class="md-nav__link">
         
   
   
@@ -1439,7 +1714,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../designs/design_ratelimit/" class="md-nav__link">
+      <a href="../../../designs/design_ratelimit/" class="md-nav__link">
         
   
   
@@ -1467,7 +1742,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../designs/design_streambuffer/" class="md-nav__link">
+      <a href="../../../designs/design_streambuffer/" class="md-nav__link">
         
   
   
@@ -1554,7 +1829,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/cabi/" class="md-nav__link">
+      <a href="../../cabi/" class="md-nav__link">
         
   
   
@@ -1582,7 +1857,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../design/2026-10-07-ergonomics-metaprogramming-c-abi/" class="md-nav__link">
+      <a href="../../../design/2026-10-07-ergonomics-metaprogramming-c-abi/" class="md-nav__link">
         
   
   
@@ -1669,7 +1944,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/smr/nebr/" class="md-nav__link">
+      <a href="../../smr/nebr/" class="md-nav__link">
         
   
   
@@ -1697,7 +1972,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guides/smr_nebr_lifecycle/" class="md-nav__link">
+      <a href="../../../guides/smr_nebr_lifecycle/" class="md-nav__link">
         
   
   
@@ -1725,7 +2000,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/atomics/" class="md-nav__link">
+      <a href="../../atomics/" class="md-nav__link">
         
   
   
@@ -1812,7 +2087,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/managed-ref/" class="md-nav__link">
+      <a href="../../managed-ref/" class="md-nav__link">
         
   
   
@@ -1840,7 +2115,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/managed-slice/" class="md-nav__link">
+      <a href="../../managed-slice/" class="md-nav__link">
         
   
   
@@ -1876,7 +2151,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/typestates/" class="md-nav__link">
+      <a href="../../typestates/" class="md-nav__link">
         
   
   
@@ -1904,7 +2179,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/nimony/" class="md-nav__link">
+      <a href="../../nimony/" class="md-nav__link">
         
   
   
@@ -1983,7 +2258,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/core-concepts/" class="md-nav__link">
+      <a href="../../core-concepts/" class="md-nav__link">
         
   
   
@@ -2011,7 +2286,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/bounded-vs-unbounded/" class="md-nav__link">
+      <a href="../../bounded-vs-unbounded/" class="md-nav__link">
         
   
   
@@ -2039,7 +2314,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/slot-ownership-typestates/" class="md-nav__link">
+      <a href="../../slot-ownership-typestates/" class="md-nav__link">
         
   
   
@@ -2067,7 +2342,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/safety-model/" class="md-nav__link">
+      <a href="../../safety-model/" class="md-nav__link">
         
   
   
@@ -2095,7 +2370,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/performance-tuning/" class="md-nav__link">
+      <a href="../../performance-tuning/" class="md-nav__link">
         
   
   
@@ -2123,7 +2398,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../guide/examples/" class="md-nav__link">
+      <a href="../../examples/" class="md-nav__link">
         
   
   
@@ -2220,7 +2495,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/" class="md-nav__link">
+      <a href="../../../api/" class="md-nav__link">
         
   
   
@@ -2248,7 +2523,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/lockfree/" class="md-nav__link">
+      <a href="../../../api/lockfree/" class="md-nav__link">
         
   
   
@@ -2327,7 +2602,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/bqueue/" class="md-nav__link">
+      <a href="../../../api/bqueue/" class="md-nav__link">
         
   
   
@@ -2355,7 +2630,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/queue/" class="md-nav__link">
+      <a href="../../../api/queue/" class="md-nav__link">
         
   
   
@@ -2442,7 +2717,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/channel/" class="md-nav__link">
+      <a href="../../../api/channel/" class="md-nav__link">
         
   
   
@@ -2470,7 +2745,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/rendezvous/" class="md-nav__link">
+      <a href="../../../api/rendezvous/" class="md-nav__link">
         
   
   
@@ -2557,7 +2832,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/ctrie/" class="md-nav__link">
+      <a href="../../../api/ctrie/" class="md-nav__link">
         
   
   
@@ -2585,7 +2860,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/skiplist/" class="md-nav__link">
+      <a href="../../../api/skiplist/" class="md-nav__link">
         
   
   
@@ -2613,7 +2888,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/set/" class="md-nav__link">
+      <a href="../../../api/set/" class="md-nav__link">
         
   
   
@@ -2700,7 +2975,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/stack/" class="md-nav__link">
+      <a href="../../../api/stack/" class="md-nav__link">
         
   
   
@@ -2728,7 +3003,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/deque/" class="md-nav__link">
+      <a href="../../../api/deque/" class="md-nav__link">
         
   
   
@@ -2815,7 +3090,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/broadcast/" class="md-nav__link">
+      <a href="../../../api/broadcast/" class="md-nav__link">
         
   
   
@@ -2843,7 +3118,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/rendezvous/" class="md-nav__link">
+      <a href="../../../api/rendezvous/" class="md-nav__link">
         
   
   
@@ -2879,7 +3154,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/taskpool/" class="md-nav__link">
+      <a href="../../../api/taskpool/" class="md-nav__link">
         
   
   
@@ -2958,7 +3233,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/ratelimit/" class="md-nav__link">
+      <a href="../../../api/ratelimit/" class="md-nav__link">
         
   
   
@@ -2986,7 +3261,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/streambuffer/" class="md-nav__link">
+      <a href="../../../api/streambuffer/" class="md-nav__link">
         
   
   
@@ -3022,7 +3297,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/cabi/" class="md-nav__link">
+      <a href="../../../api/cabi/" class="md-nav__link">
         
   
   
@@ -3101,7 +3376,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/smr/nebr/" class="md-nav__link">
+      <a href="../../../api/smr/nebr/" class="md-nav__link">
         
   
   
@@ -3129,7 +3404,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/atomics/" class="md-nav__link">
+      <a href="../../../api/atomics/" class="md-nav__link">
         
   
   
@@ -3216,7 +3491,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/managed_ref/" class="md-nav__link">
+      <a href="../../../api/managed_ref/" class="md-nav__link">
         
   
   
@@ -3244,7 +3519,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/managed_slice/" class="md-nav__link">
+      <a href="../../../api/managed_slice/" class="md-nav__link">
         
   
   
@@ -3272,7 +3547,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/chronos/" class="md-nav__link">
+      <a href="../../../api/chronos/" class="md-nav__link">
         
   
   
@@ -3359,7 +3634,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/typestates/" class="md-nav__link">
+      <a href="../../../api/typestates/" class="md-nav__link">
         
   
   
@@ -3387,7 +3662,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/typestates/with_bound/" class="md-nav__link">
+      <a href="../../../api/typestates/with_bound/" class="md-nav__link">
         
   
   
@@ -3415,7 +3690,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/typestates/slot_state/" class="md-nav__link">
+      <a href="../../../api/typestates/slot_state/" class="md-nav__link">
         
   
   
@@ -3443,7 +3718,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/typestates/segment_state/" class="md-nav__link">
+      <a href="../../../api/typestates/segment_state/" class="md-nav__link">
         
   
   
@@ -3479,7 +3754,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/compat/" class="md-nav__link">
+      <a href="../../../api/compat/" class="md-nav__link">
         
   
   
@@ -3558,7 +3833,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/internal/slot_encoding/" class="md-nav__link">
+      <a href="../../../api/internal/slot_encoding/" class="md-nav__link">
         
   
   
@@ -3586,7 +3861,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/internal/path_c_admit/" class="md-nav__link">
+      <a href="../../../api/internal/path_c_admit/" class="md-nav__link">
         
   
   
@@ -3614,7 +3889,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../api/internal/path_c_wrap/" class="md-nav__link">
+      <a href="../../../api/internal/path_c_wrap/" class="md-nav__link">
         
   
   
@@ -3711,7 +3986,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../examples/" class="md-nav__link">
+      <a href="../../../examples/" class="md-nav__link">
         
   
   
@@ -3800,7 +4075,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../migration/" class="md-nav__link">
+      <a href="../../../migration/" class="md-nav__link">
         
   
   
@@ -3828,7 +4103,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../transition_plan/" class="md-nav__link">
+      <a href="../../../transition_plan/" class="md-nav__link">
         
   
   
@@ -3856,7 +4131,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../migrations/from-lockfreequeues-v5/" class="md-nav__link">
+      <a href="../../../migrations/from-lockfreequeues-v5/" class="md-nav__link">
         
   
   
@@ -3884,7 +4159,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../../../migrations/from-nim-debra/" class="md-nav__link">
+      <a href="../../../migrations/from-nim-debra/" class="md-nav__link">
         
   
   
@@ -3916,975 +4191,10 @@
       
   
   
-    
-  
-  
-  
-    
-    
-    
-    
-      
-        
-        
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" checked="">
-        
-          
-          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Legacy
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_7">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Legacy
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix="">
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    
-    
-    
-    
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_1" checked="">
-        
-          
-          <label class="md-nav__link" for="__nav_7_1" id="__nav_7_1_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    nim-debra docs
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_7_1_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_7_1">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    nim-debra docs
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix="">
-            
-              
-                
-  
-  
   
   
     <li class="md-nav__item">
-      <a href="../../PROVENANCE/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Provenance
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Index
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../api/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    API
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../safety-model/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Safety model
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../contributing/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Contributing
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../MIGRATION_v0.8.0/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Migration (v0.8.0)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    
-    
-    
-    
-      
-    
-    
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
-      
-        
-        
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7_1_7" checked="">
-        
-          
-          <label class="md-nav__link" for="__nav_7_1_7" id="__nav_7_1_7_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Guide
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_1_7_label" aria-expanded="true">
-          <label class="md-nav__title" for="__nav_7_1_7">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Guide
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix="">
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../getting-started/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Getting started
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../concepts/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Concepts
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../atomics/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Atomics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../thread-registration/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Thread registration
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../pin-unpin/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Pin / unpin
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Retiring objects
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Retiring objects
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
-      
-        <li class="md-nav__item">
-  <a href="#state-machine" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        State Machine
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Overview
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-retire-api" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        The retire API
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#bridging-ref-t-with-retain-and-releasedestructor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Bridging ref T with retain and releaseDestructor
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#self-referential-types" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Self-Referential Types
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#basic-retirement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Basic Retirement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#multiple-object-retirement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Multiple Object Retirement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#limbo-bags" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Limbo Bags
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#retirement-timing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Retirement Timing
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#best-practices" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Best Practices
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Best Practices">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#do-retire-objects-that" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Do Retire Objects That:
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#dont-retire-objects-that" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Don't Retire Objects That:
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Next Steps
-      
-    </span>
-  </a>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../reclamation/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Reclamation
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../epoch-advancement/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Epoch advancement
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../neutralization/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Neutralization
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../integration/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Integration
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-    
-    
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_7_1_8">
-        
-          
-          <label class="md-nav__link" for="__nav_7_1_8" id="__nav_7_1_8_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Design
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="3" aria-labelledby="__nav_7_1_8_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_7_1_8">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Design
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix="">
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../design/2026-04-25-batched-retire-reclaim/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Batched retire/reclaim
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../design/2026-04-25-custom-atomics/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Custom atomics
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../benchmarks/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Benchmarks
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-    
-      
-      
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../../../contributing/" class="md-nav__link">
+      <a href="../../../contributing/" class="md-nav__link">
         
   
   
@@ -4931,10 +4241,10 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#state-machine" class="md-nav__link">
+  <a href="#how-to-read-these-numbers" class="md-nav__link">
     <span class="md-ellipsis">
       
-        State Machine
+        How to read these numbers
       
     </span>
   </a>
@@ -4942,10 +4252,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#overview" class="md-nav__link">
+  <a href="#when-to-pick-lockfree" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Overview
+        When to pick lockfree
       
     </span>
   </a>
@@ -4953,99 +4263,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-retire-api" class="md-nav__link">
+  <a href="#methodology" class="md-nav__link">
     <span class="md-ellipsis">
       
-        The retire API
+        Methodology
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#bridging-ref-t-with-retain-and-releasedestructor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Bridging ref T with retain and releaseDestructor
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#self-referential-types" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Self-Referential Types
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#basic-retirement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Basic Retirement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#multiple-object-retirement" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Multiple Object Retirement
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#limbo-bags" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Limbo Bags
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#retirement-timing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Retirement Timing
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#best-practices" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Best Practices
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Best Practices">
+    <nav class="md-nav" aria-label="Methodology">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#do-retire-objects-that" class="md-nav__link">
+  <a href="#throughput-benchmark" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Do Retire Objects That:
+        Throughput Benchmark
       
     </span>
   </a>
@@ -5053,10 +4286,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#dont-retire-objects-that" class="md-nav__link">
+  <a href="#latency-benchmark" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Don't Retire Objects That:
+        Latency Benchmark
       
     </span>
   </a>
@@ -5069,13 +4302,141 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#next-steps" class="md-nav__link">
+  <a href="#running-benchmarks" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Next Steps
+        Running Benchmarks
       
     </span>
   </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#queue-types-compared" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Queue Types Compared
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Queue Types Compared">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#lockfree-variants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        lockfree variants
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cross-library-comparison-set" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cross-library comparison set
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#results" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Results
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Results">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#live-charts" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Live charts
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Live charts">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#headline-lockfree-vs-alternatives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Headline: lockfree vs alternatives
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#throughput-by-topology" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Throughput by topology
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#latency" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Latency
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#interactive-workload-estimator-queue-recommender" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Interactive Workload Estimator &amp; Queue Recommender
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#methodology-and-fairness-caveats" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Methodology and fairness caveats
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -5099,122 +4460,351 @@
   
 
 
-<h1 id="retiring-objects">Retiring Objects<a class="headerlink" href="#retiring-objects" title="Permanent link">¶</a></h1>
-<p>Understanding how to retire objects for safe reclamation.</p>
-<h2 id="state-machine">State Machine<a class="headerlink" href="#state-machine" title="Permanent link">¶</a></h2>
-<p><a class="glightbox" data-type="image" data-width="auto" data-height="auto" href="../../assets/diagrams/retire.svg" data-desc-position="bottom"><img alt="Retire Typestate" src="../../assets/diagrams/retire.svg"></a></p>
-<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">¶</a></h2>
-<p>When you remove an object from a lock-free data structure, you cannot
-immediately free it: other threads might still be accessing it. Instead,
-you <strong>retire</strong> it, handing DEBRA a raw pointer plus a destructor closure.
-The destructor runs once all threads have advanced past the retiring epoch.</p>
-<h2 id="the-retire-api">The <code>retire</code> API<a class="headerlink" href="#the-retire-api" title="Permanent link">¶</a></h2>
-<p><code>retire</code> takes a type-erased pointer and a <code>Destructor</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">proc</span><span class="w"> </span><span class="nf">retire</span><span class="p">(</span><span class="n">ready</span><span class="p">:</span><span class="w"> </span><span class="n">RetireReady</span><span class="o">[</span><span class="n">N</span><span class="o">]</span><span class="p">,</span><span class="w"> </span><span class="n">p</span><span class="p">:</span><span class="w"> </span><span class="n">pointer</span><span class="p">,</span><span class="w"> </span><span class="n">dtor</span><span class="p">:</span><span class="w"> </span><span class="n">Destructor</span><span class="p">):</span><span class="w"> </span><span class="n">Retired</span><span class="o">[</span><span class="n">N</span><span class="o">]</span>
-</code></pre></div>
-<p>The destructor is a <code>proc(p: pointer) {.nimcall.}</code>. DEBRA does not interpret
-the pointer; the destructor is responsible for any cleanup (calling
-<code>dealloc</code>, <code>GC_unref</code>, custom finalizers, etc.).</p>
-<h2 id="bridging-ref-t-with-retain-and-releasedestructor">Bridging <code>ref T</code> with <code>retain</code> and <code>releaseDestructor</code><a class="headerlink" href="#bridging-ref-t-with-retain-and-releasedestructor" title="Permanent link">¶</a></h2>
-<p>Lock-free data structures usually want to store <code>Atomic[ptr T]</code> field slots
-because <code>Atomic[ref T]</code> falls back to a spinlock under arc/orc, silently
-breaking lock-freedom. The <code>debra/refptr</code> module bridges Nim's GC-managed
-<code>ref</code> types into raw pointers with explicit refcount tracking:</p>
+<h1 id="queue-engine-benchmarks-throughput-latency-contention">Queue Engine Benchmarks: Throughput, Latency &amp; Contention<a class="headerlink" href="#queue-engine-benchmarks-throughput-latency-contention" title="Permanent link">¶</a></h1>
+<p>Performance benchmarks comparing <code>lockfree</code> against alternative queue implementations in Nim, C++, and Rust.</p>
+<h2 id="how-to-read-these-numbers">How to read these numbers<a class="headerlink" href="#how-to-read-these-numbers" title="Permanent link">¶</a></h2>
+<p>The chart organises every measurement along three axes: the <strong>library</strong> (which
+queue implementation), the <strong>topology</strong> (who's allowed to push and pop), and
+the <strong>shape</strong> (how many of each are running concurrently). Each combination is
+one bar.</p>
+<p>Topology slugs name the producer/consumer cardinality: <strong>SPSC</strong> is single
+producer single consumer, <strong>SPMC</strong> is single producer with many consumers,
+<strong>MPSC</strong> is the inverse, and <strong>MPMC</strong> is many on both sides. Different
+topologies admit different algorithms — SPSC can be wait-free with no atomic
+RMW on the hot path, while MPMC needs a full Vyukov sequence-counter algorithm.
+See <a href="../../concepts/lock-freedom/">Lock-freedom Concepts</a> for the algorithmic background.</p>
+<p>Shapes use the <code>NpMc</code> form: <code>4p4c</code> means four producer threads and four
+consumer threads, all on one queue. Higher counts under the same topology
+crank up contention — <code>4p4c</code> MPMC is harder than <code>1p1c</code> MPMC because every
+slot is now contested by up to eight threads instead of two, and the
+<code>ubuntu-latest</code> runner only has 4 vCPU so <code>8p8c</code> measures scheduler
+oversubscription, not the queue itself.</p>
+<p>Bounded variants are ring buffers with compile-time capacity; unbounded
+variants are linked segments reclaimed via NEBR. The bounded/unbounded
+choice changes the cost model — bounded amortises everything in a fixed
+allocation, unbounded pays a small reclamation overhead in exchange for never
+returning a "queue full" error. The trade-off is laid out in
+<a href="../../bounded-vs-unbounded/">Bounded vs Unbounded</a>.</p>
+<p>In the legend, an asterisk (<code>*</code>) and the <code>(blocking)</code> badge mark libraries
+whose adapter blocks on a full queue instead of returning a non-blocking
+"full" signal — Nim's <code>system/Channel</code> and <code>Threading.Channels</code> work that way.
+Their bars are also rendered with a dotted edge. The throughput numbers for
+those libraries reflect blocking semantics, not the <code>try_push</code> path the
+lockfree bounded variants expose, so cross-comparisons need that
+asterisk in mind.</p>
+<h2 id="when-to-pick-lockfree">When to pick lockfree<a class="headerlink" href="#when-to-pick-lockfree" title="Permanent link">¶</a></h2>
+<p>If your bottleneck is <strong>single-producer single-consumer with a known capacity</strong>
+— an audio callback handing buffers to a render thread, a GPU command queue,
+a network read loop feeding a worker — the bounded SPSC queue
+(<code>newSpscQueue</code>) is wait-free on both sides and sustains upwards of 45,000 ops/ms
+(&gt;45M ops/sec) in release mode. There's no adapter for <code>system/Channel</code> at SPSC
+so the fixture has no head-to-head number against it, but the wait-free
+progress guarantee alone usually settles it.</p>
+<p>If your bottleneck is <strong>multi-producer multi-consumer at high contention</strong> —
+a job scheduler with dozens of producer threads, an event collector
+funneling from many sources — the bounded MPMC queue (<code>newMpmcQueue</code>) is
+the right call. At <code>4p4c</code> it sustains over 37,000 ops/ms, up to 21.9x faster than
+<code>system/Channel</code> at the same shape. The bounded MPSC queue (<code>newMpscQueue</code>) shows a similar
+gap when only the producer side fans out.</p>
+<p>When NOT to reach for lockfree:</p>
 <ul>
-<li><code>retain(obj: ref T) -&gt; ptr T</code> GC-refs the object and returns a raw
-  pointer suitable for <code>Atomic[ptr T]</code> storage.</li>
-<li><code>releaseDestructor[T]() -&gt; Destructor</code> returns a closure that
-  <code>GC_unref</code>s a <code>ptr T</code> once the epoch is safe.</li>
+<li><strong>You actually want blocking semantics.</strong> If "queue full" should park the
+  producer until the consumer drains a slot, <code>system/Channel</code> and
+  <code>Threading.Channels</code> give that for free. The lockfree bounded
+  variants return a non-blocking signal instead, and you'd need to layer a
+  semaphore or condvar on top.</li>
+<li><strong>You are passing arbitrary unmanaged ref types without an admission token.</strong>
+  Under ARC/ORC/atomicArc, transferring managed reference types across threads
+  requires explicit memory ownership semantics. <code>lockfree</code> provides
+  first-class <code>ManagedRef[T]</code> and <code>ManagedSlice[T]</code> tokens via Path-C admission
+  (<code>import lockfree/managed_ref</code>) to safely transfer heap references without
+  leaks or double-frees, or you can use value types and raw pointers (<code>ptr T</code>).</li>
+<li><strong>NEBR reclamation overhead matters more than throughput.</strong> The unbounded
+  variants pay a small per-pop bookkeeping cost for epoch advancement; on
+  workloads dominated by tiny payloads at very high pop rates the bounded
+  variants will measure higher. The fixture shows the unbounded MPMC queue
+  sustaining strong throughput, but bounded MPMC will always be faster due to
+  zero dynamic segment allocation.</li>
 </ul>
-<p>Pair every <code>retain</code> with exactly one <code>release</code> (typically by handing
-<code>releaseDestructor[T]()</code> to <code>retire</code>).</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="n">debra</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">import</span><span class="w"> </span><span class="n">debra</span><span class="o">/</span><span class="n">atomics</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="k">type</span>
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="n">NodeObj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">object</span>
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="nb">int</span>
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">    </span><span class="n">next</span><span class="p">:</span><span class="w"> </span><span class="n">Atomic</span><span class="o">[</span><span class="k">ptr</span><span class="w"> </span><span class="n">NodeObj</span><span class="o">]</span>
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">  </span><span class="n">Node</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">NodeObj</span>
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="c"># Allocate and GC-pin a node; `node` is a raw `ptr NodeObj`.</span>
-<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="k">let</span><span class="w"> </span><span class="n">node</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">retain</span><span class="w"> </span><span class="n">Node</span><span class="p">(</span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="mi">42</span><span class="p">)</span>
-<a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
-<a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c"># Later, after unlinking it from shared state:</span>
-<a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="k">let</span><span class="w"> </span><span class="n">ready</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">retireReady</span><span class="p">(</span><span class="n">pinned</span><span class="p">)</span>
-<a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="k">discard</span><span class="w"> </span><span class="n">ready</span><span class="p">.</span><span class="n">retire</span><span class="p">(</span><span class="k">cast</span><span class="o">[</span><span class="n">pointer</span><span class="o">]</span><span class="p">(</span><span class="n">node</span><span class="p">),</span><span class="w"> </span><span class="n">releaseDestructor</span><span class="o">[</span><span class="n">NodeObj</span><span class="o">]</span><span class="p">())</span>
+<h2 id="methodology">Methodology<a class="headerlink" href="#methodology" title="Permanent link">¶</a></h2>
+<h3 id="throughput-benchmark">Throughput Benchmark<a class="headerlink" href="#throughput-benchmark" title="Permanent link">¶</a></h3>
+<ul>
+<li>N producer threads and N consumer threads share one queue</li>
+<li>Each thread sends/receives 1,000,000 / N messages</li>
+<li>Measures end-to-end time, reports ops/ms</li>
+<li>33 runs with warmup for stable statistics</li>
+</ul>
+<h3 id="latency-benchmark">Latency Benchmark<a class="headerlink" href="#latency-benchmark" title="Permanent link">¶</a></h3>
+<ul>
+<li>Ping-pong between 2 threads using 2 queues</li>
+<li>Measures round-trip time (RTT) in nanoseconds</li>
+<li>100,000 iterations per run</li>
+<li>Reports percentiles: p50, p95, p99, p999</li>
+</ul>
+<h2 id="running-benchmarks">Running Benchmarks<a class="headerlink" href="#running-benchmarks" title="Permanent link">¶</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1"># Quick run (10 iterations)</span>
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>nimble<span class="w"> </span>benchmarks
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="c1"># Full benchmark suite</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>python<span class="w"> </span>benchmarks/runner.py<span class="w"> </span>run<span class="w"> </span>--runs<span class="o">=</span><span class="m">33</span>
 </code></pre></div>
-<p><code>releaseDestructor[T]()</code> returns a captureless <code>nimcall</code> function pointer:
-each <code>T</code> instantiation produces one proc address that is reused across calls,
-so handing it inline to <code>retire</code> does not allocate.</p>
-<h2 id="self-referential-types">Self-Referential Types<a class="headerlink" href="#self-referential-types" title="Permanent link">¶</a></h2>
-<p>For linked structures, use the <code>ref Obj</code> pattern with <code>Atomic[ptr NodeObj]</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">type</span>
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="n">NodeObj</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">object</span>
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">    </span><span class="n">value</span><span class="p">:</span><span class="w"> </span><span class="nb">int</span>
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="n">next</span><span class="p">:</span><span class="w"> </span><span class="n">Atomic</span><span class="o">[</span><span class="k">ptr</span><span class="w"> </span><span class="n">NodeObj</span><span class="o">]</span>
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="n">Node</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="k">ref</span><span class="w"> </span><span class="n">NodeObj</span>
-</code></pre></div>
-<p><code>ptr</code> is opaque to Nim's type checker, so the recursive shape resolves
-naturally. There is no forward-declaration dance.</p>
-<h2 id="basic-retirement">Basic Retirement<a class="headerlink" href="#basic-retirement" title="Permanent link">¶</a></h2>
-<p>You must be pinned to retire:</p>
-<div class="admonition note">
-<p class="admonition-title">Example source not mirrored</p>
-<p>The <code>examples/retire_single.nim</code> source was part of the standalone
-<code>nim-debra</code> repo and is not included in this frozen mirror. View it at
-the upstream link below, or see the live
-<a href="../../../../guide/smr/nebr/">SMR guide</a> for the current <code>lockfree/smr/nebr</code> API.</p>
+<h2 id="queue-types-compared">Queue Types Compared<a class="headerlink" href="#queue-types-compared" title="Permanent link">¶</a></h2>
+<h3 id="lockfree-variants">lockfree variants<a class="headerlink" href="#lockfree-variants" title="Permanent link">¶</a></h3>
+<p>The in-tree queues are driven directly from the unified <code>BQueue</code> (bounded)
+and <code>Queue</code> (unbounded) generics. Each topology is benchmarked from the
+matching family-named smart constructor.</p>
+<table>
+<thead>
+<tr>
+<th>Slug family</th>
+<th>Topology</th>
+<th>Constructor</th>
+<th>Kind</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>lockfree_spsc</code></td>
+<td>SPSC</td>
+<td><code>newSpscQueue</code></td>
+<td>bounded</td>
+</tr>
+<tr>
+<td><code>lockfree_spmc</code></td>
+<td>SPMC (MPMC slug grid)</td>
+<td><code>newSpmcQueue</code></td>
+<td>bounded</td>
+</tr>
+<tr>
+<td><code>lockfree_mpsc</code></td>
+<td>MPSC</td>
+<td><code>newMpscQueue</code></td>
+<td>bounded</td>
+</tr>
+<tr>
+<td><code>lockfree_mpmc</code></td>
+<td>MPMC</td>
+<td><code>newMpmcQueue</code></td>
+<td>bounded</td>
+</tr>
+<tr>
+<td><code>lockfree_unbounded_spsc</code></td>
+<td>SPSC</td>
+<td><code>newUnboundedSpscQueue</code></td>
+<td>unbounded</td>
+</tr>
+<tr>
+<td><code>lockfree_unbounded_spmc</code></td>
+<td>SPMC</td>
+<td><code>newUnboundedSpmcQueue</code></td>
+<td>unbounded</td>
+</tr>
+<tr>
+<td><code>lockfree_unbounded_mpsc</code></td>
+<td>MPSC</td>
+<td><code>newUnboundedMpscQueue</code></td>
+<td>unbounded</td>
+</tr>
+<tr>
+<td><code>lockfree_unbounded_mpmc</code></td>
+<td>MPMC</td>
+<td><code>newUnboundedMpmcQueue</code></td>
+<td>unbounded</td>
+</tr>
+</tbody>
+</table>
+<p>A <code>lockfree_queue_bounded_*</code> parity slug is emitted alongside each
+bounded family — it drives the same <code>BQueue</code> generic and exists only to
+guard the unification against per-shape throughput regressions.</p>
+<h3 id="cross-library-comparison-set">Cross-library comparison set<a class="headerlink" href="#cross-library-comparison-set" title="Permanent link">¶</a></h3>
+<p>The comparison adapters (<code>benchmarks/nim/adapters/</code>) plot third-party
+queues alongside the in-tree families in the same BMF snapshot consumed
+by the charts on this page. All adapters are gated behind
+<code>-d:adapter_&lt;library_slug&gt;_available</code>; absent gates produce no symbol
+references and the production builds are unchanged. The set below was
+expanded for the v5.0.0 benchmark suite so every topology has multiple
+distinct external libraries.</p>
+<table>
+<thead>
+<tr>
+<th>Library</th>
+<th>Lang</th>
+<th>Variant(s) benchmarked</th>
+<th>Topologies covered</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>MoodyCamel</td>
+<td>C++</td>
+<td><code>ConcurrentQueue</code></td>
+<td>unbounded MPMC</td>
+</tr>
+<tr>
+<td>Boost.LockFree</td>
+<td>C++</td>
+<td><code>boost::lockfree::queue</code>, <code>boost::lockfree::spsc_queue</code></td>
+<td>bounded MPMC, bounded SPSC</td>
+</tr>
+<tr>
+<td>atomic_queue</td>
+<td>C++</td>
+<td><code>AtomicQueueB</code></td>
+<td>bounded SPSC + bounded MPMC</td>
+</tr>
+<tr>
+<td>rigtorp SPSCQueue</td>
+<td>C++</td>
+<td><code>rigtorp::SPSCQueue</code></td>
+<td>bounded SPSC</td>
+</tr>
+<tr>
+<td>rigtorp MPMCQueue</td>
+<td>C++</td>
+<td><code>rigtorp::mpmc::Queue</code></td>
+<td>bounded MPMC</td>
+</tr>
+<tr>
+<td>crossbeam</td>
+<td>Rust</td>
+<td><code>crossbeam_queue::ArrayQueue</code>, <code>crossbeam_queue::SegQueue</code></td>
+<td>bounded MPMC, unbounded MPMC</td>
+</tr>
+<tr>
+<td>flume</td>
+<td>Rust</td>
+<td>bounded + unbounded channel</td>
+<td>bounded MPMC + unbounded MPMC</td>
+</tr>
+<tr>
+<td>kanal</td>
+<td>Rust</td>
+<td>bounded + unbounded channel</td>
+<td>bounded SPSC + bounded MPMC + unbounded MPMC</td>
+</tr>
+<tr>
+<td>liblfds (soft-skip)</td>
+<td>C</td>
+<td><code>lfds711_queue_bss_*</code> (SPSC), <code>lfds711_queue_bmm_*</code> (MPMC)</td>
+<td>bounded SPSC + bounded MPMC</td>
+</tr>
+<tr>
+<td>Nim <code>system.Channel</code></td>
+<td>Nim</td>
+<td><code>system/channels.Channel</code> (blocking-on-full*)</td>
+<td>MPSC + MPMC</td>
+</tr>
+<tr>
+<td>nimble <code>threading</code></td>
+<td>Nim</td>
+<td><code>threading.Chan</code> (non-blocking try)</td>
+<td>bounded MPMC</td>
+</tr>
+<tr>
+<td>Loony</td>
+<td>Nim</td>
+<td><code>LoonyQueue</code></td>
+<td>unbounded MPMC</td>
+</tr>
+</tbody>
+</table>
+<p>* The <code>system.Channel</code> adapter blocks the producer on a full channel
+instead of returning back-pressure, so its slugs are only loosely
+comparable to the non-blocking adapters; the chart marks them with a
+dotted bar and a <code>(blocking)</code> badge.</p>
+<p><strong>liblfds is a soft-skip adapter.</strong> The vendored subset
+(<code>benchmarks/vendor/liblfds/</code>) carries the upstream C source and a C
+wrapper, but <strong>not</strong> the <code>gcc_gnumake</code> Makefile that builds
+<code>liblfds711.a</code>. The <code>bench-comparison.yml</code> install step is guarded by
+<code>test -f .../Makefile</code> with <code>continue-on-error: true</code>, so on a checkout
+that lacks the Makefile the liblfds adapter is simply omitted (a
+<code>::warning title=Adapter skipped::</code> annotation is emitted) rather than
+failing the workflow. CI environments that DO carry the full upstream
+tree build the archive and exercise the adapter. The same soft-skip
+pattern applies to every external adapter: install/build → smoke →
+set-define, each <code>continue-on-error</code>, so a missing toolchain or library
+drops that adapter's slugs instead of breaking the run.</p>
+<p>Library upstreams and licenses, the per-adapter compile gates, and the
+local run recipes are documented in
+<a href="https://github.com/elijahr/lockfree/blob/devel/benchmarks/README.md"><code>benchmarks/README.md</code></a>;
+per-library obligations are tracked in
+<a href="https://github.com/elijahr/lockfree/blob/devel/THIRD_PARTY_LICENSES.md"><code>THIRD_PARTY_LICENSES.md</code></a>.</p>
+<h2 id="results">Results<a class="headerlink" href="#results" title="Permanent link">¶</a></h2>
+<p>Results are generated per-platform. See the <code>benchmarks/results/</code> directory for JSON output.</p>
+<h3 id="live-charts">Live charts<a class="headerlink" href="#live-charts" title="Permanent link">¶</a></h3>
+<p>The charts below pull from a snapshot published by the <code>bench</code> CI workflow on
+every push to <code>devel</code> (see <code>.github/workflows/bench.yml</code>). The hero panel
+shows lockfree vs alternatives at a single representative bounded
+shape; the per-topology panels below trace each library across the
+producer/consumer shape grid (and pair bounded with unbounded variants where
+the topology supports both). Each panel's legend toggles libraries on and
+off; the Y axis defaults to log scale and is per-panel switchable to linear.
+Hovering a shape shows mean ± stddev when the underlying measure carries
+one, plus the topology context. Dotted bars and a <code>(blocking)</code> badge in the
+legend mark libraries with blocking-on-full semantics — see the methodology
+section below.</p>
+<h4 id="headline-lockfree-vs-alternatives">Headline: lockfree vs alternatives<a class="headerlink" href="#headline-lockfree-vs-alternatives" title="Permanent link">¶</a></h4>
+<div markdown="0">
+  <div id="bench-status" class="bench-status" hidden=""></div>
+  <div id="bench-toolbar" class="bench-toolbar"></div>
+
+  <div id="bench-hero" class="bench-panel bench-panel-hero">
+    <noscript>
+      Charts require JavaScript. The raw data is published at
+      <code>../../assets/bench-results/latest.json</code>; download the JSON
+      snapshot if you need to consume it programmatically.
+    </noscript>
+  </div>
 </div>
-<p><a href="https://github.com/elijahr/nim-debra/blob/main/examples/retire_single.nim">:material-file-code: View full source</a></p>
-<h2 id="multiple-object-retirement">Multiple Object Retirement<a class="headerlink" href="#multiple-object-retirement" title="Permanent link">¶</a></h2>
-<p>When retiring multiple objects in a single critical section, use
-<code>retireReadyFromRetired()</code> to chain retirements:</p>
-<div class="admonition note">
-<p class="admonition-title">Example source not mirrored</p>
-<p>The <code>examples/retire_multiple.nim</code> source was part of the standalone
-<code>nim-debra</code> repo and is not included in this frozen mirror. View it at
-the upstream link below, or see the live
-<a href="../../../../guide/smr/nebr/">SMR guide</a> for the current <code>lockfree/smr/nebr</code> API.</p>
+
+<h4 id="throughput-by-topology">Throughput by topology<a class="headerlink" href="#throughput-by-topology" title="Permanent link">¶</a></h4>
+<div markdown="0">
+  <div id="bench-throughput-spsc" class="bench-panel"></div>
+  <div id="bench-throughput-mpsc" class="bench-panel"></div>
+  <div id="bench-throughput-mpmc-bounded" class="bench-panel"></div>
+  <div id="bench-throughput-mpmc-unbounded" class="bench-panel"></div>
 </div>
-<p><a href="https://github.com/elijahr/nim-debra/blob/main/examples/retire_multiple.nim">:material-file-code: View full source</a></p>
-<h2 id="limbo-bags">Limbo Bags<a class="headerlink" href="#limbo-bags" title="Permanent link">¶</a></h2>
-<p>Retired pointers (and their destructors) are stored in thread-local limbo bags:</p>
+
+<h4 id="latency">Latency<a class="headerlink" href="#latency" title="Permanent link">¶</a></h4>
+<div markdown="0">
+  <div id="bench-latency" class="bench-panel"></div>
+</div>
+
+<h4 id="interactive-workload-estimator-queue-recommender">Interactive Workload Estimator &amp; Queue Recommender<a class="headerlink" href="#interactive-workload-estimator-queue-recommender" title="Permanent link">¶</a></h4>
+<div markdown="0">
+  <div id="bench-recommender" class="bench-panel bench-panel-recommender"></div>
+
+  <script src="../../../assets/echarts-5.5.1.min.js"></script>
+  <script src="../../../assets/bench-charts.js"></script>
+</div>
+
+<h3 id="methodology-and-fairness-caveats">Methodology and fairness caveats<a class="headerlink" href="#methodology-and-fairness-caveats" title="Permanent link">¶</a></h3>
+<p>All numbers below are produced on GitHub-hosted <code>ubuntu-latest</code> runners (4 vCPU
+implicit, x86_64). Do not infer absolute latency or throughput suitability for
+production hardware from these numbers — use them only for relative comparison
+between queue implementations under identical conditions.</p>
+<p>Specific caveats:</p>
 <ul>
-<li>Each bag holds up to 64 entries</li>
-<li>Bags are chained together by epoch</li>
-<li>Reclamation walks bags from oldest to newest, invoking each destructor</li>
-</ul>
-<h2 id="retirement-timing">Retirement Timing<a class="headerlink" href="#retirement-timing" title="Permanent link">¶</a></h2>
-<p>Always unlink first, then retire:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c"># RIGHT - retire after unlinking</span>
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="k">if</span><span class="w"> </span><span class="n">head</span><span class="p">.</span><span class="n">compareExchangeStrong</span><span class="p">(</span><span class="n">oldHead</span><span class="p">,</span><span class="w"> </span><span class="n">next</span><span class="p">,</span><span class="w"> </span><span class="n">moRelease</span><span class="p">,</span><span class="w"> </span><span class="n">moRelaxed</span><span class="p">):</span>
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="k">let</span><span class="w"> </span><span class="n">ready</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">retireReady</span><span class="p">(</span><span class="n">pinned</span><span class="p">)</span>
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">  </span><span class="k">discard</span><span class="w"> </span><span class="n">ready</span><span class="p">.</span><span class="n">retire</span><span class="p">(</span><span class="k">cast</span><span class="o">[</span><span class="n">pointer</span><span class="o">]</span><span class="p">(</span><span class="n">oldHead</span><span class="p">),</span><span class="w"> </span><span class="n">releaseDestructor</span><span class="o">[</span><span class="n">NodeObj</span><span class="o">]</span><span class="p">())</span>
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="c"># WRONG - retire before unlinking (unsafe!)</span>
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="k">let</span><span class="w"> </span><span class="n">ready</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">retireReady</span><span class="p">(</span><span class="n">pinned</span><span class="p">)</span>
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="k">discard</span><span class="w"> </span><span class="n">ready</span><span class="p">.</span><span class="n">retire</span><span class="p">(</span><span class="k">cast</span><span class="o">[</span><span class="n">pointer</span><span class="o">]</span><span class="p">(</span><span class="n">oldHead</span><span class="p">),</span><span class="w"> </span><span class="n">releaseDestructor</span><span class="o">[</span><span class="n">NodeObj</span><span class="o">]</span><span class="p">())</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">head</span><span class="p">.</span><span class="n">store</span><span class="p">(</span><span class="n">next</span><span class="p">,</span><span class="w"> </span><span class="n">moRelease</span><span class="p">)</span>
-</code></pre></div>
-<h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">¶</a></h2>
-<h3 id="do-retire-objects-that">Do Retire Objects That:<a class="headerlink" href="#do-retire-objects-that" title="Permanent link">¶</a></h3>
-<ul>
-<li>Were removed from shared data structures</li>
-<li>Are no longer reachable via shared pointers</li>
-<li>Might still be accessed by concurrent threads</li>
-</ul>
-<h3 id="dont-retire-objects-that">Don't Retire Objects That:<a class="headerlink" href="#dont-retire-objects-that" title="Permanent link">¶</a></h3>
-<ul>
-<li>Are still reachable in the data structure</li>
-<li>Are local to the current thread (just let them go out of scope)</li>
-<li>Are static/global (they're never freed)</li>
-</ul>
-<h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">¶</a></h2>
-<ul>
-<li>Learn about <a href="../reclamation/">reclamation</a></li>
-<li>Understand <a href="../neutralization/">neutralization</a></li>
-<li>See <a href="../integration/">integration examples</a></li>
+<li><strong>Cache-line padding asymmetry.</strong> Some libraries (lockfree, MoodyCamel,
+  Boost.LockFree, atomic_queue, rigtorp) pad their head/tail/sequence fields to
+  64 bytes; others may not.</li>
+<li><strong>Memory ordering.</strong> lockfree uses <code>acquire</code>/<code>release</code> ordering on its
+  hot paths; some external libraries default to <code>seq_cst</code>, which is stricter
+  and may show as higher latency.</li>
+<li><strong>NUMA pinning.</strong> None on <code>ubuntu-latest</code>. NUMA-aware comparison would
+  require self-hosted high-core runners (radar item).</li>
+<li><strong>Message size and capacity.</strong> All benchmarks transfer 8-byte <code>uint64_t</code>
+  payloads. Bounded queues use a compile-time capacity matched across libraries.</li>
+<li><strong>Blocking vs non-blocking semantics.</strong> Nim's <code>system/Channel</code> and
+  <code>Threading.Channels</code> block on full instead of returning a "queue full"
+  signal. Their throughput numbers reflect blocking semantics, not the
+  non-blocking <code>try_push</code> path that the lockfree queues use. These are
+  rendered with a dotted bar/line and carry an asterisk on the throughput-
+  panel legends and a <code>(blocking)</code> badge on the hero legend.</li>
+<li><strong>Producer/consumer thread placement.</strong> No explicit pinning. The runner's
+  scheduler is the ground truth for thread placement.</li>
+<li><strong>CPU oversubscription.</strong> <code>ubuntu-latest</code> has 4 vCPU. MPMC variants beyond
+  4P + 4C measure scheduler oversubscription, not lock-free contention.</li>
 </ul>
 
 
@@ -5238,7 +4828,7 @@ the upstream link below, or see the live
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 15, 2026 10:56:42 UTC"><span class="timeago" datetime="2026-06-15T10:56:42+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 15, 2026 10:56:42 UTC">2026-06-15</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 12, 2026 05:20:31 UTC"><span class="timeago" datetime="2026-10-12T05:20:31+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 12, 2026 05:20:31 UTC">2026-10-12</span>
   </span>
 
     
@@ -5248,7 +4838,7 @@ the upstream link below, or see the live
     <span class="md-icon" title="Created">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="June 7, 2026 08:05:12 UTC"><span class="timeago" datetime="2026-06-07T08:05:12+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="June 7, 2026 08:05:12 UTC">2026-06-07</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 12, 2026 05:20:31 UTC"><span class="timeago" datetime="2026-10-12T05:20:31+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 12, 2026 05:20:31 UTC">2026-10-12</span>
   </span>
 
     
@@ -5313,14 +4903,14 @@ the upstream link below, or see the live
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../../../..", "features": ["content.code.copy", "content.code.annotate", "navigation.instant", "navigation.sections", "navigation.expand", "toc.follow"], "search": "../../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["content.code.copy", "content.code.annotate", "navigation.instant", "navigation.sections", "navigation.expand", "toc.follow"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
-        <script src="../../../../js/timeago.min.js"></script>
+        <script src="../../../js/timeago.min.js"></script>
       
-        <script src="../../../../js/timeago_mkdocs_material.js"></script>
+        <script src="../../../js/timeago_mkdocs_material.js"></script>
       
     
   
