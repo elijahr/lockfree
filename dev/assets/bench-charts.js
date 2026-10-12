@@ -101,12 +101,6 @@
     'lockfree_mpsc', 'lockfree_mpmc',
     'lockfree_unbounded_spsc', 'lockfree_unbounded_spmc',
     'lockfree_unbounded_mpsc', 'lockfree_unbounded_mpmc',
-    'lockfreequeues_spsc', 'lockfreequeues_spmc',
-    'lockfreequeues_mpsc', 'lockfreequeues_mpmc',
-    'lockfreequeues_queue_bounded_spsc', 'lockfreequeues_queue_bounded_spmc',
-    'lockfreequeues_queue_bounded_mpsc', 'lockfreequeues_queue_bounded_mpmc',
-    'lockfreequeues_unbounded_spsc', 'lockfreequeues_unbounded_spmc',
-    'lockfreequeues_unbounded_mpsc', 'lockfreequeues_unbounded_mpmc',
     'ctrie', 'skiplist', 'treiber_stack', 'chase_lev_deque',
     'broadcast_ring_drop', 'broadcast_ring_backoff', 'token_bucket', 'stream_ring',
   ];
@@ -117,12 +111,6 @@
     lockfree_spsc: 'nim', lockfree_spmc: 'nim', lockfree_mpsc: 'nim', lockfree_mpmc: 'nim',
     lockfree_unbounded_spsc: 'nim', lockfree_unbounded_spmc: 'nim',
     lockfree_unbounded_mpsc: 'nim', lockfree_unbounded_mpmc: 'nim',
-    lockfreequeues_spsc: 'nim', lockfreequeues_spmc: 'nim',
-    lockfreequeues_mpsc: 'nim', lockfreequeues_mpmc: 'nim',
-    lockfreequeues_queue_bounded_spsc: 'nim', lockfreequeues_queue_bounded_spmc: 'nim',
-    lockfreequeues_queue_bounded_mpsc: 'nim', lockfreequeues_queue_bounded_mpmc: 'nim',
-    lockfreequeues_unbounded_spsc: 'nim', lockfreequeues_unbounded_spmc: 'nim',
-    lockfreequeues_unbounded_mpsc: 'nim', lockfreequeues_unbounded_mpmc: 'nim',
     nim_channel: 'nim', nim_channels: 'nim', threading_channels: 'nim', loony: 'nim',
     ctrie: 'nim', skiplist: 'nim', locked_table: 'nim',
     treiber_stack: 'nim', locked_stack: 'nim', chase_lev_deque: 'nim',
@@ -321,9 +309,10 @@
   }
 
   function isBlocking(library) { return BLOCKING_SET.has(library); }
-  function isLockfreequeues(library) {
-    return LFQ_FAMILY_SET.has(library) || library.startsWith('lockfree_') || library.startsWith('lockfreequeues_');
+  function isLockfree(library) {
+    return LFQ_FAMILY_SET.has(library) || library.startsWith('lockfree_');
   }
+  const isLockfreequeues = isLockfree;
   function displayLabel(library) {
     return library + (isBlocking(library) ? ' *' : '');
   }
