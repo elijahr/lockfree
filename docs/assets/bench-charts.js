@@ -45,16 +45,30 @@
 
   // CONTRACT-TEST-PARSED-START LIBRARY_COLORS
   const LIBRARY_COLORS = Object.freeze({
-    // lockfree family (bounded) — Material indigo 500
+    // lockfree queue family (bounded) — Material indigo 500
     lockfree_spsc:           '#3f51b5',
     lockfree_spmc:           '#3f51b5',
     lockfree_mpsc:           '#3f51b5',
     lockfree_mpmc:           '#3f51b5',
-    // lockfree family (unbounded) — Material indigo 400
+    // lockfree queue family (unbounded) — Material indigo 400
     lockfree_unbounded_spsc: '#5c6bc0',
     lockfree_unbounded_spmc: '#5c6bc0',
     lockfree_unbounded_mpsc: '#5c6bc0',
     lockfree_unbounded_mpmc: '#5c6bc0',
+    // associative maps & sets
+    ctrie:                   '#3f51b5',
+    skiplist:                '#00897b',
+    locked_table:            '#78909c',
+    // stacks & deques
+    treiber_stack:           '#3f51b5',
+    locked_stack:            '#78909c',
+    chase_lev_deque:         '#8e24aa',
+    // broadcast ring
+    broadcast_ring_drop:     '#3f51b5',
+    broadcast_ring_backoff:  '#0277bd',
+    // rate limiting & streaming
+    token_bucket:            '#e65100',
+    stream_ring:             '#2e7d32',
     // comparison libraries — distinct stable colors
     crossbeam_array_queue:           '#f4511e',
     crossbeam_seg_queue:             '#fb8c00',
@@ -64,10 +78,6 @@
     loony:                           '#8e24aa',
     threading_channels:              '#6d4c41',
     nim_channel:                     '#546e7a',
-    // `nim_channels` (plural) is the harness ID for Nim's stdlib
-    // `system/Channel` on platforms where the singular slug collides
-    // with another adapter. Same library, same blocking-on-full
-    // semantics — keep the color in sync with `nim_channel`.
     nim_channels:                    '#546e7a',
     atomic_queue:                    '#2e7d32',
     rigtorp_mpmc:                    '#1565c0',
@@ -79,7 +89,10 @@
   // CONTRACT-TEST-PARSED-END LIBRARY_COLORS
 
   // CONTRACT-TEST-PARSED-START BLOCKING_LIBRARIES
-  const BLOCKING_LIBRARIES = ['threading_channels', 'nim_channel', 'nim_channels'];
+  const BLOCKING_LIBRARIES = [
+    'threading_channels', 'nim_channel', 'nim_channels',
+    'locked_table', 'locked_stack', 'broadcast_ring_backoff',
+  ];
   // CONTRACT-TEST-PARSED-END BLOCKING_LIBRARIES
   const BLOCKING_SET = new Set(BLOCKING_LIBRARIES);
 
@@ -94,6 +107,8 @@
     'lockfreequeues_queue_bounded_mpsc', 'lockfreequeues_queue_bounded_mpmc',
     'lockfreequeues_unbounded_spsc', 'lockfreequeues_unbounded_spmc',
     'lockfreequeues_unbounded_mpsc', 'lockfreequeues_unbounded_mpmc',
+    'ctrie', 'skiplist', 'treiber_stack', 'chase_lev_deque',
+    'broadcast_ring_drop', 'broadcast_ring_backoff', 'token_bucket', 'stream_ring',
   ];
   const LFQ_FAMILY_SET = new Set(LOCKFREE_FAMILY);
 
@@ -109,6 +124,10 @@
     lockfreequeues_unbounded_spsc: 'nim', lockfreequeues_unbounded_spmc: 'nim',
     lockfreequeues_unbounded_mpsc: 'nim', lockfreequeues_unbounded_mpmc: 'nim',
     nim_channel: 'nim', nim_channels: 'nim', threading_channels: 'nim', loony: 'nim',
+    ctrie: 'nim', skiplist: 'nim', locked_table: 'nim',
+    treiber_stack: 'nim', locked_stack: 'nim', chase_lev_deque: 'nim',
+    broadcast_ring_drop: 'nim', broadcast_ring_backoff: 'nim',
+    token_bucket: 'nim', stream_ring: 'nim',
     // C++
     moodycamel: 'cpp', boost_lockfree_queue: 'cpp', boost_lockfree_spsc: 'cpp',
     atomic_queue: 'cpp', rigtorp_mpmc: 'cpp', rigtorp_spsc: 'cpp',
@@ -118,6 +137,7 @@
     // C
     liblfds: 'c',
   });
+
 
   let _activeEcosystem = 'all'; // 'all' | 'nim' | 'cpp' | 'rust'
   let _activeHeroShape = null;  // null (auto) | '4p4c' | '2p2c' | '4p1c' | '1p1c'
@@ -145,6 +165,14 @@
     spsc_unbounded: 'SPSC (unbounded)',
     mpsc_unbounded: 'MPSC (unbounded)',
     mpmc_unbounded: 'MPMC (unbounded)',
+    stack_mpmc: 'MPMC Stack',
+    read_heavy: 'Read-Heavy (90/10)',
+    balanced: 'Balanced (50/50)',
+    write_heavy: 'Write-Heavy (10/90)',
+    work_stealing: 'Work-Stealing',
+    fanout: '1-to-N Fan-Out',
+    contention: 'Contention',
+    spsc_chunk: 'SPSC Chunk Streaming',
   });
 
   function topologyLabel(topology) {
@@ -166,6 +194,26 @@
       includes: (topology) => topology === 'mpmc' },
     { id: 'bench-throughput-mpmc-unbounded', label: 'MPMC (unbounded)',
       includes: (topology) => topology === 'mpmc_unbounded' },
+    // Maps & Sets
+    { id: 'bench-maps-read-heavy',           label: 'Read-Heavy (90/10)',
+      includes: (topology) => topology === 'read_heavy' },
+    { id: 'bench-maps-balanced',             label: 'Balanced (50/50)',
+      includes: (topology) => topology === 'balanced' },
+    { id: 'bench-maps-write-heavy',          label: 'Write-Heavy (10/90)',
+      includes: (topology) => topology === 'write_heavy' },
+    // Stacks & Deques
+    { id: 'bench-stacks-mpmc',               label: 'MPMC Stack Contention',
+      includes: (topology) => topology === 'stack_mpmc' },
+    { id: 'bench-deques-work-stealing',      label: 'Work-Stealing Deque',
+      includes: (topology) => topology === 'work_stealing' },
+    // Broadcast Ring
+    { id: 'bench-broadcast-fanout',          label: '1-to-N Multicast Fan-Out',
+      includes: (topology) => topology === 'fanout' },
+    // Rate Limiting & Streaming
+    { id: 'bench-tokenbucket-contention',    label: 'TokenBucket Contention',
+      includes: (topology) => topology === 'contention' },
+    { id: 'bench-streambuffer-throughput',   label: 'StreamRing SPSC Bandwidth',
+      includes: (topology) => topology === 'spsc_chunk' },
   ];
 
   // Source-code links per panel container id. Each panel heading gets
@@ -184,6 +232,22 @@
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_unbounded_mpmc.nim',
     'bench-latency':
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_latency.nim',
+    'bench-maps-read-heavy':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_maps.nim',
+    'bench-maps-balanced':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_maps.nim',
+    'bench-maps-write-heavy':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_maps.nim',
+    'bench-stacks-mpmc':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_stacks_deques.nim',
+    'bench-deques-work-stealing':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_stacks_deques.nim',
+    'bench-broadcast-fanout':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_broadcast.nim',
+    'bench-tokenbucket-contention':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_ratelimit_streaming.nim',
+    'bench-streambuffer-throughput':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_ratelimit_streaming.nim',
   });
 
   // Build the small "↗ source" anchor next to a panel heading. Uses
@@ -288,23 +352,68 @@
     const library = parts[0];
     const topology = parts.slice(1, -1).join('/');
     const shape = parts[parts.length - 1];
-    const m = /^(\d+)p(\d+)c$/.exec(shape);
-    if (!m) return null;
-    const p = parseInt(m[1], 10);
-    const c = parseInt(m[2], 10);
-    return { library, topology, shape, p, c, totalThreads: p + c };
+    let p = 0, c = 0, totalThreads = 0;
+    const mPC = /^(\d+)p(\d+)c$/.exec(shape);
+    const mT = /^(\d+)t$/.exec(shape);
+    const mWT = /^(\d+)w(\d+)t$/.exec(shape);
+    if (mPC) {
+      p = parseInt(mPC[1], 10);
+      c = parseInt(mPC[2], 10);
+      totalThreads = p + c;
+    } else if (mT) {
+      totalThreads = parseInt(mT[1], 10);
+      p = totalThreads;
+      c = 0;
+    } else if (mWT) {
+      p = parseInt(mWT[1], 10);
+      c = parseInt(mWT[2], 10);
+      totalThreads = p + c;
+    } else {
+      totalThreads = 1;
+    }
+    return { library, topology, shape, p, c, totalThreads };
+  }
+
+  function parseByteSize(label) {
+    const m = /^(\d+)(b|kb|mb|gb)$/i.exec(label);
+    if (!m) return -1;
+    const num = parseInt(m[1], 10);
+    const unit = m[2].toLowerCase();
+    if (unit === 'b') return num;
+    if (unit === 'kb') return num * 1024;
+    if (unit === 'mb') return num * 1024 * 1024;
+    if (unit === 'gb') return num * 1024 * 1024 * 1024;
+    return num;
   }
 
   function sortShapeLabels(labels) {
     return Array.from(labels)
       .map((label) => {
-        const m = /^(\d+)p(\d+)c$/.exec(label);
-        if (!m) return { label, p: -1, c: -1, total: -1 };
-        const p = parseInt(m[1], 10);
-        const c = parseInt(m[2], 10);
-        return { label, p, c, total: p + c };
+        const mPC = /^(\d+)p(\d+)c$/.exec(label);
+        const mT = /^(\d+)t$/.exec(label);
+        const mWT = /^(\d+)w(\d+)t$/.exec(label);
+        const bytes = parseByteSize(label);
+        if (mPC) {
+          const p = parseInt(mPC[1], 10);
+          const c = parseInt(mPC[2], 10);
+          return { label, p, c, total: p + c, bytes: -1 };
+        }
+        if (mT) {
+          const t = parseInt(mT[1], 10);
+          return { label, p: t, c: 0, total: t, bytes: -1 };
+        }
+        if (mWT) {
+          const w = parseInt(mWT[1], 10);
+          const t = parseInt(mWT[2], 10);
+          return { label, p: w, c: t, total: w + t, bytes: -1 };
+        }
+        if (bytes >= 0) {
+          return { label, p: 0, c: 0, total: 0, bytes };
+        }
+        return { label, p: -1, c: -1, total: -1, bytes: -1 };
       })
       .sort((a, b) => {
+        if (a.bytes >= 0 && b.bytes >= 0) return a.bytes - b.bytes;
         if (a.total === -1 && b.total === -1) return a.label.localeCompare(b.label);
         if (a.total === -1) return -1;
         if (b.total === -1) return 1;
@@ -312,6 +421,7 @@
       })
       .map((item) => item.label);
   }
+
 
   function escapeHtml(s) {
     return String(s)

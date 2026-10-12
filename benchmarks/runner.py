@@ -44,6 +44,10 @@ NIM_BINARIES = (
     "bench_unbounded_mpsc",
     "bench_unbounded_mpmc",
     "bench_latency",
+    "bench_maps",
+    "bench_stacks_deques",
+    "bench_broadcast",
+    "bench_ratelimit_streaming",
 )
 
 
@@ -187,6 +191,22 @@ def build_nim(quick: bool = False):
         elif bin_name == "bench_latency":
             if quick:
                 cmd.extend(["-d:BenchLatencyRuns=5", "-d:BenchLatencyIterations=50000"])
+
+        elif bin_name == "bench_maps":
+            if quick:
+                cmd.extend(["-d:BenchMapRuns=1", "-d:BenchMapWarmup=0", "-d:BenchMapOpsPerThread=10000"])
+
+        elif bin_name == "bench_stacks_deques":
+            if quick:
+                cmd.extend(["-d:BenchStackRuns=1", "-d:BenchStackWarmup=0", "-d:BenchStackMsgCount=50000"])
+
+        elif bin_name == "bench_broadcast":
+            if quick:
+                cmd.extend(["-d:BenchBroadcastRuns=1", "-d:BenchBroadcastWarmup=0", "-d:BenchBroadcastMsgCount=20000"])
+
+        elif bin_name == "bench_ratelimit_streaming":
+            if quick:
+                cmd.extend(["-d:BenchRLRuns=1", "-d:BenchRLWarmup=0", "-d:BenchTokenCount=50000", "-d:BenchStreamBytes=10000000"])
 
         cmd.append(str(src))
         print(f"  -> {bin_name}")

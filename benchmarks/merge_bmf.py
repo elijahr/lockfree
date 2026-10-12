@@ -37,7 +37,7 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping, Tuple
 
-SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*/[a-z][a-z0-9_]*/\d+p\d+c$")
+SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*/[a-z][a-z0-9_]*/(\d+p\d+c|\d+t|\d+w\d+t|\d+[a-z]+)$")
 MEASURE_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 ALLOWED_FIELDS = frozenset({"value", "lower_value", "upper_value"})
 

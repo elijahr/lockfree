@@ -111,18 +111,22 @@ nav:
       - Overview: guide/maps-sets.md
       - Concurrent Hash Trie (Ctrie): designs/design_ctrie.md
       - SkipList Map & Set: designs/design_atomic_associative.md
+      - Benchmarks: guide/maps-sets/benchmarks.md
     - Stacks & Deques:
       - Overview: guide/stacks-deques.md
+      - Benchmarks: guide/stacks-deques/benchmarks.md
     - Broadcast & Rendezvous:
       - Broadcast Ring & TopicBus: guide/broadcast.md
       - Broadcast Architecture: designs/design_broadcast_ring.md
       - Rendezvous Dual-Queue: designs/design_rendezvous_channel.md
+      - Broadcast Benchmarks: guide/broadcast/benchmarks.md
     - TaskPool:
       - Work-Stealing Scheduler: guide/taskpool.md
     - Rate Limiting & Streaming:
       - Overview: guide/ratelimit-streambuffer.md
       - Rate Limiting Architecture: designs/design_ratelimit.md
       - StreamBuffer Architecture: designs/design_streambuffer.md
+      - Benchmarks: guide/ratelimit-streambuffer/benchmarks.md
     - C ABI:
       - Overview & C99 Header: guide/cabi.md
       - Architecture & Interop: design/2026-10-07-ergonomics-metaprogramming-c-abi.md
