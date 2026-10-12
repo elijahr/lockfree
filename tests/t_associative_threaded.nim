@@ -1,6 +1,6 @@
 ## Multi-threaded integration tests for Atomic Associative Map Operations.
 
-import std/[options, algorithm]
+import std/options
 import unittest2
 import lockfree
 import lockfree/ctrie

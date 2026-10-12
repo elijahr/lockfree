@@ -8,10 +8,9 @@
 ##   - Ergonomic aliases (Deque[T], ConcurrentDeque[T], initDeque, initConcurrentDeque)
 
 import unittest2
-import std/[options, os]
+import std/options
 import lockfree/deque
 import lockfree/atomics
-import lockfree/atomics/backoff
 
 suite "ChaseLevDeque — Worker LIFO Lifecycle":
   test "empty state and basic push/pop":

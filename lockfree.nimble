@@ -220,6 +220,10 @@ task benchmarks, "Runs the benchmark suite":
     "bench_unbounded_spsc", "bench_unbounded_spmc",
     "bench_unbounded_mpsc", "bench_unbounded_mpmc",
     "bench_latency",
+    "bench_maps",
+    "bench_stacks_deques",
+    "bench_broadcast",
+    "bench_ratelimit_streaming",
   ]:
     exec "nim c -d:release --threads:on benchmarks/nim/" & binName & ".nim"
     exec ".tmp/" & binName & " --bmf-out=benchmarks/results/" & binName & ".json"
@@ -233,7 +237,11 @@ task benchmarks, "Runs the benchmark suite":
        "benchmarks/results/bench_unbounded_spmc.json " &
        "benchmarks/results/bench_unbounded_mpsc.json " &
        "benchmarks/results/bench_unbounded_mpmc.json " &
-       "benchmarks/results/bench_latency.json"
+       "benchmarks/results/bench_latency.json " &
+       "benchmarks/results/bench_maps.json " &
+       "benchmarks/results/bench_stacks_deques.json " &
+       "benchmarks/results/bench_broadcast.json " &
+       "benchmarks/results/bench_ratelimit_streaming.json"
 
 
 task benchtests, "Runs the bench harness test suite":

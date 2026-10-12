@@ -18,9 +18,8 @@
 ## -----------------
 ## * Addendum design §2.6 — refcount-balance matrix scope (5 arms).
 
-import std/atomics
-
 when defined(lockfreeRefcountTrace):
+  import std/atomics
   var
     incCounter*: Atomic[int]
     decCounter*: Atomic[int]

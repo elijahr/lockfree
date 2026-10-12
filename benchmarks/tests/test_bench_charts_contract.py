@@ -151,7 +151,10 @@ SAMPLE_BMF: dict = {
 # `BLOCKING_LIBRARIES` in `docs/assets/bench-charts.js`; any drift
 # between the two is a contract regression caught by
 # `test_blocking_libraries_const_matches_contract`.
-EXPECTED_BLOCKING_LIBRARIES = {"threading_channels", "nim_channel", "nim_channels"}
+EXPECTED_BLOCKING_LIBRARIES = {
+    "threading_channels", "nim_channel", "nim_channels",
+    "locked_table", "locked_stack", "broadcast_ring_backoff",
+}
 
 # Value-anchored regex for `LIBRARY_COLORS` entries in bench-charts.js
 # (marker-range extraction is brittle under reformatting, so we anchor
@@ -249,7 +252,10 @@ class ChartContractTests(unittest.TestCase):
             (assets / "bench-charts.css").is_file(),
             "bench-charts.css missing",
         )
-        bm = (REPO_ROOT / "docs" / "benchmarks.md").read_text()
+        bm_path = REPO_ROOT / "docs" / "guide" / "queues" / "benchmarks.md"
+        if not bm_path.is_file():
+            bm_path = REPO_ROOT / "docs" / "benchmarks.md"
+        bm = bm_path.read_text()
         self.assertIn(
             "echarts", bm.lower(),
             "benchmarks.md must reference the ECharts library",
@@ -272,12 +278,14 @@ class ChartContractTests(unittest.TestCase):
 
     def test_dom_containers_present_in_benchmarks_md(self) -> None:
         """The chart's panel architecture pins six DOM container IDs.
-        `docs/benchmarks.md` must declare each so the JS lookup
+        `docs/guide/queues/benchmarks.md` must declare each so the JS lookup
         `document.getElementById(...)` resolves at load time. Drift
         here means the chart silently fails to render that panel.
         """
-        p = REPO_ROOT / "docs" / "benchmarks.md"
-        self.assertTrue(p.is_file(), "docs/benchmarks.md missing")
+        p = REPO_ROOT / "docs" / "guide" / "queues" / "benchmarks.md"
+        if not p.is_file():
+            p = REPO_ROOT / "docs" / "benchmarks.md"
+        self.assertTrue(p.is_file(), "benchmarks.md missing")
         src = p.read_text()
         for cid in (
             "bench-status",
@@ -464,8 +472,8 @@ class ChartContractTests(unittest.TestCase):
         )
         entries = entry_re.findall(block)
         self.assertEqual(
-            len(entries), 4,
-            f"expected 4 throughput panels, got {len(entries)}: {entries}",
+            len(entries), 12,
+            f"expected 12 throughput panels, got {len(entries)}: {entries}",
         )
 
         # The agreed routing intent. Source of truth for what the
@@ -479,6 +487,14 @@ class ChartContractTests(unittest.TestCase):
             "mpsc_unbounded":  "bench-throughput-mpsc",
             "mpmc":            "bench-throughput-mpmc-bounded",
             "mpmc_unbounded":  "bench-throughput-mpmc-unbounded",
+            "read_heavy":      "bench-maps-read-heavy",
+            "balanced":        "bench-maps-balanced",
+            "write_heavy":     "bench-maps-write-heavy",
+            "stack_mpmc":      "bench-stacks-mpmc",
+            "work_stealing":   "bench-deques-work-stealing",
+            "fanout":          "bench-broadcast-fanout",
+            "contention":      "bench-tokenbucket-contention",
+            "spsc_chunk":      "bench-streambuffer-throughput",
         }
 
         # Translate each JS predicate body into a Python callable

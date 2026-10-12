@@ -16,17 +16,17 @@
 import ../managed_ref
 import ../managed_slice
 
-template SlotEncoding*(T: typedesc): typedesc =
-  ## Map a user-facing payload type ``T`` to its slot-encoded wire type.
+template SlotEncoding*(TargetType: typedesc): typedesc =
+  ## Map a user-facing payload type ``TargetType`` to its slot-encoded wire type.
   ##
   ## Type-extraction grammar (verified under Nim 2.2.10):
-  ##   * `typeof(default(T)[])` — pointee of `ref X`
-  ##   * `typeof(default(T)[0])` — element of `seq[U]`.
-  when T is ref:
-    ManagedRef[typeof(default(T)[])]
-  elif T is string:
+  ##   * `typeof(default(TargetType)[])` — pointee of `ref X`
+  ##   * `typeof(default(TargetType)[0])` — element of `seq[U]`.
+  when TargetType is ref:
+    ManagedRef[typeof(default(TargetType)[])]
+  elif TargetType is string:
     ManagedSlice[char]
-  elif T is seq:
-    ManagedSlice[typeof(default(T)[0])]
+  elif TargetType is seq:
+    ManagedSlice[typeof(default(TargetType)[0])]
   else:
-    T
+    TargetType

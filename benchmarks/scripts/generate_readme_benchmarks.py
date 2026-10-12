@@ -390,7 +390,7 @@ def build_markdown_section(
         f'  <img src="{svg_latency_rel}" alt="Ping-Pong Latency Percentiles" width="100%">',
         f"</p>",
         "",
-        "*Run benchmarks locally with `nimble benchmarks` or explore multi-language comparisons, interactive filters, and latency curves on the [Interactive Benchmarks Portal](https://elijahr.github.io/lockfree/latest/benchmarks/).*",
+        "*Run benchmarks locally with `nimble benchmarks` or explore multi-language comparisons, interactive filters, and latency curves on the [Interactive Benchmarks Portal](https://elijahr.github.io/lockfree/latest/guide/queues/benchmarks/).*",
         "<!-- BENCHMARK_METRICS_END -->",
     ]
     return "\n".join(lines)

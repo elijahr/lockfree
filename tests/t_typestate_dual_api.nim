@@ -13,7 +13,6 @@ import lockfree
 import lockfree/bqueue
 import lockfree/queue
 import lockfree/endpoint
-import lockfree/role_tags
 import lockfree/strategy
 import lockfree/typestates/with_bound
 
