@@ -7,7 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-(No entries yet — post-v0.1.0 work lands here.)
+## [0.2.0] - 2026-10-11
+
+Comprehensive release expanding `lockfree` into a full-featured lock-free concurrency toolkit for Nim.
+
+### Added
+
+- **10 Lock-Free Collections & Concurrency Primitives**:
+  - `BQueue` & `Queue`: Bounded and unbounded multi-producer, multi-consumer queues with typestate enforcement and strict LCRQ cell layout.
+  - `TreiberStack`: LIFO stack with lock-free atomic top pointer and ARC/ORC lifecycle safety.
+  - `ChaseLevDeque`: Work-stealing double-ended queue with LIFO worker push/pop, FIFO concurrent thief stealing, and bulk `stealBatch`.
+  - `SkipListMap`: Lock-free ordered key-value map with probabilistic multi-level indexing.
+  - `SkipListSet`: Lock-free concurrent set with lock-free set algebra operations.
+  - `Ctrie`: Concurrent hash-array mapped trie supporting wait-free O(1) snapshots, atomic mutation, and multi-thread resizing.
+  - `BroadcastRing`: Multi-consumer ring buffer with configurable drop policies (`omDropOldest`, `omBackoff`).
+  - `TopicBus`: Topic-based pub-sub multiplexer built atop non-blocking rings.
+  - `Channel`: Unified Go-like and CSP channel abstraction over bounded and unbounded queue primitives.
+  - `RateLimiter`: High-throughput token bucket and leaky bucket rate limiters powered by 128-bit atomic CAS.
+  - `StreamRing`: Zero-copy stream buffer for byte-oriented concurrent I/O.
+- **C ABI Interoperability Layer (`cabi/`)**:
+  - Stable C-compatible headers and shared library export.
+  - Opaque pointers, thread-safe handles, explicit error return codes, and memory-safe resource lifecycles.
+- **Documentation Re-Architecture & Site**:
+  - Complete documentation suite rebuilt with MkDocs Material.
+  - 12 comprehensive API reference pages, 8 architectural guides, and design ADRs.
+  - Technical accuracy de-marketing pass removing marketing hyperbole and grounding claims in empirical invariants.
+- **Dependency Upgrades**:
+  - Upgraded `typestates >= 0.13.0` with updated macro semantics and reachability guards.
 
 ## [0.1.0] - umbrella consolidation (in progress)
 
