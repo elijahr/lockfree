@@ -253,6 +253,10 @@
          <lastmod>2026-10-12</lastmod>
     </url>
     <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/broadcast/benchmarks/</loc>
+         <lastmod>2026-10-12</lastmod>
+    </url>
+    <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/concepts/lock-freedom/</loc>
          <lastmod>2026-10-12</lastmod>
     </url>
@@ -262,6 +266,10 @@
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/concepts/smr/</loc>
+         <lastmod>2026-10-12</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/maps-sets/benchmarks/</loc>
          <lastmod>2026-10-12</lastmod>
     </url>
     <url>
@@ -285,7 +293,15 @@
          <lastmod>2026-10-12</lastmod>
     </url>
     <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/ratelimit-streambuffer/benchmarks/</loc>
+         <lastmod>2026-10-12</lastmod>
+    </url>
+    <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/smr/nebr/</loc>
+         <lastmod>2026-10-12</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/stacks-deques/benchmarks/</loc>
          <lastmod>2026-10-12</lastmod>
     </url>
     <url>
