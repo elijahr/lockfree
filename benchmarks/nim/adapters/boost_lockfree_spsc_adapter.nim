@@ -47,7 +47,8 @@ when defined(adapter_boost_lockfree_spsc_available):
   type BoostSpscRaw {.
     importcpp: "boost::lockfree::spsc_queue<unsigned long long>",
     header: "boost/lockfree/spsc_queue.hpp",
-    byref
+    byref,
+    completeStruct
   .} = object
 
   proc bsPush(q: var BoostSpscRaw, v: culonglong): bool {.importcpp: "#.push(@)".}

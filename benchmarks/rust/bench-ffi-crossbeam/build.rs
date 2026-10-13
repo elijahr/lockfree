@@ -28,8 +28,19 @@ use toml::Value;
 const CRATES: &[(&str, &str)] = &[
     // (Cargo crate name, env var suffix)
     ("crossbeam-queue", "CROSSBEAM_QUEUE"),
+    ("crossbeam-deque", "CROSSBEAM_DEQUE"),
+    ("crossbeam-skiplist", "CROSSBEAM_SKIPLIST"),
+    ("crossbeam-channel", "CROSSBEAM_CHANNEL"),
+    ("crossbeam-epoch", "CROSSBEAM_EPOCH"),
+    ("dashmap", "DASHMAP"),
+    ("flurry", "FLURRY"),
     ("flume", "FLUME"),
     ("kanal", "KANAL"),
+    ("tokio", "TOKIO"),
+    ("bus", "BUS"),
+    ("governor", "GOVERNOR"),
+    ("rtrb", "RTRB"),
+    ("rayon", "RAYON"),
 ];
 
 fn main() {

@@ -221,7 +221,7 @@ proc runVariant(variant: string, em: var BMFEmitter) =
       if variant == "boost_lockfree_spsc":
         runMvpVariant[BoostLockfreeSpscAdapter[uint64]](
           em,
-          slug = "boost_lockfree_queue/spsc/1p1c",
+          slug = "boost_lockfree_spsc/spsc/1p1c",
           queueInit = initBoostSpscQ,
           capacity = SpscCapacity,
         )

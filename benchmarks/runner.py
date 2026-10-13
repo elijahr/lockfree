@@ -48,29 +48,32 @@ NIM_BINARIES = (
     "bench_stacks_deques",
     "bench_broadcast",
     "bench_ratelimit_streaming",
+    "bench_rendezvous",
+    "bench_taskpool",
+    "bench_smr_nebr",
 )
 
 
 def find_nimble_pkgs() -> tuple[list[str], dict[str, bool]]:
-    """Detect available packages in ~/.nimble/pkgs2."""
+    """Detect available packages in ~/.nimble/pkgs2 (latest version per package)."""
     home = Path.home()
     pkgs2 = home / ".nimble" / "pkgs2"
-    paths: list[str] = []
+    latest_dirs: dict[str, Path] = {}
     available: dict[str, bool] = {}
     if pkgs2.exists():
-        for d in pkgs2.iterdir():
+        for d in sorted(pkgs2.iterdir()):
             if not d.is_dir():
                 continue
             name = d.name.lower()
-            if name.startswith("threading-"):
-                paths.append(str(d))
-                available["threading"] = True
-            elif name.startswith("loony-"):
-                paths.append(str(d))
-                available["loony"] = True
-            elif name.startswith("arc-"):
-                paths.append(str(d))
-                available["arc"] = True
+            for pkg in ("threading", "loony", "arc", "typestates"):
+                if name.startswith(f"{pkg}-"):
+                    latest_dirs[pkg] = d
+                    available[pkg] = True
+    paths: list[str] = []
+    for pkg, d in latest_dirs.items():
+        paths.append(str(d))
+        if pkg == "typestates" and (d / "src").is_dir():
+            paths.append(str(d / "src"))
     return paths, available
 
 
@@ -98,26 +101,83 @@ def has_rust_lib() -> bool:
     return False
 
 
+def build_liblfds() -> bool:
+    """Build the vendored liblfds 7.1.1 static archive if not already built."""
+    liblfds_root = BENCHMARK_DIR / "vendor" / "liblfds" / "liblfds711"
+    archive = liblfds_root / "bin" / "liblfds711.a"
+    if archive.exists():
+        return True
+    src_dir = liblfds_root / "src"
+    if not src_dir.exists():
+        return False
+    cc = shutil.which("cc") or shutil.which("clang") or shutil.which("gcc")
+    ar = shutil.which("ar")
+    if not cc or not ar:
+        return False
+    c_files = sorted(src_dir.glob("*/*.c"))
+    if not c_files:
+        return False
+    obj_dir = liblfds_root / "obj"
+    bin_dir = liblfds_root / "bin"
+    obj_dir.mkdir(parents=True, exist_ok=True)
+    bin_dir.mkdir(parents=True, exist_ok=True)
+    print("Building vendored liblfds711.a...")
+    objs: list[str] = []
+    inc_flag = f"-I{liblfds_root / 'inc'}"
+    for src_file in c_files:
+        obj_file = obj_dir / f"{src_file.stem}.o"
+        subprocess.run(
+            [cc, "-O3", "-fPIC", "-D__linux__", inc_flag, "-c", str(src_file), "-o", str(obj_file)],
+            check=True,
+        )
+        objs.append(str(obj_file))
+    subprocess.run([ar, "rcs", str(archive)] + objs, check=True)
+    return archive.exists()
+
+
+def has_boost_lockfree() -> bool:
+    """Check if Boost.LockFree headers are installed in standard include paths."""
+    candidates = (
+        Path("/opt/homebrew/opt/boost/include"),
+        Path("/usr/local/include"),
+        Path("/usr/include"),
+    )
+    for base in candidates:
+        if (base / "boost" / "lockfree" / "queue.hpp").exists():
+            return True
+    return False
+
+
 def build_nim(quick: bool = False):
     """Build all Nim topology-split benchmark binaries with comparison adapters."""
-    # Ensure rust crate is built if possible
+    # Ensure rust crate and liblfds archive are built if possible
     build_rust()
+    has_liblfds = build_liblfds()
 
     rust_available = has_rust_lib()
     rust_target = BENCHMARK_DIR / "rust" / "bench-ffi-crossbeam" / "target" / "release"
+    liblfds_bin = BENCHMARK_DIR / "vendor" / "liblfds" / "liblfds711" / "bin"
     nimble_paths, nimble_pkgs = find_nimble_pkgs()
 
     vendor_dir = BENCHMARK_DIR / "vendor"
-    has_atomic_queue = (vendor_dir / "atomic_queue" / "atomic_queue.h").exists()
-    has_rigtorp_spsc = (vendor_dir / "rigtorp" / "SPSCQueue.h").exists()
-    has_rigtorp_mpmc = (vendor_dir / "rigtorp" / "MPMCQueue.h").exists()
+    has_atomic_queue = (vendor_dir / "atomic_queue" / "include" / "atomic_queue" / "atomic_queue.h").exists()
+    has_rigtorp_spsc = (vendor_dir / "rigtorp_spsc" / "include" / "rigtorp" / "SPSCQueue.h").exists()
+    has_rigtorp_mpmc = (vendor_dir / "rigtorp_mpmc" / "include" / "rigtorp" / "MPMCQueue.h").exists()
     has_moodycamel = (vendor_dir / "concurrentqueue" / "concurrentqueue.h").exists()
+    has_boost = has_boost_lockfree()
 
     print("Building Nim topology-split benchmarks with multi-language adapters...")
-    print(f"  Adapters: Rust={rust_available}, atomic_queue={has_atomic_queue}, rigtorp={has_rigtorp_mpmc}, moodycamel={has_moodycamel}, loony={nimble_pkgs.get('loony', False)}, threading={nimble_pkgs.get('threading', False)}")
+    print(
+        f"  Adapters: Rust={rust_available}, Boost={has_boost}, liblfds={has_liblfds}, "
+        f"atomic_queue={has_atomic_queue}, rigtorp_spsc={has_rigtorp_spsc}, "
+        f"rigtorp_mpmc={has_rigtorp_mpmc}, moodycamel={has_moodycamel}, "
+        f"loony={nimble_pkgs.get('loony', False)}, threading={nimble_pkgs.get('threading', False)}"
+    )
 
     for bin_name in NIM_BINARIES:
         src = BENCHMARK_DIR / "nim" / f"{bin_name}.nim"
+        if not src.exists():
+            continue
         cmd = ["nim", "cpp", "-d:release", "-d:danger", "--threads:on"]
 
         for p in nimble_paths:
@@ -125,15 +185,23 @@ def build_nim(quick: bool = False):
 
         if rust_available:
             cmd.append(f"--passL:-L{rust_target} -lbench_ffi_crossbeam")
+            cmd.append("-d:adapter_rust_ffi_available")
+        if has_boost:
+            cmd.append("-d:adapter_boost_lockfree_available")
 
         # Adapter defines per binary
         if bin_name == "bench_spsc":
+            if has_boost:
+                cmd.append("-d:adapter_boost_lockfree_spsc_available")
             if has_atomic_queue:
                 cmd.append("-d:adapter_atomic_queue_available")
             if has_rigtorp_spsc:
                 cmd.append("-d:adapter_rigtorp_spsc_available")
             if rust_available:
                 cmd.append("-d:adapter_kanal_available")
+            if has_liblfds:
+                cmd.append("-d:adapter_liblfds_available")
+                cmd.append(f"--passL:-L{liblfds_bin} -llfds711")
             if quick:
                 cmd.extend(["-d:BenchSpscRuns=5", "-d:BenchSpscMessageCount=200000", "-d:BenchSpscWarmup=1"])
 
@@ -143,6 +211,8 @@ def build_nim(quick: bool = False):
                 cmd.extend(["-d:BenchMpscRuns=5", "-d:BenchMpscMessageCount=200000", "-d:BenchMpscWarmup=1"])
 
         elif bin_name == "bench_mpmc_bounded":
+            if has_boost:
+                cmd.append("-d:adapter_boost_lockfree_queue_available")
             if has_atomic_queue:
                 cmd.append("-d:adapter_atomic_queue_available")
             if has_rigtorp_mpmc:
@@ -153,6 +223,9 @@ def build_nim(quick: bool = False):
                     "-d:adapter_flume_available",
                     "-d:adapter_kanal_available",
                 ])
+            if has_liblfds:
+                cmd.append("-d:adapter_liblfds_available")
+                cmd.append(f"--passL:-L{liblfds_bin} -llfds711")
             if nimble_pkgs.get("threading"):
                 cmd.append("-d:adapter_threading_channels_available")
             if quick:
@@ -194,19 +267,31 @@ def build_nim(quick: bool = False):
 
         elif bin_name == "bench_maps":
             if quick:
-                cmd.extend(["-d:BenchMapRuns=1", "-d:BenchMapWarmup=0", "-d:BenchMapOpsPerThread=10000"])
+                cmd.extend(["-d:BenchMapRuns=1", "-d:BenchMapWarmup=1", "-d:BenchMapOpsPerThread=10000"])
 
         elif bin_name == "bench_stacks_deques":
             if quick:
-                cmd.extend(["-d:BenchStackRuns=1", "-d:BenchStackWarmup=0", "-d:BenchStackMsgCount=50000"])
+                cmd.extend(["-d:BenchStackRuns=1", "-d:BenchStackWarmup=1", "-d:BenchStackMsgCount=50000"])
 
         elif bin_name == "bench_broadcast":
             if quick:
-                cmd.extend(["-d:BenchBroadcastRuns=1", "-d:BenchBroadcastWarmup=0", "-d:BenchBroadcastMsgCount=20000"])
+                cmd.extend(["-d:BenchBroadcastRuns=1", "-d:BenchBroadcastWarmup=1", "-d:BenchBroadcastMsgCount=20000"])
 
         elif bin_name == "bench_ratelimit_streaming":
             if quick:
-                cmd.extend(["-d:BenchRLRuns=1", "-d:BenchRLWarmup=0", "-d:BenchTokenCount=50000", "-d:BenchStreamBytes=10000000"])
+                cmd.extend(["-d:BenchRLRuns=1", "-d:BenchRLWarmup=1", "-d:BenchTokenCount=50000", "-d:BenchStreamBytes=10000000"])
+
+        elif bin_name == "bench_rendezvous":
+            if quick:
+                cmd.extend(["-d:BenchRendezvousRuns=1", "-d:BenchRendezvousWarmup=1", "-d:BenchRendezvousMsgCount=10000", "-d:BenchRendezvousRpcCount=5000"])
+
+        elif bin_name == "bench_taskpool":
+            if quick:
+                cmd.extend(["-d:BenchTaskPoolRuns=1", "-d:BenchTaskPoolWarmup=1", "-d:BenchParForCount=50000", "-d:BenchForkJoinDepth=10", "-d:BenchSpawnSyncCount=5000"])
+
+        elif bin_name == "bench_smr_nebr":
+            if quick:
+                cmd.extend(["-d:BenchSmrRuns=1", "-d:BenchSmrWarmup=1", "-d:BenchPinOpsPerThread=50000", "-d:BenchRetireOpsPerThread=10000"])
 
         cmd.append(str(src))
         print(f"  -> {bin_name}")
@@ -222,6 +307,8 @@ def run_nim(runs: int, output_file: Path):
     try:
         for bin_name in NIM_BINARIES:
             bin_path = PROJECT_ROOT / ".tmp" / bin_name
+            if not bin_path.exists():
+                continue
             out = output_file.parent / f"{output_file.stem}-{bin_name}.json"
             print(f"  -> {bin_name} -> {out.name}")
             subprocess.run(

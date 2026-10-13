@@ -189,7 +189,13 @@ when defined(adapter_liblfds_available):
   # by `liblfds_adapter.nim`.
   {.
     emit: """/*INCLUDESECTION*/
+#if defined(__APPLE__) && !defined(__linux__)
+#define __linux__ 1
 #include "liblfds711/inc/liblfds711.h"
+#undef __linux__
+#else
+#include "liblfds711/inc/liblfds711.h"
+#endif
 """
   .}
 
@@ -199,7 +205,6 @@ when defined(adapter_liblfds_available):
   # preserves the existing call-site form `getLiblfdsVersionMacro()`.
   let liblfdsVersionMacro {.
     importc: "LFDS711_MISC_VERSION_STRING",
-    header: "liblfds711/inc/liblfds711.h",
     nodecl
   .}: cstring
   template getLiblfdsVersionMacro(): cstring =
@@ -210,11 +215,18 @@ else:
 
 # ---------- Boost.LockFree: version macro from system header ----------
 #
-# Compile-time include of <boost/version.hpp> when either Boost adapter
+# Compile-time include of <boost/version.hpp> when any Boost adapter
 # gate is enabled; `BOOST_LIB_VERSION` expands to a literal string like
-# "1_74".
-when defined(adapter_boost_lockfree_queue_available) or
+# "1_74" or "1_90".
+when defined(adapter_boost_lockfree_available) or
+    defined(adapter_boost_lockfree_queue_available) or
     defined(adapter_boost_lockfree_spsc_available):
+  when defined(macosx) or defined(macos):
+    {.passC: "-I/opt/homebrew/opt/boost/include".}
+    {.passC: "-I/usr/local/include".}
+  else:
+    {.passC: "-I/usr/include".}
+    {.passC: "-I/usr/local/include".}
   {.
     emit: """/*INCLUDESECTION*/
 #include <boost/version.hpp>
@@ -237,41 +249,42 @@ when defined(adapter_boost_lockfree_queue_available) or
 
 # ---------- Rust cdylib: importc the version getters ----------
 #
-# The Rust cdylib at `benchmarks/rust/bench-ffi-crossbeam/` exports three
+# The Rust cdylib at `benchmarks/rust/bench-ffi-crossbeam/` exports
 # `extern "C"` functions that return null-terminated C strings with the
 # crate versions resolved at cargo-build time (read from `Cargo.lock` by
-# a `build.rs`). We `importc` each function, gated by the matching Nim
-# `-d:adapter_*_available` flag; the link flag emission lives in
-# `benchmarks/nim/adapters/crossbeam_link.nim` (already imported by the
-# adapter modules; a bench binary that includes any of the three Rust
-# adapters will pull that in transitively, providing `-lbench_ffi_crossbeam`).
-
-when defined(adapter_crossbeam_array_queue_available) or
-    defined(adapter_crossbeam_seg_queue_available):
-  # Defensive import: pulls in the shared `{.passL.}` link directives
-  # for `-lbench_ffi_crossbeam` so the `importc` getter below resolves
-  # even when this module is the ONLY consumer of the crossbeam gate
-  # in a given binary (e.g. a script that captures versions without
-  # importing any crossbeam adapter directly). Nim dedups module
-  # imports, so binaries that already import a crossbeam adapter
-  # (which transitively imports this link module) are unaffected.
+# a `build.rs`).
+when defined(adapter_rust_ffi_available) or
+    defined(adapter_crossbeam_array_queue_available) or
+    defined(adapter_crossbeam_seg_queue_available) or
+    defined(adapter_flume_available) or
+    defined(adapter_kanal_available):
   import ./adapters/crossbeam_link
   proc bench_ffi_crossbeam_queue_version(): cstring {.importc, cdecl.}
-  const CrossbeamCdylibLinked = true
-else:
-  const CrossbeamCdylibLinked = false
-
-when defined(adapter_flume_available):
   proc bench_ffi_flume_version(): cstring {.importc, cdecl.}
-  const FlumeCdylibLinked = true
-else:
-  const FlumeCdylibLinked = false
-
-when defined(adapter_kanal_available):
   proc bench_ffi_kanal_version(): cstring {.importc, cdecl.}
-  const KanalCdylibLinked = true
+  proc bench_ffi_dashmap_version(): cstring {.importc, cdecl.}
+  proc bench_ffi_flurry_version(): cstring {.importc, cdecl.}
+  proc bench_ffi_crossbeam_skiplist_version(): cstring {.importc, cdecl.}
+  proc bench_ffi_crossbeam_deque_version(): cstring {.importc, cdecl.}
+  proc bench_ffi_tokio_version(): cstring {.importc, cdecl.}
+  proc bench_ffi_bus_version(): cstring {.importc, cdecl.}
+  proc bench_ffi_governor_version(): cstring {.importc, cdecl.}
+  proc bench_ffi_rtrb_version(): cstring {.importc, cdecl.}
+  proc bench_ffi_crossbeam_channel_version(): cstring {.importc, cdecl.}
+  proc bench_ffi_crossbeam_epoch_version(): cstring {.importc, cdecl.}
+  proc bench_ffi_rayon_version(): cstring {.importc, cdecl.}
+  const RustCdylibLinked = true
 else:
-  const KanalCdylibLinked = false
+  const RustCdylibLinked = false
+
+const CrossbeamCdylibLinked =
+  defined(adapter_rust_ffi_available) or
+  defined(adapter_crossbeam_array_queue_available) or
+  defined(adapter_crossbeam_seg_queue_available)
+const FlumeCdylibLinked =
+  defined(adapter_rust_ffi_available) or defined(adapter_flume_available)
+const KanalCdylibLinked =
+  defined(adapter_rust_ffi_available) or defined(adapter_kanal_available)
 
 # ---------- Nimble-resolved adapters ----------
 
@@ -528,6 +541,30 @@ proc getAdapterVersions*(): JsonNode =
     elif not KanalCdylibLinked:
       absent.add("kanal")
 
+  template captureExtendedRustCrate(slugLiteral: string, getterSym: untyped) =
+    block:
+      var version = ""
+      when RustCdylibLinked:
+        try:
+          version = $getterSym()
+        except CatchableError:
+          version = ""
+      adapters[slugLiteral] = rustCrateEntry(RustCdylibLinked, version, slugLiteral)
+      if not RustCdylibLinked or version.strip().len == 0:
+        absent.add(slugLiteral)
+
+  captureExtendedRustCrate("dashmap", bench_ffi_dashmap_version)
+  captureExtendedRustCrate("flurry", bench_ffi_flurry_version)
+  captureExtendedRustCrate("crossbeam_skiplist", bench_ffi_crossbeam_skiplist_version)
+  captureExtendedRustCrate("crossbeam_deque", bench_ffi_crossbeam_deque_version)
+  captureExtendedRustCrate("tokio", bench_ffi_tokio_version)
+  captureExtendedRustCrate("bus", bench_ffi_bus_version)
+  captureExtendedRustCrate("governor", bench_ffi_governor_version)
+  captureExtendedRustCrate("rtrb", bench_ffi_rtrb_version)
+  captureExtendedRustCrate("crossbeam_channel", bench_ffi_crossbeam_channel_version)
+  captureExtendedRustCrate("crossbeam_epoch", bench_ffi_crossbeam_epoch_version)
+  captureExtendedRustCrate("rayon", bench_ffi_rayon_version)
+
   # ---- Nimble-resolved adapters (kind = nimble-resolved). Empty -> absent ----
   let loonyVer = getNimbleResolvedVersion("loony")
   adapters["loony"] = adapterEntry(loonyVer, "nimble-resolved")
@@ -544,7 +581,8 @@ proc getAdapterVersions*(): JsonNode =
   # recorded as absent with the explicit "build-without-boost" status so
   # consumers can distinguish "this run did not build Boost" from "this
   # run built Boost but failed to capture the version".
-  when defined(adapter_boost_lockfree_queue_available) or
+  when defined(adapter_boost_lockfree_available) or
+      defined(adapter_boost_lockfree_queue_available) or
       defined(adapter_boost_lockfree_spsc_available):
     let boostVer = getBoostVersion()
     adapters["boost_lockfree"] = adapterEntry(

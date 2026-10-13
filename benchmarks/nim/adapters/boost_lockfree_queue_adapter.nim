@@ -60,7 +60,8 @@ when defined(adapter_boost_lockfree_queue_available):
   type BoostQueueRaw {.
     importcpp: "boost::lockfree::queue<unsigned long long>",
     header: "boost/lockfree/queue.hpp",
-    byref
+    byref,
+    completeStruct
   .} = object
 
   proc constructBoostQueueRaw(

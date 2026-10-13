@@ -193,3 +193,140 @@ fn kanal_version_baked_in() {
         v,
     );
 }
+
+#[test]
+fn extended_crate_versions_baked_in() {
+    use bench_ffi_crossbeam::*;
+    let getters: &[(&str, unsafe extern "C" fn() -> *const std::os::raw::c_char)] = &[
+        ("dashmap", bench_ffi_dashmap_version),
+        ("flurry", bench_ffi_flurry_version),
+        ("crossbeam-skiplist", bench_ffi_crossbeam_skiplist_version),
+        ("crossbeam-deque", bench_ffi_crossbeam_deque_version),
+        ("tokio", bench_ffi_tokio_version),
+        ("bus", bench_ffi_bus_version),
+        ("governor", bench_ffi_governor_version),
+        ("rtrb", bench_ffi_rtrb_version),
+        ("crossbeam-channel", bench_ffi_crossbeam_channel_version),
+        ("crossbeam-epoch", bench_ffi_crossbeam_epoch_version),
+        ("rayon", bench_ffi_rayon_version),
+    ];
+    for (name, getter) in getters {
+        let v = unsafe { fetch_version(getter()) };
+        assert!(!v.is_empty(), "{name} version string is empty");
+        assert!(
+            looks_semver_ish(v),
+            "{name} version {:?} does not look like semver",
+            v
+        );
+    }
+}
+
+#[test]
+fn maps_and_sets_ffi_round_trip() {
+    use bench_ffi_crossbeam::*;
+    unsafe {
+        let dm = dm_init();
+        assert!(!dm.is_null());
+        assert!(dm_put(dm, 10, 100));
+        let mut out = 0u64;
+        assert!(dm_get(dm, 10, &mut out));
+        assert_eq!(out, 100);
+        assert_eq!(dm_iter_sum(dm), 100);
+        assert!(dm_remove(dm, 10));
+        assert!(!dm_get(dm, 10, &mut out));
+        dm_destroy(dm);
+
+        let fl = flurry_init();
+        assert!(!fl.is_null());
+        assert!(flurry_put(fl, 20, 200));
+        assert!(flurry_get(fl, 20, &mut out));
+        assert_eq!(out, 200);
+        assert!(flurry_remove(fl, 20));
+        assert!(!flurry_get(fl, 20, &mut out));
+        flurry_destroy(fl);
+
+        let sm = cb_skipmap_init();
+        assert!(!sm.is_null());
+        assert!(cb_skipmap_put(sm, 30, 300));
+        assert!(cb_skipmap_get(sm, 30, &mut out));
+        assert_eq!(out, 300);
+        assert!(cb_skipmap_remove(sm, 30));
+        assert!(!cb_skipmap_get(sm, 30, &mut out));
+        cb_skipmap_destroy(sm);
+
+        let ss = cb_skipset_init();
+        assert!(!ss.is_null());
+        assert!(cb_skipset_insert(ss, 42));
+        assert!(cb_skipset_contains(ss, 42));
+        assert!(cb_skipset_remove(ss, 42));
+        assert!(!cb_skipset_contains(ss, 42));
+        cb_skipset_destroy(ss);
+    }
+}
+
+#[test]
+fn deque_broadcast_ratelimit_rtrb_ffi_round_trip() {
+    use bench_ffi_crossbeam::*;
+    unsafe {
+        // Deque single + batch steal
+        let dq = cb_deque_init(1);
+        assert!(!dq.is_null());
+        for i in 1..=10u64 {
+            cb_deque_push(dq, i);
+        }
+        let mut stolen = 0u64;
+        assert!(cb_deque_steal(dq, &mut stolen));
+        assert_eq!(stolen, 1);
+        let n = cb_deque_steal_batch(dq, 0, 4);
+        assert!(n >= 1 && n <= 4);
+        cb_deque_destroy(dq);
+
+        // Tokio broadcast (including lagged -1 return)
+        let tb = tokio_bcast_init(16, 1);
+        for i in 1..=20u64 {
+            assert!(tokio_bcast_send(tb, i));
+        }
+        let mut val = 0u64;
+        let code = tokio_bcast_try_recv(tb, 0, &mut val);
+        assert_eq!(code, -1, "expected Lagged (-1) after ring overwrite");
+        assert_eq!(tokio_bcast_try_recv(tb, 0, &mut val), 1);
+        tokio_bcast_destroy(tb);
+
+        // Bus
+        let b = rust_bus_init(16, 1);
+        assert!(rust_bus_try_broadcast(b, 77));
+        assert!(rust_bus_try_recv(b, 0, &mut val));
+        assert_eq!(val, 77);
+        rust_bus_destroy(b);
+
+        // Governor GCRA
+        let gov = governor_init(1_000_000, 100);
+        assert!(governor_check(gov));
+        governor_destroy(gov);
+
+        // RTRB stream
+        let ring = rtrb_init(1024);
+        let payload = [1u8, 2, 3, 4, 5, 6, 7, 8];
+        assert_eq!(rtrb_write(ring, payload.as_ptr(), payload.len()), 8);
+        let mut read_buf = [0u8; 8];
+        assert_eq!(rtrb_read(ring, read_buf.as_mut_ptr(), read_buf.len()), 8);
+        assert_eq!(payload, read_buf);
+        rtrb_destroy(ring);
+
+        // Workstream B: Rayon pool + crossbeam-epoch SMR
+        let rp = rayon_pool_init(2);
+        assert!(!rp.is_null());
+        let mut out_sum = 0u64;
+        assert!(rayon_pool_parfor(rp, 1024, &mut out_sum));
+        assert!(out_sum != 0);
+        let mut fj_sum = 0u64;
+        assert!(rayon_pool_forkjoin(rp, 4, &mut fj_sum));
+        assert!(fj_sum != 0);
+        rayon_pool_destroy(rp);
+
+        assert_eq!(cbe_pin_unpin_batch(100), 4200);
+        assert!(cbe_retire_reclaim_batch(100) > 0);
+    }
+}
+
+

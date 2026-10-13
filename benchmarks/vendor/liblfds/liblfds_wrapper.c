@@ -33,7 +33,13 @@
  * adapter), which is enforced upstream too.
  */
 
+#if defined(__APPLE__) && !defined(__linux__)
+#define __linux__ 1
 #include "liblfds711/inc/liblfds711.h"
+#undef __linux__
+#else
+#include "liblfds711/inc/liblfds711.h"
+#endif
 
 #include <stdint.h>
 #include <stdlib.h>
