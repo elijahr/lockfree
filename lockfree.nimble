@@ -224,6 +224,9 @@ task benchmarks, "Runs the benchmark suite":
     "bench_stacks_deques",
     "bench_broadcast",
     "bench_ratelimit_streaming",
+    "bench_rendezvous",
+    "bench_taskpool",
+    "bench_smr_nebr",
   ]:
     exec "nim c -d:release --threads:on benchmarks/nim/" & binName & ".nim"
     exec ".tmp/" & binName & " --bmf-out=benchmarks/results/" & binName & ".json"
@@ -241,7 +244,10 @@ task benchmarks, "Runs the benchmark suite":
        "benchmarks/results/bench_maps.json " &
        "benchmarks/results/bench_stacks_deques.json " &
        "benchmarks/results/bench_broadcast.json " &
-       "benchmarks/results/bench_ratelimit_streaming.json"
+       "benchmarks/results/bench_ratelimit_streaming.json " &
+       "benchmarks/results/bench_rendezvous.json " &
+       "benchmarks/results/bench_taskpool.json " &
+       "benchmarks/results/bench_smr_nebr.json"
 
 
 task benchtests, "Runs the bench harness test suite":

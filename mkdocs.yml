@@ -120,8 +120,10 @@ nav:
       - Broadcast Architecture: designs/design_broadcast_ring.md
       - Rendezvous Dual-Queue: designs/design_rendezvous_channel.md
       - Broadcast Benchmarks: guide/broadcast/benchmarks.md
+      - Rendezvous Benchmarks: guide/rendezvous/benchmarks.md
     - TaskPool:
       - Work-Stealing Scheduler: guide/taskpool.md
+      - Benchmarks: guide/taskpool/benchmarks.md
     - Rate Limiting & Streaming:
       - Overview: guide/ratelimit-streambuffer.md
       - Rate Limiting Architecture: designs/design_ratelimit.md
@@ -134,6 +136,7 @@ nav:
       - NEBR SMR Architecture: guide/smr/nebr.md
       - NEBR Lifecycle: guides/smr_nebr_lifecycle.md
       - Hardware Atomics: guide/atomics.md
+      - Benchmarks: guide/smr/benchmarks.md
     - Managed Payloads:
       - ManagedRef: guide/managed-ref.md
       - ManagedSlice: guide/managed-slice.md

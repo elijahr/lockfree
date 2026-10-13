@@ -1,4 +1,159 @@
 {
+  "arc_atomic_rc/smr_pin_unpin/1t": {
+    "latency_max_ns": {
+      "value": 10.4375
+    },
+    "latency_p50_ns": {
+      "value": 2.625
+    },
+    "latency_p95_ns": {
+      "value": 5.25
+    },
+    "latency_p999_ns": {
+      "value": 10.4375
+    },
+    "latency_p99_ns": {
+      "value": 7.8125
+    },
+    "throughput_ops_ms": {
+      "lower_value": 241117.50294867234,
+      "upper_value": 279410.8559890182,
+      "value": 260264.17946884528
+    }
+  },
+  "arc_atomic_rc/smr_pin_unpin/2t": {
+    "throughput_ops_ms": {
+      "lower_value": 92724.67438087103,
+      "upper_value": 126851.02911629475,
+      "value": 109787.85174858289
+    }
+  },
+  "arc_atomic_rc/smr_pin_unpin/4t": {
+    "throughput_ops_ms": {
+      "lower_value": 57621.203053267614,
+      "upper_value": 61784.09423496992,
+      "value": 59702.648644118766
+    }
+  },
+  "arc_atomic_rc/smr_pin_unpin/8t": {
+    "throughput_ops_ms": {
+      "lower_value": 22121.55152360697,
+      "upper_value": 24075.772934396708,
+      "value": 23098.66222900184
+    }
+  },
+  "deferred_mutex_free/smr_retire_reclaim/1t": {
+    "throughput_ops_ms": {
+      "lower_value": 90044.93192673074,
+      "upper_value": 93378.54368499214,
+      "value": 91711.73780586144
+    }
+  },
+  "deferred_mutex_free/smr_retire_reclaim/2t": {
+    "throughput_ops_ms": {
+      "lower_value": 62556.52679872992,
+      "upper_value": 72838.2744691329,
+      "value": 67697.40063393141
+    }
+  },
+  "deferred_mutex_free/smr_retire_reclaim/4t": {
+    "throughput_ops_ms": {
+      "lower_value": 37389.284501979004,
+      "upper_value": 39568.11060211658,
+      "value": 38478.69755204779
+    }
+  },
+  "deferred_mutex_free/smr_retire_reclaim/8t": {
+    "throughput_ops_ms": {
+      "lower_value": 38135.56424429685,
+      "upper_value": 44361.90112394845,
+      "value": 41248.73268412265
+    }
+  },
+  "locked_task_queue/taskpool_forkjoin/1t": {
+    "throughput_ops_ms": {
+      "lower_value": 1911.3372064922532,
+      "upper_value": 10417.968094725238,
+      "value": 6164.652650608746
+    }
+  },
+  "locked_task_queue/taskpool_forkjoin/2t": {
+    "throughput_ops_ms": {
+      "lower_value": 157.9288716785286,
+      "upper_value": 2443.5542559356695,
+      "value": 1300.741563807099
+    }
+  },
+  "locked_task_queue/taskpool_forkjoin/4t": {
+    "throughput_ops_ms": {
+      "lower_value": 3895.1463207748493,
+      "upper_value": 13089.494784380597,
+      "value": 8492.320552577723
+    }
+  },
+  "locked_task_queue/taskpool_forkjoin/8t": {
+    "throughput_ops_ms": {
+      "lower_value": 4929.910635487478,
+      "upper_value": 9485.185617327134,
+      "value": 7207.548126407306
+    }
+  },
+  "locked_task_queue/taskpool_parfor/1t": {
+    "throughput_ops_ms": {
+      "lower_value": 60319.49863587184,
+      "upper_value": 180525.82455787365,
+      "value": 120422.66159687274
+    }
+  },
+  "locked_task_queue/taskpool_parfor/2t": {
+    "throughput_ops_ms": {
+      "lower_value": 190789.2973765181,
+      "upper_value": 602177.2471805684,
+      "value": 396483.27227854327
+    }
+  },
+  "locked_task_queue/taskpool_parfor/4t": {
+    "throughput_ops_ms": {
+      "lower_value": 71160.51105321181,
+      "upper_value": 396703.64815697,
+      "value": 233932.0796050909
+    }
+  },
+  "locked_task_queue/taskpool_parfor/8t": {
+    "throughput_ops_ms": {
+      "lower_value": 311903.832662368,
+      "upper_value": 552294.7123724059,
+      "value": 432099.272517387
+    }
+  },
+  "locked_task_queue/taskpool_spawnsync/1t": {
+    "throughput_ops_ms": {
+      "lower_value": 6672.416915961236,
+      "upper_value": 20736.328447343916,
+      "value": 13704.372681652576
+    }
+  },
+  "locked_task_queue/taskpool_spawnsync/2t": {
+    "throughput_ops_ms": {
+      "lower_value": 3743.1493295130213,
+      "upper_value": 4452.046788817127,
+      "value": 4097.598059165074
+    }
+  },
+  "locked_task_queue/taskpool_spawnsync/4t": {
+    "throughput_ops_ms": {
+      "lower_value": 6483.0085215447825,
+      "upper_value": 16401.475374355963,
+      "value": 11442.241947950373
+    }
+  },
+  "locked_task_queue/taskpool_spawnsync/8t": {
+    "throughput_ops_ms": {
+      "lower_value": -447.0094488743989,
+      "upper_value": 14552.199728073894,
+      "value": 7052.595139599747
+    }
+  },
   "lockfree_mpmc/mpmc/1p1c": {
     "latency_max_ns": {
       "value": 34064.0
@@ -502,6 +657,120 @@
     "nim_version": "2.2.10",
     "schema": 1
   },
+  "mutex_guard/smr_pin_unpin/1t": {
+    "latency_max_ns": {
+      "value": 15.625
+    },
+    "latency_p50_ns": {
+      "value": 5.1875
+    },
+    "latency_p95_ns": {
+      "value": 5.25
+    },
+    "latency_p999_ns": {
+      "value": 14.984375
+    },
+    "latency_p99_ns": {
+      "value": 7.8125
+    },
+    "throughput_ops_ms": {
+      "lower_value": 214993.52059446118,
+      "upper_value": 228112.51832237397,
+      "value": 221553.01945841758
+    }
+  },
+  "mutex_guard/smr_pin_unpin/2t": {
+    "throughput_ops_ms": {
+      "lower_value": 138576.10042507164,
+      "upper_value": 141911.50096919303,
+      "value": 140243.80069713233
+    }
+  },
+  "mutex_guard/smr_pin_unpin/4t": {
+    "throughput_ops_ms": {
+      "lower_value": 76316.64532742662,
+      "upper_value": 80193.92063295968,
+      "value": 78255.28298019315
+    }
+  },
+  "mutex_guard/smr_pin_unpin/8t": {
+    "throughput_ops_ms": {
+      "lower_value": 79382.23639495396,
+      "upper_value": 83330.70000548505,
+      "value": 81356.4682002195
+    }
+  },
+  "nebr/smr_pin_unpin/1t": {
+    "latency_max_ns": {
+      "value": 559.875
+    },
+    "latency_p50_ns": {
+      "value": 13.0
+    },
+    "latency_p95_ns": {
+      "value": 13.0625
+    },
+    "latency_p999_ns": {
+      "value": 425.765625
+    },
+    "latency_p99_ns": {
+      "value": 18.25
+    },
+    "throughput_ops_ms": {
+      "lower_value": 62754.833739253554,
+      "upper_value": 72941.18742137296,
+      "value": 67848.01058031326
+    }
+  },
+  "nebr/smr_pin_unpin/2t": {
+    "throughput_ops_ms": {
+      "lower_value": 135862.48819641117,
+      "upper_value": 137299.22881557816,
+      "value": 136580.85850599466
+    }
+  },
+  "nebr/smr_pin_unpin/4t": {
+    "throughput_ops_ms": {
+      "lower_value": 218740.7029100413,
+      "upper_value": 226523.41004525978,
+      "value": 222632.05647765053
+    }
+  },
+  "nebr/smr_pin_unpin/8t": {
+    "throughput_ops_ms": {
+      "lower_value": 269392.77534112247,
+      "upper_value": 302754.25187083456,
+      "value": 286073.5136059785
+    }
+  },
+  "nebr/smr_retire_reclaim/1t": {
+    "throughput_ops_ms": {
+      "lower_value": 31877.429683148446,
+      "upper_value": 34746.65294316733,
+      "value": 33312.04131315789
+    }
+  },
+  "nebr/smr_retire_reclaim/2t": {
+    "throughput_ops_ms": {
+      "lower_value": 40083.13983670625,
+      "upper_value": 64497.80414447586,
+      "value": 52290.47199059105
+    }
+  },
+  "nebr/smr_retire_reclaim/4t": {
+    "throughput_ops_ms": {
+      "lower_value": 55210.268423344176,
+      "upper_value": 79500.30748545,
+      "value": 67355.28795439709
+    }
+  },
+  "nebr/smr_retire_reclaim/8t": {
+    "throughput_ops_ms": {
+      "lower_value": 20831.47382145843,
+      "upper_value": 28282.60914876552,
+      "value": 24557.041485111975
+    }
+  },
   "nim_channel/mpsc/1p1c": {
     "throughput_ops_ms": {
       "lower_value": 2073.295497952818,
@@ -521,6 +790,71 @@
       "lower_value": 4489.359815055036,
       "upper_value": 5086.176929295719,
       "value": 4787.768372175377
+    }
+  },
+  "nim_channel_sync/rendezvous_handoff/1p1c": {
+    "latency_max_ns": {
+      "value": 71625.33333333333
+    },
+    "latency_p50_ns": {
+      "value": 3541.6666666666665
+    },
+    "latency_p95_ns": {
+      "value": 8555.666666666655
+    },
+    "latency_p999_ns": {
+      "value": 26541.666666666668
+    },
+    "latency_p99_ns": {
+      "value": 13097.666666666666
+    },
+    "throughput_ops_ms": {
+      "lower_value": 295.2798462739109,
+      "upper_value": 391.4266633280277,
+      "value": 343.3532548009693
+    }
+  },
+  "nim_channel_sync/rendezvous_handoff/2p2c": {
+    "throughput_ops_ms": {
+      "lower_value": 229.77539141728613,
+      "upper_value": 256.89886602639035,
+      "value": 243.33712872183824
+    }
+  },
+  "nim_channel_sync/rendezvous_handoff/4p4c": {
+    "throughput_ops_ms": {
+      "lower_value": 109.85899068420592,
+      "upper_value": 116.94858873903983,
+      "value": 113.40378971162288
+    }
+  },
+  "nim_channel_sync/rendezvous_handoff/8p8c": {
+    "throughput_ops_ms": {
+      "lower_value": 157.38941117826826,
+      "upper_value": 176.08712194961097,
+      "value": 166.73826656393962
+    }
+  },
+  "nim_channel_sync/rendezvous_rpc/1p1c": {
+    "latency_max_ns": {
+      "value": 71625.33333333333
+    },
+    "latency_p50_ns": {
+      "value": 3541.6666666666665
+    },
+    "latency_p95_ns": {
+      "value": 8555.666666666655
+    },
+    "latency_p999_ns": {
+      "value": 26541.666666666668
+    },
+    "latency_p99_ns": {
+      "value": 13097.666666666666
+    },
+    "throughput_ops_ms": {
+      "lower_value": 229.44225972414816,
+      "upper_value": 234.60378287332392,
+      "value": 232.02302129873604
     }
   },
   "nim_channels/mpmc/1p1c": {
@@ -584,6 +918,155 @@
       "lower_value": 1694.9196358012448,
       "upper_value": 1909.9941703628308,
       "value": 1802.4569030820378
+    }
+  },
+  "rendezvous_channel/rendezvous_handoff/1p1c": {
+    "latency_max_ns": {
+      "value": 93569.33333333333
+    },
+    "latency_p50_ns": {
+      "value": 4542.0
+    },
+    "latency_p95_ns": {
+      "value": 9777.666666666666
+    },
+    "latency_p999_ns": {
+      "value": 27875.0
+    },
+    "latency_p99_ns": {
+      "value": 14597.0
+    },
+    "throughput_ops_ms": {
+      "lower_value": 403.9051518355136,
+      "upper_value": 438.34294831980526,
+      "value": 421.12405007765943
+    }
+  },
+  "rendezvous_channel/rendezvous_handoff/2p2c": {
+    "throughput_ops_ms": {
+      "lower_value": 432.5418599044722,
+      "upper_value": 452.07132166983945,
+      "value": 442.3065907871558
+    }
+  },
+  "rendezvous_channel/rendezvous_handoff/4p4c": {
+    "throughput_ops_ms": {
+      "lower_value": 409.1521416062876,
+      "upper_value": 597.5481774787712,
+      "value": 503.3501595425294
+    }
+  },
+  "rendezvous_channel/rendezvous_handoff/8p8c": {
+    "throughput_ops_ms": {
+      "lower_value": 415.1188507189385,
+      "upper_value": 598.604729527916,
+      "value": 506.8617901234273
+    }
+  },
+  "rendezvous_channel/rendezvous_rpc/1p1c": {
+    "latency_max_ns": {
+      "value": 93569.33333333333
+    },
+    "latency_p50_ns": {
+      "value": 4542.0
+    },
+    "latency_p95_ns": {
+      "value": 9777.666666666666
+    },
+    "latency_p999_ns": {
+      "value": 27875.0
+    },
+    "latency_p99_ns": {
+      "value": 14597.0
+    },
+    "throughput_ops_ms": {
+      "lower_value": 188.04282812662925,
+      "upper_value": 204.1486146613349,
+      "value": 196.09572139398207
+    }
+  },
+  "taskpool/taskpool_forkjoin/1t": {
+    "throughput_ops_ms": {
+      "lower_value": 5958.75034236375,
+      "upper_value": 9844.010949259055,
+      "value": 7901.380645811402
+    }
+  },
+  "taskpool/taskpool_forkjoin/2t": {
+    "throughput_ops_ms": {
+      "lower_value": 14720.501928318663,
+      "upper_value": 15180.93406090591,
+      "value": 14950.717994612287
+    }
+  },
+  "taskpool/taskpool_forkjoin/4t": {
+    "throughput_ops_ms": {
+      "lower_value": 3336.2152029761214,
+      "upper_value": 9300.943485798613,
+      "value": 6318.579344387367
+    }
+  },
+  "taskpool/taskpool_forkjoin/8t": {
+    "throughput_ops_ms": {
+      "lower_value": 1770.2435389606221,
+      "upper_value": 6483.82945583043,
+      "value": 4127.036497395526
+    }
+  },
+  "taskpool/taskpool_parfor/1t": {
+    "throughput_ops_ms": {
+      "lower_value": 120840.29792537575,
+      "upper_value": 946395.6600795927,
+      "value": 533617.9790024842
+    }
+  },
+  "taskpool/taskpool_parfor/2t": {
+    "throughput_ops_ms": {
+      "lower_value": 201132.21640948183,
+      "upper_value": 635180.6851156213,
+      "value": 418156.45076255157
+    }
+  },
+  "taskpool/taskpool_parfor/4t": {
+    "throughput_ops_ms": {
+      "lower_value": 190676.46165779373,
+      "upper_value": 842813.7714264296,
+      "value": 516745.1165421117
+    }
+  },
+  "taskpool/taskpool_parfor/8t": {
+    "throughput_ops_ms": {
+      "lower_value": 284981.372225335,
+      "upper_value": 701861.6177612342,
+      "value": 493421.4949932846
+    }
+  },
+  "taskpool/taskpool_spawnsync/1t": {
+    "throughput_ops_ms": {
+      "lower_value": 15874.714545254199,
+      "upper_value": 35251.825704944655,
+      "value": 25563.27012509943
+    }
+  },
+  "taskpool/taskpool_spawnsync/2t": {
+    "throughput_ops_ms": {
+      "lower_value": 3013.8824609245153,
+      "upper_value": 3692.551710441156,
+      "value": 3353.2170856828357
+    }
+  },
+  "taskpool/taskpool_spawnsync/4t": {
+    "throughput_ops_ms": {
+      "lower_value": 8426.082570926737,
+      "upper_value": 31368.034132593013,
+      "value": 19897.058351759875
+    }
+  },
+  "taskpool/taskpool_spawnsync/8t": {
+    "throughput_ops_ms": {
+      "lower_value": 1127.9135845246487,
+      "upper_value": 3362.6018400818025,
+      "value": 2245.2577123032256
     }
   }
 }

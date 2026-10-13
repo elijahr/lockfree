@@ -56,19 +56,55 @@
     lockfree_unbounded_mpsc: '#5c6bc0',
     lockfree_unbounded_mpmc: '#5c6bc0',
     // associative maps & sets
-    ctrie:                   '#3f51b5',
-    skiplist:                '#00897b',
-    locked_table:            '#78909c',
+    ctrie:                      '#3f51b5',
+    skiplist:                   '#00897b',
+    skiplist_set:               '#00695c',
+    locked_table:               '#78909c',
+    locked_set:                 '#607d8b',
+    dashmap:                    '#f4511e',
+    flurry:                     '#fb8c00',
+    crossbeam_skipmap:          '#d84315',
+    crossbeam_skipset:          '#e64a19',
+    boost_concurrent_flat_map:  '#0288d1',
+    boost_concurrent_flat_set:  '#039be5',
     // stacks & deques
-    treiber_stack:           '#3f51b5',
-    locked_stack:            '#78909c',
-    chase_lev_deque:         '#8e24aa',
-    // broadcast ring
-    broadcast_ring_drop:     '#3f51b5',
-    broadcast_ring_backoff:  '#0277bd',
+    treiber_stack:              '#3f51b5',
+    locked_stack:               '#78909c',
+    boost_lockfree_stack:       '#00897b',
+    chase_lev_deque:            '#8e24aa',
+    chase_lev_deque_batch:      '#6a1b9a',
+    crossbeam_deque:            '#f4511e',
+    crossbeam_deque_batch:      '#d84315',
+    // broadcast ring & topic bus
+    broadcast_ring_drop:        '#3f51b5',
+    broadcast_ring_backoff:     '#0277bd',
+    topic_bus_drop:             '#3949ab',
+    topic_bus_backoff:          '#01579b',
+    tokio_broadcast:            '#f4511e',
+    rust_bus:                   '#fb8c00',
     // rate limiting & streaming
-    token_bucket:            '#e65100',
-    stream_ring:             '#2e7d32',
+    token_bucket:               '#e65100',
+    leaky_bucket:               '#ef6c00',
+    governor_gcra:              '#f4511e',
+    stream_ring:                '#2e7d32',
+    rtrb_stream:                '#d84315',
+    boost_spsc_stream:          '#00897b',
+    // synchronous rendezvous (0-buffer channel)
+    rendezvous_channel:         '#3f51b5',
+    nim_channel_sync:           '#546e7a',
+    crossbeam_rendezvous:       '#f4511e',
+    flume_rendezvous:           '#d84315',
+    kanal_rendezvous:           '#c2185b',
+    // work-stealing taskpool
+    taskpool:                   '#3f51b5',
+    locked_task_queue:          '#78909c',
+    rayon_pool:                 '#f4511e',
+    // safe memory reclamation (NEBR / epoch)
+    nebr:                       '#3f51b5',
+    arc_atomic_rc:              '#5c6bc0',
+    mutex_guard:                '#78909c',
+    deferred_mutex_free:        '#546e7a',
+    crossbeam_epoch:            '#f4511e',
     // comparison libraries — distinct stable colors
     crossbeam_array_queue:           '#f4511e',
     crossbeam_seg_queue:             '#fb8c00',
@@ -90,8 +126,10 @@
 
   // CONTRACT-TEST-PARSED-START BLOCKING_LIBRARIES
   const BLOCKING_LIBRARIES = [
-    'threading_channels', 'nim_channel', 'nim_channels',
-    'locked_table', 'locked_stack', 'broadcast_ring_backoff',
+    'threading_channels', 'nim_channel', 'nim_channels', 'nim_channel_sync',
+    'locked_table', 'locked_set', 'locked_stack', 'locked_task_queue',
+    'broadcast_ring_backoff', 'topic_bus_backoff',
+    'mutex_guard', 'deferred_mutex_free',
   ];
   // CONTRACT-TEST-PARSED-END BLOCKING_LIBRARIES
   const BLOCKING_SET = new Set(BLOCKING_LIBRARIES);
@@ -101,8 +139,12 @@
     'lockfree_mpsc', 'lockfree_mpmc',
     'lockfree_unbounded_spsc', 'lockfree_unbounded_spmc',
     'lockfree_unbounded_mpsc', 'lockfree_unbounded_mpmc',
-    'ctrie', 'skiplist', 'treiber_stack', 'chase_lev_deque',
-    'broadcast_ring_drop', 'broadcast_ring_backoff', 'token_bucket', 'stream_ring',
+    'ctrie', 'skiplist', 'skiplist_set',
+    'treiber_stack', 'chase_lev_deque', 'chase_lev_deque_batch',
+    'broadcast_ring_drop', 'broadcast_ring_backoff',
+    'topic_bus_drop', 'topic_bus_backoff',
+    'token_bucket', 'leaky_bucket', 'stream_ring',
+    'rendezvous_channel', 'taskpool', 'nebr',
   ];
   const LFQ_FAMILY_SET = new Set(LOCKFREE_FAMILY);
 
@@ -111,17 +153,33 @@
     lockfree_spsc: 'nim', lockfree_spmc: 'nim', lockfree_mpsc: 'nim', lockfree_mpmc: 'nim',
     lockfree_unbounded_spsc: 'nim', lockfree_unbounded_spmc: 'nim',
     lockfree_unbounded_mpsc: 'nim', lockfree_unbounded_mpmc: 'nim',
-    nim_channel: 'nim', nim_channels: 'nim', threading_channels: 'nim', loony: 'nim',
-    ctrie: 'nim', skiplist: 'nim', locked_table: 'nim',
-    treiber_stack: 'nim', locked_stack: 'nim', chase_lev_deque: 'nim',
+    nim_channel: 'nim', nim_channels: 'nim', nim_channel_sync: 'nim',
+    threading_channels: 'nim', loony: 'nim',
+    ctrie: 'nim', skiplist: 'nim', skiplist_set: 'nim',
+    locked_table: 'nim', locked_set: 'nim',
+    treiber_stack: 'nim', locked_stack: 'nim',
+    chase_lev_deque: 'nim', chase_lev_deque_batch: 'nim',
     broadcast_ring_drop: 'nim', broadcast_ring_backoff: 'nim',
-    token_bucket: 'nim', stream_ring: 'nim',
+    topic_bus_drop: 'nim', topic_bus_backoff: 'nim',
+    token_bucket: 'nim', leaky_bucket: 'nim', stream_ring: 'nim',
+    rendezvous_channel: 'nim',
+    taskpool: 'nim', locked_task_queue: 'nim',
+    nebr: 'nim', arc_atomic_rc: 'nim', mutex_guard: 'nim', deferred_mutex_free: 'nim',
     // C++
     moodycamel: 'cpp', boost_lockfree_queue: 'cpp', boost_lockfree_spsc: 'cpp',
+    boost_lockfree_stack: 'cpp', boost_concurrent_flat_map: 'cpp',
+    boost_concurrent_flat_set: 'cpp', boost_spsc_stream: 'cpp',
     atomic_queue: 'cpp', rigtorp_mpmc: 'cpp', rigtorp_spsc: 'cpp',
     // Rust
     crossbeam_array_queue: 'rust', crossbeam_seg_queue: 'rust',
     flume: 'rust', kanal: 'rust',
+    dashmap: 'rust', flurry: 'rust',
+    crossbeam_skipmap: 'rust', crossbeam_skipset: 'rust',
+    crossbeam_deque: 'rust', crossbeam_deque_batch: 'rust',
+    tokio_broadcast: 'rust', rust_bus: 'rust',
+    governor_gcra: 'rust', rtrb_stream: 'rust',
+    crossbeam_rendezvous: 'rust', flume_rendezvous: 'rust', kanal_rendezvous: 'rust',
+    rayon_pool: 'rust', crossbeam_epoch: 'rust',
     // C
     liblfds: 'c',
   });
@@ -157,10 +215,28 @@
     read_heavy: 'Read-Heavy (90/10)',
     balanced: 'Balanced (50/50)',
     write_heavy: 'Write-Heavy (10/90)',
+    set_mixed: 'Set Mixed (80/10/10)',
+    mixed: 'Set Mixed (80/10/10)',
+    set_algebra: 'Set Algebra (Union/Intersection)',
+    snapshot_iter: 'Wait-Free Snapshot Iteration',
     work_stealing: 'Work-Stealing',
+    work_stealing_batch: 'Work-Stealing (Batch)',
     fanout: '1-to-N Fan-Out',
+    topic_bus: 'TopicBus Pub/Sub Routing',
     contention: 'Contention',
     spsc_chunk: 'SPSC Chunk Streaming',
+    rendezvous_handoff: '0-Buffer Synchronous Handoff',
+    rendezvous_rpc: 'Synchronous 1:1 RPC Round-Trip',
+    taskpool_parfor: 'TaskPool parallelFor',
+    parallel_for: 'TaskPool parallelFor',
+    taskpool_forkjoin: 'TaskPool Recursive Fork/Join',
+    fork_join: 'TaskPool Recursive Fork/Join',
+    taskpool_spawnsync: 'TaskPool Spawn/Sync Batch',
+    spawn_sync: 'TaskPool Spawn/Sync Batch',
+    smr_pin_unpin: 'SMR Critical-Section Pin/Unpin',
+    pin_unpin: 'SMR Critical-Section Pin/Unpin',
+    smr_retire_reclaim: 'SMR Retire/Reclaim + Neutralization',
+    retire_reclaim: 'SMR Retire/Reclaim + Neutralization',
   });
 
   function topologyLabel(topology) {
@@ -189,19 +265,51 @@
       includes: (topology) => topology === 'balanced' },
     { id: 'bench-maps-write-heavy',          label: 'Write-Heavy (10/90)',
       includes: (topology) => topology === 'write_heavy' },
+    { id: 'bench-sets-mixed',                label: 'ConcurrentSet Mixed (80/10/10)',
+      includes: (topology) => topology === 'set_mixed'
+                              || topology === 'mixed' },
+    { id: 'bench-sets-algebra',              label: 'ConcurrentSet Algebra (Union/Intersection)',
+      includes: (topology) => topology === 'set_algebra' },
+    { id: 'bench-maps-snapshot',             label: 'Wait-Free Snapshot Iteration',
+      includes: (topology) => topology === 'snapshot_iter' },
     // Stacks & Deques
     { id: 'bench-stacks-mpmc',               label: 'MPMC Stack Contention',
       includes: (topology) => topology === 'stack_mpmc' },
     { id: 'bench-deques-work-stealing',      label: 'Work-Stealing Deque',
-      includes: (topology) => topology === 'work_stealing' },
-    // Broadcast Ring
+      includes: (topology) => topology === 'work_stealing'
+                              || topology === 'work_stealing_batch' },
+    // Broadcast Ring & TopicBus
     { id: 'bench-broadcast-fanout',          label: '1-to-N Multicast Fan-Out',
       includes: (topology) => topology === 'fanout' },
+    { id: 'bench-broadcast-topicbus',        label: 'TopicBus Multi-Topic Routing',
+      includes: (topology) => topology === 'topic_bus' },
     // Rate Limiting & Streaming
-    { id: 'bench-tokenbucket-contention',    label: 'TokenBucket Contention',
+    { id: 'bench-tokenbucket-contention',    label: 'Rate Limiter Contention',
       includes: (topology) => topology === 'contention' },
     { id: 'bench-streambuffer-throughput',   label: 'StreamRing SPSC Bandwidth',
       includes: (topology) => topology === 'spsc_chunk' },
+    // Rendezvous (0-buffer Synchronous Channel)
+    { id: 'bench-rendezvous-handoff',        label: '0-Buffer Synchronous Handoff',
+      includes: (topology) => topology === 'rendezvous_handoff' },
+    { id: 'bench-rendezvous-rpc',            label: 'Synchronous 1:1 RPC Throughput',
+      includes: (topology) => topology === 'rendezvous_rpc' },
+    // Work-Stealing TaskPool
+    { id: 'bench-taskpool-parfor',           label: 'TaskPool parallelFor Throughput',
+      includes: (topology) => topology === 'taskpool_parfor'
+                              || topology === 'parallel_for' },
+    { id: 'bench-taskpool-forkjoin',         label: 'TaskPool Recursive Fork/Join (fib)',
+      includes: (topology) => topology === 'taskpool_forkjoin'
+                              || topology === 'fork_join' },
+    { id: 'bench-taskpool-spawnsync',        label: 'TaskPool Spawn/Sync Batch',
+      includes: (topology) => topology === 'taskpool_spawnsync'
+                              || topology === 'spawn_sync' },
+    // Safe Memory Reclamation (NEBR)
+    { id: 'bench-smr-pin-unpin',             label: 'Critical-Section Pin/Unpin Throughput',
+      includes: (topology) => topology === 'smr_pin_unpin'
+                              || topology === 'pin_unpin' },
+    { id: 'bench-smr-retire-reclaim',        label: 'Retire/Reclaim & Stalled-Thread Neutralization',
+      includes: (topology) => topology === 'smr_retire_reclaim'
+                              || topology === 'retire_reclaim' },
   ];
 
   // Source-code links per panel container id. Each panel heading gets
@@ -226,16 +334,42 @@
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_maps.nim',
     'bench-maps-write-heavy':
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_maps.nim',
+    'bench-sets-mixed':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_maps.nim',
+    'bench-sets-algebra':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_maps.nim',
+    'bench-maps-snapshot':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_maps.nim',
     'bench-stacks-mpmc':
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_stacks_deques.nim',
     'bench-deques-work-stealing':
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_stacks_deques.nim',
     'bench-broadcast-fanout':
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_broadcast.nim',
+    'bench-broadcast-topicbus':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_broadcast.nim',
     'bench-tokenbucket-contention':
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_ratelimit_streaming.nim',
     'bench-streambuffer-throughput':
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_ratelimit_streaming.nim',
+    'bench-rendezvous-handoff':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_rendezvous.nim',
+    'bench-rendezvous-rpc':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_rendezvous.nim',
+    'bench-rendezvous-latency':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_rendezvous.nim',
+    'bench-taskpool-parfor':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_taskpool.nim',
+    'bench-taskpool-forkjoin':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_taskpool.nim',
+    'bench-taskpool-spawnsync':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_taskpool.nim',
+    'bench-smr-pin-unpin':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_smr_nebr.nim',
+    'bench-smr-retire-reclaim':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_smr_nebr.nim',
+    'bench-smr-latency':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_smr_nebr.nim',
   });
 
   // Build the small "↗ source" anchor next to a panel heading. Uses
@@ -932,7 +1066,15 @@
     }
 
     const baselineByShape = new Map();
-    const baseMap = libsByShape.get('nim_channels') || libsByShape.get('nim_channel');
+    const baseMap = libsByShape.get('nim_channels')
+      || libsByShape.get('nim_channel')
+      || libsByShape.get('nim_channel_sync')
+      || libsByShape.get('locked_table')
+      || libsByShape.get('locked_set')
+      || libsByShape.get('locked_stack')
+      || libsByShape.get('locked_task_queue')
+      || libsByShape.get('mutex_guard')
+      || libsByShape.get('deferred_mutex_free');
     if (baseMap) {
       for (const [shape, mv] of baseMap) {
         if (mv && typeof mv.value === 'number' && mv.value > 0) {
@@ -1006,21 +1148,22 @@
     { key: 'latency_max_ns',  label: 'max'  },
   ]);
 
-  function collectLatencySeries(bmf) {
+  function collectLatencySeries(bmf, topologyFilter) {
     const byLibrary = new Map();
     let hadAny = false;
     const slugs = Object.keys(bmf).filter(isMeasurementSlug).sort();
     for (const slug of slugs) {
       const measureMap = bmf[slug];
       if (!measureMap || typeof measureMap !== 'object') continue;
+      const parsed = parseSlug(slug);
+      if (!parsed) continue;
+      if (topologyFilter && !topologyFilter(parsed.topology)) continue;
       const hasLatency = LATENCY_PERCENTILES.some((p) => {
         const m = measureMap[p.key];
         return m && typeof m.value === 'number' && Number.isFinite(m.value);
       });
       if (!hasLatency) continue;
       hadAny = true;
-      const parsed = parseSlug(slug);
-      if (!parsed) continue;
       if (!matchesEcosystem(parsed.library)) continue;
       if (byLibrary.has(parsed.library)) continue;
       const values = LATENCY_PERCENTILES.map((p) => {
@@ -1126,15 +1269,16 @@
     });
   }
 
-  function renderLatencyPanel(host, bmf) {
+  function renderLatencyPanel(host, bmf, panelId, topologyFilter) {
     if (!host) return;
     host.innerHTML = '';
+    const effectivePanelId = panelId || 'bench-latency';
     // NOTE: heading text is owned by the `#### Latency` markdown in
     // docs/benchmarks.md; do NOT inject a duplicate <h4> here. Locate
     // the markdown-rendered heading and decorate it with the source-
     // code link so the latency panel matches the throughput panels.
     const latencyHeading = findPrecedingHeading(host);
-    if (latencyHeading) appendSourceLink(latencyHeading, 'bench-latency');
+    if (latencyHeading) appendSourceLink(latencyHeading, effectivePanelId);
 
     if (!bmf || typeof bmf !== 'object') {
       host.appendChild(el('p', { class: 'bench-chart-empty' },
@@ -1142,7 +1286,7 @@
       return;
     }
 
-    const { libraries, hadAny } = collectLatencySeries(bmf);
+    const { libraries, hadAny } = collectLatencySeries(bmf, topologyFilter);
     if (!hadAny || libraries.length === 0) {
       host.appendChild(el('p', { class: 'bench-chart-empty' },
         LATENCY_EMPTY_MESSAGE));
@@ -1170,15 +1314,17 @@
       inst.setOption(buildLatencyOption(libraries, xLabels));
     });
 
-    const lfqBoundedExpected = [
-      'lockfree_spsc', 'lockfree_spmc',
-      'lockfree_mpsc', 'lockfree_mpmc',
-    ];
-    const present = new Set(libraries.map((l) => l.library));
-    const lfqHits = lfqBoundedExpected.filter((l) => present.has(l)).length;
-    if (lfqHits > 0 && lfqHits < lfqBoundedExpected.length) {
-      host.appendChild(el('p', { class: 'bench-hero-footnote' },
-        LATENCY_PARTIAL_FOOTNOTE));
+    if (effectivePanelId === 'bench-latency') {
+      const lfqBoundedExpected = [
+        'lockfree_spsc', 'lockfree_spmc',
+        'lockfree_mpsc', 'lockfree_mpmc',
+      ];
+      const present = new Set(libraries.map((l) => l.library));
+      const lfqHits = lfqBoundedExpected.filter((l) => present.has(l)).length;
+      if (lfqHits > 0 && lfqHits < lfqBoundedExpected.length) {
+        host.appendChild(el('p', { class: 'bench-hero-footnote' },
+          LATENCY_PARTIAL_FOOTNOTE));
+      }
     }
   }
 
@@ -1286,7 +1432,9 @@
           'Awaiting next bench run.'));
       }
     }
-    renderLatencyPanel(document.getElementById('bench-latency'), null);
+    renderLatencyPanel(document.getElementById('bench-latency'), null, 'bench-latency');
+    renderLatencyPanel(document.getElementById('bench-rendezvous-latency'), null, 'bench-rendezvous-latency');
+    renderLatencyPanel(document.getElementById('bench-smr-latency'), null, 'bench-smr-latency');
   }
 
   // ── module: interactive toolbar & recommender ─────────────────────────
@@ -1593,7 +1741,21 @@
 
     renderLatencyPanel(
       document.getElementById('bench-latency'),
-      _currentBmfResult.data || null
+      _currentBmfResult.data || null,
+      'bench-latency',
+      (t) => t === 'spsc' || t === 'spmc' || t === 'mpsc' || t === 'mpmc'
+    );
+    renderLatencyPanel(
+      document.getElementById('bench-rendezvous-latency'),
+      _currentBmfResult.data || null,
+      'bench-rendezvous-latency',
+      (t) => t === 'rendezvous_rpc' || t === 'rendezvous_handoff'
+    );
+    renderLatencyPanel(
+      document.getElementById('bench-smr-latency'),
+      _currentBmfResult.data || null,
+      'bench-smr-latency',
+      (t) => t === 'smr_pin_unpin' || t === 'smr_retire_reclaim' || t === 'pin_unpin' || t === 'retire_reclaim'
     );
 
     requestAnimationFrame(() => {
@@ -1610,13 +1772,17 @@
     const recommenderHost = document.getElementById('bench-recommender');
     const hasAnyHost = heroHost || toolbarHost || recommenderHost ||
       THROUGHPUT_PANELS.some((p) => document.getElementById(p.id)) ||
-      document.getElementById('bench-latency');
+      document.getElementById('bench-latency') ||
+      document.getElementById('bench-rendezvous-latency') ||
+      document.getElementById('bench-smr-latency');
     if (!hasAnyHost) return;
 
     if (toolbarHost) renderToolbar(toolbarHost);
     if (recommenderHost) renderRecommender(recommenderHost);
 
-    renderLatencyPanel(document.getElementById('bench-latency'), null);
+    renderLatencyPanel(document.getElementById('bench-latency'), null, 'bench-latency');
+    renderLatencyPanel(document.getElementById('bench-rendezvous-latency'), null, 'bench-rendezvous-latency');
+    renderLatencyPanel(document.getElementById('bench-smr-latency'), null, 'bench-smr-latency');
 
     const result = await loadBMF();
     _currentBmfResult = result;

@@ -37,14 +37,18 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 # Mirrors the slug grammar enforced by `merge_bmf.py` schema validation
 # AND consumed by `docs/assets/bench-charts.js` `parseSlug()`. Drift
 # between the two would silently drop slugs from the chart.
-SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+/\d+p\d+c$")
+SLUG_RE = re.compile(
+    r"^[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+/(\d+p\d+c|\d+t|\d+w\d+t|\d+[a-z]+)$"
+)
 # Mirrors `parseSlug` in bench-charts.js, which uses
 # `parts.slice(1, -1).join('/')` for topology and therefore accepts
-# nested topologies (3+ segments). The python regex must accept the
-# same shape so the contract test does not reject slugs the JS chart
-# would happily render — e.g. a hypothetical
-# `library/mpmc/unbounded/1p1c` from a future topology split.
-SHAPE_RE = re.compile(r"^(\d+)p(\d+)c$")
+# nested topologies (3+ segments) and all supported shape suffixes:
+# `<P>p<C>c`, `<T>t`, `<W>w<T>t`, and byte sizes (`<N>b|kb|mb|gb`).
+SHAPE_RE = re.compile(r"^(\d+p\d+c|\d+t|\d+w\d+t|\d+[a-z]+)$")
+SHAPE_PC_RE = re.compile(r"^(\d+)p(\d+)c$")
+SHAPE_T_RE = re.compile(r"^(\d+)t$")
+SHAPE_WT_RE = re.compile(r"^(\d+)w(\d+)t$")
+SHAPE_BYTES_RE = re.compile(r"^(\d+)(b|kb|mb|gb)$")
 MEASURE_KEY_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 CHART_MEASURE = "throughput_ops_ms"
 
@@ -60,21 +64,38 @@ def parse_slug(slug: str) -> dict | None:
     library = parts[0]
     topology = "/".join(parts[1:-1])
     shape = parts[-1]
-    m = SHAPE_RE.match(shape)
-    if not m:
+    if not SHAPE_RE.match(shape):
+        return None
+    m_pc = SHAPE_PC_RE.match(shape)
+    m_t = SHAPE_T_RE.match(shape)
+    m_wt = SHAPE_WT_RE.match(shape)
+    m_bytes = SHAPE_BYTES_RE.match(shape)
+    if m_pc:
+        p = int(m_pc.group(1))
+        c = int(m_pc.group(2))
+    elif m_t:
+        p = int(m_t.group(1))
+        c = 0
+    elif m_wt:
+        p = int(m_wt.group(1))
+        c = int(m_wt.group(2))
+    elif m_bytes:
+        p = 1
+        c = 1
+    else:
         return None
     return {
         "library": library,
         "topology": topology,
         "shape": shape,
-        "p": int(m.group(1)),
-        "c": int(m.group(2)),
+        "p": p,
+        "c": c,
     }
 
 
-# A representative sample covering all 6 topology axes (spsc, mpsc,
-# mpmc, spsc_unbounded, mpsc_unbounded, mpmc_unbounded) plus the full
-# latency percentile suite for ≥1 1p1c bounded slug. The library set
+# A representative sample covering core queue topologies plus subsystem
+# benchmarks (maps/sets, stacks/deques, broadcast/topic_bus, ratelimit/stream,
+# rendezvous, taskpool, and NEBR SMR) and latency percentiles. The library set
 # is chosen so every entry has a corresponding LIBRARY_COLORS entry
 # in bench-charts.js — `test_library_colors_map_covers_fixture` would
 # fail loudly otherwise. Numbers are illustrative; this fixture does
@@ -145,6 +166,82 @@ SAMPLE_BMF: dict = {
     "moodycamel/mpmc_unbounded/4p4c": {
         "throughput_ops_ms": {"value": 1450.0},
     },
+    # maps & sets
+    "ctrie/read_heavy/4t": {
+        "throughput_ops_ms": {"value": 54000.0},
+    },
+    "skiplist_set/set_mixed/4t": {
+        "throughput_ops_ms": {"value": 21000.0},
+    },
+    "dashmap/balanced/4t": {
+        "throughput_ops_ms": {"value": 48000.0},
+    },
+    # stacks & deques
+    "treiber_stack/stack_mpmc/2p2c": {
+        "throughput_ops_ms": {"value": 14200.0},
+    },
+    "chase_lev_deque/work_stealing/1w4t": {
+        "throughput_ops_ms": {"value": 32000.0},
+    },
+    # broadcast & topic_bus
+    "broadcast_ring_drop/fanout/1p4c": {
+        "throughput_ops_ms": {"value": 64000.0},
+    },
+    "topic_bus_drop/topic_bus/2p4c": {
+        "throughput_ops_ms": {"value": 28000.0},
+    },
+    # rate limiting & streaming
+    "token_bucket/contention/4t": {
+        "throughput_ops_ms": {"value": 92000.0},
+    },
+    "stream_ring/spsc_chunk/256b": {
+        "throughput_ops_ms": {"value": 185000.0},
+    },
+    # rendezvous (0-buffer synchronous handoff & RPC)
+    "rendezvous_channel/rendezvous_handoff/2p2c": {
+        "throughput_ops_ms": {"value": 442.3},
+    },
+    "rendezvous_channel/rendezvous_rpc/1p1c": {
+        "throughput_ops_ms": {"value": 196.1},
+        "latency_p50_ns":  {"value": 4542.0},
+        "latency_p95_ns":  {"value": 9100.0},
+        "latency_p99_ns":  {"value": 14597.0},
+        "latency_p999_ns": {"value": 27875.0},
+        "latency_max_ns":  {"value": 52100.0},
+    },
+    "nim_channel_sync/rendezvous_handoff/2p2c": {
+        "throughput_ops_ms": {"value": 243.3},
+    },
+    # taskpool (work-stealing scheduler)
+    "taskpool/taskpool_parfor/4t": {
+        "throughput_ops_ms": {"value": 516745.1},
+    },
+    "taskpool/taskpool_forkjoin/4t": {
+        "throughput_ops_ms": {"value": 6318.6},
+    },
+    "taskpool/taskpool_spawnsync/4t": {
+        "throughput_ops_ms": {"value": 19897.1},
+    },
+    "locked_task_queue/taskpool_parfor/4t": {
+        "throughput_ops_ms": {"value": 233932.1},
+    },
+    # smr / nebr
+    "nebr/smr_pin_unpin/4t": {
+        "throughput_ops_ms": {"value": 222632.1},
+        "latency_p50_ns":  {"value": 14.0},
+        "latency_p95_ns":  {"value": 21.0},
+        "latency_p99_ns":  {"value": 32.0},
+        "latency_p999_ns": {"value": 85.0},
+        "latency_max_ns":  {"value": 410.0},
+    },
+    "nebr/smr_retire_reclaim/4t": {
+        "throughput_ops_ms": {"value": 67355.3},
+        "latency_p50_ns":  {"value": 48.0},
+        "latency_p95_ns":  {"value": 92.0},
+        "latency_p99_ns":  {"value": 160.0},
+        "latency_p999_ns": {"value": 540.0},
+        "latency_max_ns":  {"value": 2100.0},
+    },
 }
 
 # Pinned to the documented blocking-on-full library set. Mirrored as
@@ -152,8 +249,10 @@ SAMPLE_BMF: dict = {
 # between the two is a contract regression caught by
 # `test_blocking_libraries_const_matches_contract`.
 EXPECTED_BLOCKING_LIBRARIES = {
-    "threading_channels", "nim_channel", "nim_channels",
-    "locked_table", "locked_stack", "broadcast_ring_backoff",
+    "threading_channels", "nim_channel", "nim_channels", "nim_channel_sync",
+    "locked_table", "locked_set", "locked_stack", "locked_task_queue",
+    "broadcast_ring_backoff", "topic_bus_backoff",
+    "mutex_guard", "deferred_mutex_free",
 }
 
 # Value-anchored regex for `LIBRARY_COLORS` entries in bench-charts.js
@@ -303,6 +402,76 @@ class ChartContractTests(unittest.TestCase):
                     f"got {src.count(needle)}",
             )
 
+    def test_dom_containers_present_in_subsystem_benchmarks_md(self) -> None:
+        """Each subsystem benchmark page in docs/guide/<subsystem>/benchmarks.md
+        must declare its expected DOM container IDs and ECharts/bench-charts.js
+        script tags so interactive charts resolve at load time."""
+        subsystem_pages = {
+            "maps-sets": (
+                "bench-status",
+                "bench-maps-read-heavy",
+                "bench-maps-balanced",
+                "bench-maps-write-heavy",
+                "bench-sets-mixed",
+                "bench-sets-algebra",
+                "bench-maps-snapshot",
+            ),
+            "stacks-deques": (
+                "bench-status",
+                "bench-stacks-mpmc",
+                "bench-deques-work-stealing",
+            ),
+            "broadcast": (
+                "bench-status",
+                "bench-broadcast-fanout",
+                "bench-broadcast-topicbus",
+            ),
+            "ratelimit-streambuffer": (
+                "bench-status",
+                "bench-tokenbucket-contention",
+                "bench-streambuffer-throughput",
+            ),
+            "rendezvous": (
+                "bench-status",
+                "bench-rendezvous-handoff",
+                "bench-rendezvous-rpc",
+                "bench-rendezvous-latency",
+            ),
+            "taskpool": (
+                "bench-status",
+                "bench-taskpool-parfor",
+                "bench-taskpool-forkjoin",
+                "bench-taskpool-spawnsync",
+            ),
+            "smr": (
+                "bench-status",
+                "bench-smr-pin-unpin",
+                "bench-smr-retire-reclaim",
+                "bench-smr-latency",
+            ),
+        }
+        for subsys, cids in subsystem_pages.items():
+            p = REPO_ROOT / "docs" / "guide" / subsys / "benchmarks.md"
+            self.assertTrue(p.is_file(), f"missing {p}")
+            src = p.read_text()
+            self.assertIn(
+                "../../../assets/echarts-5.5.1.min.js",
+                src,
+                msg=f"{subsys}/benchmarks.md missing echarts script tag",
+            )
+            self.assertIn(
+                "../../../assets/bench-charts.js",
+                src,
+                msg=f"{subsys}/benchmarks.md missing bench-charts.js script tag",
+            )
+            for cid in cids:
+                needle = f'id="{cid}"'
+                self.assertEqual(
+                    src.count(needle), 1,
+                    msg=f"expected exactly one {needle} in {subsys}/benchmarks.md, "
+                        f"got {src.count(needle)}",
+                )
+
     def test_library_colors_map_covers_fixture(self) -> None:
         """Every library family present in SAMPLE_BMF must have an
         entry in bench-charts.js's LIBRARY_COLORS const. Drift here
@@ -383,7 +552,7 @@ class ChartContractTests(unittest.TestCase):
         # Defensive size guard: empty fixtures or accidentally-huge
         # ones are both regressions worth catching at test time.
         self.assertGreater(len(data), 10, "example.json suspiciously small")
-        self.assertLess(len(data), 200, "example.json suspiciously large")
+        self.assertLess(len(data), 600, "example.json suspiciously large")
         # No leading-underscore top-level keys: those are placeholder
         # status fields the rollup job emits during fallback paths
         # (`_status: fallback` etc.) — they should never appear in the
@@ -472,8 +641,8 @@ class ChartContractTests(unittest.TestCase):
         )
         entries = entry_re.findall(block)
         self.assertEqual(
-            len(entries), 12,
-            f"expected 12 throughput panels, got {len(entries)}: {entries}",
+            len(entries), 23,
+            f"expected 23 throughput panels, got {len(entries)}: {entries}",
         )
 
         # The agreed routing intent. Source of truth for what the
@@ -481,20 +650,38 @@ class ChartContractTests(unittest.TestCase):
         # how it does it. If this dict and the JS predicate disagree
         # on any topology, that is the regression we want to fail on.
         EXPECTED_ROUTING = {
-            "spsc":            "bench-throughput-spsc",
-            "spsc_unbounded":  "bench-throughput-spsc",
-            "mpsc":            "bench-throughput-mpsc",
-            "mpsc_unbounded":  "bench-throughput-mpsc",
-            "mpmc":            "bench-throughput-mpmc-bounded",
-            "mpmc_unbounded":  "bench-throughput-mpmc-unbounded",
-            "read_heavy":      "bench-maps-read-heavy",
-            "balanced":        "bench-maps-balanced",
-            "write_heavy":     "bench-maps-write-heavy",
-            "stack_mpmc":      "bench-stacks-mpmc",
-            "work_stealing":   "bench-deques-work-stealing",
-            "fanout":          "bench-broadcast-fanout",
-            "contention":      "bench-tokenbucket-contention",
-            "spsc_chunk":      "bench-streambuffer-throughput",
+            "spsc":                "bench-throughput-spsc",
+            "spsc_unbounded":      "bench-throughput-spsc",
+            "mpsc":                "bench-throughput-mpsc",
+            "mpsc_unbounded":      "bench-throughput-mpsc",
+            "mpmc":                "bench-throughput-mpmc-bounded",
+            "mpmc_unbounded":      "bench-throughput-mpmc-unbounded",
+            "read_heavy":          "bench-maps-read-heavy",
+            "balanced":            "bench-maps-balanced",
+            "write_heavy":         "bench-maps-write-heavy",
+            "set_mixed":           "bench-sets-mixed",
+            "mixed":               "bench-sets-mixed",
+            "set_algebra":         "bench-sets-algebra",
+            "snapshot_iter":       "bench-maps-snapshot",
+            "stack_mpmc":          "bench-stacks-mpmc",
+            "work_stealing":       "bench-deques-work-stealing",
+            "work_stealing_batch": "bench-deques-work-stealing",
+            "fanout":              "bench-broadcast-fanout",
+            "topic_bus":           "bench-broadcast-topicbus",
+            "contention":          "bench-tokenbucket-contention",
+            "spsc_chunk":          "bench-streambuffer-throughput",
+            "rendezvous_handoff":  "bench-rendezvous-handoff",
+            "rendezvous_rpc":      "bench-rendezvous-rpc",
+            "taskpool_parfor":     "bench-taskpool-parfor",
+            "parallel_for":        "bench-taskpool-parfor",
+            "taskpool_forkjoin":   "bench-taskpool-forkjoin",
+            "fork_join":           "bench-taskpool-forkjoin",
+            "taskpool_spawnsync":  "bench-taskpool-spawnsync",
+            "spawn_sync":          "bench-taskpool-spawnsync",
+            "smr_pin_unpin":       "bench-smr-pin-unpin",
+            "pin_unpin":           "bench-smr-pin-unpin",
+            "smr_retire_reclaim":  "bench-smr-retire-reclaim",
+            "retire_reclaim":      "bench-smr-retire-reclaim",
         }
 
         # Translate each JS predicate body into a Python callable
@@ -610,7 +797,7 @@ class ChartContractTests(unittest.TestCase):
         fixture = json.loads(fixture_path.read_text())
         fixture_topos = set()
         for slug in fixture:
-            if slug.startswith("_"):
+            if slug.startswith("_") or slug == "meta":
                 continue
             parsed = parse_slug(slug)
             if parsed is None:
