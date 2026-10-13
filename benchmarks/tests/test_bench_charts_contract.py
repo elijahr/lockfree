@@ -499,7 +499,21 @@ class ChartContractTests(unittest.TestCase):
         missing = fixture_libs - colors.keys()
         self.assertFalse(
             missing,
-            f"libraries missing from LIBRARY_COLORS: {sorted(missing)}",
+            f"libraries missing from LIBRARY_COLORS (SAMPLE_BMF): {sorted(missing)}",
+        )
+        example_path = (
+            REPO_ROOT / "docs" / "assets" / "bench-results" / "example.json"
+        )
+        example_data = json.loads(example_path.read_text())
+        example_libs = {
+            slug.split("/")[0]
+            for slug in example_data
+            if slug != "meta" and not slug.startswith("_")
+        }
+        missing_example = example_libs - colors.keys()
+        self.assertFalse(
+            missing_example,
+            f"libraries in example.json missing from LIBRARY_COLORS: {sorted(missing_example)}",
         )
         # The lockfree family must have all 8 entries (4 bounded
         # + 4 unbounded) so co-located bounded/unbounded series stay
@@ -807,6 +821,16 @@ class ChartContractTests(unittest.TestCase):
         self.assertFalse(
             missing,
             f"fixture topologies not routed to any panel: {missing}",
+        )
+        covered_panels = {
+            EXPECTED_ROUTING[t]
+            for t in fixture_topos
+            if t in EXPECTED_ROUTING
+        }
+        uncovered_panels = declared_panel_ids - covered_panels
+        self.assertFalse(
+            uncovered_panels,
+            f"declared THROUGHPUT_PANELS with zero matching topologies in example.json: {sorted(uncovered_panels)}",
         )
 
 

@@ -228,9 +228,11 @@ type
     isClient: bool
     count: int
     hist: ptr Histogram
+    checksum: uint64
 
 proc rpcWorkerBody(ctx: ptr RpcWorkerCtx) {.thread.} =
   if ctx.isClient:
+    var acc = 0'u64
     for i in 0 ..< ctx.count:
       let t0 = getMonoTime()
       let token = uint64(i + 1)
@@ -257,9 +259,12 @@ proc rpcWorkerBody(ctx: ptr RpcWorkerCtx) {.thread.} =
           else:
             discard
       let t1 = getMonoTime()
+      doAssert reply == token + 1
+      acc = acc + reply
       let rttNs = float(inNanoseconds(t1 - t0))
       if rttNs > 0.0 and ctx.hist != nil:
         ctx.hist[].record(rttNs)
+    ctx.checksum = acc
   else:
     for _ in 0 ..< ctx.count:
       var req = 0'u64
@@ -322,7 +327,8 @@ proc runOneRpc(kind: RendezvousKind, count: int): (float, LatencyMetrics) =
     reqFfi: reqFfi, repFfi: repFfi,
     isClient: true,
     count: count,
-    hist: addr hist
+    hist: addr hist,
+    checksum: 0'u64
   )
   var serverCtx = RpcWorkerCtx(
     kind: kind,
@@ -331,7 +337,8 @@ proc runOneRpc(kind: RendezvousKind, count: int): (float, LatencyMetrics) =
     reqFfi: reqFfi, repFfi: repFfi,
     isClient: false,
     count: count,
-    hist: nil
+    hist: nil,
+    checksum: 0'u64
   )
 
   var clientThread, serverThread: Thread[ptr RpcWorkerCtx]
@@ -341,6 +348,7 @@ proc runOneRpc(kind: RendezvousKind, count: int): (float, LatencyMetrics) =
   joinThread(clientThread)
   joinThread(serverThread)
   let elapsedNs = float(inNanoseconds(getMonoTime() - t0))
+  doAssert clientCtx.checksum > 0'u64
 
   case kind
   of rkLockfree:

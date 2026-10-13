@@ -119,7 +119,9 @@
     rigtorp_mpmc:                    '#1565c0',
     rigtorp_spsc:                    '#0277bd',
     flume:                           '#d84315',
+    flume_unbounded:                 '#d84315',
     kanal:                           '#c2185b',
+    kanal_unbounded:                 '#c2185b',
     liblfds:                         '#455a64',
   });
   // CONTRACT-TEST-PARSED-END LIBRARY_COLORS
@@ -172,7 +174,7 @@
     atomic_queue: 'cpp', rigtorp_mpmc: 'cpp', rigtorp_spsc: 'cpp',
     // Rust
     crossbeam_array_queue: 'rust', crossbeam_seg_queue: 'rust',
-    flume: 'rust', kanal: 'rust',
+    flume: 'rust', flume_unbounded: 'rust', kanal: 'rust', kanal_unbounded: 'rust',
     dashmap: 'rust', flurry: 'rust',
     crossbeam_skipmap: 'rust', crossbeam_skipset: 'rust',
     crossbeam_deque: 'rust', crossbeam_deque_batch: 'rust',
@@ -1312,6 +1314,9 @@
         mount, isLightScheme() ? null : 'dark', { renderer: 'canvas' }
       );
       inst.setOption(buildLatencyOption(libraries, xLabels));
+      const idx = _charts.findIndex((c) => c.instance && c.instance.isDisposed
+        && c.instance.isDisposed());
+      if (idx >= 0) _charts[idx].instance = inst;
     });
 
     if (effectivePanelId === 'bench-latency') {

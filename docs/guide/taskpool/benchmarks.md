@@ -15,11 +15,11 @@ Performance benchmarks evaluating `TaskPool` (lock-free work-stealing scheduler 
 ### Workloads Evaluated (`1t`, `2t`, `4t`, `8t`)
 
 1. **`taskpool_parfor` (`parallelFor` Loop Throughput)**:
-   Executes 100,000 loop iterations partitioned into 256-iteration chunks using SplitMix64 integer mixing. Throughput is reported in loop iterations per millisecond (`ops/ms`).
+   Executes 500,000 loop iterations partitioned into 256-iteration chunks using SplitMix64 integer mixing. Throughput is reported in loop iterations per millisecond (`ops/ms`).
 2. **`taskpool_forkjoin` (Recursive Divide-and-Conquer Tree)**:
    Recursively forks a binary task tree of depth 13 ($2^{14} - 1 = 16,383$ nodes) using `pool.forkJoin(left, right)` with active caller work-helping (`helpWork`). Throughput is reported in tree nodes executed per millisecond (`ops/ms`).
 3. **`taskpool_spawnsync` (High-Churn `spawn` + `sync` Batch)**:
-   Spawns 10,000 fine-grained `{.nimcall.}` tasks into the pool followed by a barrier `pool.sync()`. Measures raw task allocation, queuing, and barrier synchronization throughput (`ops/ms`).
+   Spawns 25,000 fine-grained `{.nimcall.}` tasks into the pool followed by a barrier `pool.sync()`. Measures raw task allocation, queuing, and barrier synchronization throughput (`ops/ms`).
 
 ---
 

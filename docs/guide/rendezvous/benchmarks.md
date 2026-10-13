@@ -15,8 +15,8 @@ Unlike buffered queues where producers deposit items into ring buffers and conti
 
 ### Topographies Evaluated
 
-- **`rendezvous_handoff` (`1p1c`, `2p2c`, `4p4c`, `8p8c`)**: Symmetric producer-consumer pairs performing 100,000 synchronous 0-buffer handoffs per run.
-- **`rendezvous_rpc` (`1p1c`)**: Two-way synchronous request/response ping-pong over a request/reply channel pair, measuring both throughput (`ops/ms`) and per-call round-trip latency percentiles (`p50`, `p95`, `p99`, `p999`, `max` in nanoseconds).
+- **`rendezvous_handoff` (`1p1c`, `2p2c`, `4p4c`, `8p8c`)**: Symmetric producer-consumer pairs performing 50,000 synchronous 0-buffer handoffs per run.
+- **`rendezvous_rpc` (`1p1c`)**: 20,000 two-way synchronous request/response ping-pong round trips over a request/reply channel pair, measuring both throughput (`ops/ms`) and per-call round-trip latency percentiles (`p50`, `p95`, `p99`, `p999`, `max` in nanoseconds).
 
 ---
 
