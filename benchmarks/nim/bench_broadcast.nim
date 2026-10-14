@@ -278,11 +278,12 @@ proc runTopicBusBenchmark(
     totalMsgs: int
 ): float =
   var bus: TopicBus[int]
-  var tokioPtr: pointer = nil
+  var tokioRings: array[4, pointer]
 
   if useTokio:
     when defined(adapter_rust_ffi_available):
-      tokioPtr = tokio_bcast_init(csize_t(RingCapacity), csize_t(numConsumers))
+      for t in 0 ..< TopicNames.len:
+        tokioRings[t] = tokio_bcast_init(csize_t(RingCapacity), csize_t(numConsumers))
   else:
     bus = initTopicBus[int](TopicBusConfig(
       defaultRingCapacity: RingCapacity,
@@ -293,7 +294,8 @@ proc runTopicBusBenchmark(
   defer:
     if useTokio:
       when defined(adapter_rust_ffi_available):
-        tokio_bcast_destroy(tokioPtr)
+        for t in 0 ..< TopicNames.len:
+          tokio_bcast_destroy(tokioRings[t])
 
   var done = Atomic[bool]()
   done.store(false, moRelaxed)
@@ -305,19 +307,21 @@ proc runTopicBusBenchmark(
 
   let msgsPerProd = totalMsgs div numProducers
   for i in 0 ..< numProducers:
+    let topicIdx = i mod TopicNames.len
     pubCtxs[i] = TopicPubCtx(
       busPtr: addr bus,
-      tokioPtr: tokioPtr,
+      tokioPtr: tokioRings[topicIdx],
       useTokio: useTokio,
       msgCount: msgsPerProd,
       threadId: i
     )
 
   for i in 0 ..< numConsumers:
-    let topic = TopicNames[i mod TopicNames.len]
+    let topicIdx = i mod TopicNames.len
+    let topic = TopicNames[topicIdx]
     subCtxs[i] = TopicSubCtx(
       cursor: (if useTokio: BroadcastCursor[int]() else: bus.subscribe(topic, soFromEarliest)),
-      tokioPtr: tokioPtr,
+      tokioPtr: tokioRings[topicIdx],
       useTokio: useTokio,
       subIdx: i,
       readCount: 0,

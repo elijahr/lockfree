@@ -282,14 +282,20 @@ def build_nim(quick: bool = False):
                 cmd.extend(["-d:BenchRLRuns=1", "-d:BenchRLWarmup=1", "-d:BenchTokenCount=50000", "-d:BenchStreamBytes=10000000"])
 
         elif bin_name == "bench_rendezvous":
+            if rust_available:
+                cmd.append("-d:adapter_crossbeam_array_queue_available")
             if quick:
                 cmd.extend(["-d:BenchRendezvousRuns=1", "-d:BenchRendezvousWarmup=1", "-d:BenchRendezvousMsgCount=10000", "-d:BenchRendezvousRpcCount=5000"])
 
         elif bin_name == "bench_taskpool":
+            if rust_available:
+                cmd.append("-d:adapter_crossbeam_array_queue_available")
             if quick:
                 cmd.extend(["-d:BenchTaskPoolRuns=1", "-d:BenchTaskPoolWarmup=1", "-d:BenchParForCount=50000", "-d:BenchForkJoinDepth=10", "-d:BenchSpawnSyncCount=5000"])
 
         elif bin_name == "bench_smr_nebr":
+            if rust_available:
+                cmd.append("-d:adapter_crossbeam_array_queue_available")
             if quick:
                 cmd.extend(["-d:BenchSmrRuns=1", "-d:BenchSmrWarmup=1", "-d:BenchPinOpsPerThread=50000", "-d:BenchRetireOpsPerThread=10000"])
 

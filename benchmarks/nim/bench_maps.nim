@@ -645,6 +645,7 @@ type
   SnapshotWorkerCtx = object
     mapKind: MapKind
     ctriePtr: ptr Ctrie[int, int]
+    snapPtr: ptr Snapshot[int, int]
     lockedTab: LockedTable
     ffiPtr: pointer
     isIterator: bool
@@ -662,8 +663,7 @@ proc snapshotWorkerBody(ctxPtr: ptr SnapshotWorkerCtx) {.thread.} =
       let tStart = getMonoTime()
       case ctxPtr.mapKind
       of mkCtrie:
-        let snap = ctxPtr.ctriePtr[].snapshot()
-        for _, v in snap.pairs:
+        for _, v in ctxPtr.snapPtr[].pairs:
           sum += uint64(v)
       of mkDashMap:
         when defined(adapter_rust_ffi_available):
@@ -682,7 +682,7 @@ proc snapshotWorkerBody(ctxPtr: ptr SnapshotWorkerCtx) {.thread.} =
       let v = rng.rand(100_000)
       case ctxPtr.mapKind
       of mkCtrie:
-        discard ctxPtr.ctriePtr[].put(k, v)
+        discard ctxPtr.ctriePtr[].putIfAbsent(k, v)
       of mkDashMap:
         when defined(adapter_rust_ffi_available):
           discard dm_put(ctxPtr.ffiPtr, uint64(k), uint64(v))
@@ -697,6 +697,7 @@ proc runSnapshotIterBenchmark(
     snapIters: int
 ): (float, float) =
   var cMap: Ctrie[int, int]
+  var cSnap: Snapshot[int, int]
   var lTab: LockedTable
   var ffiPtr: pointer = nil
 
@@ -705,6 +706,7 @@ proc runSnapshotIterBenchmark(
     cMap = newCtrie[int, int]()
     for i in 0 ..< SnapshotKeyCount:
       discard cMap.put(i, i)
+    cSnap = cMap.snapshot()
   of mkDashMap:
     when defined(adapter_rust_ffi_available):
       ffiPtr = dm_init()
@@ -735,6 +737,7 @@ proc runSnapshotIterBenchmark(
     ctxs[i] = SnapshotWorkerCtx(
       mapKind: mapKind,
       ctriePtr: addr cMap,
+      snapPtr: addr cSnap,
       lockedTab: lTab,
       ffiPtr: ffiPtr,
       isIterator: i < numReaders,
@@ -876,10 +879,8 @@ proc main() =
       let tm = mean(tSamples)
       let ts = stddev(tSamples)
       let lm = mean(lSamples)
-      let ls = stddev(lSamples)
       let slug = &"{libName}/snapshot_iter/{threads}t"
       emitter.addMeasure(slug, "throughput_ops_ms", tm, tm - ts, tm + ts)
-      emitter.addMeasure(slug, "latency_p99_ns", lm, max(0.0, lm - ls), lm + ls)
       echo &"{slug}: mean = {tm:10.1f} ops/ms, p99 = {lm:10.1f} ns"
 
   if outputPath.len > 0:

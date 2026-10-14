@@ -222,6 +222,8 @@ proc runStackBenchmark(
 # -----------------------------------------------------------------------------
 # 2. Work-Stealing Deque Benchmark Harness (ChaseLevDeque vs Crossbeam Deque)
 # -----------------------------------------------------------------------------
+var gDequeSink {.volatile.}: uint64 = 0
+
 type
   DequeKind = enum
     dkChaseLevSingle
@@ -238,48 +240,63 @@ type
     count: int
     threadId: int
     doneFlag: ptr Atomic[bool]
+    checksum: uint64
 
 proc dequeWorkerBody(ctxPtr: ptr DequeWorkerCtx) {.thread.} =
   let ctx = ctxPtr[]
+  var localSum = 0'u64
   if ctx.isWorker:
     for i in 0 ..< ctx.count:
       case ctx.dequeKind
       of dkChaseLevSingle, dkChaseLevBatch:
         ctx.dequePtr[].pushBottom(i)
         if (i and 3) == 0:
-          discard ctx.dequePtr[].popBottom()
+          let popped = ctx.dequePtr[].popBottom()
+          if popped.isSome:
+            localSum += uint64(popped.get())
       of dkCrossbeamSingle, dkCrossbeamBatch:
         when defined(adapter_rust_ffi_available):
           cb_deque_push(ctx.cbPtr, uint64(i))
           if (i and 3) == 0:
             var popped = 0'u64
-            discard cb_deque_pop(ctx.cbPtr, addr popped)
+            if cb_deque_pop(ctx.cbPtr, addr popped):
+              localSum += popped
     ctx.doneFlag[].store(true, moRelease)
   else:
     case ctx.dequeKind
     of dkChaseLevSingle:
       while not ctx.doneFlag[].load(moAcquire) or not ctx.dequePtr[].isEmpty:
         let item = ctx.dequePtr[].steal()
-        if item.isNone:
+        if item.isSome:
+          localSum += uint64(item.get())
+        else:
           benchBackoffOnPeerWait()
     of dkChaseLevBatch:
       var batchBuf: array[StealBatchLimit, int]
       while not ctx.doneFlag[].load(moAcquire) or not ctx.dequePtr[].isEmpty:
         let n = ctx.dequePtr[].stealBatch(batchBuf, StealBatchLimit)
-        if n == 0:
+        if n > 0:
+          for k in 0 ..< n:
+            localSum += uint64(batchBuf[k])
+        else:
           benchBackoffOnPeerWait()
     of dkCrossbeamSingle:
       when defined(adapter_rust_ffi_available):
         var stolen = 0'u64
         while not ctx.doneFlag[].load(moAcquire) or not cb_deque_is_empty(ctx.cbPtr):
-          if not cb_deque_steal(ctx.cbPtr, addr stolen):
+          if cb_deque_steal(ctx.cbPtr, addr stolen):
+            localSum += stolen
+          else:
             benchBackoffOnPeerWait()
     of dkCrossbeamBatch:
       when defined(adapter_rust_ffi_available):
         while not ctx.doneFlag[].load(moAcquire) or not cb_deque_is_empty(ctx.cbPtr):
           let n = cb_deque_steal_batch(ctx.cbPtr, csize_t(ctx.thiefIdx), csize_t(StealBatchLimit))
-          if n == 0:
+          if n > 0:
+            localSum += uint64(n)
+          else:
             benchBackoffOnPeerWait()
+  ctxPtr.checksum = localSum
 
 proc runDequeBenchmark(dequeKind: DequeKind, numThieves: int, itemsCount: int): float =
   var deque: ChaseLevDeque[int]
@@ -312,7 +329,8 @@ proc runDequeBenchmark(dequeKind: DequeKind, numThieves: int, itemsCount: int): 
     thiefIdx: 0,
     count: itemsCount,
     threadId: 0,
-    doneFlag: addr done
+    doneFlag: addr done,
+    checksum: 0
   )
 
   for i in 1 .. numThieves:
@@ -324,7 +342,8 @@ proc runDequeBenchmark(dequeKind: DequeKind, numThieves: int, itemsCount: int): 
       thiefIdx: i - 1,
       count: itemsCount,
       threadId: i,
-      doneFlag: addr done
+      doneFlag: addr done,
+      checksum: 0
     )
 
   let t0 = getMonoTime()
@@ -333,6 +352,11 @@ proc runDequeBenchmark(dequeKind: DequeKind, numThieves: int, itemsCount: int): 
   for i in 0 ..< totalThreads:
     joinThread(threads[i])
   let elapsedNs = float(inNanoseconds(getMonoTime() - t0))
+
+  var totalChecksum = 0'u64
+  for i in 0 ..< totalThreads:
+    totalChecksum = totalChecksum xor ctxs[i].checksum
+  gDequeSink = gDequeSink xor totalChecksum
 
   if elapsedNs <= 0.0:
     return 0.0
