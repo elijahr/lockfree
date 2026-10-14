@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-14
+
+### Added
+
+- **Expanded `AsyncBridge` & Chronos Integration (`src/lockfree/async_bridge.nim`)**:
+  - `AsyncBroadcastRing` & `AsyncBroadcastCursor`: Non-blocking async pub-sub multicast adapters supporting `publish`, `tryPublish`, `sendAsync` (with lossless `omBackoff` producer backpressure), `pollAsync`, `recvAsync`, `tryPopAsync`, `waitReadable`, `isReadable`, and `unsubscribe` across both `std/asyncdispatch` and `-d:lockfreeChronos`.
+  - `AsyncTopicBus`: Multiplexed topic-based async pub-sub router (`subscribe`, `publish`, `tryPublish`, `sendAsync`, `topicCount`, `hasTopic`).
+  - `AsyncChaseLevDeque` (`AsyncDeque`, `AsyncConcurrentDeque`): Work-stealing deque async adapter with owner `pushBottom` / `popBottom` / `tryPopBottom` / `sendAsync` and non-spinning async thief `stealAsync`, `stealBatchAsync`, `tryStealAsync`, and `tryPopAsync` backed by Dekker `moSequentiallyConsistent` barriers.
+  - Synchronous thread-safe `AsyncQueue.push` and `AsyncQueue.trySend` procs for allocation-free cross-thread OS producer handoff without invoking `std/asyncfutures.newFuture`.
+- **16-Binary Multi-Language Benchmark Suite & Interactive Portal**:
+  - Added 7 subsystem benchmark binaries (`bench_maps`, `bench_stacks_deques`, `bench_broadcast`, `bench_ratelimit_streaming`, `bench_rendezvous`, `bench_taskpool`, `bench_smr_nebr`) alongside the 9 topology-split queue and latency binaries (16 binaries, 25 operations, 72 libraries, 477 BMF slugs).
+  - Wired external C++/C/Rust FFI benchmark competitors (`benchmarks/rust/bench-ffi-crossbeam/` and `benchmarks/vendor/`), including `crossbeam`, `flume`, `kanal`, `dashmap`, `papaya`, `flurry`, `scc`, `seize`, `rayon`, `tokio::sync::broadcast`, `bus`, `governor`, `rtrb`, `boost::lockfree`, `boost::concurrent_flat_map`, `boost::concurrent_flat_set`, `moodycamel::ConcurrentQueue`, `atomic_queue`, `rigtorp::SPSCQueue`, `rigtorp::MPMCQueue`, and `liblfds711`.
+  - Expanded interactive Chart.js benchmark portal (`docs/assets/bench-charts.js`, 23 throughput + 3 latency panels), 7 dedicated subsystem benchmark documentation pages (`docs/benchmarks/*.md`), and 39 automated Python contract tests (`benchmarks/tests/test_bench_charts_contract.py`).
+  - Expanded `.github/workflows/bench.yml` and `.github/workflows/bench-comparison.yml` to build, test, and merge all 16 benchmark binaries and external comparison adapters in CI.
+
+### Fixed
+
+- **Windows IOCP `AsyncSignal` Kernel Event Lifecycle & FIFO Wakeup Ordering**:
+  - Replaced unconditional `AsyncEvent.trigger()` calls in `AsyncSignal` with a 3-state atomic kernel registration state machine (`ksIdle` / `ksRegistered` / `ksTriggered`), `callSoon`-ordered close teardown, and `pruneFinishedWaiters` to prevent duplicate IOCP completion packets and `unregister` use-after-free on Windows (`17a` MSVC & `17b` MinGW).
+  - Replaced per-waiter `AsyncSignal` allocation in `AsyncBroadcastRing` and `AsyncChaseLevDeque` with shared `producerSignal` and `thiefSignal` instances and a non-barging `waiters.len == 0` fast-path guard to guarantee deterministic FIFO wakeup ordering on Windows IOCP.
+- **ThreadSanitizer (`--mm:orc`) Cross-Thread Safety in `AsyncBridge`**:
+  - Converted `AsyncRendezvousWaiterNode[T]` from a cyclic `ref object` to a shared-memory `ptr AsyncRendezvousWaiterNodeObj[T]` (`allocShared0` / `deallocShared`) with lock-protected payload handoff, eliminating cross-thread ORC `RefHeader.rc` and cycle-collector data races under `-fsanitize=thread`.
+
 ## [0.2.0] - 2026-10-11
 
 Comprehensive release expanding `lockfree` into a full-featured lock-free concurrency toolkit for Nim.

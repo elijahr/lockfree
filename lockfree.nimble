@@ -1,7 +1,7 @@
 import os
 
 # Package
-version        = "0.2.0"
+version        = "0.3.0"
 author         = "Elijah Shaw-Rutschman"
 description    = "High-performance, non-blocking lock-free data structures (Tables, Sets, Stacks, Queues, Channels, Deques, Broadcast Rings, TaskPools) with Debra SMR and ARC/ORC support for Nim."
 license        = "MIT"
