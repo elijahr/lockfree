@@ -1,9 +1,33 @@
 ## tests/t_async_bridge.nim
 ##
-## Comprehensive test suite for Wave 3C Async Bridge (src/lockfree/async_bridge.nim)
-## with std/asyncdispatch.
+## Comprehensive test suite for Async Bridge (src/lockfree/async_bridge.nim)
+## under both std/asyncdispatch and Chronos (-d:lockfreeChronos).
 
-import std/[asyncdispatch, options, os]
+import std/[options, os]
+when defined(lockfreeChronos):
+  import chronos
+  template spawnAsync(fut: untyped) =
+    asyncSpawn fut
+  proc sleepMs(ms: int): Future[void] =
+    sleepAsync(milliseconds(ms))
+  proc timeoutMs[T](fut: Future[T], ms: int): Future[bool] =
+    withTimeout(fut, milliseconds(ms))
+  proc stepLoop() =
+    waitFor(sleepAsync(milliseconds(5)))
+else:
+  import std/asyncdispatch
+  template spawnAsync(fut: untyped) =
+    asyncCheck fut
+  proc sleepMs(ms: int): Future[void] =
+    sleepAsync(ms)
+  proc timeoutMs[T](fut: Future[T], ms: int): Future[bool] =
+    withTimeout(fut, ms)
+  proc stepLoop() =
+    try:
+      poll(10)
+    except ValueError:
+      discard
+
 import unittest2
 import lockfree/atomics
 import lockfree/strategy
@@ -11,6 +35,7 @@ import lockfree/bqueue
 import lockfree/queue
 import lockfree/rendezvous
 import lockfree/broadcast
+import lockfree/deque
 import lockfree/async_bridge
 
 suite "AsyncBQueue (Bounded Async Queue)":
@@ -31,11 +56,8 @@ suite "AsyncBQueue (Bounded Async Queue)":
 
   test "tryPopAsync speculative non-blocking execution":
     var q = newAsyncBQueue[int, ccSingle, ccSingle, 16, 0, 0]()
-    # Empty queue returns none
     check waitFor(q.tryPopAsync()) == none(int)
-    # Push item
     check q.push(99) == true
-    # Now tryPopAsync returns some(99)
     check waitFor(q.tryPopAsync()) == some(99)
     check waitFor(q.tryPopAsync()) == none(int)
 
@@ -44,26 +66,19 @@ suite "AsyncBQueue (Bounded Async Queue)":
     var fut = q.recvAsync()
     check fut.finished == false
     check q.push(123) == true
-    # Run event loop to dispatch wakeup
-    poll(10)
-    check fut.finished == true
+    stepLoop()
     check waitFor(fut) == some(123)
 
   test "bounded backpressure: producer suspends when full":
-    # Queue with capacity 2
     var q = newAsyncBQueue[int, ccSingle, ccSingle, 2, 0, 0]()
     check waitFor(q.sendAsync(10)) == true
     check waitFor(q.sendAsync(20)) == true
-    # Third item should suspend
     var sendFut = q.sendAsync(30)
     check sendFut.finished == false
 
-    # Pop one item; producer should wake and complete
     check waitFor(q.recvAsync()) == some(10)
-    poll(10)
-    check sendFut.finished == true
+    stepLoop()
     check waitFor(sendFut) == true
-    # Verify remaining items
     check waitFor(q.recvAsync()) == some(20)
     check waitFor(q.recvAsync()) == some(30)
 
@@ -104,8 +119,8 @@ suite "AsyncQueue (Unbounded LCRQ Async Queue)":
 suite "AsyncRendezvousChannel (Zero-Buffer Synchronous CSP)":
   test "coroutine-to-coroutine rendezvous handoff":
     var ch = newAsyncRendezvousChannel[string]()
-    proc sender(c: AsyncRendezvousChannel[string]) {.async.} =
-      await sleepAsync(20)
+    proc sender(c: AsyncRendezvousChannel[string]): Future[void] {.async.} =
+      await sleepMs(20)
       discard await c.sendAsync("hello-csp")
 
     proc receiver(c: AsyncRendezvousChannel[string]): Future[string] {.async.} =
@@ -114,7 +129,7 @@ suite "AsyncRendezvousChannel (Zero-Buffer Synchronous CSP)":
         return valOpt.get()
       return ""
 
-    asyncCheck sender(ch)
+    spawnAsync sender(ch)
     let res = waitFor(receiver(ch))
     check res == "hello-csp"
 
@@ -154,15 +169,12 @@ suite "AsyncRendezvousChannel (Zero-Buffer Synchronous CSP)":
 
   test "tryPopAsync on RendezvousChannel":
     var ch = newAsyncRendezvousChannel[int]()
-    # No sender present -> returns none
     check waitFor(ch.tryPopAsync()) == none(int)
 
   test "bilateral CAS arbitration on cancellation (withTimeout)":
     var ch = newAsyncRendezvousChannel[int]()
-    # Receiver awaits with short timeout when no sender arrives
-    let ok = waitFor(withTimeout(ch.recvAsync(), 15))
+    let ok = waitFor(timeoutMs(ch.recvAsync(), 15))
     check ok == false
-    # Channel must still be operational
     var sendTh: Thread[ptr AsyncRendezvousChannel[int]]
     createThread(sendTh, proc(cp: ptr AsyncRendezvousChannel[int]) {.thread.} =
       sleep(20)
@@ -178,15 +190,122 @@ suite "AsyncBroadcastRing & AsyncBroadcastCursor (Pub-Sub Multicast)":
     var c1 = ring.subscribe(soFromLatest)
     var c2 = ring.subscribe(soFromLatest)
 
-    # Publish message
     check waitFor(ring.sendAsync(101)) == true
     check waitFor(ring.sendAsync(202)) == true
 
-    # Both cursors receive both messages in sequence
     check waitFor(c1.recvAsync()) == some(101)
     check waitFor(c1.recvAsync()) == some(202)
     check waitFor(c2.recvAsync()) == some(101)
     check waitFor(c2.recvAsync()) == some(202)
+
+    c1.unsubscribe()
+    c2.unsubscribe()
+
+  test "concurrent parked subscribers all wake on single publish (per-cursor signal isolation)":
+    var ring = newAsyncBroadcastRing[int](16)
+    var c1 = ring.subscribe(soFromLatest)
+    var c2 = ring.subscribe(soFromLatest)
+    var c3 = ring.subscribe(soFromLatest)
+
+    # Park all 3 subscribers BEFORE publishing
+    var f1 = c1.recvAsync()
+    var f2 = c2.recvAsync()
+    var f3 = c3.recvAsync()
+    check f1.finished == false
+    check f2.finished == false
+    check f3.finished == false
+
+    ring.publish(4242)
+    check waitFor(f1) == some(4242)
+    check waitFor(f2) == some(4242)
+    check waitFor(f3) == some(4242)
+
+    c1.unsubscribe()
+    c2.unsubscribe()
+    c3.unsubscribe()
+
+  test "unsubscribe releases cursor table slots and unblocks parked reader":
+    var ring = newAsyncBroadcastRing[int](capacity = 16, maxReaders = 2)
+    for round in 0 ..< 6:
+      var c = ring.subscribe(soFromLatest)
+      check ring.subscriberCount == 1
+      c.unsubscribe()
+      check ring.subscriberCount == 0
+      check c.isClosed == true
+
+    var cParked = ring.subscribe(soFromLatest)
+    var recvFut = cParked.recvAsync()
+    check recvFut.finished == false
+    cParked.close()
+    check waitFor(recvFut) == none(int)
+
+  test "pollAsync surfaces prLagged(skippedCount) and recvAsync auto-advances on lag":
+    # Minimum ring capacity is 16
+    var ring = newAsyncBroadcastRing[int](capacity = 16, overflowMode = omDropOldest)
+    var cPoll = ring.subscribe(soFromLatest)
+    var cRecv = ring.subscribe(soFromLatest)
+
+    # Publish 20 items into a capacity-16 ring; slot 0 is overwritten on lap 2 by seq 17
+    for i in 1 .. 20:
+      ring.publish(i)
+
+    # pollAsync surfaces explicit prLagged(skippedCount = 16) first, then item 17
+    let p1 = waitFor(cPoll.pollAsync())
+    check p1.kind == prLagged
+    check p1.skippedCount == 16'u64
+    let p2 = waitFor(cPoll.pollAsync())
+    check p2.kind == prSuccess
+    check p2.val == 17
+
+    # recvAsync automatically skips over prLagged without sleeping and returns item 17
+    let r1 = waitFor(cRecv.recvAsync())
+    check r1 == some(17)
+    check cRecv.lag == 16'u64
+
+    cPoll.unsubscribe()
+    cRecv.unsubscribe()
+
+  test "waitReadable suspends until readable without consuming message":
+    var ring = newAsyncBroadcastRing[string](16)
+    var c = ring.subscribe(soFromLatest)
+    check c.isReadable == false
+
+    var waitFut = c.waitReadable()
+    check waitFut.finished == false
+
+    ring.publish("peek-THEN-pop")
+    check waitFor(waitFut) == true
+    check c.isReadable == true
+    check waitFor(c.recvAsync()) == some("peek-THEN-pop")
+    check c.isReadable == false
+
+    c.unsubscribe()
+
+  test "omBackoff lossless backpressure: sendAsync suspends when full and wakes on poll or unsubscribe":
+    var ring = newAsyncBroadcastRing[int](capacity = 16, overflowMode = omBackoff)
+    var cSlow = ring.subscribe(soFromLatest)
+    var cFast = ring.subscribe(soFromLatest)
+
+    for i in 1 .. 16:
+      check waitFor(ring.sendAsync(i)) == true
+      check waitFor(cFast.recvAsync()) == some(i)
+
+    # cSlow is still at seq 0, so ring is full under omBackoff
+    var p1Fut = ring.sendAsync(17)
+    var p2Fut = ring.sendAsync(18)
+    check p1Fut.finished == false
+    check p2Fut.finished == false
+
+    # cSlow reads 1 item -> unblocks one waiting producer
+    check waitFor(cSlow.recvAsync()) == some(1)
+    # Unsubscribing cSlow unblocks all remaining stalled producers immediately
+    cSlow.unsubscribe()
+    check waitFor(p1Fut) == true
+    check waitFor(p2Fut) == true
+
+    check waitFor(cFast.recvAsync()) == some(17)
+    check waitFor(cFast.recvAsync()) == some(18)
+    cFast.unsubscribe()
 
   test "tryPopAsync on BroadcastCursor":
     var ring = newAsyncBroadcastRing[string](16)
@@ -195,6 +314,7 @@ suite "AsyncBroadcastRing & AsyncBroadcastCursor (Pub-Sub Multicast)":
     check waitFor(ring.sendAsync("stream-msg")) == true
     check waitFor(c.tryPopAsync()) == some("stream-msg")
     check waitFor(c.tryPopAsync()) == none(string)
+    c.unsubscribe()
 
   test "cross-thread publisher waking async subscriber":
     var ring = newAsyncBroadcastRing[int](16)
@@ -209,6 +329,137 @@ suite "AsyncBroadcastRing & AsyncBroadcastCursor (Pub-Sub Multicast)":
     let val = waitFor(c.recvAsync())
     check val == some(888)
     joinThread(th)
+    c.unsubscribe()
+
+suite "AsyncTopicBus (Multiplexed Pub-Sub Topic Router)":
+  test "multi-topic isolation and async fanout":
+    var bus = newAsyncTopicBus[string]()
+    var subOrders1 = bus.subscribe("orders", soFromLatest)
+    var subOrders2 = bus.subscribe("orders", soFromLatest)
+    var subMetrics = bus.subscribe("metrics", soFromLatest)
+
+    check bus.hasTopic("orders") == true
+    check bus.hasTopic("metrics") == true
+    check bus.hasTopic("unknown") == false
+    check bus.topicCount == 2
+
+    var fOrd1 = subOrders1.recvAsync()
+    var fOrd2 = subOrders2.recvAsync()
+    var fMet = subMetrics.recvAsync()
+
+    check waitFor(bus.sendAsync("orders", "order-100")) == true
+    bus.publish("metrics", "cpu=42%")
+
+    check waitFor(fOrd1) == some("order-100")
+    check waitFor(fOrd2) == some("order-100")
+    check waitFor(fMet) == some("cpu=42%")
+
+    subOrders1.unsubscribe()
+    subOrders2.unsubscribe()
+    subMetrics.unsubscribe()
+
+suite "AsyncChaseLevDeque (Work-Stealing Deque Async Thief Parking)":
+  test "owner LIFO popBottom vs async thief FIFO stealAsync":
+    var dq = newAsyncChaseLevDeque[int](64)
+    dq.pushBottom(10)
+    dq.pushBottom(20)
+    dq.pushBottom(30)
+
+    # Thief steals from top (FIFO -> 10)
+    check waitFor(dq.stealAsync()) == some(10)
+    # Owner pops from bottom (LIFO -> 30)
+    check dq.popBottom() == some(30)
+    # Thief steals remaining item (20)
+    check waitFor(dq.tryStealAsync()) == some(20)
+    check waitFor(dq.tryStealAsync()) == none(int)
+
+  test "zero-spin thief parking on empty deque wakes on owner pushBottom":
+    var dq = newAsyncChaseLevDeque[int](64)
+    var stealFut = dq.stealAsync()
+    check stealFut.finished == false
+    check dq.waitingThieves.load(moSequentiallyConsistent) == 1
+
+    dq.pushBottom(9001)
+    check waitFor(stealFut) == some(9001)
+    check dq.waitingThieves.load(moSequentiallyConsistent) == 0
+
+  test "cascading multi-thief wakeups when multiple items available":
+    var dq = newAsyncChaseLevDeque[int](64)
+    var t1 = dq.stealAsync()
+    var t2 = dq.stealAsync()
+    var t3 = dq.stealAsync()
+    check dq.waitingThieves.load(moSequentiallyConsistent) == 3
+
+    dq.pushBottom(1)
+    dq.pushBottom(2)
+    dq.pushBottom(3)
+
+    let v1 = waitFor(t1)
+    let v2 = waitFor(t2)
+    let v3 = waitFor(t3)
+    check v1.isSome and v2.isSome and v3.isSome
+    check (v1.get + v2.get + v3.get) == 6
+    check dq.waitingThieves.load(moSequentiallyConsistent) == 0
+
+  test "stealBatchAsync suspends when empty and steals batch on wakeup":
+    var dq = newAsyncChaseLevDeque[int](64)
+    var batchFut = dq.stealBatchAsync(maxItems = 3)
+    check batchFut.finished == false
+
+    for i in 1 .. 6:
+      dq.pushBottom(i * 10)
+
+    let stolen = waitFor(batchFut)
+    check stolen == @[10, 20, 30]
+    let rest = waitFor(dq.stealBatchAsync(maxItems = 10))
+    check rest == @[40, 50, 60]
+
+  test "cross-thread worker pushBottom waking async thief":
+    var dq = newAsyncChaseLevDeque[int](64)
+    var th: Thread[ptr AsyncChaseLevDeque[int]]
+    createThread(th, proc(dp: ptr AsyncChaseLevDeque[int]) {.thread.} =
+      sleep(30)
+      dp[].pushBottom(4321)
+    , addr dq)
+
+    let stolen = waitFor(dq.stealAsync())
+    check stolen == some(4321)
+    joinThread(th)
+
+  test "thief timeout/cancellation cleans up waitingThieves and thiefSignals":
+    var dq = newAsyncChaseLevDeque[int](64)
+    when defined(lockfreeChronos):
+      let ok = waitFor(timeoutMs(dq.stealAsync(), 15))
+      check ok == false
+      stepLoop()
+      check dq.waitingThieves.load(moSequentiallyConsistent) == 0
+      check dq.thiefSignals.len == 0
+      dq.pushBottom(55)
+      check waitFor(dq.stealAsync()) == some(55)
+    else:
+      var parkedFut = dq.stealAsync()
+      check dq.waitingThieves.load(moSequentiallyConsistent) == 1
+      check dq.thiefSignals.len == 1
+      # Trigger exception unwinding on the parked signal waiter in std/asyncdispatch
+      dq.thiefSignals[0].waiters[0].fail(newException(ValueError, "cancelled"))
+      stepLoop()
+      check parkedFut.failed == true
+      check dq.waitingThieves.load(moSequentiallyConsistent) == 0
+      check dq.thiefSignals.len == 0
+      dq.pushBottom(55)
+      check waitFor(dq.stealAsync()) == some(55)
+
+  test "close wakes parked thieves with none / empty batch":
+    var dq = newAsyncChaseLevDeque[int](64)
+    var sFut = dq.stealAsync()
+    var bFut = dq.stealBatchAsync()
+    check sFut.finished == false
+    check bFut.finished == false
+
+    dq.close()
+    check dq.isClosed == true
+    check waitFor(sFut) == none(int)
+    check waitFor(bFut).len == 0
 
 suite "AsyncBridge Dekker Store-Load Stress & Zero Dropped Signals":
   test "AsyncBQueue high coroutine churn producer-consumer stress":

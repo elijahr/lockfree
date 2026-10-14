@@ -1,6 +1,6 @@
 ## src/lockfree/async_bridge.nim
 ##
-## Wave 3C Async Bridge Substrate for std/asyncdispatch.
+## Async Bridge Substrate for std/asyncdispatch and Chronos (-d:lockfreeChronos).
 ##
 ## Provides high-performance, non-blocking asynchronous adapters over
 ## foundational lock-free containers:
@@ -10,21 +10,41 @@
 ##     AsyncRendezvousChannel[T]
 ##   - BroadcastRing[T] (Multicast 1-to-N fanout) -> AsyncBroadcastRing[T],
 ##     AsyncBroadcastCursor[T]
+##   - TopicBus[T] (Multiplexed Pub-Sub topic router) -> AsyncTopicBus[T]
+##   - ChaseLevDeque[T] (Work-stealing deque) -> AsyncChaseLevDeque[T]
 ##
 ## Core Architectural Invariants:
 ##   1. Fast-Path Speculative Non-Blocking Execution (zero-allocation immediate
 ##      Future return)
 ##   2. Strict SMR Epoch Pin Isolation (PinScope ∩ SuspensionPoints = ∅; pin
 ##      never held across await)
-##   3. Bilateral CAS Arbitration on Cancellation (zero item loss guaranteed on
-##      coroutine abort)
-##   4. Thread-Safe Cross-Thread Wakeups via AsyncSignal
+##   3. Bilateral CAS Arbitration & Dekker Store-Load (moSequentiallyConsistent)
+##      Barrier Pairing (zero lost wakeups and zero item loss on cancellation)
+##   4. Thread-Safe Cross-Thread Wakeups via AsyncSignal (dual-backend:
+##      std/asyncdispatch AsyncEvent and Chronos ThreadSignalPtr)
 
 when not compileOption("threads"):
   {.error: "lockfree/async_bridge requires --threads:on for cross-thread lock-free coordination.".}
 
-when defined(lockfreeAsyncdispatch) or compileOption("threads"):
-  import std/[asyncdispatch, options]
+when defined(lockfreeChronos):
+  when (compiles do:
+    import chronos/asyncsync
+  ):
+    discard
+
+  const chronosBridgeReachable = compiles do:
+    import chronos/[asyncsync, threadsync]
+
+  when not chronosBridgeReachable:
+    {.error: "lockfree/async_bridge: -d:lockfreeChronos was set but chronos is not installed.".}
+
+when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption("threads"):
+  import std/options
+  when defined(lockfreeChronos):
+    import chronos/[asyncsync, threadsync]
+  else:
+    import std/asyncdispatch
+
   import ./constants
   import ./atomics
   import ./atomics/backoff
@@ -32,6 +52,7 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
   import ./queue
   import ./rendezvous
   import ./broadcast
+  import ./deque
   import ./strategy
   import ./endpoint
   import ./endpoint_types
@@ -41,7 +62,19 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
   export exceptions
 
   const
-    moSeqCst* = moSequentiallyConsistent
+    moSeqCst = moSequentiallyConsistent
+
+  # ---------------------------------------------------------------------------
+  # Spinlock Helper
+  # ---------------------------------------------------------------------------
+
+  proc acquireLock(lock: var Atomic[bool]) {.inline.} =
+    while lock.exchange(true, moAcquire):
+      while lock.load(moRelaxed):
+        cpuPause()
+
+  proc releaseLock(lock: var Atomic[bool]) {.inline.} =
+    lock.store(false, moRelease)
 
   # ---------------------------------------------------------------------------
   # Payload Box: Safe ARC/ORC Cross-Thread Transport
@@ -57,7 +90,7 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     result.rc.store(1, moRelaxed)
     result.val = item
 
-  proc incRef[T](box: ptr AsyncPayloadBox[T]) {.inline.} =
+  proc incRef[T](box: ptr AsyncPayloadBox[T]) {.inline, used.} =
     if box != nil:
       discard box.rc.fetchAdd(1, moRelaxed)
 
@@ -77,68 +110,168 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
   type
     AsyncSignal* = ref object
       signaled*: Atomic[bool]
-      event*: AsyncEvent
-      waiters*: seq[Future[void]]
-      registered*: bool
+      closed*: Atomic[bool]
+      when defined(lockfreeChronos):
+        tsig*: ThreadSignalPtr
+        waiters*: seq[Future[void]]
+        tsigWaitFut*: Future[void]
+        registered*: bool
+        inCallback*: bool
+        closePending*: bool
+      else:
+        event*: AsyncEvent
+        waiters*: seq[Future[void]]
+        registered*: bool
+        inCallback*: bool
+        closePending*: bool
 
   proc newAsyncSignal*(): AsyncSignal =
     new result
     result.signaled.store(false, moRelaxed)
-    result.event = newAsyncEvent()
-    result.waiters = @[]
-    result.registered = false
+    result.closed.store(false, moRelaxed)
+    when defined(lockfreeChronos):
+      let res = ThreadSignalPtr.new()
+      if res.isOk:
+        result.tsig = res.get()
+      result.waiters = @[]
+      result.registered = false
+      result.inCallback = false
+      result.closePending = false
+    else:
+      result.event = newAsyncEvent()
+      result.waiters = @[]
+      result.registered = false
+      result.inCallback = false
+      result.closePending = false
 
   proc fire*(sig: AsyncSignal) {.inline, gcsafe.} =
     ## Thread-safe, non-blocking signal trigger. Can be invoked from any OS
     ## thread.
-    if sig == nil: return
+    if sig == nil or sig.closed.load(moAcquire):
+      return
     sig.signaled.store(true, moSeqCst)
     threadFence(moSeqCst)
-    sig.event.trigger()
+    when defined(lockfreeChronos):
+      if sig.tsig != nil:
+        discard sig.tsig.fireSync()
+    else:
+      sig.event.trigger()
 
   proc clear*(sig: AsyncSignal) {.inline, gcsafe.} =
-    if sig == nil: return
+    if sig == nil:
+      return
     sig.signaled.store(false, moSeqCst)
 
-  proc wait*(sig: AsyncSignal): Future[void] =
-    ## Suspends until the signal is fired. Sticky flag prevents lost wakeups.
-    if sig.signaled.exchange(false, moSeqCst):
-      var fut = newFuture[void]("AsyncSignal.wait.fast")
-      fut.complete()
+  when defined(lockfreeChronos):
+    proc wait*(sig: AsyncSignal): Future[void] {.
+        async: (raw: true, raises: [CatchableError]).} =
+      ## Suspends until the signal is fired. Sticky flag prevents lost wakeups.
+      let fut = newFuture[void]("AsyncSignal.wait")
+      if sig == nil or sig.closed.load(moAcquire) or sig.signaled.exchange(false, moSeqCst):
+        fut.complete()
+        return fut
+
+      proc onCancel(udata: pointer) {.gcsafe, raises: [].} =
+        for i in 0 ..< sig.waiters.len:
+          if sig.waiters[i] == fut:
+            sig.waiters.delete(i)
+            break
+
+      fut.cancelCallback = onCancel
+      sig.waiters.add(fut)
+
+      if not sig.registered and sig.tsig != nil:
+        sig.registered = true
+        let tw = sig.tsig.wait()
+        sig.tsigWaitFut = tw
+        tw.addCallback(proc(udata: pointer) {.gcsafe, raises: [].} =
+          sig.inCallback = true
+          sig.signaled.store(false, moSeqCst)
+          sig.registered = false
+          sig.tsigWaitFut = nil
+          var pending = move sig.waiters
+          sig.waiters = @[]
+          for w in pending:
+            if not w.finished():
+              w.complete()
+          sig.inCallback = false
+          if sig.closePending:
+            sig.closePending = false
+            if sig.tsig != nil:
+              discard sig.tsig.close()
+              sig.tsig = nil
+        )
+      return fut
+  else:
+    proc wait*(sig: AsyncSignal): Future[void] =
+      ## Suspends until the signal is fired. Sticky flag prevents lost wakeups.
+      if sig == nil or sig.closed.load(moAcquire) or sig.signaled.exchange(false, moSeqCst):
+        var fut = newFuture[void]("AsyncSignal.wait.fast")
+        fut.complete()
+        return fut
+
+      var fut = newFuture[void]("AsyncSignal.wait.slow")
+      sig.waiters.add(fut)
+
+      if not sig.registered:
+        sig.registered = true
+        sig.event.addEvent(proc(fd: AsyncFD): bool {.gcsafe.} =
+          sig.inCallback = true
+          sig.signaled.store(false, moSeqCst)
+          var pending = move sig.waiters
+          sig.waiters = @[]
+          sig.registered = false
+          for w in pending:
+            if not w.finished:
+              w.complete()
+          sig.inCallback = false
+          if sig.closePending:
+            sig.closePending = false
+            callSoon(proc() {.gcsafe.} =
+              try:
+                sig.event.close()
+              except CatchableError:
+                discard
+            )
+          return true # unregister from selector
+        )
       return fut
 
-    var fut = newFuture[void]("AsyncSignal.wait.slow")
-    sig.waiters.add(fut)
-
-    if not sig.registered:
-      sig.registered = true
-      sig.event.addEvent(proc(fd: AsyncFD): bool =
-        sig.signaled.store(false, moSeqCst)
+  proc close*(sig: AsyncSignal) =
+    if sig == nil:
+      return
+    if not sig.closed.exchange(true, moAcquireRelease):
+      when defined(lockfreeChronos):
         var pending = move sig.waiters
         sig.waiters = @[]
-        sig.registered = false
+        for w in pending:
+          if not w.finished():
+            w.complete()
+        if sig.inCallback:
+          sig.closePending = true
+        elif sig.registered and sig.tsig != nil:
+          sig.closePending = true
+          discard sig.tsig.fireSync()
+        else:
+          if sig.tsig != nil:
+            discard sig.tsig.close()
+            sig.tsig = nil
+      else:
+        var pending = move sig.waiters
+        sig.waiters = @[]
         for w in pending:
           if not w.finished:
             w.complete()
-        return true # unregister from selector
-      )
-    return fut
-
-  proc close*(sig: AsyncSignal) =
-    if sig != nil:
-      sig.event.close()
-
-  # ---------------------------------------------------------------------------
-  # Spinlock Helper
-  # ---------------------------------------------------------------------------
-
-  proc acquireLock(lock: var Atomic[bool]) {.inline.} =
-    while lock.exchange(true, moAcquire):
-      while lock.load(moRelaxed):
-        cpuPause()
-
-  proc releaseLock(lock: var Atomic[bool]) {.inline.} =
-    lock.store(false, moRelease)
+        if sig.inCallback:
+          sig.closePending = true
+        elif sig.registered:
+          sig.closePending = true
+          sig.event.trigger()
+        else:
+          try:
+            sig.event.close()
+          except CatchableError:
+            discard
 
   # ---------------------------------------------------------------------------
   # 1. Bounded Queue Adapter: AsyncBQueue[T]
@@ -189,14 +322,16 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
       self.producerSignal.clear()
       self.hasWaitingProducers.store(true, moSeqCst)
       threadFence(moSeqCst)
-      if self.queue.push(cur):
+      try:
+        if self.queue.push(cur):
+          self.hasWaitingProducers.store(false, moSeqCst)
+          threadFence(moSeqCst)
+          if self.hasWaitingConsumers.load(moSeqCst):
+            self.consumerSignal.fire()
+          return true
+        await self.producerSignal.wait()
+      finally:
         self.hasWaitingProducers.store(false, moSeqCst)
-        threadFence(moSeqCst)
-        if self.hasWaitingConsumers.load(moSeqCst):
-          self.consumerSignal.fire()
-        return true
-      await self.producerSignal.wait()
-      self.hasWaitingProducers.store(false, moSeqCst)
 
   proc recvAsync*[T; N: static int](
       self: AsyncBQueue[T, ccSingle, ccSingle, N, 0, 0]
@@ -207,15 +342,17 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
       self.consumerSignal.clear()
       self.hasWaitingConsumers.store(true, moSeqCst)
       threadFence(moSeqCst)
-      let v = self.queue.pop()
-      if v.isSome:
+      try:
+        let v = self.queue.pop()
+        if v.isSome:
+          self.hasWaitingConsumers.store(false, moSeqCst)
+          threadFence(moSeqCst)
+          if self.hasWaitingProducers.load(moSeqCst):
+            self.producerSignal.fire()
+          return v
+        await self.consumerSignal.wait()
+      finally:
         self.hasWaitingConsumers.store(false, moSeqCst)
-        threadFence(moSeqCst)
-        if self.hasWaitingProducers.load(moSeqCst):
-          self.producerSignal.fire()
-        return v
-      await self.consumerSignal.wait()
-      self.hasWaitingConsumers.store(false, moSeqCst)
 
   proc tryPopAsync*[T; N: static int](
       self: AsyncBQueue[T, ccSingle, ccSingle, N, 0, 0]
@@ -321,12 +458,14 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
       self.consumerSignal.clear()
       self.hasWaitingConsumers.store(true, moSeqCst)
       threadFence(moSeqCst)
-      let v = self.queue.pop()
-      if v.isSome:
+      try:
+        let v = self.queue.pop()
+        if v.isSome:
+          self.hasWaitingConsumers.store(false, moSeqCst)
+          return v
+        await self.consumerSignal.wait()
+      finally:
         self.hasWaitingConsumers.store(false, moSeqCst)
-        return v
-      await self.consumerSignal.wait()
-      self.hasWaitingConsumers.store(false, moSeqCst)
 
   proc tryPopAsync*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
       self: AsyncQueue[T, ccSingle, ccSingle, ST, S, MaxThreads]
@@ -470,14 +609,18 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
           p = c
           c = c.next
         self.waiterLock.releaseLock()
+        waiter.signal.close()
         decRef(pbox)
         raise e
       # Peer won CAS before or concurrently with cancel; item transferred!
+      waiter.signal.close()
       return true
 
+    waiter.signal.close()
     if waiter.state.load(moAcquire) == arsMatched:
       return true
     else:
+      decRef(pbox)
       raise newException(ChannelClosedDefect, "Channel closed while waiting")
 
   proc recvAsync*[T](self: AsyncRendezvousChannel[T]): Future[Option[T]] {.async.} =
@@ -548,13 +691,16 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
           p = c
           c = c.next
         self.waiterLock.releaseLock()
+        waiter.signal.close()
         raise e
       # Sender matched concurrently; receive payload
       let pbox = waiter.box.load(moAcquire)
       var res = pbox.val
       decRef(pbox)
+      waiter.signal.close()
       return some(res)
 
+    waiter.signal.close()
     if waiter.state.load(moAcquire) == arsMatched:
       let pbox = waiter.box.load(moAcquire)
       var res = pbox.val
@@ -697,24 +843,68 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     AsyncBroadcastRing*[T] = ref object
       ring*: BroadcastRing[T]
       signal*: AsyncSignal
+      producerSignal*: AsyncSignal
+      waitingProducerCount* {.align: CacheLineBytes.}: Atomic[int32]
+      waitingCursorCount* {.align: CacheLineBytes.}: Atomic[int32]
+      cursorsLock* {.align: CacheLineBytes.}: Atomic[bool]
+      cursors*: seq[AsyncBroadcastCursor[T]]
+      producersLock* {.align: CacheLineBytes.}: Atomic[bool]
+      producerSignals*: seq[AsyncSignal]
 
     AsyncBroadcastCursor*[T] = ref object
       cursor*: BroadcastCursor[T]
       ring*: AsyncBroadcastRing[T]
       signal*: AsyncSignal
+      isWaiting* {.align: CacheLineBytes.}: Atomic[bool]
+      closed*: Atomic[bool]
 
   proc newAsyncBroadcastRing*[T](
       capacity: int = DefaultRingCapacity,
-      overflowMode: OverflowMode = omDropOldest
+      overflowMode: OverflowMode = omDropOldest,
+      maxReaders: int = DefaultMaxReaders
   ): AsyncBroadcastRing[T] =
     new result
-    result.ring = initBroadcastRing[T](capacity, overflowMode)
+    result.ring = initBroadcastRing[T](capacity, overflowMode, maxReaders)
     result.signal = newAsyncSignal()
+    result.producerSignal = newAsyncSignal()
+    result.waitingProducerCount.store(0, moRelaxed)
+    result.waitingCursorCount.store(0, moRelaxed)
+    result.cursorsLock.store(false, moRelaxed)
+    result.cursors = @[]
+    result.producersLock.store(false, moRelaxed)
+    result.producerSignals = @[]
 
   proc toAsync*[T](ring: sink BroadcastRing[T]): AsyncBroadcastRing[T] =
     new result
     result.ring = ring
     result.signal = newAsyncSignal()
+    result.producerSignal = newAsyncSignal()
+    result.waitingProducerCount.store(0, moRelaxed)
+    result.waitingCursorCount.store(0, moRelaxed)
+    result.cursorsLock.store(false, moRelaxed)
+    result.cursors = @[]
+    result.producersLock.store(false, moRelaxed)
+    result.producerSignals = @[]
+
+  proc notifyCursors*[T](self: AsyncBroadcastRing[T]) {.inline, gcsafe.} =
+    if self == nil:
+      return
+    self.signal.fire()
+    self.cursorsLock.acquireLock()
+    for c in self.cursors:
+      if c != nil and c.isWaiting.load(moSeqCst):
+        c.signal.fire()
+    self.cursorsLock.releaseLock()
+
+  proc notifyProducers*[T](self: AsyncBroadcastRing[T]) {.inline, gcsafe.} =
+    if self == nil:
+      return
+    self.producerSignal.fire()
+    self.producersLock.acquireLock()
+    for s in self.producerSignals:
+      if s != nil:
+        s.fire()
+    self.producersLock.releaseLock()
 
   proc subscribe*[T](
       self: AsyncBroadcastRing[T],
@@ -723,17 +913,105 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     new result
     result.ring = self
     result.cursor = self.ring.subscribe(origin)
-    result.signal = self.signal
+    result.signal = newAsyncSignal()
+    result.isWaiting.store(false, moRelaxed)
+    result.closed.store(false, moRelaxed)
+    self.cursorsLock.acquireLock()
+    self.cursors.add(result)
+    self.cursorsLock.releaseLock()
+
+  proc unsubscribe*[T](self: AsyncBroadcastCursor[T]) =
+    ## Deregisters the async cursor, removes it from the ring's active cursor
+    ## list, releases its slot in the underlying BroadcastRing cursor table,
+    ## closes its dedicated AsyncSignal, and wakes any stalled omBackoff
+    ## producers.
+    if self == nil:
+      return
+    if not self.closed.exchange(true, moAcquireRelease):
+      if self.ring != nil:
+        if self.isWaiting.exchange(false, moSeqCst):
+          discard self.ring.waitingCursorCount.fetchSub(1, moSeqCst)
+        self.ring.cursorsLock.acquireLock()
+        for i in 0 ..< self.ring.cursors.len:
+          if self.ring.cursors[i] == self:
+            self.ring.cursors.delete(i)
+            break
+        self.ring.cursorsLock.releaseLock()
+
+      self.cursor.unsubscribe()
+      self.signal.fire()
+      self.signal.close()
+
+      if self.ring != nil:
+        threadFence(moSeqCst)
+        if self.ring.waitingProducerCount.load(moSeqCst) > 0:
+          self.ring.notifyProducers()
+
+  proc close*[T](self: AsyncBroadcastCursor[T]) {.inline.} =
+    self.unsubscribe()
+
+  proc isClosed*[T](self: AsyncBroadcastCursor[T]): bool {.inline.} =
+    self == nil or self.closed.load(moAcquire) or self.cursor.isNil
+
+  proc lag*[T](self: AsyncBroadcastCursor[T]): uint64 {.inline.} =
+    if self == nil: 0'u64 else: self.cursor.lag
+
+  proc subscriberCount*[T](self: AsyncBroadcastRing[T]): int {.inline.} =
+    if self == nil: 0 else: self.ring.subscriberCount
+
+  proc capacity*[T](self: AsyncBroadcastRing[T]): int {.inline.} =
+    if self == nil: 0 else: self.ring.capacity
+
+  proc len*[T](self: AsyncBroadcastRing[T]): int {.inline.} =
+    if self == nil: 0 else: self.ring.len
 
   proc publish*[T](self: AsyncBroadcastRing[T], item: sink T) =
     self.ring.publish(item)
-    self.signal.fire()
+    threadFence(moSeqCst)
+    if self.waitingCursorCount.load(moSeqCst) > 0:
+      self.notifyCursors()
 
-  proc sendAsync*[T](self: AsyncBroadcastRing[T], item: sink T): Future[bool] =
-    self.publish(item)
-    var fut = newFuture[bool]("sendAsync")
-    fut.complete(true)
-    return fut
+  proc tryPublish*[T](self: AsyncBroadcastRing[T], item: sink T): bool =
+    result = self.ring.tryPublish(item)
+    if result:
+      threadFence(moSeqCst)
+      if self.waitingCursorCount.load(moSeqCst) > 0:
+        self.notifyCursors()
+
+  proc sendAsync*[T](self: AsyncBroadcastRing[T], item: sink T): Future[bool] {.async.} =
+    ## Asynchronously publishes an item to the broadcast ring. Under
+    ## `omDropOldest`, publishes immediately without suspending. Under
+    ## `omBackoff`, suspends when the ring is full until the slowest active
+    ## cursor advances or unsubscribes.
+    var cur = move item
+    if self.ring.core.overflowMode == omDropOldest:
+      self.publish(cur)
+      return true
+
+    while true:
+      if self.tryPublish(cur):
+        return true
+
+      let pSig = newAsyncSignal()
+      self.producersLock.acquireLock()
+      self.producerSignals.add(pSig)
+      self.producersLock.releaseLock()
+      discard self.waitingProducerCount.fetchAdd(1, moSeqCst)
+      threadFence(moSeqCst)
+
+      try:
+        if self.tryPublish(cur):
+          return true
+        await pSig.wait()
+      finally:
+        discard self.waitingProducerCount.fetchSub(1, moSeqCst)
+        self.producersLock.acquireLock()
+        for i in 0 ..< self.producerSignals.len:
+          if self.producerSignals[i] == pSig:
+            self.producerSignals.delete(i)
+            break
+        self.producersLock.releaseLock()
+        pSig.close()
 
   proc sendAsync*[T](ring: BroadcastRing[T], item: sink T): Future[bool] =
     ring.publish(item)
@@ -741,30 +1019,427 @@ when defined(lockfreeAsyncdispatch) or compileOption("threads"):
     fut.complete(true)
     return fut
 
+  proc isReadable*[T](self: AsyncBroadcastCursor[T]): bool {.inline.} =
+    ## Returns true if the cursor currently has a published slot ready to be
+    ## polled (either `prSuccess` or `prLagged`) without advancing `readSeq`.
+    if self == nil or self.closed.load(moAcquire) or self.cursor.isNil:
+      return false
+    let core = self.ring.ring.core
+    let targetSeq = self.cursor.readSeq
+    let idx = targetSeq and core.mask
+    core.slots[idx].seq.load(moSeqCst) >= targetSeq + 1
+
+  proc waitReadable*[T](self: AsyncBroadcastCursor[T]): Future[bool] {.async.} =
+    ## Suspends until at least one message is readable at this cursor without
+    ## consuming the message. Returns `false` if the cursor is unsubscribed or
+    ## closed.
+    while true:
+      if self == nil or self.closed.load(moAcquire) or self.cursor.isNil:
+        return false
+      if self.isReadable():
+        return true
+
+      self.signal.clear()
+      if not self.isWaiting.exchange(true, moSeqCst):
+        discard self.ring.waitingCursorCount.fetchAdd(1, moSeqCst)
+      threadFence(moSeqCst)
+
+      try:
+        if self.closed.load(moAcquire) or self.cursor.isNil:
+          return false
+        if self.isReadable():
+          return true
+        await self.signal.wait()
+      finally:
+        if self.isWaiting.exchange(false, moSeqCst):
+          discard self.ring.waitingCursorCount.fetchSub(1, moSeqCst)
+
+  proc pollAsync*[T](self: AsyncBroadcastCursor[T]): Future[PollResult[T]] {.async.} =
+    ## Asynchronously polls the next event on this cursor, returning `prSuccess`
+    ## with the item or `prLagged(skippedCount)` if the subscriber fell behind
+    ## the ring overwrite horizon under `omDropOldest`. Returns `prEmpty` only
+    ## if the cursor is closed/unsubscribed.
+    while true:
+      if self == nil or self.closed.load(moAcquire) or self.cursor.isNil:
+        return PollResult[T](kind: prEmpty)
+
+      let r1 = self.cursor.poll()
+      if r1.kind != prEmpty:
+        threadFence(moSeqCst)
+        if self.ring != nil and self.ring.waitingProducerCount.load(moSeqCst) > 0:
+          self.ring.notifyProducers()
+        return r1
+
+      self.signal.clear()
+      if not self.isWaiting.exchange(true, moSeqCst):
+        discard self.ring.waitingCursorCount.fetchAdd(1, moSeqCst)
+      threadFence(moSeqCst)
+
+      try:
+        let r2 = self.cursor.poll()
+        if r2.kind != prEmpty:
+          if self.isWaiting.exchange(false, moSeqCst):
+            discard self.ring.waitingCursorCount.fetchSub(1, moSeqCst)
+          threadFence(moSeqCst)
+          if self.ring != nil and self.ring.waitingProducerCount.load(moSeqCst) > 0:
+            self.ring.notifyProducers()
+          return r2
+
+        if self.closed.load(moAcquire) or self.cursor.isNil:
+          return PollResult[T](kind: prEmpty)
+
+        await self.signal.wait()
+      finally:
+        if self.isWaiting.exchange(false, moSeqCst):
+          discard self.ring.waitingCursorCount.fetchSub(1, moSeqCst)
+
   proc recvAsync*[T](self: AsyncBroadcastCursor[T]): Future[Option[T]] {.async.} =
     ## Asynchronously awaits the next available broadcast message on this
-    ## cursor.
+    ## cursor. If the cursor lags under `omDropOldest`, it automatically snaps
+    ## forward to the newest available ring horizon and reads without spurious
+    ## suspension. Returns `none(T)` if the cursor is unsubscribed/closed.
     while true:
-      self.signal.clear()
-      var val: T
-      if self.cursor.tryRead(val):
-        return some(val)
-      await self.signal.wait()
+      if self == nil or self.closed.load(moAcquire) or self.cursor.isNil:
+        return none(T)
+      let res = await self.pollAsync()
+      case res.kind
+      of prSuccess:
+        return some(res.val)
+      of prLagged:
+        continue
+      of prEmpty:
+        if self.closed.load(moAcquire) or self.cursor.isNil:
+          return none(T)
 
   proc tryPopAsync*[T](self: AsyncBroadcastCursor[T]): Future[Option[T]] =
-    var val: T
     var fut = newFuture[Option[T]]("tryPopAsync")
-    if self.cursor.tryRead(val):
-      fut.complete(some(val))
-    else:
+    if self == nil or self.closed.load(moAcquire) or self.cursor.isNil:
       fut.complete(none(T))
-    return fut
+      return fut
+    while true:
+      let res = self.cursor.poll()
+      case res.kind
+      of prSuccess:
+        threadFence(moSeqCst)
+        if self.ring != nil and self.ring.waitingProducerCount.load(moSeqCst) > 0:
+          self.ring.notifyProducers()
+        fut.complete(some(res.val))
+        return fut
+      of prLagged:
+        threadFence(moSeqCst)
+        if self.ring != nil and self.ring.waitingProducerCount.load(moSeqCst) > 0:
+          self.ring.notifyProducers()
+        continue
+      of prEmpty:
+        fut.complete(none(T))
+        return fut
 
   proc tryPopAsync*[T](self: var BroadcastCursor[T]): Future[Option[T]] =
-    var val: T
     var fut = newFuture[Option[T]]("tryPopAsync")
-    if self.tryRead(val):
-      fut.complete(some(val))
-    else:
-      fut.complete(none(T))
+    while true:
+      let res = self.poll()
+      case res.kind
+      of prSuccess:
+        fut.complete(some(res.val))
+        return fut
+      of prLagged:
+        continue
+      of prEmpty:
+        fut.complete(none(T))
+        return fut
+
+  # ---------------------------------------------------------------------------
+  # 5. Multiplexed Topic Bus Adapter: AsyncTopicBus[T]
+  # ---------------------------------------------------------------------------
+
+  type
+    AsyncTopicEntry[T] = object
+      topic*: string
+      ring*: AsyncBroadcastRing[T]
+
+    AsyncTopicBus*[T] = ref object
+      bus*: TopicBus[T]
+      config*: TopicBusConfig
+      lock* {.align: CacheLineBytes.}: Atomic[bool]
+      entries*: seq[AsyncTopicEntry[T]]
+
+  proc newAsyncTopicBus*[T](
+      config: TopicBusConfig = TopicBusConfig(
+        defaultRingCapacity: DefaultRingCapacity,
+        defaultOverflowMode: omDropOldest,
+        defaultMaxReaders: DefaultMaxReaders
+      )
+  ): AsyncTopicBus[T] =
+    new result
+    result.bus = initTopicBus[T](config)
+    result.config = config
+    result.lock.store(false, moRelaxed)
+    result.entries = @[]
+
+  proc toAsync*[T](bus: sink TopicBus[T]): AsyncTopicBus[T] =
+    new result
+    result.bus = bus
+    result.config = TopicBusConfig(
+      defaultRingCapacity: DefaultRingCapacity,
+      defaultOverflowMode: omDropOldest,
+      defaultMaxReaders: DefaultMaxReaders
+    )
+    result.lock.store(false, moRelaxed)
+    result.entries = @[]
+
+  proc getOrCreateTopicRing*[T](self: AsyncTopicBus[T], topic: string): AsyncBroadcastRing[T] =
+    self.lock.acquireLock()
+    try:
+      for i in 0 ..< self.entries.len:
+        if self.entries[i].topic == topic:
+          return self.entries[i].ring
+
+      # Bind to the underlying TopicBus[T]'s BroadcastRing[T] for this topic
+      var tempCursor = self.bus.subscribe(topic, soFromLatest)
+      let syncRing = tempCursor.ring
+      tempCursor.unsubscribe()
+
+      let asyncRing = toAsync(syncRing)
+      self.entries.add(AsyncTopicEntry[T](topic: topic, ring: asyncRing))
+      return asyncRing
+    finally:
+      self.lock.releaseLock()
+
+  proc subscribe*[T](
+      self: AsyncTopicBus[T],
+      topic: string,
+      origin: SubscriptionOrigin = soFromLatest
+  ): AsyncBroadcastCursor[T] =
+    let r = self.getOrCreateTopicRing(topic)
+    r.subscribe(origin)
+
+  proc publish*[T](self: AsyncTopicBus[T], topic: string, item: sink T) =
+    let r = self.getOrCreateTopicRing(topic)
+    r.publish(item)
+
+  proc tryPublish*[T](self: AsyncTopicBus[T], topic: string, item: sink T): bool =
+    let r = self.getOrCreateTopicRing(topic)
+    r.tryPublish(item)
+
+  proc sendAsync*[T](self: AsyncTopicBus[T], topic: string, item: sink T): Future[bool] =
+    let r = self.getOrCreateTopicRing(topic)
+    r.sendAsync(item)
+
+  proc topicCount*[T](self: AsyncTopicBus[T]): int {.inline.} =
+    if self == nil: 0 else: self.bus.topicCount
+
+  proc hasTopic*[T](self: AsyncTopicBus[T], topic: string): bool {.inline.} =
+    if self == nil: false else: self.bus.hasTopic(topic)
+
+  # ---------------------------------------------------------------------------
+  # 6. Work-Stealing Deque Adapter: AsyncChaseLevDeque[T]
+  # ---------------------------------------------------------------------------
+
+  type
+    AsyncChaseLevDeque*[T] = ref object
+      deque*: ChaseLevDeque[T]
+      waitingThieves* {.align: CacheLineBytes.}: Atomic[int32]
+      waitersLock* {.align: CacheLineBytes.}: Atomic[bool]
+      thiefSignals*: seq[AsyncSignal]
+      closed*: Atomic[bool]
+
+    AsyncDeque*[T] = AsyncChaseLevDeque[T]
+    AsyncConcurrentDeque*[T] = AsyncChaseLevDeque[T]
+
+  proc newAsyncChaseLevDeque*[T](initialCapacity: int = 64): AsyncChaseLevDeque[T] =
+    new result
+    result.deque = initChaseLevDeque[T](initialCapacity)
+    result.waitingThieves.store(0, moRelaxed)
+    result.waitersLock.store(false, moRelaxed)
+    result.thiefSignals = @[]
+    result.closed.store(false, moRelaxed)
+
+  proc newAsyncDeque*[T](initialCapacity: int = 64): AsyncDeque[T] {.inline.} =
+    newAsyncChaseLevDeque[T](initialCapacity)
+
+  proc toAsync*[T](d: sink ChaseLevDeque[T]): AsyncChaseLevDeque[T] =
+    new result
+    result.deque = d
+    result.waitingThieves.store(0, moRelaxed)
+    result.waitersLock.store(false, moRelaxed)
+    result.thiefSignals = @[]
+    result.closed.store(false, moRelaxed)
+
+  proc notifyThieves*[T](self: AsyncChaseLevDeque[T]) {.inline, gcsafe.} =
+    if self == nil:
+      return
+    self.waitersLock.acquireLock()
+    for s in self.thiefSignals:
+      if s != nil:
+        s.fire()
+    self.waitersLock.releaseLock()
+
+  proc close*[T](self: AsyncChaseLevDeque[T]) =
+    if self == nil:
+      return
+    if not self.closed.exchange(true, moAcquireRelease):
+      threadFence(moSeqCst)
+      self.notifyThieves()
+
+  proc isClosed*[T](self: AsyncChaseLevDeque[T]): bool {.inline.} =
+    self == nil or self.closed.load(moAcquire)
+
+  proc len*[T](self: AsyncChaseLevDeque[T]): int {.inline.} =
+    if self == nil: 0 else: self.deque.len
+
+  proc isEmpty*[T](self: AsyncChaseLevDeque[T]): bool {.inline.} =
+    if self == nil: true else: self.deque.isEmpty
+
+  proc capacity*[T](self: AsyncChaseLevDeque[T]): int {.inline.} =
+    if self == nil: 0 else: self.deque.capacity
+
+  proc pushBottom*[T](self: AsyncChaseLevDeque[T], item: sink T) =
+    ## Pushes an item to the bottom of the work-stealing deque (single
+    ## owner-worker thread only) and wakes any parked async thieves under a
+    ## Dekker `moSequentiallyConsistent` Store-Load barrier.
+    self.deque.pushBottom(item)
+    threadFence(moSeqCst)
+    if self.waitingThieves.load(moSeqCst) > 0:
+      self.notifyThieves()
+
+  proc sendAsync*[T](self: AsyncChaseLevDeque[T], item: sink T): Future[bool] =
+    ## Owner-worker non-blocking bottom push returning an immediately completed
+    ## Future.
+    self.pushBottom(item)
+    var fut = newFuture[bool]("sendAsync")
+    fut.complete(true)
     return fut
+
+  proc popBottom*[T](self: AsyncChaseLevDeque[T]): Option[T] {.inline.} =
+    ## Pops an item from the bottom of the deque (LIFO order, single
+    ## owner-worker thread only).
+    self.deque.popBottom()
+
+  proc tryPopBottom*[T](self: AsyncChaseLevDeque[T], item: var T): bool {.inline.} =
+    self.deque.tryPopBottom(item)
+
+  proc steal*[T](self: AsyncChaseLevDeque[T]): Option[T] {.inline.} =
+    ## Synchronous non-blocking FIFO steal from the top of the deque.
+    self.deque.steal()
+
+  proc stealBatch*[T](
+      self: AsyncChaseLevDeque[T], dest: var openArray[T], maxItems: int = -1
+  ): int {.inline.} =
+    self.deque.stealBatch(dest, maxItems)
+
+  proc stealBatch*[T](self: AsyncChaseLevDeque[T], maxItems: int = -1): seq[T] {.inline.} =
+    self.deque.stealBatch(maxItems)
+
+  proc tryStealAsync*[T](self: AsyncChaseLevDeque[T]): Future[Option[T]] =
+    ## Speculative non-blocking FIFO steal from the top of the deque.
+    let v = self.deque.steal()
+    var fut = newFuture[Option[T]]("tryStealAsync")
+    fut.complete(v)
+    return fut
+
+  proc tryPopAsync*[T](self: AsyncChaseLevDeque[T]): Future[Option[T]] {.inline.} =
+    self.tryStealAsync()
+
+  proc tryStealAsync*[T](self: var ChaseLevDeque[T]): Future[Option[T]] =
+    let v = self.steal()
+    var fut = newFuture[Option[T]]("tryStealAsync")
+    fut.complete(v)
+    return fut
+
+  proc stealAsync*[T](self: AsyncChaseLevDeque[T]): Future[Option[T]] {.async.} =
+    ## Asynchronously steals an item from the top of the deque (FIFO order).
+    ## Suspends without busy-spinning when the deque is empty, using a Dekker
+    ## `moSequentiallyConsistent` barrier with `pushBottom` so zero wakeups can
+    ## be lost. Returns `none(T)` only if the deque is closed and empty.
+    while true:
+      while not self.deque.isEmpty:
+        let v1 = self.deque.steal()
+        if v1.isSome:
+          if not self.deque.isEmpty and self.waitingThieves.load(moSeqCst) > 0:
+            self.notifyThieves()
+          return v1
+        cpuPause()
+
+      if self.closed.load(moAcquire):
+        return self.deque.steal()
+
+      let tSig = newAsyncSignal()
+      self.waitersLock.acquireLock()
+      self.thiefSignals.add(tSig)
+      self.waitersLock.releaseLock()
+      discard self.waitingThieves.fetchAdd(1, moSeqCst)
+      threadFence(moSeqCst)
+
+      try:
+        while not self.deque.isEmpty:
+          let v2 = self.deque.steal()
+          if v2.isSome:
+            if not self.deque.isEmpty and self.waitingThieves.load(moSeqCst) > 1:
+              self.notifyThieves()
+            return v2
+          cpuPause()
+
+        if self.closed.load(moAcquire):
+          return self.deque.steal()
+
+        await tSig.wait()
+      finally:
+        discard self.waitingThieves.fetchSub(1, moSeqCst)
+        self.waitersLock.acquireLock()
+        for i in 0 ..< self.thiefSignals.len:
+          if self.thiefSignals[i] == tSig:
+            self.thiefSignals.delete(i)
+            break
+        self.waitersLock.releaseLock()
+        tSig.close()
+
+  proc recvAsync*[T](self: AsyncChaseLevDeque[T]): Future[Option[T]] {.inline.} =
+    self.stealAsync()
+
+  proc stealBatchAsync*[T](
+      self: AsyncChaseLevDeque[T], maxItems: int = -1
+  ): Future[seq[T]] {.async.} =
+    ## Asynchronously steals a batch of items from the top of the deque (FIFO
+    ## order). Suspends when empty and wakes on `pushBottom`. If items remain
+    ## after the batch steal, cascades wakeup to any remaining parked thieves.
+    while true:
+      while not self.deque.isEmpty:
+        let b1 = self.deque.stealBatch(maxItems)
+        if b1.len > 0:
+          if not self.deque.isEmpty and self.waitingThieves.load(moSeqCst) > 0:
+            self.notifyThieves()
+          return b1
+        cpuPause()
+
+      if self.closed.load(moAcquire):
+        return self.deque.stealBatch(maxItems)
+
+      let tSig = newAsyncSignal()
+      self.waitersLock.acquireLock()
+      self.thiefSignals.add(tSig)
+      self.waitersLock.releaseLock()
+      discard self.waitingThieves.fetchAdd(1, moSeqCst)
+      threadFence(moSeqCst)
+
+      try:
+        while not self.deque.isEmpty:
+          let b2 = self.deque.stealBatch(maxItems)
+          if b2.len > 0:
+            if not self.deque.isEmpty and self.waitingThieves.load(moSeqCst) > 1:
+              self.notifyThieves()
+            return b2
+          cpuPause()
+
+        if self.closed.load(moAcquire):
+          return self.deque.stealBatch(maxItems)
+
+        await tSig.wait()
+      finally:
+        discard self.waitingThieves.fetchSub(1, moSeqCst)
+        self.waitersLock.acquireLock()
+        for i in 0 ..< self.thiefSignals.len:
+          if self.thiefSignals[i] == tSig:
+            self.thiefSignals.delete(i)
+            break
+        self.waitersLock.releaseLock()
+        tSig.close()
