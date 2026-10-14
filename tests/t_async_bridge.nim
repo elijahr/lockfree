@@ -305,16 +305,24 @@ suite "AsyncBroadcastRing & AsyncBroadcastCursor (Pub-Sub Multicast)":
     check p1Fut.finished == false
     check p2Fut.finished == false
 
-    # cSlow reads 1 item -> unblocks one waiting producer
+    # cSlow reads 1 item -> unblocks the first waiting producer (p1Fut) in FIFO order
     check waitFor(cSlow.recvAsync()) == some(1)
-    # Unsubscribing cSlow unblocks all remaining stalled producers immediately
-    cSlow.unsubscribe()
     check waitFor(p1Fut) == true
+    check p2Fut.finished == false
+
+    # Queue a third producer while p2Fut is still parked; unsubscribing cSlow
+    # unblocks all remaining stalled producers (p2Fut then p3Fut) in strict FIFO order
+    var p3Fut = ring.sendAsync(19)
+    check p3Fut.finished == false
+    cSlow.unsubscribe()
     check waitFor(p2Fut) == true
+    check waitFor(p3Fut) == true
 
     check waitFor(cFast.recvAsync()) == some(17)
     check waitFor(cFast.recvAsync()) == some(18)
+    check waitFor(cFast.recvAsync()) == some(19)
     cFast.unsubscribe()
+    ring.close()
 
   test "tryPopAsync on BroadcastCursor":
     var ring = newAsyncBroadcastRing[string](16)
@@ -451,29 +459,33 @@ suite "AsyncChaseLevDeque (Work-Stealing Deque Async Thief Parking)":
     check stolen == some(4321)
     joinThread(th)
 
-  test "thief timeout/cancellation cleans up waitingThieves and thiefSignals":
+  test "thief timeout/cancellation cleans up waitingThieves and thiefSignal waiters":
     var dq = newAsyncChaseLevDeque[int](64)
     when defined(lockfreeChronos):
       let ok = waitFor(timeoutMs(dq.stealAsync(), 15))
       check ok == false
       stepLoop()
       check dq.waitingThieves.load(moSequentiallyConsistent) == 0
-      check dq.thiefSignals.len == 0
+      check dq.thiefSignal.waiters.len == 0
       dq.pushBottom(55)
       check waitFor(dq.stealAsync()) == some(55)
+      dq.close()
     else:
       var parkedFut = dq.stealAsync()
       check dq.waitingThieves.load(moSequentiallyConsistent) == 1
-      check dq.thiefSignals.len == 1
+      check dq.thiefSignal.waiters.len == 1
       # Trigger exception unwinding on the parked signal waiter in std/asyncdispatch
-      dq.thiefSignals[0].waiters[0].fail(newException(ValueError, "cancelled"))
+      dq.thiefSignal.waiters[0].fail(newException(ValueError, "cancelled"))
       stepLoop()
       stepLoop()
       check parkedFut.failed == true
       check dq.waitingThieves.load(moSequentiallyConsistent) == 0
-      check dq.thiefSignals.len == 0
+      check dq.thiefSignal.waiters.len == 0
       dq.pushBottom(55)
       check waitFor(dq.stealAsync()) == some(55)
+      dq.close()
+      stepLoop()
+      stepLoop()
 
   test "close wakes parked thieves with none / empty batch":
     var dq = newAsyncChaseLevDeque[int](64)

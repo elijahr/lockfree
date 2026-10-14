@@ -162,12 +162,29 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       return
     sig.signaled.store(false, moSeqCst)
 
+  proc pruneFinishedWaiters*(sig: AsyncSignal) {.inline.} =
+    if sig == nil:
+      return
+    var i = 0
+    while i < sig.waiters.len:
+      when defined(lockfreeChronos):
+        let done = sig.waiters[i].finished()
+      else:
+        let done = sig.waiters[i].finished
+      if done:
+        sig.waiters.delete(i)
+      else:
+        inc i
+
   when defined(lockfreeChronos):
     proc wait*(sig: AsyncSignal): Future[void] {.
         async: (raw: true, raises: [CatchableError]).} =
       ## Suspends until the signal is fired. Sticky flag prevents lost wakeups.
       let fut = newFuture[void]("AsyncSignal.wait")
-      if sig == nil or sig.closed.load(moAcquire) or sig.signaled.exchange(false, moSeqCst):
+      if sig != nil:
+        sig.pruneFinishedWaiters()
+      if sig == nil or sig.closed.load(moAcquire) or
+          (sig.waiters.len == 0 and sig.signaled.exchange(false, moSeqCst)):
         fut.complete()
         return fut
 
@@ -201,17 +218,21 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
               w.complete()
         )
         sig.kernelState.store(ksRegistered, moSeqCst)
-        threadFence(moSeqCst)
-        if sig.signaled.load(moSeqCst) or sig.closed.load(moSeqCst):
-          var exp = ksRegistered
-          if sig.kernelState.compareExchange(exp, ksTriggered, moSeqCst):
-            if sig.tsig != nil:
-              discard sig.tsig.fireSync()
+
+      threadFence(moSeqCst)
+      if sig.signaled.load(moSeqCst) or sig.closed.load(moSeqCst):
+        var exp = ksRegistered
+        if sig.kernelState.compareExchange(exp, ksTriggered, moSeqCst):
+          if sig.tsig != nil:
+            discard sig.tsig.fireSync()
       return fut
   else:
     proc wait*(sig: AsyncSignal): Future[void] =
       ## Suspends until the signal is fired. Sticky flag prevents lost wakeups.
-      if sig == nil or sig.closed.load(moAcquire) or sig.signaled.exchange(false, moSeqCst):
+      if sig != nil:
+        sig.pruneFinishedWaiters()
+      if sig == nil or sig.closed.load(moAcquire) or
+          (sig.waiters.len == 0 and sig.signaled.exchange(false, moSeqCst)):
         var fut = newFuture[void]("AsyncSignal.wait.fast")
         fut.complete()
         return fut
@@ -246,11 +267,12 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
           return true # unregister from selector / IOCP wait handle
         )
         sig.kernelState.store(ksRegistered, moSeqCst)
-        threadFence(moSeqCst)
-        if sig.signaled.load(moSeqCst) or sig.closed.load(moSeqCst):
-          var exp = ksRegistered
-          if sig.kernelState.compareExchange(exp, ksTriggered, moSeqCst):
-            sig.event.trigger()
+
+      threadFence(moSeqCst)
+      if sig.signaled.load(moSeqCst) or sig.closed.load(moSeqCst):
+        var exp = ksRegistered
+        if sig.kernelState.compareExchange(exp, ksTriggered, moSeqCst):
+          sig.event.trigger()
       return fut
 
   proc close*(sig: AsyncSignal) =
@@ -917,8 +939,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       waitingCursorCount* {.align: CacheLineBytes.}: Atomic[int32]
       cursorsLock* {.align: CacheLineBytes.}: Atomic[bool]
       cursors*: seq[AsyncBroadcastCursor[T]]
-      producersLock* {.align: CacheLineBytes.}: Atomic[bool]
-      producerSignals*: seq[AsyncSignal]
+      producerSignal*: AsyncSignal
 
     AsyncBroadcastCursor*[T] = ref object
       cursor*: BroadcastCursor[T]
@@ -938,8 +959,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     result.waitingCursorCount.store(0, moRelaxed)
     result.cursorsLock.store(false, moRelaxed)
     result.cursors = @[]
-    result.producersLock.store(false, moRelaxed)
-    result.producerSignals = @[]
+    result.producerSignal = newAsyncSignal()
 
   proc toAsync*[T](ring: sink BroadcastRing[T]): AsyncBroadcastRing[T] =
     new result
@@ -948,8 +968,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     result.waitingCursorCount.store(0, moRelaxed)
     result.cursorsLock.store(false, moRelaxed)
     result.cursors = @[]
-    result.producersLock.store(false, moRelaxed)
-    result.producerSignals = @[]
+    result.producerSignal = newAsyncSignal()
 
   proc notifyCursors*[T](self: AsyncBroadcastRing[T]) {.inline, gcsafe.} =
     if self == nil:
@@ -961,13 +980,15 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     self.cursorsLock.releaseLock()
 
   proc notifyProducers*[T](self: AsyncBroadcastRing[T]) {.inline, gcsafe.} =
+    if self == nil or self.producerSignal == nil:
+      return
+    self.producerSignal.fire()
+
+  proc close*[T](self: AsyncBroadcastRing[T]) =
     if self == nil:
       return
-    self.producersLock.acquireLock()
-    for i in 0 ..< self.producerSignals.len:
-      if self.producerSignals[i] != nil:
-        self.producerSignals[i].fire()
-    self.producersLock.releaseLock()
+    if self.producerSignal != nil:
+      self.producerSignal.close()
 
   proc subscribe*[T](
       self: AsyncBroadcastRing[T],
@@ -1054,26 +1075,21 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       if self.tryPublish(cur):
         return true
 
-      let pSig = newAsyncSignal()
-      self.producersLock.acquireLock()
-      self.producerSignals.add(pSig)
-      self.producersLock.releaseLock()
+      self.producerSignal.pruneFinishedWaiters()
+      if self.producerSignal.waiters.len == 0:
+        self.producerSignal.clear()
       discard self.waitingProducerCount.fetchAdd(1, moSeqCst)
       threadFence(moSeqCst)
 
       try:
         if self.tryPublish(cur):
+          if self.waitingProducerCount.load(moSeqCst) > 1:
+            self.notifyProducers()
           return true
-        await pSig.wait()
+        await self.producerSignal.wait()
       finally:
         discard self.waitingProducerCount.fetchSub(1, moSeqCst)
-        self.producersLock.acquireLock()
-        for i in 0 ..< self.producerSignals.len:
-          if self.producerSignals[i] == pSig:
-            self.producerSignals.delete(i)
-            break
-        self.producersLock.releaseLock()
-        pSig.close()
+        self.producerSignal.pruneFinishedWaiters()
 
   proc sendAsync*[T](ring: BroadcastRing[T], item: sink T): Future[bool] =
     ring.publish(item)
@@ -1305,8 +1321,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     AsyncChaseLevDeque*[T] = ref object
       deque*: ChaseLevDeque[T]
       waitingThieves* {.align: CacheLineBytes.}: Atomic[int32]
-      waitersLock* {.align: CacheLineBytes.}: Atomic[bool]
-      thiefSignals*: seq[AsyncSignal]
+      thiefSignal*: AsyncSignal
       closed*: Atomic[bool]
 
     AsyncDeque*[T] = AsyncChaseLevDeque[T]
@@ -1316,8 +1331,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     new result
     result.deque = initChaseLevDeque[T](initialCapacity)
     result.waitingThieves.store(0, moRelaxed)
-    result.waitersLock.store(false, moRelaxed)
-    result.thiefSignals = @[]
+    result.thiefSignal = newAsyncSignal()
     result.closed.store(false, moRelaxed)
 
   proc newAsyncDeque*[T](initialCapacity: int = 64): AsyncDeque[T] {.inline.} =
@@ -1327,25 +1341,21 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     new result
     result.deque = d
     result.waitingThieves.store(0, moRelaxed)
-    result.waitersLock.store(false, moRelaxed)
-    result.thiefSignals = @[]
+    result.thiefSignal = newAsyncSignal()
     result.closed.store(false, moRelaxed)
 
   proc notifyThieves*[T](self: AsyncChaseLevDeque[T]) {.inline, gcsafe.} =
-    if self == nil:
+    if self == nil or self.thiefSignal == nil:
       return
-    self.waitersLock.acquireLock()
-    for i in 0 ..< self.thiefSignals.len:
-      if self.thiefSignals[i] != nil:
-        self.thiefSignals[i].fire()
-    self.waitersLock.releaseLock()
+    self.thiefSignal.fire()
 
   proc close*[T](self: AsyncChaseLevDeque[T]) =
     if self == nil:
       return
     if not self.closed.exchange(true, moAcquireRelease):
       threadFence(moSeqCst)
-      self.notifyThieves()
+      if self.thiefSignal != nil:
+        self.thiefSignal.close()
 
   proc isClosed*[T](self: AsyncChaseLevDeque[T]): bool {.inline.} =
     self == nil or self.closed.load(moAcquire)
@@ -1429,10 +1439,9 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       if self.closed.load(moAcquire):
         return self.deque.steal()
 
-      let tSig = newAsyncSignal()
-      self.waitersLock.acquireLock()
-      self.thiefSignals.add(tSig)
-      self.waitersLock.releaseLock()
+      self.thiefSignal.pruneFinishedWaiters()
+      if self.thiefSignal.waiters.len == 0:
+        self.thiefSignal.clear()
       discard self.waitingThieves.fetchAdd(1, moSeqCst)
       threadFence(moSeqCst)
 
@@ -1448,16 +1457,10 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         if self.closed.load(moAcquire):
           return self.deque.steal()
 
-        await tSig.wait()
+        await self.thiefSignal.wait()
       finally:
         discard self.waitingThieves.fetchSub(1, moSeqCst)
-        self.waitersLock.acquireLock()
-        for i in 0 ..< self.thiefSignals.len:
-          if self.thiefSignals[i] == tSig:
-            self.thiefSignals.delete(i)
-            break
-        self.waitersLock.releaseLock()
-        tSig.close()
+        self.thiefSignal.pruneFinishedWaiters()
 
   proc recvAsync*[T](self: AsyncChaseLevDeque[T]): Future[Option[T]] {.inline.} =
     self.stealAsync()
@@ -1480,10 +1483,9 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       if self.closed.load(moAcquire):
         return self.deque.stealBatch(maxItems)
 
-      let tSig = newAsyncSignal()
-      self.waitersLock.acquireLock()
-      self.thiefSignals.add(tSig)
-      self.waitersLock.releaseLock()
+      self.thiefSignal.pruneFinishedWaiters()
+      if self.thiefSignal.waiters.len == 0:
+        self.thiefSignal.clear()
       discard self.waitingThieves.fetchAdd(1, moSeqCst)
       threadFence(moSeqCst)
 
@@ -1499,13 +1501,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         if self.closed.load(moAcquire):
           return self.deque.stealBatch(maxItems)
 
-        await tSig.wait()
+        await self.thiefSignal.wait()
       finally:
         discard self.waitingThieves.fetchSub(1, moSeqCst)
-        self.waitersLock.acquireLock()
-        for i in 0 ..< self.thiefSignals.len:
-          if self.thiefSignals[i] == tSig:
-            self.thiefSignals.delete(i)
-            break
-        self.waitersLock.releaseLock()
-        tSig.close()
+        self.thiefSignal.pruneFinishedWaiters()
