@@ -107,55 +107,55 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
   # Polyglot AsyncSignal: Thread-Safe Cross-Thread Reactor Wakeup
   # ---------------------------------------------------------------------------
 
+  const
+    ksIdle = 0'i32
+    ksRegistered = 1'i32
+    ksTriggered = 2'i32
+
   type
     AsyncSignal* = ref object
       signaled*: Atomic[bool]
       closed*: Atomic[bool]
+      kernelState*: Atomic[int32]
+      eventClosed*: bool
       when defined(lockfreeChronos):
         tsig*: ThreadSignalPtr
         waiters*: seq[Future[void]]
         tsigWaitFut*: Future[void]
-        registered*: bool
-        inCallback*: bool
-        closePending*: bool
       else:
         event*: AsyncEvent
         waiters*: seq[Future[void]]
-        registered*: bool
-        inCallback*: bool
-        closePending*: bool
 
   proc newAsyncSignal*(): AsyncSignal =
     new result
     result.signaled.store(false, moRelaxed)
     result.closed.store(false, moRelaxed)
+    result.kernelState.store(ksIdle, moRelaxed)
+    result.eventClosed = false
     when defined(lockfreeChronos):
       let res = ThreadSignalPtr.new()
       if res.isOk:
         result.tsig = res.get()
       result.waiters = @[]
-      result.registered = false
-      result.inCallback = false
-      result.closePending = false
     else:
       result.event = newAsyncEvent()
       result.waiters = @[]
-      result.registered = false
-      result.inCallback = false
-      result.closePending = false
 
   proc fire*(sig: AsyncSignal) {.inline, gcsafe.} =
     ## Thread-safe, non-blocking signal trigger. Can be invoked from any OS
-    ## thread.
+    ## thread. Triggers the underlying kernel event at most once per active
+    ## registration (`ksRegistered -> ksTriggered`).
     if sig == nil or sig.closed.load(moAcquire):
       return
     sig.signaled.store(true, moSeqCst)
     threadFence(moSeqCst)
-    when defined(lockfreeChronos):
-      if sig.tsig != nil:
-        discard sig.tsig.fireSync()
-    else:
-      sig.event.trigger()
+    var exp = ksRegistered
+    if sig.kernelState.compareExchange(exp, ksTriggered, moSeqCst):
+      when defined(lockfreeChronos):
+        if sig.tsig != nil:
+          discard sig.tsig.fireSync()
+      else:
+        sig.event.trigger()
 
   proc clear*(sig: AsyncSignal) {.inline, gcsafe.} =
     if sig == nil:
@@ -180,27 +180,33 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       fut.cancelCallback = onCancel
       sig.waiters.add(fut)
 
-      if not sig.registered and sig.tsig != nil:
-        sig.registered = true
+      if sig.kernelState.load(moSeqCst) == ksIdle and sig.tsig != nil:
         let tw = sig.tsig.wait()
         sig.tsigWaitFut = tw
         tw.addCallback(proc(udata: pointer) {.gcsafe, raises: [].} =
-          sig.inCallback = true
           sig.signaled.store(false, moSeqCst)
-          sig.registered = false
           sig.tsigWaitFut = nil
           var pending = move sig.waiters
           sig.waiters = @[]
+          sig.kernelState.store(ksIdle, moSeqCst)
+          threadFence(moSeqCst)
+          if sig.closed.load(moAcquire):
+            if not sig.eventClosed:
+              sig.eventClosed = true
+              if sig.tsig != nil:
+                discard sig.tsig.close()
+                sig.tsig = nil
           for w in pending:
             if not w.finished():
               w.complete()
-          sig.inCallback = false
-          if sig.closePending:
-            sig.closePending = false
-            if sig.tsig != nil:
-              discard sig.tsig.close()
-              sig.tsig = nil
         )
+        sig.kernelState.store(ksRegistered, moSeqCst)
+        threadFence(moSeqCst)
+        if sig.signaled.load(moSeqCst) or sig.closed.load(moSeqCst):
+          var exp = ksRegistered
+          if sig.kernelState.compareExchange(exp, ksTriggered, moSeqCst):
+            if sig.tsig != nil:
+              discard sig.tsig.fireSync()
       return fut
   else:
     proc wait*(sig: AsyncSignal): Future[void] =
@@ -213,65 +219,81 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       var fut = newFuture[void]("AsyncSignal.wait.slow")
       sig.waiters.add(fut)
 
-      if not sig.registered:
-        sig.registered = true
+      if sig.kernelState.load(moSeqCst) == ksIdle:
+        # CRIT-D1-01: Register addEvent on the dispatcher BEFORE publishing
+        # ksRegistered so no foreign thread can call trigger() before addEvent.
         sig.event.addEvent(proc(fd: AsyncFD): bool {.gcsafe.} =
-          sig.inCallback = true
-          sig.signaled.store(false, moSeqCst)
-          var pending = move sig.waiters
-          sig.waiters = @[]
-          sig.registered = false
-          for w in pending:
-            if not w.finished:
-              w.complete()
-          sig.inCallback = false
-          if sig.closePending:
-            sig.closePending = false
-            callSoon(proc() {.gcsafe.} =
-              try:
-                sig.event.close()
-              except CatchableError:
-                discard
-            )
-          return true # unregister from selector
+          # HIGH-D1-02: Defer state reset, optional close, and waiter completion
+          # to callSoon (executed at the end of runOnce strictly AFTER
+          # eventcb / processBasicCallbacks completes unregister(ev)).
+          callSoon(proc() {.gcsafe.} =
+            sig.signaled.store(false, moSeqCst)
+            var pending = move sig.waiters
+            sig.waiters = @[]
+            sig.kernelState.store(ksIdle, moSeqCst)
+            threadFence(moSeqCst)
+            if sig.closed.load(moAcquire):
+              if not sig.eventClosed:
+                sig.eventClosed = true
+                try:
+                  sig.event.close()
+                except CatchableError:
+                  discard
+            for w in pending:
+              if not w.finished:
+                w.complete()
+          )
+          return true # unregister from selector / IOCP wait handle
         )
+        sig.kernelState.store(ksRegistered, moSeqCst)
+        threadFence(moSeqCst)
+        if sig.signaled.load(moSeqCst) or sig.closed.load(moSeqCst):
+          var exp = ksRegistered
+          if sig.kernelState.compareExchange(exp, ksTriggered, moSeqCst):
+            sig.event.trigger()
       return fut
 
   proc close*(sig: AsyncSignal) =
     if sig == nil:
       return
-    if not sig.closed.exchange(true, moAcquireRelease):
+    if not sig.closed.exchange(true, moSeqCst):
+      threadFence(moSeqCst)
       when defined(lockfreeChronos):
-        var pending = move sig.waiters
-        sig.waiters = @[]
-        for w in pending:
-          if not w.finished():
-            w.complete()
-        if sig.inCallback:
-          sig.closePending = true
-        elif sig.registered and sig.tsig != nil:
-          sig.closePending = true
-          discard sig.tsig.fireSync()
+        let ks = sig.kernelState.load(moSeqCst)
+        if ks == ksIdle:
+          var pending = move sig.waiters
+          sig.waiters = @[]
+          if not sig.eventClosed:
+            sig.eventClosed = true
+            if sig.tsig != nil:
+              discard sig.tsig.close()
+              sig.tsig = nil
+          for w in pending:
+            if not w.finished():
+              w.complete()
         else:
-          if sig.tsig != nil:
-            discard sig.tsig.close()
-            sig.tsig = nil
+          var exp = ksRegistered
+          if sig.kernelState.compareExchange(exp, ksTriggered, moSeqCst):
+            if sig.tsig != nil:
+              discard sig.tsig.fireSync()
       else:
-        var pending = move sig.waiters
-        sig.waiters = @[]
-        for w in pending:
-          if not w.finished:
-            w.complete()
-        if sig.inCallback:
-          sig.closePending = true
-        elif sig.registered:
-          sig.closePending = true
-          sig.event.trigger()
+        let ks = sig.kernelState.load(moSeqCst)
+        if ks == ksIdle:
+          var pending = move sig.waiters
+          sig.waiters = @[]
+          if not sig.eventClosed:
+            sig.eventClosed = true
+            try:
+              sig.event.close()
+            except CatchableError:
+              discard
+          for w in pending:
+            if not w.finished:
+              w.complete()
         else:
-          try:
-            sig.event.close()
-          except CatchableError:
-            discard
+          var exp = ksRegistered
+          if sig.kernelState.compareExchange(exp, ksTriggered, moSeqCst):
+            sig.event.trigger()
 
   # ---------------------------------------------------------------------------
   # 1. Bounded Queue Adapter: AsyncBQueue[T]
@@ -435,19 +457,36 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     result.consumerSignal = newAsyncSignal()
     result.hasWaitingConsumers.store(false, moRelaxed)
 
-  proc sendAsync*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
+  proc push*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
       self: AsyncQueue[T, ccSingle, ccSingle, ST, S, MaxThreads],
       item: sink T
-  ): Future[bool] =
-    ## Unbounded enqueue never blocks; pushes immediately and notifies waiting
-    ## consumers.
+  ): bool =
+    ## Synchronous thread-safe push with consumer wakeup. Safe to invoke from
+    ## raw OS worker threads without allocating Future objects.
     var prod = self.queue.getProducerHere()
     prod.push(item)
     threadFence(moSeqCst)
     if self.hasWaitingConsumers.load(moSeqCst):
       self.consumerSignal.fire()
+    return true
+
+  proc trySend*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
+      self: AsyncQueue[T, ccSingle, ccSingle, ST, S, MaxThreads],
+      item: sink T
+  ): bool {.inline.} =
+    ## Alias for synchronous thread-safe `push`.
+    self.push(item)
+
+  proc sendAsync*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
+      self: AsyncQueue[T, ccSingle, ccSingle, ST, S, MaxThreads],
+      item: sink T
+  ): Future[bool] =
+    ## Unbounded enqueue never blocks; pushes immediately and notifies waiting
+    ## consumers. Note: Must be invoked from the event-loop thread; raw OS
+    ## threads should call `push` or `trySend`.
+    let ok = self.push(item)
     var fut = newFuture[bool]("sendAsync")
-    fut.complete(true)
+    fut.complete(ok)
     return fut
 
   proc recvAsync*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
@@ -931,7 +970,6 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         self.ring.cursorsLock.releaseLock()
 
       self.cursor.unsubscribe()
-      self.signal.fire()
       self.signal.close()
 
       if self.ring != nil:

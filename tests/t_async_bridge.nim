@@ -116,6 +116,15 @@ suite "AsyncQueue (Unbounded LCRQ Async Queue)":
     check waitFor(q.tryPopAsync()) == some(555)
     check waitFor(q.tryPopAsync()) == none(int)
 
+  test "synchronous push and trySend wake async consumer without Future allocation":
+    var q = newAsyncQueue(AsyncQueueSpsc[int, 64, 1])
+    var recvFut = q.recvAsync()
+    check recvFut.finished == false
+    check q.push(314) == true
+    check waitFor(recvFut) == some(314)
+    check q.trySend(271) == true
+    check waitFor(q.recvAsync()) == some(271)
+
 suite "AsyncRendezvousChannel (Zero-Buffer Synchronous CSP)":
   test "coroutine-to-coroutine rendezvous handoff":
     var ch = newAsyncRendezvousChannel[string]()
@@ -459,6 +468,7 @@ suite "AsyncChaseLevDeque (Work-Stealing Deque Async Thief Parking)":
       # Trigger exception unwinding on the parked signal waiter in std/asyncdispatch
       dq.thiefSignals[0].waiters[0].fail(newException(ValueError, "cancelled"))
       stepLoop()
+      stepLoop()
       check parkedFut.failed == true
       check dq.waitingThieves.load(moSequentiallyConsistent) == 0
       check dq.thiefSignals.len == 0
@@ -512,7 +522,7 @@ suite "AsyncBridge Dekker Store-Load Stress & Zero Dropped Signals":
     var th: Thread[ptr ProdArg]
     createThread(th, proc(a: ptr ProdArg) {.thread.} =
       for i in 1..TotalItems:
-        discard a.qp[].sendAsync(i)
+        discard a.qp[].push(i)
     , addr arg)
 
     proc consumer(queue: AsyncQueueSpsc[int, 64, 1]): Future[seq[int]] {.async.} =
