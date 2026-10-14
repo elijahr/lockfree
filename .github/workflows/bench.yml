@@ -132,6 +132,9 @@ jobs:
       - name: Run bench harness tests
         run: nimble benchtests
 
+      - name: Run Python chart and BMF contract tests
+        run: python3 -m unittest discover -s benchmarks/tests -p "test_*.py" -v
+
   bench:
     # Track 2 PR 2 +: matrix over the topology-split
     # binaries. the original `bench_mpmc` into a
@@ -172,6 +175,13 @@ jobs:
           - bench_unbounded_mpsc
           - bench_unbounded_mpmc
           - bench_latency
+          - bench_maps
+          - bench_stacks_deques
+          - bench_broadcast
+          - bench_ratelimit_streaming
+          - bench_rendezvous
+          - bench_taskpool
+          - bench_smr_nebr
     timeout-minutes: 18
 
     steps:
@@ -220,13 +230,15 @@ jobs:
 
       - name: Install boost (libboost-dev for Boost.LockFree)
         # Boost.LockFree is C++ header-only; libboost-dev pulls the
-        # entire boost include tree on the runner. Skip on bench_mpsc /
-        # bench_unbounded / bench_latency (no boost adapter wired into
-        # those binaries; install would just slow them down).
+        # entire boost include tree on the runner. Skip on binaries
+        # without a Boost.LockFree 1.74-compatible adapter.
         id: install-boost
         if: |
           env.FORCE_SKIP_BOOST != '1' &&
-          (matrix.binary == 'bench_spsc' || matrix.binary == 'bench_mpmc_bounded')
+          (matrix.binary == 'bench_spsc' ||
+           matrix.binary == 'bench_mpmc_bounded' ||
+           matrix.binary == 'bench_stacks_deques' ||
+           matrix.binary == 'bench_ratelimit_streaming')
         continue-on-error: true
         run: |
           sudo apt-get install -qq -y libboost-dev
@@ -236,7 +248,10 @@ jobs:
         if: |
           env.FORCE_SKIP_BOOST != '1' &&
           steps.install-boost.outcome == 'success' &&
-          (matrix.binary == 'bench_spsc' || matrix.binary == 'bench_mpmc_bounded')
+          (matrix.binary == 'bench_spsc' ||
+           matrix.binary == 'bench_mpmc_bounded' ||
+           matrix.binary == 'bench_stacks_deques' ||
+           matrix.binary == 'bench_ratelimit_streaming')
         continue-on-error: true
         run: |
           set -eu
@@ -259,11 +274,15 @@ jobs:
           {
             echo "ADAPTER_BOOST_QUEUE=1"
             echo "ADAPTER_BOOST_SPSC=1"
+            echo "ADAPTER_BOOST_LOCKFREE=1"
           } >> "$GITHUB_ENV"
 
       - name: Annotate boost skipped
         if: |
-          (matrix.binary == 'bench_spsc' || matrix.binary == 'bench_mpmc_bounded') &&
+          (matrix.binary == 'bench_spsc' ||
+           matrix.binary == 'bench_mpmc_bounded' ||
+           matrix.binary == 'bench_stacks_deques' ||
+           matrix.binary == 'bench_ratelimit_streaming') &&
           (env.FORCE_SKIP_BOOST == '1' ||
            steps.install-boost.outcome != 'success' ||
            steps.smoke-boost.outcome != 'success')
@@ -459,6 +478,10 @@ jobs:
             flags="$flags -d:adapter_boost_lockfree_spsc_available"
             mode="cpp"
           fi
+          if [ "${ADAPTER_BOOST_LOCKFREE:-}" = "1" ]; then
+            flags="$flags -d:adapter_boost_lockfree_available"
+            mode="cpp"
+          fi
           if [ "${ADAPTER_LOONY:-}" = "1" ]; then
             flags="$flags -d:adapter_loony_available"
           fi
@@ -613,6 +636,62 @@ jobs:
                 -d:BenchLatencyRuns=11 \
                 -d:BenchLatencyWarmupRuns=2 \
                 benchmarks/nim/bench_latency.nim
+              ;;
+            bench_maps)
+              nim cpp -d:release -d:danger --threads:on \
+                -d:BenchMapRuns=3 \
+                -d:BenchMapWarmup=1 \
+                -d:BenchMapOpsPerThread=20000 \
+                benchmarks/nim/bench_maps.nim
+              ;;
+            bench_stacks_deques)
+              nim cpp -d:release -d:danger --threads:on \
+                -d:BenchStackRuns=3 \
+                -d:BenchStackWarmup=1 \
+                -d:BenchStackMsgCount=100000 \
+                $ADAPTER_FLAGS \
+                benchmarks/nim/bench_stacks_deques.nim
+              ;;
+            bench_broadcast)
+              nim cpp -d:release -d:danger --threads:on \
+                -d:BenchBroadcastRuns=3 \
+                -d:BenchBroadcastWarmup=1 \
+                -d:BenchBroadcastMsgCount=50000 \
+                benchmarks/nim/bench_broadcast.nim
+              ;;
+            bench_ratelimit_streaming)
+              nim cpp -d:release -d:danger --threads:on \
+                -d:BenchRLRuns=3 \
+                -d:BenchRLWarmup=1 \
+                -d:BenchTokenCount=100000 \
+                -d:BenchStreamBytes=16777216 \
+                $ADAPTER_FLAGS \
+                benchmarks/nim/bench_ratelimit_streaming.nim
+              ;;
+            bench_rendezvous)
+              nim cpp -d:release -d:danger --threads:on \
+                -d:BenchRendezvousRuns=3 \
+                -d:BenchRendezvousWarmup=1 \
+                -d:BenchRendezvousMsgCount=20000 \
+                -d:BenchRendezvousRpcCount=10000 \
+                benchmarks/nim/bench_rendezvous.nim
+              ;;
+            bench_taskpool)
+              nim cpp -d:release -d:danger --threads:on \
+                -d:BenchTaskPoolRuns=3 \
+                -d:BenchTaskPoolWarmup=1 \
+                -d:BenchParForCount=50000 \
+                -d:BenchForkJoinDepth=11 \
+                -d:BenchSpawnSyncCount=10000 \
+                benchmarks/nim/bench_taskpool.nim
+              ;;
+            bench_smr_nebr)
+              nim cpp -d:release -d:danger --threads:on \
+                -d:BenchSmrRuns=3 \
+                -d:BenchSmrWarmup=1 \
+                -d:BenchPinOpsPerThread=50000 \
+                -d:BenchRetireOpsPerThread=10000 \
+                benchmarks/nim/bench_smr_nebr.nim
               ;;
             *)
               echo "::error::unknown binary: ${{ matrix.binary }}"

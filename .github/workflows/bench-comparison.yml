@@ -41,12 +41,13 @@ on:
     # cdylib build adds ~30s vs the in-tree benches.
     - cron: '0 4 * * *'
   push:
-    branches: [devel]
+    branches: [main, devel]
     paths:
       - 'benchmarks/rust/**'
       - 'benchmarks/vendor/**'
       - 'benchmarks/nim/adapters/**'
       - 'benchmarks/nim/smoke/**'
+      - 'benchmarks/nim/bench_*.nim'
       - '.github/workflows/bench-comparison.yml'
 # yamllint enable rule:truthy
 
@@ -80,7 +81,7 @@ jobs:
     # which would inflate the bench.yml critical path on every PR. Per
     # design 2.6 / impl plan 3.13 it lives in this dedicated workflow,
     # gated on nightly cron + workflow_dispatch + targeted path pushes
-    # to devel only. Output flows into the merged BMF artifact consumed
+    # to main / devel. Output flows into the merged BMF artifact consumed
     # by the docs charts.
     name: bench-crossbeam (ubuntu-22.04)
     # Pinned to ubuntu-22.04 (not ubuntu-latest) so bench wall-clock
@@ -93,7 +94,7 @@ jobs:
     permissions:
       contents: read
       actions: read
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
       - name: Checkout project
@@ -304,24 +305,22 @@ jobs:
 
       # ---------- v5.0.0 Bundle 5: vendored liblfds (C library) ----------
       #
-      # liblfds 7.1.1 ships C source that requires a Make build to
-      # produce liblfds711.a. The vendored subset in this repo lacks the
-      # gcc_gnumake Makefile, so the build step is guarded by `test -f`
-      # and `continue-on-error: true` — it soft-skips faithfully (the
-      # adapter then never gets its define and the run is omitted). CI
-      # environments that DO carry the full upstream tree build the
-      # archive and exercise the adapter.
+      # liblfds 7.1.1 ships C source under benchmarks/vendor/liblfds/liblfds711/src/.
+      # Compile the vendored C sources directly into liblfds711.a matching
+      # build_liblfds() in benchmarks/runner.py.
 
-      - name: Install liblfds (vendored Make build)
+      - name: Install liblfds (vendored C build)
         id: install-liblfds
         if: env.FORCE_SKIP_LIBLFDS != '1'
         continue-on-error: true
         run: |
           set -euo pipefail
-          test -f benchmarks/vendor/liblfds/liblfds711/build/gcc_gnumake/Makefile
-          # CI runs on Linux so the porting layer's __linux__ branch
-          # fires natively (no CFLAGS override, unlike macOS dev).
-          make -C benchmarks/vendor/liblfds/liblfds711/build/gcc_gnumake ar_rel
+          mkdir -p benchmarks/vendor/liblfds/liblfds711/bin benchmarks/vendor/liblfds/liblfds711/obj
+          for src in benchmarks/vendor/liblfds/liblfds711/src/*/*.c; do
+            obj="benchmarks/vendor/liblfds/liblfds711/obj/$(basename "$(dirname "$src")")_$(basename "$src" .c).o"
+            cc -O3 -fPIC -D__linux__ -Ibenchmarks/vendor/liblfds/liblfds711/inc -c "$src" -o "$obj"
+          done
+          ar rcs benchmarks/vendor/liblfds/liblfds711/bin/liblfds711.a benchmarks/vendor/liblfds/liblfds711/obj/*.o
           test -f benchmarks/vendor/liblfds/liblfds711/bin/liblfds711.a
 
       - name: Smoke liblfds adapter
@@ -358,7 +357,7 @@ jobs:
           steps.install-liblfds.outcome != 'success' ||
           steps.smoke-liblfds.outcome != 'success'
         run: |
-          echo "::warning title=Adapter skipped::liblfds build or smoke failed or force-skipped (the vendored subset lacks the gcc_gnumake Makefile); comparison bench will omit liblfds slugs."
+          echo "::warning title=Adapter skipped::liblfds build or smoke failed or force-skipped; comparison bench will omit liblfds slugs."
 
       - name: Compile bench_mpmc_bounded with crossbeam_array_queue
         #: crossbeam_array_queue's slug shape matches
@@ -609,6 +608,125 @@ jobs:
             --bmf-out=bench_mpmc_liblfds.json \
             | tee bench_mpmc_liblfds_output.txt
 
+      # ---------- Subsystem benchmarks (Nim + Rust FFI comparison) ----------
+
+      - name: Compile + run bench_maps
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          nim cpp -d:release -d:danger --threads:on \
+            -d:BenchMapRuns=3 \
+            -d:BenchMapWarmup=1 \
+            -d:BenchMapOpsPerThread=20000 \
+            -d:adapter_rust_ffi_available \
+            --passL:"-Wl,-rpath,$(pwd)/benchmarks/rust/bench-ffi-crossbeam/target/release" \
+            -o:.tmp/bench_maps \
+            benchmarks/nim/bench_maps.nim
+          ./.tmp/bench_maps \
+            --bmf-out=bench_maps.json \
+            | tee bench_maps_output.txt
+
+      - name: Compile + run bench_stacks_deques
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          nim cpp -d:release -d:danger --threads:on \
+            -d:BenchStackRuns=3 \
+            -d:BenchStackWarmup=1 \
+            -d:BenchStackMsgCount=100000 \
+            -d:adapter_rust_ffi_available \
+            --passL:"-Wl,-rpath,$(pwd)/benchmarks/rust/bench-ffi-crossbeam/target/release" \
+            -o:.tmp/bench_stacks_deques \
+            benchmarks/nim/bench_stacks_deques.nim
+          ./.tmp/bench_stacks_deques \
+            --bmf-out=bench_stacks_deques.json \
+            | tee bench_stacks_deques_output.txt
+
+      - name: Compile + run bench_broadcast
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          nim cpp -d:release -d:danger --threads:on \
+            -d:BenchBroadcastRuns=3 \
+            -d:BenchBroadcastWarmup=1 \
+            -d:BenchBroadcastMsgCount=50000 \
+            -d:adapter_rust_ffi_available \
+            --passL:"-Wl,-rpath,$(pwd)/benchmarks/rust/bench-ffi-crossbeam/target/release" \
+            -o:.tmp/bench_broadcast \
+            benchmarks/nim/bench_broadcast.nim
+          ./.tmp/bench_broadcast \
+            --bmf-out=bench_broadcast.json \
+            | tee bench_broadcast_output.txt
+
+      - name: Compile + run bench_ratelimit_streaming
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          nim cpp -d:release -d:danger --threads:on \
+            -d:BenchRLRuns=3 \
+            -d:BenchRLWarmup=1 \
+            -d:BenchTokenCount=100000 \
+            -d:BenchStreamBytes=16777216 \
+            -d:adapter_rust_ffi_available \
+            --passL:"-Wl,-rpath,$(pwd)/benchmarks/rust/bench-ffi-crossbeam/target/release" \
+            -o:.tmp/bench_ratelimit_streaming \
+            benchmarks/nim/bench_ratelimit_streaming.nim
+          ./.tmp/bench_ratelimit_streaming \
+            --bmf-out=bench_ratelimit_streaming.json \
+            | tee bench_ratelimit_streaming_output.txt
+
+      - name: Compile + run bench_rendezvous
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          nim cpp -d:release -d:danger --threads:on \
+            -d:BenchRendezvousRuns=3 \
+            -d:BenchRendezvousWarmup=1 \
+            -d:BenchRendezvousMsgCount=20000 \
+            -d:BenchRendezvousRpcCount=10000 \
+            -d:adapter_rust_ffi_available \
+            --passL:"-Wl,-rpath,$(pwd)/benchmarks/rust/bench-ffi-crossbeam/target/release" \
+            -o:.tmp/bench_rendezvous \
+            benchmarks/nim/bench_rendezvous.nim
+          ./.tmp/bench_rendezvous \
+            --bmf-out=bench_rendezvous.json \
+            | tee bench_rendezvous_output.txt
+
+      - name: Compile + run bench_taskpool
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          nim cpp -d:release -d:danger --threads:on \
+            -d:BenchTaskPoolRuns=3 \
+            -d:BenchTaskPoolWarmup=1 \
+            -d:BenchParForCount=50000 \
+            -d:BenchForkJoinDepth=11 \
+            -d:BenchSpawnSyncCount=10000 \
+            -d:adapter_rust_ffi_available \
+            --passL:"-Wl,-rpath,$(pwd)/benchmarks/rust/bench-ffi-crossbeam/target/release" \
+            -o:.tmp/bench_taskpool \
+            benchmarks/nim/bench_taskpool.nim
+          ./.tmp/bench_taskpool \
+            --bmf-out=bench_taskpool.json \
+            | tee bench_taskpool_output.txt
+
+      - name: Compile + run bench_smr_nebr
+        timeout-minutes: 12
+        run: |
+          set -euo pipefail
+          nim cpp -d:release -d:danger --threads:on \
+            -d:BenchSmrRuns=3 \
+            -d:BenchSmrWarmup=1 \
+            -d:BenchPinOpsPerThread=50000 \
+            -d:BenchRetireOpsPerThread=10000 \
+            -d:adapter_rust_ffi_available \
+            --passL:"-Wl,-rpath,$(pwd)/benchmarks/rust/bench-ffi-crossbeam/target/release" \
+            -o:.tmp/bench_smr_nebr \
+            benchmarks/nim/bench_smr_nebr.nim
+          ./.tmp/bench_smr_nebr \
+            --bmf-out=bench_smr_nebr.json \
+            | tee bench_smr_nebr_output.txt
+
       - name: Merge BMF JSON
         # Crossbeam fragments are always present (no soft-skip); the
         # external-adapter fragments exist only for adapters that passed
@@ -630,7 +748,14 @@ jobs:
             bench_mpmc_kanal.json \
             bench_unbounded_kanal.json \
             bench_spsc_liblfds.json \
-            bench_mpmc_liblfds.json; do
+            bench_mpmc_liblfds.json \
+            bench_maps.json \
+            bench_stacks_deques.json \
+            bench_broadcast.json \
+            bench_ratelimit_streaming.json \
+            bench_rendezvous.json \
+            bench_taskpool.json \
+            bench_smr_nebr.json; do
             if [ -f "$f" ]; then
               inputs="$inputs $f"
             fi
@@ -647,6 +772,6 @@ jobs:
         with:
           # v5.0.0 Bundle 5: this merged fragment now spans crossbeam +
           # the external-adapter set (atomic_queue, rigtorp, flume,
-          # kanal, liblfds), not crossbeam alone.
+          # kanal, liblfds) + subsystem benchmarks.
           name: bench-comparison-external-bmf
           path: merged.json
