@@ -220,10 +220,10 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       sig.waiters.add(fut)
 
       if sig.kernelState.load(moSeqCst) == ksIdle:
-        # CRIT-D1-01: Register addEvent on the dispatcher BEFORE publishing
+        # Register addEvent on the dispatcher BEFORE publishing
         # ksRegistered so no foreign thread can call trigger() before addEvent.
         sig.event.addEvent(proc(fd: AsyncFD): bool {.gcsafe.} =
-          # HIGH-D1-02: Defer state reset, optional close, and waiter completion
+          # Defer state reset, optional close, and waiter completion
           # to callSoon (executed at the end of runOnce strictly AFTER
           # eventcb / processBasicCallbacks completes unregister(ev)).
           callSoon(proc() {.gcsafe.} =
@@ -538,17 +538,68 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       arsMatched
       arsCancelled
 
-    AsyncRendezvousWaiterNode[T] = ref object
+    AsyncRendezvousWaiterNodeObj[T] = object
       state*: Atomic[AsyncRendezvousState]
       box*: Atomic[ptr AsyncPayloadBox[T]]
       signal*: AsyncSignal
-      next*: AsyncRendezvousWaiterNode[T]
+      next*: ptr AsyncRendezvousWaiterNodeObj[T]
+
+    AsyncRendezvousWaiterNode[T] = ptr AsyncRendezvousWaiterNodeObj[T]
 
     AsyncRendezvousChannel*[T] = ref object
       chan*: RendezvousChannel[T]
       waitingSenders*: AsyncRendezvousWaiterNode[T]
       waitingReceivers*: AsyncRendezvousWaiterNode[T]
       waiterLock*: Atomic[bool]
+
+  proc allocWaiterNode[T](): AsyncRendezvousWaiterNode[T] {.inline.} =
+    result = cast[AsyncRendezvousWaiterNode[T]](
+      allocShared0(sizeof(AsyncRendezvousWaiterNodeObj[T]))
+    )
+    result.signal = newAsyncSignal()
+    result.state.store(arsWaiting, moRelaxed)
+    result.box.store(nil, moRelaxed)
+    result.next = nil
+
+  proc unlinkAndDestroySenderWaiter[T](
+      self: AsyncRendezvousChannel[T], waiter: AsyncRendezvousWaiterNode[T]
+  ) {.inline.} =
+    self.waiterLock.acquireLock()
+    var p: AsyncRendezvousWaiterNode[T] = nil
+    var c = self.waitingSenders
+    while c != nil:
+      if c == waiter:
+        if p == nil:
+          self.waitingSenders = c.next
+        else:
+          p.next = c.next
+        break
+      p = c
+      c = c.next
+    self.waiterLock.releaseLock()
+    waiter.signal.close()
+    waiter.signal = nil
+    deallocShared(waiter)
+
+  proc unlinkAndDestroyReceiverWaiter[T](
+      self: AsyncRendezvousChannel[T], waiter: AsyncRendezvousWaiterNode[T]
+  ) {.inline.} =
+    self.waiterLock.acquireLock()
+    var p: AsyncRendezvousWaiterNode[T] = nil
+    var c = self.waitingReceivers
+    while c != nil:
+      if c == waiter:
+        if p == nil:
+          self.waitingReceivers = c.next
+        else:
+          p.next = c.next
+        break
+      p = c
+      c = c.next
+    self.waiterLock.releaseLock()
+    waiter.signal.close()
+    waiter.signal = nil
+    deallocShared(waiter)
 
   proc newAsyncRendezvousChannel*[T](): AsyncRendezvousChannel[T] =
     new result
@@ -590,18 +641,21 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       return true
 
     # Fast path 2: Check if async receiver is waiting
-    var matchedReceiver: AsyncRendezvousWaiterNode[T] = nil
+    var matched = false
     self.waiterLock.acquireLock()
     var prev: AsyncRendezvousWaiterNode[T] = nil
     var curr = self.waitingReceivers
     while curr != nil:
       var exp = arsWaiting
       if curr.state.compareExchange(exp, arsMatched, moAcquireRelease):
-        matchedReceiver = curr
         if prev == nil:
           self.waitingReceivers = curr.next
         else:
           prev.next = curr.next
+        let pbox = allocPayloadBox(curItem)
+        curr.box.store(pbox, moRelease)
+        curr.signal.fire()
+        matched = true
         break
       else:
         # Cancelled or dead waiter
@@ -612,17 +666,11 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         curr = curr.next
     self.waiterLock.releaseLock()
 
-    if matchedReceiver != nil:
-      let pbox = allocPayloadBox(curItem)
-      matchedReceiver.box.store(pbox, moRelease)
-      matchedReceiver.signal.fire()
+    if matched:
       return true
 
     # Slow path: Register as waiting sender
-    var waiter = AsyncRendezvousWaiterNode[T](
-      signal: newAsyncSignal()
-    )
-    waiter.state.store(arsWaiting, moRelaxed)
+    let waiter = allocWaiterNode[T]()
     let pbox = allocPayloadBox(curItem)
     waiter.box.store(pbox, moRelaxed)
 
@@ -635,28 +683,19 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       await waiter.signal.wait()
     except CatchableError as e:
       var exp = arsWaiting
-      if waiter.state.compareExchange(exp, arsCancelled, moAcquireRelease):
-        # Cancellation won arbitration! Reclaim box and unlink
-        self.waiterLock.acquireLock()
-        var p: AsyncRendezvousWaiterNode[T] = nil
-        var c = self.waitingSenders
-        while c != nil:
-          if c == waiter:
-            if p == nil: self.waitingSenders = c.next
-            else: p.next = c.next
-            break
-          p = c
-          c = c.next
-        self.waiterLock.releaseLock()
-        waiter.signal.close()
+      let cancelled = waiter.state.compareExchange(exp, arsCancelled, moAcquireRelease)
+      self.unlinkAndDestroySenderWaiter(waiter)
+      if cancelled:
         decRef(pbox)
         raise e
       # Peer won CAS before or concurrently with cancel; item transferred!
-      waiter.signal.close()
       return true
 
-    waiter.signal.close()
-    if waiter.state.load(moAcquire) == arsMatched:
+    var exp = arsWaiting
+    discard waiter.state.compareExchange(exp, arsCancelled, moAcquireRelease)
+    let wasMatched = (exp == arsMatched)
+    self.unlinkAndDestroySenderWaiter(waiter)
+    if wasMatched:
       return true
     else:
       decRef(pbox)
@@ -675,18 +714,19 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       return some(val)
 
     # Fast path 2: Check if async sender is waiting
-    var matchedSender: AsyncRendezvousWaiterNode[T] = nil
+    var matchedBox: ptr AsyncPayloadBox[T] = nil
     self.waiterLock.acquireLock()
     var prev: AsyncRendezvousWaiterNode[T] = nil
     var curr = self.waitingSenders
     while curr != nil:
       var exp = arsWaiting
       if curr.state.compareExchange(exp, arsMatched, moAcquireRelease):
-        matchedSender = curr
         if prev == nil:
           self.waitingSenders = curr.next
         else:
           prev.next = curr.next
+        matchedBox = curr.box.load(moAcquire)
+        curr.signal.fire()
         break
       else:
         if prev == nil:
@@ -696,18 +736,13 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         curr = curr.next
     self.waiterLock.releaseLock()
 
-    if matchedSender != nil:
-      let pbox = matchedSender.box.load(moAcquire)
-      matchedSender.signal.fire()
-      var res = pbox.val
-      decRef(pbox)
+    if matchedBox != nil:
+      var res = matchedBox.val
+      decRef(matchedBox)
       return some(res)
 
     # Slow path: Register as waiting receiver
-    var waiter = AsyncRendezvousWaiterNode[T](
-      signal: newAsyncSignal()
-    )
-    waiter.state.store(arsWaiting, moRelaxed)
+    let waiter = allocWaiterNode[T]()
 
     self.waiterLock.acquireLock()
     waiter.next = self.waitingReceivers
@@ -718,30 +753,29 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       await waiter.signal.wait()
     except CatchableError as e:
       var exp = arsWaiting
-      if waiter.state.compareExchange(exp, arsCancelled, moAcquireRelease):
+      let cancelled = waiter.state.compareExchange(exp, arsCancelled, moAcquireRelease)
+      var pbox: ptr AsyncPayloadBox[T] = nil
+      if not cancelled:
         self.waiterLock.acquireLock()
-        var p: AsyncRendezvousWaiterNode[T] = nil
-        var c = self.waitingReceivers
-        while c != nil:
-          if c == waiter:
-            if p == nil: self.waitingReceivers = c.next
-            else: p.next = c.next
-            break
-          p = c
-          c = c.next
+        pbox = waiter.box.load(moAcquire)
         self.waiterLock.releaseLock()
-        waiter.signal.close()
+      self.unlinkAndDestroyReceiverWaiter(waiter)
+      if cancelled:
         raise e
-      # Sender matched concurrently; receive payload
-      let pbox = waiter.box.load(moAcquire)
       var res = pbox.val
       decRef(pbox)
-      waiter.signal.close()
       return some(res)
 
-    waiter.signal.close()
-    if waiter.state.load(moAcquire) == arsMatched:
-      let pbox = waiter.box.load(moAcquire)
+    var exp = arsWaiting
+    discard waiter.state.compareExchange(exp, arsCancelled, moAcquireRelease)
+    let wasMatched = (exp == arsMatched)
+    var pbox: ptr AsyncPayloadBox[T] = nil
+    if wasMatched:
+      self.waiterLock.acquireLock()
+      pbox = waiter.box.load(moAcquire)
+      self.waiterLock.releaseLock()
+    self.unlinkAndDestroyReceiverWaiter(waiter)
+    if wasMatched:
       var res = pbox.val
       decRef(pbox)
       return some(res)
@@ -757,18 +791,19 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       fut.complete(some(val))
       return fut
 
-    var matchedSender: AsyncRendezvousWaiterNode[T] = nil
+    var matchedBox: ptr AsyncPayloadBox[T] = nil
     self.waiterLock.acquireLock()
     var prev: AsyncRendezvousWaiterNode[T] = nil
     var curr = self.waitingSenders
     while curr != nil:
       var exp = arsWaiting
       if curr.state.compareExchange(exp, arsMatched, moAcquireRelease):
-        matchedSender = curr
         if prev == nil:
           self.waitingSenders = curr.next
         else:
           prev.next = curr.next
+        matchedBox = curr.box.load(moAcquire)
+        curr.signal.fire()
         break
       else:
         if prev == nil:
@@ -779,11 +814,9 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     self.waiterLock.releaseLock()
 
     var fut = newFuture[Option[T]]("tryPopAsync")
-    if matchedSender != nil:
-      let pbox = matchedSender.box.load(moAcquire)
-      matchedSender.signal.fire()
-      var res = pbox.val
-      decRef(pbox)
+    if matchedBox != nil:
+      var res = matchedBox.val
+      decRef(matchedBox)
       fut.complete(some(res))
     else:
       fut.complete(none(T))
@@ -797,18 +830,21 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       raise newException(ChannelClosedDefect, "RendezvousChannel is closed")
 
     var curItem = move item
-    var matchedReceiver: AsyncRendezvousWaiterNode[T] = nil
+    var matched = false
     self.waiterLock.acquireLock()
     var prev: AsyncRendezvousWaiterNode[T] = nil
     var curr = self.waitingReceivers
     while curr != nil:
       var exp = arsWaiting
       if curr.state.compareExchange(exp, arsMatched, moAcquireRelease):
-        matchedReceiver = curr
         if prev == nil:
           self.waitingReceivers = curr.next
         else:
           prev.next = curr.next
+        let pbox = allocPayloadBox(curItem)
+        curr.box.store(pbox, moRelease)
+        curr.signal.fire()
+        matched = true
         break
       else:
         if prev == nil:
@@ -818,10 +854,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         curr = curr.next
     self.waiterLock.releaseLock()
 
-    if matchedReceiver != nil:
-      let pbox = allocPayloadBox(curItem)
-      matchedReceiver.box.store(pbox, moRelease)
-      matchedReceiver.signal.fire()
+    if matched:
       return 1
 
     result = self.chan.send(curItem)
@@ -833,18 +866,19 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     if self.chan.isClosed:
       raise newException(ChannelClosedDefect, "RendezvousChannel is closed")
 
-    var matchedSender: AsyncRendezvousWaiterNode[T] = nil
+    var matchedBox: ptr AsyncPayloadBox[T] = nil
     self.waiterLock.acquireLock()
     var prev: AsyncRendezvousWaiterNode[T] = nil
     var curr = self.waitingSenders
     while curr != nil:
       var exp = arsWaiting
       if curr.state.compareExchange(exp, arsMatched, moAcquireRelease):
-        matchedSender = curr
         if prev == nil:
           self.waitingSenders = curr.next
         else:
           prev.next = curr.next
+        matchedBox = curr.box.load(moAcquire)
+        curr.signal.fire()
         break
       else:
         if prev == nil:
@@ -854,11 +888,9 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         curr = curr.next
     self.waiterLock.releaseLock()
 
-    if matchedSender != nil:
-      let pbox = matchedSender.box.load(moAcquire)
-      matchedSender.signal.fire()
-      outVal = pbox.val
-      decRef(pbox)
+    if matchedBox != nil:
+      outVal = matchedBox.val
+      decRef(matchedBox)
       return 1
 
     result = self.chan.recv(outVal)
@@ -923,18 +955,18 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     if self == nil:
       return
     self.cursorsLock.acquireLock()
-    for c in self.cursors:
-      if c != nil and c.isWaiting.load(moSeqCst):
-        c.signal.fire()
+    for i in 0 ..< self.cursors.len:
+      if self.cursors[i] != nil and self.cursors[i].isWaiting.load(moSeqCst):
+        self.cursors[i].signal.fire()
     self.cursorsLock.releaseLock()
 
   proc notifyProducers*[T](self: AsyncBroadcastRing[T]) {.inline, gcsafe.} =
     if self == nil:
       return
     self.producersLock.acquireLock()
-    for s in self.producerSignals:
-      if s != nil:
-        s.fire()
+    for i in 0 ..< self.producerSignals.len:
+      if self.producerSignals[i] != nil:
+        self.producerSignals[i].fire()
     self.producersLock.releaseLock()
 
   proc subscribe*[T](
@@ -1303,9 +1335,9 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     if self == nil:
       return
     self.waitersLock.acquireLock()
-    for s in self.thiefSignals:
-      if s != nil:
-        s.fire()
+    for i in 0 ..< self.thiefSignals.len:
+      if self.thiefSignals[i] != nil:
+        self.thiefSignals[i].fire()
     self.waitersLock.releaseLock()
 
   proc close*[T](self: AsyncChaseLevDeque[T]) =
