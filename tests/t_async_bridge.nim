@@ -358,6 +358,22 @@ suite "AsyncTopicBus (Multiplexed Pub-Sub Topic Router)":
     subOrders2.unsubscribe()
     subMetrics.unsubscribe()
 
+  test "toAsync(TopicBus) preserves custom TopicBusConfig":
+    let customCfg = TopicBusConfig(
+      defaultRingCapacity: 32,
+      defaultOverflowMode: omBackoff,
+      defaultMaxReaders: 8
+    )
+    var syncBus = initTopicBus[int](customCfg)
+    var asyncBus = syncBus.toAsync()
+    check asyncBus.config.defaultRingCapacity == 32
+    check asyncBus.config.defaultOverflowMode == omBackoff
+    check asyncBus.config.defaultMaxReaders == 8
+    var sub = asyncBus.subscribe("cfg-topic", soFromLatest)
+    check waitFor(asyncBus.sendAsync("cfg-topic", 77)) == true
+    check waitFor(sub.recvAsync()) == some(77)
+    sub.unsubscribe()
+
 suite "AsyncChaseLevDeque (Work-Stealing Deque Async Thief Parking)":
   test "owner LIFO popBottom vs async thief FIFO stealAsync":
     var dq = newAsyncChaseLevDeque[int](64)

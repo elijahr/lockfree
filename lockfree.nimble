@@ -316,6 +316,10 @@ task taskpool, "Builds and runs the TaskPool work-stealing scheduler test suite"
   exec "nim c --threads:on --nimcache:.tmp/taskpool_d -r tests/t_taskpool.nim"
 
 
+task async_bridge, "Builds and runs the AsyncBridge test suite":
+  exec "nim c --threads:on --nimcache:.tmp/async_bridge_d -r tests/t_async_bridge.nim"
+
+
 # task `stresstests` removed in v5.0.0 . The 9 legacy
 # `stress-tests/t_*_threaded.nim` files referenced the per-family
 # aliases (`Mpmc[N, P, C, T]`, `Spmc[N, C, T]`, etc.) and the

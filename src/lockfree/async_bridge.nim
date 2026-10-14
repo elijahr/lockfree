@@ -842,8 +842,6 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
   type
     AsyncBroadcastRing*[T] = ref object
       ring*: BroadcastRing[T]
-      signal*: AsyncSignal
-      producerSignal*: AsyncSignal
       waitingProducerCount* {.align: CacheLineBytes.}: Atomic[int32]
       waitingCursorCount* {.align: CacheLineBytes.}: Atomic[int32]
       cursorsLock* {.align: CacheLineBytes.}: Atomic[bool]
@@ -865,8 +863,6 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
   ): AsyncBroadcastRing[T] =
     new result
     result.ring = initBroadcastRing[T](capacity, overflowMode, maxReaders)
-    result.signal = newAsyncSignal()
-    result.producerSignal = newAsyncSignal()
     result.waitingProducerCount.store(0, moRelaxed)
     result.waitingCursorCount.store(0, moRelaxed)
     result.cursorsLock.store(false, moRelaxed)
@@ -877,8 +873,6 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
   proc toAsync*[T](ring: sink BroadcastRing[T]): AsyncBroadcastRing[T] =
     new result
     result.ring = ring
-    result.signal = newAsyncSignal()
-    result.producerSignal = newAsyncSignal()
     result.waitingProducerCount.store(0, moRelaxed)
     result.waitingCursorCount.store(0, moRelaxed)
     result.cursorsLock.store(false, moRelaxed)
@@ -889,7 +883,6 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
   proc notifyCursors*[T](self: AsyncBroadcastRing[T]) {.inline, gcsafe.} =
     if self == nil:
       return
-    self.signal.fire()
     self.cursorsLock.acquireLock()
     for c in self.cursors:
       if c != nil and c.isWaiting.load(moSeqCst):
@@ -899,7 +892,6 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
   proc notifyProducers*[T](self: AsyncBroadcastRing[T]) {.inline, gcsafe.} =
     if self == nil:
       return
-    self.producerSignal.fire()
     self.producersLock.acquireLock()
     for s in self.producerSignals:
       if s != nil:
@@ -1179,11 +1171,15 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
   proc toAsync*[T](bus: sink TopicBus[T]): AsyncTopicBus[T] =
     new result
     result.bus = bus
-    result.config = TopicBusConfig(
-      defaultRingCapacity: DefaultRingCapacity,
-      defaultOverflowMode: omDropOldest,
-      defaultMaxReaders: DefaultMaxReaders
-    )
+    result.config =
+      if result.bus.core != nil:
+        result.bus.core.config
+      else:
+        TopicBusConfig(
+          defaultRingCapacity: DefaultRingCapacity,
+          defaultOverflowMode: omDropOldest,
+          defaultMaxReaders: DefaultMaxReaders
+        )
     result.lock.store(false, moRelaxed)
     result.entries = @[]
 
