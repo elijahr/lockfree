@@ -261,7 +261,7 @@ Full architectural guides, typestate diagrams, and API references are hosted at:
 - [Getting Started & Core Concepts](https://elijahr.github.io/lockfree/guide/getting-started/)
 - [Safety Model & Path-C ManagedRef](https://elijahr.github.io/lockfree/guide/safety-model/)
 - [Typestate Slot-Ownership Machine](https://elijahr.github.io/lockfree/guide/slot-ownership-typestates/)
-- [SMR & NEBR Lifecycle Guide](docs/guides/smr_nebr_lifecycle.md)
+- [SMR & NEBR Lifecycle Guide](docs/guide/smr_nebr_lifecycle.md)
 - [NEBR Safe Memory Reclamation](https://elijahr.github.io/lockfree/api/smr/nebr/)
 - [C ABI Specification & Header Guide](https://elijahr.github.io/lockfree/api/cabi/)
 - [Migration Guide from lockfreequeues & nim-debra](https://elijahr.github.io/lockfree/migration/)

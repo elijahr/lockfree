@@ -5,7 +5,7 @@
 **Reviewers**: Caleb Thorne (`auditor-pegasus`), Elena Rostova (`implementer-kite`), Supreme Orchestrator (`orchestrator-whipbird`)  
 **Status**: RATIFIED ARCHITECTURAL SPECIFICATION  
 **Target Substrate**: `lockfree` (v0.1.0-consolidated)  
-**Deliverable**: `docs/designs/design_ctrie.md`  
+**Deliverable**: `docs/design/design_ctrie.md`  
 
 ---
 
@@ -489,7 +489,7 @@ type
 
 ```
 +-----------------------------------------------------------------------------------+
-| Stage 1: Architectural Specification & Formal Invariants (docs/designs/design_ctrie.md) |
+| Stage 1: Architectural Specification & Formal Invariants (docs/design/design_ctrie.md) |
 | Author: architect-horsetail | Verification: Two-Key Gate & Orchestrator Ratification     |
 +-----------------------------------------+-----------------------------------------+
                                           |

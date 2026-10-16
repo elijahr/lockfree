@@ -167,7 +167,7 @@ int main(void) {
 
 ## Detailed Guides & Documentation
 
-- [User Guide](guides/user_guide.md) — Exhaustive guide mapping colloquial data structure names to `lockfree` types.
+- [User Guide](guide/user_guide.md) — Exhaustive guide mapping colloquial data structure names to `lockfree` types.
 - [Queues Guide](guide/queues/index.md) — Deep dive into Vyukov bounded and strict-LCRQ unbounded queues.
 - [Channels & Rendezvous](guide/channels.md) — Buffered CSP channels and synchronous zero-capacity handoffs.
 - [Maps & Sets](guide/maps-sets.md) — Concurrent Hash Trie (Ctrie) and Fraser & Herlihy SkipLists.

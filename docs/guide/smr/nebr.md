@@ -10,7 +10,7 @@ structures.
 
 `nebr` (Neutralizable EBR) is **inspired by Brown 2015 DEBRA+**, with
 documented deviations from the original paper. See the
-[provenance discussion](https://github.com/elijahr/lockfree/blob/devel/docs/internal/debra-plus-provenance.md)
+[deviation table](#deviations-from-brown-2015-debra) below
 for the full diff. The implementation is functionally adjacent to the
 Brown 2015 paper's neutralization model with simplifications around
 hazard pointers and `sigsetjmp` recovery.
@@ -213,9 +213,7 @@ a tuned cadence.
 
 ## Deviations from Brown 2015 DEBRA+
 
-The full deviation analysis lives in
-[`internal/debra-plus-provenance.md`](https://github.com/elijahr/lockfree/blob/devel/docs/internal/debra-plus-provenance.md).
-The summary table (D1–D9):
+The summary table of deviations from Brown 2015 DEBRA+ (D1–D9):
 
 | # | Deviation | Severity | What changes |
 |---|-----------|----------|--------------|
@@ -262,8 +260,8 @@ This contract is upheld by:
    min-pinned-epoch computation; the evicted thread's critical
    section must not continue.
 
-For the formal safety argument, see
-[`internal/safety-argument.md`](https://github.com/elijahr/lockfree/blob/devel/docs/internal/safety-argument.md).
+See the [NEBR Lifecycle Guide](../smr_nebr_lifecycle.md) for the complete
+memory-ordering and lifecycle specification.
 
 ## Limitations
 
@@ -287,6 +285,5 @@ For the formal safety argument, see
 ## Further reading
 
 - [SMR fundamentals](../concepts/smr.md) — the problem nebr solves.
-- [Internal: provenance](https://github.com/elijahr/lockfree/blob/devel/docs/internal/debra-plus-provenance.md) — full deviation analysis.
-- [Internal: safety argument](https://github.com/elijahr/lockfree/blob/devel/docs/internal/safety-argument.md) — formal correctness sketch.
+- [NEBR Lifecycle Guide](../smr_nebr_lifecycle.md) — thread registration, pin/unpin, and reclamation lifecycle.
 - Trevor Brown, ["Reclaiming Memory for Lock-Free Data Structures: There has to be a Better Way"](https://www.cs.utoronto.ca/~tabrown/debra/) (PODC 2015).

@@ -5,7 +5,7 @@
 **Reviewers**: Caleb Thorne (`auditor-pegasus`), Elena Rostova (`implementer-kite`), Supreme Orchestrator (`orchestrator-whipbird`)  
 **Status**: RATIFIED ARCHITECTURAL SPECIFICATION  
 **Target Substrate**: `lockfree` (v0.1.0-consolidated)  
-**Deliverable**: `docs/designs/design_ratelimit.md`  
+**Deliverable**: `docs/design/design_ratelimit.md`  
 
 ---
 

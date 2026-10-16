@@ -68,7 +68,7 @@ consistent architecture.
 
 | Section | When to read |
 |---------|--------------|
-| [User Guide](../guides/user_guide.md) | Colloquial type matrix, algorithm comparison, and end-to-end examples. |
+| [User Guide](user_guide.md) | Colloquial type matrix, algorithm comparison, and end-to-end examples. |
 | [Getting started](getting-started.md) | Installation, minimal queue/channel examples, and compilation flags. |
 | [Concepts](concepts/lock-freedom.md) | Vocabulary: lock-free vs wait-free vs blocking, what SMR is, memory managers. |
 | [Queues](queues/index.md) | Cardinality chooser, bounded Vyukov substrate, strict-LCRQ MPMC. |

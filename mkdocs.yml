@@ -41,10 +41,6 @@ plugins:
       enable_creation_date: true
       enable_git_follow: false
       type: timeago
-      exclude:
-        - internal/*
-        - reviews/*
-        - transitions/*
   - glightbox
   - mkdocstrings:
       default_handler: nim
@@ -89,7 +85,7 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - User Guide: guides/user_guide.md
+  - User Guide: guide/user_guide.md
   - Guide:
     - Overview: guide/index.md
     - Getting Started: guide/getting-started.md
@@ -105,20 +101,20 @@ nav:
       - Benchmarks: guide/queues/benchmarks.md
     - Channels:
       - Channels & Rendezvous: guide/channels.md
-      - Rendezvous Dual-Queue: designs/design_rendezvous_channel.md
-      - Async Bridge: designs/design_async_bridge.md
+      - Rendezvous Dual-Queue: design/design_rendezvous_channel.md
+      - Async Bridge: design/design_async_bridge.md
     - Maps & Sets:
       - Overview: guide/maps-sets.md
-      - Concurrent Hash Trie (Ctrie): designs/design_ctrie.md
-      - SkipList Map & Set: designs/design_atomic_associative.md
+      - Concurrent Hash Trie (Ctrie): design/design_ctrie.md
+      - SkipList Map & Set: design/design_atomic_associative.md
       - Benchmarks: guide/maps-sets/benchmarks.md
     - Stacks & Deques:
       - Overview: guide/stacks-deques.md
       - Benchmarks: guide/stacks-deques/benchmarks.md
     - Broadcast & Rendezvous:
       - Broadcast Ring & TopicBus: guide/broadcast.md
-      - Broadcast Architecture: designs/design_broadcast_ring.md
-      - Rendezvous Dual-Queue: designs/design_rendezvous_channel.md
+      - Broadcast Architecture: design/design_broadcast_ring.md
+      - Rendezvous Dual-Queue: design/design_rendezvous_channel.md
       - Broadcast Benchmarks: guide/broadcast/benchmarks.md
       - Rendezvous Benchmarks: guide/rendezvous/benchmarks.md
     - TaskPool:
@@ -126,15 +122,15 @@ nav:
       - Benchmarks: guide/taskpool/benchmarks.md
     - Rate Limiting & Streaming:
       - Overview: guide/ratelimit-streambuffer.md
-      - Rate Limiting Architecture: designs/design_ratelimit.md
-      - StreamBuffer Architecture: designs/design_streambuffer.md
+      - Rate Limiting Architecture: design/design_ratelimit.md
+      - StreamBuffer Architecture: design/design_streambuffer.md
       - Benchmarks: guide/ratelimit-streambuffer/benchmarks.md
     - C ABI:
       - Overview & C99 Header: guide/cabi.md
       - Architecture & Interop: design/2026-10-07-ergonomics-metaprogramming-c-abi.md
     - SMR & Hardware Atomics:
       - NEBR SMR Architecture: guide/smr/nebr.md
-      - NEBR Lifecycle: guides/smr_nebr_lifecycle.md
+      - NEBR Lifecycle: guide/smr_nebr_lifecycle.md
       - Hardware Atomics: guide/atomics.md
       - Benchmarks: guide/smr/benchmarks.md
     - Managed Payloads:
@@ -195,7 +191,6 @@ nav:
     - Overview: examples/index.md
   - Migrations:
     - Overview: migration.md
-    - Transition Plan: transition_plan.md
     - From lockfreequeues v5: migrations/from-lockfreequeues-v5.md
     - From nim-debra: migrations/from-nim-debra.md
   - Contributing: contributing.md

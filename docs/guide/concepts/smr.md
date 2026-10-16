@@ -97,7 +97,7 @@ nodes. The reclaimer runs on a cadence you control.
   There has to be a Better Way"](https://www.cs.utoronto.ca/~tabrown/debra/)
   (PODC 2015). The DEBRA+ paper. `nebr` is inspired by this work; the
   precise deviations are catalogued in
-  [`internal/debra-plus-provenance.md`](https://github.com/elijahr/lockfree/blob/devel/docs/internal/debra-plus-provenance.md).
+  [`smr/nebr.md`](../smr/nebr.md#deviations-from-brown-2015-debra).
 - Maged M. Michael, "Hazard Pointers: Safe Memory Reclamation for
   Lock-Free Objects" (TPDS 2004). The standard HP reference.
 - Haosen Wen et al., "Interval-Based Memory Reclamation" (PPoPP 2018).

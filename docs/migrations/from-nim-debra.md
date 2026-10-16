@@ -116,4 +116,4 @@ Both should produce `OK` and exit cleanly.
 
 - [SMR / nebr](../guide/smr/nebr.md) — manager lifecycle, deviation table.
 - [SMR fundamentals](../guide/concepts/smr.md) — the problem nebr solves.
-- Internal: [debra-plus-provenance.md](https://github.com/elijahr/lockfree/blob/devel/docs/internal/debra-plus-provenance.md) — the full deviation analysis.
+- [NEBR Lifecycle Guide](../guide/smr_nebr_lifecycle.md) — thread registration, pin/unpin, and reclamation lifecycle.
