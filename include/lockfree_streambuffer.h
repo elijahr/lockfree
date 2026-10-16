@@ -66,6 +66,27 @@ void lfq_streambuffer_commit_write(lfq_streambuffer_t* ring, size_t bytes_writte
 lfq_iovec_pair_t lfq_streambuffer_acquire_read_iov(lfq_streambuffer_t* ring, size_t requested_len);
 void lfq_streambuffer_commit_read(lfq_streambuffer_t* ring, size_t bytes_read);
 
+/* -------------------------------------------------------------------------
+ * MPMCStreamRing (Multi-Producer Multi-Consumer Byte Stream Ring)
+ * ------------------------------------------------------------------------- */
+
+typedef struct lfq_mpmc_stream_ring lfq_mpmc_stream_ring_t;
+
+/* MPMCStreamRing Lifecycle */
+lfq_mpmc_stream_ring_t* lfq_mpmc_stream_ring_create(size_t capacity);
+void lfq_mpmc_stream_ring_destroy(lfq_mpmc_stream_ring_t* ring);
+
+/* MPMCStreamRing Introspection */
+size_t lfq_mpmc_stream_ring_capacity(const lfq_mpmc_stream_ring_t* ring);
+size_t lfq_mpmc_stream_ring_available_read(lfq_mpmc_stream_ring_t* ring);
+size_t lfq_mpmc_stream_ring_available_write(lfq_mpmc_stream_ring_t* ring);
+bool lfq_mpmc_stream_ring_is_empty(lfq_mpmc_stream_ring_t* ring);
+bool lfq_mpmc_stream_ring_is_full(lfq_mpmc_stream_ring_t* ring);
+
+/* MPMCStreamRing Two-Phase Atomic Ticket Read/Write Operations */
+size_t lfq_mpmc_stream_ring_try_write(lfq_mpmc_stream_ring_t* ring, const void* src, size_t len);
+size_t lfq_mpmc_stream_ring_try_read(lfq_mpmc_stream_ring_t* ring, void* dst, size_t max_len);
+
 #ifdef __cplusplus
 }
 #endif

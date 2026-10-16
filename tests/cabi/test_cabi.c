@@ -602,6 +602,45 @@ static void test_cabi_broadcast(void) {
     /* Destroy ring */
     status = lfq_broadcast_destroy(ring);
     TEST_ASSERT(status == LFQ_OK, "lfq_broadcast_destroy failed");
+
+    /* TopicBus lifecycle, multi-topic pub/sub, and introspection */
+    lfq_topic_bus_t* bus = NULL;
+    status = lfq_topic_bus_create(16, LFQ_OVERFLOW_DROP_OLDEST, 8, &bus);
+    TEST_ASSERT(status == LFQ_OK && bus != NULL, "lfq_topic_bus_create failed");
+    TEST_ASSERT(lfq_topic_bus_topic_count(bus) == 0, "Initial topic count should be 0");
+    TEST_ASSERT(!lfq_topic_bus_has_topic(bus, "orders"), "Initial bus should not have orders topic");
+
+    lfq_broadcast_cursor_t* cur_orders = NULL;
+    lfq_broadcast_cursor_t* cur_trades = NULL;
+    status = lfq_topic_bus_subscribe(bus, "orders", LFQ_SUB_FROM_LATEST, &cur_orders);
+    TEST_ASSERT(status == LFQ_OK && cur_orders != NULL, "Subscribe orders failed");
+    status = lfq_topic_bus_subscribe(bus, "trades", LFQ_SUB_FROM_LATEST, &cur_trades);
+    TEST_ASSERT(status == LFQ_OK && cur_trades != NULL, "Subscribe trades failed");
+    TEST_ASSERT(lfq_topic_bus_topic_count(bus) == 2, "Topic count should be 2");
+    TEST_ASSERT(lfq_topic_bus_has_topic(bus, "orders"), "Bus should have orders topic");
+    TEST_ASSERT(lfq_topic_bus_has_topic(bus, "trades"), "Bus should have trades topic");
+    TEST_ASSERT(!lfq_topic_bus_has_topic(bus, "quotes"), "Bus should not have quotes topic");
+
+    status = lfq_topic_bus_publish(bus, "orders", (void*)(uintptr_t)501);
+    TEST_ASSERT(status == LFQ_OK, "Publish orders failed");
+    status = lfq_topic_bus_publish(bus, "trades", (void*)(uintptr_t)502);
+    TEST_ASSERT(status == LFQ_OK, "Publish trades failed");
+
+    void* bus_item = NULL;
+    status = lfq_broadcast_try_read(cur_orders, &bus_item);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)bus_item == 501, "Read orders failed");
+    status = lfq_broadcast_try_read(cur_orders, &bus_item);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY, "Orders cursor should be empty");
+
+    status = lfq_broadcast_try_read(cur_trades, &bus_item);
+    TEST_ASSERT(status == LFQ_OK && (uintptr_t)bus_item == 502, "Read trades failed");
+    status = lfq_broadcast_try_read(cur_trades, &bus_item);
+    TEST_ASSERT(status == LFQ_ERR_EMPTY, "Trades cursor should be empty");
+
+    TEST_ASSERT(lfq_broadcast_unsubscribe(cur_orders) == LFQ_OK, "Unsubscribe cur_orders failed");
+    TEST_ASSERT(lfq_broadcast_unsubscribe(cur_trades) == LFQ_OK, "Unsubscribe cur_trades failed");
+    TEST_ASSERT(lfq_topic_bus_destroy(bus) == LFQ_OK, "lfq_topic_bus_destroy failed");
+
     printf("test_cabi_broadcast PASSED.\n");
 }
 
@@ -719,32 +758,6 @@ static void test_cabi_rendezvous(void) {
     }
     free(sender_cids);
     free(receiver_cids);
-
-    /* 4. Section 9.1 C-Style Functions */
-    lf_rendezvous_t* rchan = lf_rendezvous_create();
-    TEST_ASSERT(rchan != NULL, "lf_rendezvous_create failed");
-    TEST_ASSERT(!lf_rendezvous_try_send(rchan, (void*)(uintptr_t)99, NULL), "try_send empty should return false");
-    TEST_ASSERT(!lf_rendezvous_try_recv(rchan, &item, NULL), "try_recv empty should return false");
-    TEST_ASSERT(!lf_rendezvous_send_timeout(rchan, (void*)(uintptr_t)99, 10, NULL), "send_timeout empty should return false");
-    TEST_ASSERT(!lf_rendezvous_recv_timeout(rchan, &item, 10, NULL), "recv_timeout empty should return false");
-
-    rz_thread_arg_t rz_s_arg = {
-        (lfq_rendezvous_t*)rchan,
-        1,
-        777,
-        NULL
-    };
-    pthread_t th_s2;
-    pthread_create(&th_s2, NULL, rz_sender_worker, &rz_s_arg);
-    uint64_t r_cid = 0;
-    int recv_res = lf_rendezvous_recv(rchan, &item, &r_cid);
-    TEST_ASSERT(recv_res == 0, "lf_rendezvous_recv failed");
-    TEST_ASSERT((uintptr_t)item == 777, "Item payload mismatch in lf_rendezvous_recv");
-    TEST_ASSERT(r_cid > 0, "Correlation ID should be positive");
-    pthread_join(th_s2, NULL);
-
-    lf_rendezvous_close(rchan);
-    lf_rendezvous_destroy(rchan);
 
     /* 5. Channel closure and cancellation of waiting threads */
     lfq_rendezvous_t* chan_close = NULL;
@@ -1283,6 +1296,36 @@ static void test_cabi_streambuffer(void) {
     TEST_ASSERT(lfq_stream_ring_is_empty(conc_ring), "Concurrent ring should be empty after test");
 
     lfq_stream_ring_destroy(conc_ring);
+
+    /* 8. MPMCStreamRing C ABI Test */
+    lfq_mpmc_stream_ring_t* mpmc_ring = lfq_mpmc_stream_ring_create(1024);
+    TEST_ASSERT(mpmc_ring != NULL, "lfq_mpmc_stream_ring_create failed");
+    TEST_ASSERT(lfq_mpmc_stream_ring_capacity(mpmc_ring) == 1024, "MPMCStreamRing capacity mismatch");
+    TEST_ASSERT(lfq_mpmc_stream_ring_available_read(mpmc_ring) == 0, "MPMCStreamRing initial available_read should be 0");
+    TEST_ASSERT(lfq_mpmc_stream_ring_available_write(mpmc_ring) == 1024, "MPMCStreamRing initial available_write should be 1024");
+    TEST_ASSERT(lfq_mpmc_stream_ring_is_empty(mpmc_ring), "MPMCStreamRing should be empty initially");
+    TEST_ASSERT(!lfq_mpmc_stream_ring_is_full(mpmc_ring), "MPMCStreamRing should not be full initially");
+
+    const char* mpmc_msg = "MPMCStreamRing C99 Test Payload";
+    size_t mpmc_msg_len = strlen(mpmc_msg);
+    size_t mpmc_w = lfq_mpmc_stream_ring_try_write(mpmc_ring, mpmc_msg, mpmc_msg_len);
+    TEST_ASSERT(mpmc_w == mpmc_msg_len, "lfq_mpmc_stream_ring_try_write failed");
+    TEST_ASSERT(lfq_mpmc_stream_ring_available_read(mpmc_ring) == mpmc_msg_len, "MPMCStreamRing available_read mismatch");
+    TEST_ASSERT(!lfq_mpmc_stream_ring_is_empty(mpmc_ring), "MPMCStreamRing should not be empty after write");
+
+    memset(buf, 0, sizeof(buf));
+    size_t mpmc_r = lfq_mpmc_stream_ring_try_read(mpmc_ring, buf, sizeof(buf));
+    TEST_ASSERT(mpmc_r == mpmc_msg_len, "lfq_mpmc_stream_ring_try_read failed");
+    TEST_ASSERT(memcmp(buf, mpmc_msg, mpmc_msg_len) == 0, "MPMCStreamRing read payload mismatch");
+    TEST_ASSERT(lfq_mpmc_stream_ring_is_empty(mpmc_ring), "MPMCStreamRing should be empty after read");
+
+    lfq_mpmc_stream_ring_destroy(mpmc_ring);
+    lfq_mpmc_stream_ring_destroy(NULL);
+    TEST_ASSERT(lfq_mpmc_stream_ring_capacity(NULL) == 0, "mpmc capacity(NULL) should be 0");
+    TEST_ASSERT(lfq_mpmc_stream_ring_available_read(NULL) == 0, "mpmc available_read(NULL) should be 0");
+    TEST_ASSERT(lfq_mpmc_stream_ring_available_write(NULL) == 0, "mpmc available_write(NULL) should be 0");
+    TEST_ASSERT(lfq_mpmc_stream_ring_is_empty(NULL), "mpmc is_empty(NULL) should be true");
+    TEST_ASSERT(!lfq_mpmc_stream_ring_is_full(NULL), "mpmc is_full(NULL) should be false");
 
     printf("test_cabi_streambuffer PASSED.\n");
 }

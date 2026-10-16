@@ -1799,6 +1799,102 @@ proc lfq_broadcast_cursor_lag*(
     0
 
 # ------------------------------------------------------------------------------
+# 8b. TopicBus (Concurrent Multi-Topic Broadcast Bus backed by Ctrie)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_topic_bus_handle* {.exportc: "lfq_topic_bus_t".} = object
+    raw*: ptr TopicBus[pointer]
+
+  lfq_topic_bus_t* = lfq_topic_bus_handle
+
+proc lfq_topic_bus_create*(
+    default_capacity: csize_t,
+    default_overflow_mode: lfq_overflow_mode_t,
+    default_max_readers: csize_t,
+    out_bus: ptr ptr lfq_topic_bus_t
+): lfq_status_t {.exportc: "lfq_topic_bus_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_bus == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let om = if default_overflow_mode == LFQ_OVERFLOW_BACKOFF: omBackoff else: omDropOldest
+    let cap = if default_capacity == 0: DefaultRingCapacity else: int(default_capacity)
+    let maxR = if default_max_readers == 0: DefaultMaxReaders else: int(default_max_readers)
+    let cfg = TopicBusConfig(
+      defaultRingCapacity: cap,
+      defaultOverflowMode: om,
+      defaultMaxReaders: maxR
+    )
+    let handle = cast[ptr lfq_topic_bus_t](allocShared0(sizeof(lfq_topic_bus_t)))
+    let raw = cast[ptr TopicBus[pointer]](allocShared0(sizeof(TopicBus[pointer])))
+    raw[] = initTopicBus[pointer](cfg)
+    handle.raw = raw
+    out_bus[] = handle
+    LFQ_OK
+
+proc lfq_topic_bus_destroy*(
+    bus: ptr lfq_topic_bus_t
+): lfq_status_t {.exportc: "lfq_topic_bus_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(bus == nil or bus.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    {.cast(gcsafe).}:
+      `=destroy`(bus.raw[])
+    deallocShared(bus.raw)
+    deallocShared(bus)
+    LFQ_OK
+
+proc lfq_topic_bus_publish*(
+    bus: ptr lfq_topic_bus_t,
+    topic: cstring,
+    item: pointer
+): lfq_status_t {.exportc: "lfq_topic_bus_publish", cdecl, gcsafe, raises: [].} =
+  if unlikely(bus == nil or bus.raw == nil or topic == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    bus.raw[].publish($topic, item)
+    LFQ_OK
+
+proc lfq_topic_bus_subscribe*(
+    bus: ptr lfq_topic_bus_t,
+    topic: cstring,
+    origin: lfq_sub_origin_t,
+    out_cursor: ptr ptr lfq_broadcast_cursor_t
+): lfq_status_t {.exportc: "lfq_topic_bus_subscribe", cdecl, gcsafe, raises: [].} =
+  if unlikely(bus == nil or bus.raw == nil or topic == nil or out_cursor == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let so = if origin == LFQ_SUB_FROM_EARLIEST: soFromEarliest else: soFromLatest
+    let curObj = bus.raw[].subscribe($topic, so)
+    let c = cast[ptr lfq_broadcast_cursor_t](allocShared0(sizeof(lfq_broadcast_cursor_t)))
+    let raw = cast[ptr BroadcastCursor[pointer]](allocShared0(sizeof(BroadcastCursor[pointer])))
+    raw[] = curObj
+    c.raw = raw
+    out_cursor[] = c
+    LFQ_OK
+
+proc lfq_topic_bus_topic_count*(
+    bus: ptr lfq_topic_bus_t
+): csize_t {.exportc: "lfq_topic_bus_topic_count", cdecl, gcsafe, raises: [].} =
+  if unlikely(bus == nil or bus.raw == nil):
+    return 0
+  try:
+    csize_t(bus.raw[].topicCount)
+  except:
+    0
+
+proc lfq_topic_bus_has_topic*(
+    bus: ptr lfq_topic_bus_t,
+    topic: cstring
+): bool {.exportc: "lfq_topic_bus_has_topic", cdecl, gcsafe, raises: [].} =
+  if unlikely(bus == nil or bus.raw == nil or topic == nil):
+    return false
+  try:
+    bus.raw[].hasTopic($topic)
+  except:
+    false
+
+# ------------------------------------------------------------------------------
 # 9. RendezvousChannel (Zero-Buffer Synchronous Dual Channel)
 # ------------------------------------------------------------------------------
 
@@ -1807,7 +1903,6 @@ type
     raw*: ptr RendezvousChannel[pointer]
 
   lfq_rendezvous_t* = lfq_rendezvous_handle
-  lf_rendezvous_t* = lfq_rendezvous_handle
 
 proc lfq_rendezvous_create*(
     out_chan: ptr ptr lfq_rendezvous_t
@@ -1974,67 +2069,6 @@ proc lfq_rendezvous_recv_timeout*(
         LFQ_ERR_CLOSED
       else:
         LFQ_ERR_EMPTY
-
-# ------------------------------------------------------------------------------
-# Section 9.1 C-Style API Functions
-# ------------------------------------------------------------------------------
-
-proc lf_rendezvous_create*(): ptr lfq_rendezvous_t {.exportc: "lf_rendezvous_create", cdecl, gcsafe, raises: [].} =
-  var res: ptr lfq_rendezvous_t = nil
-  if lfq_rendezvous_create(addr res) == LFQ_OK:
-    res
-  else:
-    nil
-
-proc lf_rendezvous_destroy*(chan: ptr lfq_rendezvous_t) {.exportc: "lf_rendezvous_destroy", cdecl, gcsafe, raises: [].} =
-  discard lfq_rendezvous_destroy(chan)
-
-proc lf_rendezvous_close*(chan: ptr lfq_rendezvous_t) {.exportc: "lf_rendezvous_close", cdecl, gcsafe, raises: [].} =
-  discard lfq_rendezvous_close(chan)
-
-proc lf_rendezvous_send*(
-    chan: ptr lfq_rendezvous_t,
-    payload: pointer,
-    out_corr_id: ptr uint64
-): cint {.exportc: "lf_rendezvous_send", cdecl, gcsafe, raises: [].} =
-  cint(lfq_rendezvous_send(chan, payload, out_corr_id))
-
-proc lf_rendezvous_recv*(
-    chan: ptr lfq_rendezvous_t,
-    out_payload: ptr pointer,
-    out_corr_id: ptr uint64
-): cint {.exportc: "lf_rendezvous_recv", cdecl, gcsafe, raises: [].} =
-  cint(lfq_rendezvous_recv(chan, out_payload, out_corr_id))
-
-proc lf_rendezvous_try_send*(
-    chan: ptr lfq_rendezvous_t,
-    payload: pointer,
-    out_corr_id: ptr uint64
-): bool {.exportc: "lf_rendezvous_try_send", cdecl, gcsafe, raises: [].} =
-  lfq_rendezvous_try_send(chan, payload, out_corr_id) == LFQ_OK
-
-proc lf_rendezvous_try_recv*(
-    chan: ptr lfq_rendezvous_t,
-    out_payload: ptr pointer,
-    out_corr_id: ptr uint64
-): bool {.exportc: "lf_rendezvous_try_recv", cdecl, gcsafe, raises: [].} =
-  lfq_rendezvous_try_recv(chan, out_payload, out_corr_id) == LFQ_OK
-
-proc lf_rendezvous_send_timeout*(
-    chan: ptr lfq_rendezvous_t,
-    payload: pointer,
-    timeout_ms: cint,
-    out_corr_id: ptr uint64
-): bool {.exportc: "lf_rendezvous_send_timeout", cdecl, gcsafe, raises: [].} =
-  lfq_rendezvous_send_timeout(chan, payload, int32(timeout_ms), out_corr_id) == LFQ_OK
-
-proc lf_rendezvous_recv_timeout*(
-    chan: ptr lfq_rendezvous_t,
-    out_payload: ptr pointer,
-    timeout_ms: cint,
-    out_corr_id: ptr uint64
-): bool {.exportc: "lf_rendezvous_recv_timeout", cdecl, gcsafe, raises: [].} =
-  lfq_rendezvous_recv_timeout(chan, out_payload, int32(timeout_ms), out_corr_id) == LFQ_OK
 
 # ------------------------------------------------------------------------------
 # 10. Rate Limiters (Hardware 128-Bit DWCAS TokenBucket & LeakyBucket)
@@ -2387,6 +2421,117 @@ proc lfq_streambuffer_commit_read*(
     bytes_read: csize_t
 ) {.exportc: "lfq_streambuffer_commit_read", cdecl, gcsafe, raises: [].} =
   lfq_stream_ring_commit_read(ring, bytes_read)
+
+# ------------------------------------------------------------------------------
+# 11b. MPMCStreamRing (Multi-Producer Multi-Consumer Byte Stream Ring)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_mpmc_stream_ring_handle* {.exportc: "lfq_mpmc_stream_ring_t".} = object
+    raw*: ptr MPMCStreamRing
+
+  lfq_mpmc_stream_ring_t* = lfq_mpmc_stream_ring_handle
+
+proc lfq_mpmc_stream_ring_create*(
+    capacity: csize_t
+): ptr lfq_mpmc_stream_ring_t {.exportc: "lfq_mpmc_stream_ring_create", cdecl, gcsafe, raises: [].} =
+  try:
+    let handle = cast[ptr lfq_mpmc_stream_ring_t](allocShared0(sizeof(lfq_mpmc_stream_ring_t)))
+    if handle == nil: return nil
+    let raw = cast[ptr MPMCStreamRing](allocShared0(sizeof(MPMCStreamRing)))
+    if raw == nil:
+      deallocShared(handle)
+      return nil
+    let cap = if capacity == 0: DefaultStreamCapacity else: int(capacity)
+    raw[] = initMPMCStreamRing(cap)
+    handle.raw = raw
+    handle
+  except:
+    nil
+
+proc lfq_mpmc_stream_ring_destroy*(
+    ring: ptr lfq_mpmc_stream_ring_t
+) {.exportc: "lfq_mpmc_stream_ring_destroy", cdecl, gcsafe, raises: [].} =
+  if ring != nil:
+    if ring.raw != nil:
+      try:
+        ring.raw[].destroy()
+      except:
+        discard
+      deallocShared(ring.raw)
+      ring.raw = nil
+    deallocShared(ring)
+
+proc lfq_mpmc_stream_ring_capacity*(
+    ring: ptr lfq_mpmc_stream_ring_t
+): csize_t {.exportc: "lfq_mpmc_stream_ring_capacity", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil: return 0
+  try:
+    csize_t(ring.raw[].capacity())
+  except:
+    0
+
+proc lfq_mpmc_stream_ring_available_read*(
+    ring: ptr lfq_mpmc_stream_ring_t
+): csize_t {.exportc: "lfq_mpmc_stream_ring_available_read", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil: return 0
+  try:
+    csize_t(ring.raw[].availableRead())
+  except:
+    0
+
+proc lfq_mpmc_stream_ring_available_write*(
+    ring: ptr lfq_mpmc_stream_ring_t
+): csize_t {.exportc: "lfq_mpmc_stream_ring_available_write", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil: return 0
+  try:
+    csize_t(ring.raw[].availableWrite())
+  except:
+    0
+
+proc lfq_mpmc_stream_ring_is_empty*(
+    ring: ptr lfq_mpmc_stream_ring_t
+): bool {.exportc: "lfq_mpmc_stream_ring_is_empty", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil: return true
+  try:
+    ring.raw[].availableRead() == 0
+  except:
+    true
+
+proc lfq_mpmc_stream_ring_is_full*(
+    ring: ptr lfq_mpmc_stream_ring_t
+): bool {.exportc: "lfq_mpmc_stream_ring_is_full", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil: return false
+  try:
+    ring.raw[].availableWrite() == 0
+  except:
+    false
+
+proc lfq_mpmc_stream_ring_try_write*(
+    ring: ptr lfq_mpmc_stream_ring_t,
+    src: pointer,
+    len: csize_t
+): csize_t {.exportc: "lfq_mpmc_stream_ring_try_write", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil or src == nil or len == 0: return 0
+  try:
+    let s = cast[ptr UncheckedArray[byte]](src)
+    let written = ring.raw[].tryWrite(toOpenArray(s, 0, int(len) - 1))
+    csize_t(written)
+  except:
+    0
+
+proc lfq_mpmc_stream_ring_try_read*(
+    ring: ptr lfq_mpmc_stream_ring_t,
+    dst: pointer,
+    max_len: csize_t
+): csize_t {.exportc: "lfq_mpmc_stream_ring_try_read", cdecl, gcsafe, raises: [].} =
+  if ring == nil or ring.raw == nil or dst == nil or max_len == 0: return 0
+  try:
+    let d = cast[ptr UncheckedArray[byte]](dst)
+    let readBytes = ring.raw[].tryRead(toOpenArray(d, 0, int(max_len) - 1))
+    csize_t(readBytes)
+  except:
+    0
 
 # ------------------------------------------------------------------------------
 # 12. Atomic Associative Map Operations (Ctrie & SkipListMap)

@@ -997,6 +997,38 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
 
     check lfq_broadcast_destroy(ring) == LFQ_OK
 
+  test "TopicBus C ABI lifecycle, multi-topic pub/sub, and introspection":
+    var bus: ptr lfq_topic_bus_t = nil
+    check lfq_topic_bus_create(16, LFQ_OVERFLOW_DROP_OLDEST, 8, addr bus) == LFQ_OK
+    check bus != nil
+    check lfq_topic_bus_topic_count(bus) == 0
+    check lfq_topic_bus_has_topic(bus, "orders") == false
+
+    var curOrders: ptr lfq_broadcast_cursor_t = nil
+    var curTrades: ptr lfq_broadcast_cursor_t = nil
+    check lfq_topic_bus_subscribe(bus, "orders", LFQ_SUB_FROM_LATEST, addr curOrders) == LFQ_OK
+    check lfq_topic_bus_subscribe(bus, "trades", LFQ_SUB_FROM_LATEST, addr curTrades) == LFQ_OK
+    check lfq_topic_bus_topic_count(bus) == 2
+    check lfq_topic_bus_has_topic(bus, "orders") == true
+    check lfq_topic_bus_has_topic(bus, "trades") == true
+    check lfq_topic_bus_has_topic(bus, "quotes") == false
+
+    check lfq_topic_bus_publish(bus, "orders", cast[pointer](1001)) == LFQ_OK
+    check lfq_topic_bus_publish(bus, "trades", cast[pointer](2002)) == LFQ_OK
+
+    var item: pointer = nil
+    check lfq_broadcast_try_read(curOrders, addr item) == LFQ_OK
+    check cast[int](item) == 1001
+    check lfq_broadcast_try_read(curOrders, addr item) == LFQ_ERR_EMPTY
+
+    check lfq_broadcast_try_read(curTrades, addr item) == LFQ_OK
+    check cast[int](item) == 2002
+    check lfq_broadcast_try_read(curTrades, addr item) == LFQ_ERR_EMPTY
+
+    check lfq_broadcast_unsubscribe(curOrders) == LFQ_OK
+    check lfq_broadcast_unsubscribe(curTrades) == LFQ_OK
+    check lfq_topic_bus_destroy(bus) == LFQ_OK
+
   test "RendezvousChannel C ABI Lifecycle & Synchronous Handoff":
     var chan: ptr lfq_rendezvous_t = nil
     check lfq_rendezvous_create(addr chan) == LFQ_OK
@@ -1033,14 +1065,6 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check rcvVal.load(moRelaxed) == 888
     check scid > 0'u64
     check rcvCid.load(moRelaxed) == scid
-
-    # Section 9.1 C API functions
-    let rchan = lf_rendezvous_create()
-    check rchan != nil
-    check lf_rendezvous_try_send(rchan, cast[pointer](99), nil) == false
-    check lf_rendezvous_try_recv(rchan, addr item, nil) == false
-    lf_rendezvous_close(rchan)
-    lf_rendezvous_destroy(rchan)
 
     # Close & destroy
     check lfq_rendezvous_close(chan) == LFQ_OK
@@ -1083,7 +1107,7 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check lfq_leaky_bucket_try_consume(heapLb, 1) == true
     lfq_leaky_bucket_destroy(heapLb)
 
-  test "StreamRing / StreamBuffer C ABI":
+  test "StreamRing / StreamBuffer & MPMCStreamRing C ABI":
     let ring = lfq_stream_ring_create(1024, false)
     check ring != nil
     check lfq_stream_ring_capacity(ring) == 1024
@@ -1126,6 +1150,30 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check lfq_streambuffer_is_empty(sbuf) == true
     check lfq_streambuffer_is_full(sbuf) == false
     lfq_streambuffer_destroy(sbuf)
+
+    # MPMCStreamRing test
+    let mpmcRing = lfq_mpmc_stream_ring_create(1024)
+    check mpmcRing != nil
+    check lfq_mpmc_stream_ring_capacity(mpmcRing) == 1024
+    check lfq_mpmc_stream_ring_available_read(mpmcRing) == 0
+    check lfq_mpmc_stream_ring_available_write(mpmcRing) == 1024
+    check lfq_mpmc_stream_ring_is_empty(mpmcRing) == true
+    check lfq_mpmc_stream_ring_is_full(mpmcRing) == false
+
+    var mpmcMsg = "MPMCStreamRing Nim C ABI Payload"
+    let mpmcWritten = lfq_mpmc_stream_ring_try_write(mpmcRing, cast[pointer](addr mpmcMsg[0]), csize_t(mpmcMsg.len))
+    check mpmcWritten == csize_t(mpmcMsg.len)
+    check lfq_mpmc_stream_ring_available_read(mpmcRing) == csize_t(mpmcMsg.len)
+    check lfq_mpmc_stream_ring_is_empty(mpmcRing) == false
+
+    var mpmcReadBuf = newString(64)
+    let mpmcRead = lfq_mpmc_stream_ring_try_read(mpmcRing, cast[pointer](addr mpmcReadBuf[0]), csize_t(mpmcReadBuf.len))
+    check mpmcRead == csize_t(mpmcMsg.len)
+    mpmcReadBuf.setLen(int(mpmcRead))
+    check mpmcReadBuf == mpmcMsg
+    check lfq_mpmc_stream_ring_is_empty(mpmcRing) == true
+
+    lfq_mpmc_stream_ring_destroy(mpmcRing)
 
   test "Atomic Associative Map Operations C ABI":
     var ctrie: ptr lfq_ctrie_t = nil
@@ -1182,7 +1230,11 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
   test "Compiled C99 test harness execution (clang + liblockfree.a)":
     let rootDir = currentSourcePath().parentDir() / ".."
     let staticLib = rootDir / ".tmp/liblockfree.a"
-    let buildCode = execShellCmd("nim c --app:staticlib -d:danger --threads:on -o:" & staticLib & " " & (rootDir / "src/lockfree/cabi.nim"))
+    let buildCode = execShellCmd(
+      "nim c --app:staticlib -d:danger -d:useMalloc --threads:on --path:" &
+      (rootDir / "src") & " --nimcache:" & (rootDir / ".tmp/cabi_staticlib_cache") &
+      " -o:" & staticLib & " " & (rootDir / "src/lockfree/cabi.nim")
+    )
     check buildCode == 0
     let cTestSrc = rootDir / "tests/cabi/test_cabi.c"
     let cTestBin = rootDir / ".tmp/test_cabi"
