@@ -45,12 +45,12 @@ const LockfreeVersion* {.strdefine.} = "0.3.0"
 when compileOption("threads"):
   import lockfree/atomics
   import lockfree/atomics/dsl
-  import ./lockfree/[atomic_arc, bqueue, broadcast, cardinality, channel, ctrie, deque, endpoint, exceptions, priority_queue, queue, ratelimit, reclamation, rendezvous, set, skiplist, stack, strategy, streambuffer, taskpool]
+  import ./lockfree/[atomic_arc, bqueue, broadcast, cardinality, channel, ctrie, deque, endpoint, exceptions, flat_combiner, priority_queue, queue, ratelimit, reclamation, rendezvous, set, skiplist, stack, strategy, streambuffer, taskpool]
   import ./lockfree/internal/pinscope_stub
   import ./lockfree/typestates/with_bound
 
   export atomics, dsl
-  export atomic_arc, bqueue, broadcast, cardinality, channel, ctrie, deque, endpoint, exceptions, priority_queue, queue, ratelimit, reclamation, rendezvous, set, skiplist, stack, strategy, streambuffer, taskpool
+  export atomic_arc, bqueue, broadcast, cardinality, channel, ctrie, deque, endpoint, exceptions, flat_combiner, priority_queue, queue, ratelimit, reclamation, rendezvous, set, skiplist, stack, strategy, streambuffer, taskpool
   export pinscope_stub
   export with_bound
 
