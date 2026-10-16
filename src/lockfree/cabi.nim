@@ -34,6 +34,8 @@ import lockfree/streambuffer
 export streambuffer
 import lockfree/atomic_arc
 import lockfree/internal/aligned_alloc
+import lockfree/priority_queue
+export priority_queue
 import std/options
 
 # ------------------------------------------------------------------------------
@@ -2937,6 +2939,140 @@ proc lfq_atomic_arc_compare_exchange*(
     )
     `=destroy`(desHandle.raw)
     return st
+
+# ------------------------------------------------------------------------------
+# 14. Lock-Free Priority Queue (Lindén-Jonsson SkipListPriorityQueue)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_pqueue_destructor_fn* = proc(item: pointer, user_data: pointer) {.cdecl, gcsafe.}
+
+  lfq_pqueue_t* = object
+    raw: ptr SkipListPriorityQueue[Prioritized[int64, pointer], DefaultPQueueMaxThreads, DefaultPQueueMaxLevel]
+    destructor: lfq_pqueue_destructor_fn
+    userData: pointer
+
+proc lfq_pqueue_create*(
+    destructor: lfq_pqueue_destructor_fn,
+    user_data: pointer,
+    out_pqueue: ptr ptr lfq_pqueue_t
+): lfq_status_t {.exportc: "lfq_pqueue_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_pqueue == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    let pq = cast[ptr lfq_pqueue_t](allocShared0(sizeof(lfq_pqueue_t)))
+    let raw = cast[ptr SkipListPriorityQueue[Prioritized[int64, pointer], DefaultPQueueMaxThreads, DefaultPQueueMaxLevel]](
+      allocShared0(sizeof(SkipListPriorityQueue[Prioritized[int64, pointer], DefaultPQueueMaxThreads, DefaultPQueueMaxLevel]))
+    )
+    raw[] = newSkipListPriorityQueue[Prioritized[int64, pointer], DefaultPQueueMaxThreads, DefaultPQueueMaxLevel]()
+    pq.raw = raw
+    pq.destructor = destructor
+    pq.userData = user_data
+    out_pqueue[] = pq
+    LFQ_OK
+
+proc lfq_pqueue_clear*(
+    pqueue: ptr lfq_pqueue_t
+): lfq_status_t {.exportc: "lfq_pqueue_clear", cdecl, gcsafe, raises: [].} =
+  if unlikely(pqueue == nil or pqueue.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    {.cast(gcsafe).}:
+      var entry: Prioritized[int64, pointer]
+      while pqueue.raw[].tryPopMin(entry):
+        if pqueue.destructor != nil and entry.value != nil:
+          pqueue.destructor(entry.value, pqueue.userData)
+      pqueue.raw[].clear()
+    LFQ_OK
+
+proc lfq_pqueue_destroy*(
+    pqueue: ptr lfq_pqueue_t
+): lfq_status_t {.exportc: "lfq_pqueue_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(pqueue == nil or pqueue.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    {.cast(gcsafe).}:
+      if pqueue.destructor != nil:
+        var entry: Prioritized[int64, pointer]
+        while pqueue.raw[].tryPopMin(entry):
+          if entry.value != nil:
+            pqueue.destructor(entry.value, pqueue.userData)
+      `=destroy`(pqueue.raw[])
+      deallocShared(pqueue.raw)
+      pqueue.raw = nil
+      deallocShared(pqueue)
+    LFQ_OK
+
+proc lfq_pqueue_push*(
+    pqueue: ptr lfq_pqueue_t,
+    priority: int64,
+    item: pointer
+): lfq_status_t {.exportc: "lfq_pqueue_push", cdecl, gcsafe, raises: [].} =
+  if unlikely(pqueue == nil or pqueue.raw == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    {.cast(gcsafe).}:
+      pqueue.raw[].push(priority, item)
+    LFQ_OK
+
+proc lfq_pqueue_pop_min*(
+    pqueue: ptr lfq_pqueue_t,
+    out_priority: ptr int64,
+    out_item: ptr pointer
+): lfq_status_t {.exportc: "lfq_pqueue_pop_min", cdecl, gcsafe, raises: [].} =
+  if unlikely(pqueue == nil or pqueue.raw == nil or out_item == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    {.cast(gcsafe).}:
+      var entry: Prioritized[int64, pointer]
+      if pqueue.raw[].tryPopMin(entry):
+        if out_priority != nil:
+          out_priority[] = entry.priority
+        out_item[] = entry.value
+        LFQ_OK
+      else:
+        LFQ_ERR_EMPTY
+
+proc lfq_pqueue_peek_min*(
+    pqueue: ptr lfq_pqueue_t,
+    out_priority: ptr int64,
+    out_item: ptr pointer
+): lfq_status_t {.exportc: "lfq_pqueue_peek_min", cdecl, gcsafe, raises: [].} =
+  if unlikely(pqueue == nil or pqueue.raw == nil or out_item == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    {.cast(gcsafe).}:
+      let opt = pqueue.raw[].peekMin()
+      if opt.isSome:
+        let entry = opt.get()
+        if out_priority != nil:
+          out_priority[] = entry.priority
+        out_item[] = entry.value
+        LFQ_OK
+      else:
+        LFQ_ERR_EMPTY
+
+proc lfq_pqueue_len*(
+    pqueue: ptr lfq_pqueue_t
+): csize_t {.exportc: "lfq_pqueue_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(pqueue == nil or pqueue.raw == nil):
+    return 0
+  try:
+    {.cast(gcsafe).}:
+      csize_t(pqueue.raw[].len())
+  except:
+    0
+
+proc lfq_pqueue_is_empty*(
+    pqueue: ptr lfq_pqueue_t
+): bool {.exportc: "lfq_pqueue_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(pqueue == nil or pqueue.raw == nil):
+    return true
+  try:
+    {.cast(gcsafe).}:
+      pqueue.raw[].isEmpty()
+  except:
+    true
 
 
 

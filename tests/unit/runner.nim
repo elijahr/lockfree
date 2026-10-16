@@ -66,4 +66,5 @@ import ../t_streambuffer
 import ../t_associative
 import ../t_atomic_arc
 import ../t_test_watchdog
+import ../t_priority_queue
 

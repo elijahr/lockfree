@@ -432,6 +432,12 @@ bool lfq_topic_bus_has_topic(const lfq_topic_bus_t* bus, const char* topic);
 
 #include "lockfree_atomic_arc.h"
 
+/* -------------------------------------------------------------------------
+ * 14. Lock-Free Priority Queue (Lindén-Jonsson SkipListPriorityQueue)
+ * ------------------------------------------------------------------------- */
+
+#include "lockfree_pqueue.h"
+
 #ifdef __cplusplus
 }
 #endif
