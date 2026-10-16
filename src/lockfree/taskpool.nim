@@ -35,8 +35,12 @@ import lockfree/atomics
 import lockfree/atomics/backoff
 import lockfree/backoff
 import lockfree/deque
+import lockfree/rendezvous
 import lockfree/stack
 import ./internal/aligned_alloc
+
+const
+  MaxStackTasks = 64
 
 type
   TaskKind* = enum
@@ -54,6 +58,7 @@ type
 
   TaskObj* = object
     kind*: TaskKind
+    heapAllocated*: bool
     nimcallFn*: TaskProc
     cdeclFn*: CdeclTaskProc
     rawClosureFn*: pointer
@@ -64,10 +69,11 @@ type
   Task* = ptr TaskObj
 
   WorkerContext = object
-    id: int
+    id {.align: CacheLineBytes.}: int
     pool: ptr TaskPoolCore
     deque: ChaseLevDeque[Task]
-    pad: array[CacheLineBytes - (sizeof(int) + sizeof(pointer) + sizeof(ChaseLevDeque[Task])), byte]
+    parker: Parker
+    isParked: Atomic[bool]
 
   TaskPoolCore = object
     numWorkers: int
@@ -76,6 +82,9 @@ type
     injector: TreiberStack[Task]
     stopFlag: Atomic[bool]
     pendingTasks: Atomic[int64]
+    parkedWorkers: Atomic[int32]
+    callerWaiting: Atomic[int32]
+    callerParker: Parker
     rc: Atomic[int]
 
   TaskPool* = object
@@ -128,9 +137,38 @@ proc threadRand(maxVal: int): int {.inline.} =
   let r = x * 0x2545F4914F6CDD1D'u64
   return int(r mod uint64(maxVal))
 
+proc initStackTask(fn: ClosureProc, barrier: ptr Atomic[int64] = nil): TaskObj {.inline.} =
+  let r = cast[ClosureRepr](fn)
+  result = TaskObj(
+    kind: tkClosure,
+    heapAllocated: false,
+    rawClosureFn: r.fn,
+    rawClosureEnv: r.env,
+    barrier: barrier
+  )
+
+proc initStackTask(fn: TaskProc, arg: pointer, barrier: ptr Atomic[int64] = nil): TaskObj {.inline.} =
+  result = TaskObj(
+    kind: tkNimcall,
+    heapAllocated: false,
+    nimcallFn: fn,
+    arg: arg,
+    barrier: barrier
+  )
+
+proc initStackTask(fn: CdeclTaskProc, arg: pointer, barrier: ptr Atomic[int64] = nil): TaskObj {.inline.} =
+  result = TaskObj(
+    kind: tkCdecl,
+    heapAllocated: false,
+    cdeclFn: fn,
+    arg: arg,
+    barrier: barrier
+  )
+
 proc newTask(fn: ClosureProc, barrier: ptr Atomic[int64] = nil): Task =
   result = cast[Task](allocShared0(sizeof(TaskObj)))
   result.kind = tkClosure
+  result.heapAllocated = true
   let r = cast[ClosureRepr](fn)
   result.rawClosureFn = r.fn
   result.rawClosureEnv = r.env
@@ -139,6 +177,7 @@ proc newTask(fn: ClosureProc, barrier: ptr Atomic[int64] = nil): Task =
 proc newTask(fn: TaskProc, arg: pointer, barrier: ptr Atomic[int64] = nil): Task =
   result = cast[Task](allocShared0(sizeof(TaskObj)))
   result.kind = tkNimcall
+  result.heapAllocated = true
   result.nimcallFn = fn
   result.arg = arg
   result.barrier = barrier
@@ -146,9 +185,23 @@ proc newTask(fn: TaskProc, arg: pointer, barrier: ptr Atomic[int64] = nil): Task
 proc newTask(fn: CdeclTaskProc, arg: pointer, barrier: ptr Atomic[int64] = nil): Task =
   result = cast[Task](allocShared0(sizeof(TaskObj)))
   result.kind = tkCdecl
+  result.heapAllocated = true
   result.cdeclFn = fn
   result.arg = arg
   result.barrier = barrier
+
+proc wakeParkedWorkers(core: ptr TaskPoolCore, maxWake: int = 1) {.inline.} =
+  if core.parkedWorkers.load(moSequentiallyConsistent) <= 0:
+    return
+  var woken = 0
+  for i in 0 ..< core.numWorkers:
+    if core.workers[i].isParked.load(moAcquire):
+      if core.workers[i].isParked.exchange(false, moAcquireRelease):
+        discard core.parkedWorkers.fetchSub(1, moRelease)
+        core.workers[i].parker.unpark()
+        inc woken
+        if woken >= maxWake:
+          break
 
 proc executeAndFree(task: Task, core: ptr TaskPoolCore) {.gcsafe.} =
   if task == nil: return
@@ -166,18 +219,27 @@ proc executeAndFree(task: Task, core: ptr TaskPoolCore) {.gcsafe.} =
           let rawFn = cast[proc(env: pointer) {.nimcall, gcsafe.}](task.rawClosureFn)
           rawFn(task.rawClosureEnv)
     finally:
-      if task.barrier != nil:
-        discard task.barrier[].fetchSub(1'i64, moRelease)
-      deallocShared(task)
+      let b = task.barrier
+      let isHeap = task.heapAllocated
+      if isHeap:
+        deallocShared(task)
       if core != nil:
-        discard core.pendingTasks.fetchSub(1'i64, moRelease)
+        if core.pendingTasks.fetchSub(1'i64, moSequentiallyConsistent) == 1'i64:
+          if core.callerWaiting.load(moSequentiallyConsistent) > 0:
+            core.callerParker.unpark()
+      if b != nil:
+        if b[].fetchSub(1'i64, moSequentiallyConsistent) == 1'i64:
+          if core != nil and core.callerWaiting.load(moSequentiallyConsistent) > 0:
+            core.callerParker.unpark()
 
-proc spawnTask(core: ptr TaskPoolCore, task: Task) =
-  discard core.pendingTasks.fetchAdd(1'i64, moRelaxed)
+proc spawnTask(core: ptr TaskPoolCore, task: Task, notify: bool = true) {.inline.} =
+  discard core.pendingTasks.fetchAdd(1'i64, moSequentiallyConsistent)
   if gWorkerInitialized and gCurrentWorkerId >= 0 and gCurrentWorkerId < core.numWorkers:
     core.workers[gCurrentWorkerId].deque.pushBottom(task)
   else:
     core.injector.push(task)
+  if notify:
+    wakeParkedWorkers(core, 1)
 
 proc helpWork*(pool: TaskPool): bool =
   ## Attempts to execute one task from the local deque, global injector, or by
@@ -219,6 +281,8 @@ proc helpWork*(pool: TaskPool): bool =
           # Push extra tasks to own local deque
           for bIdx in 1 ..< stolenCount:
             core.workers[myId].deque.pushBottom(batch[bIdx])
+          if stolenCount > 1:
+            wakeParkedWorkers(core, stolenCount - 1)
           executeAndFree(batch[0], core)
           return true
       else:
@@ -266,6 +330,8 @@ proc workerThreadEntry(ctx: ptr WorkerContext) {.thread, nimcall, gcsafe.} =
           spins = 0
           for bIdx in 1 ..< stolenCount:
             ctx.deque.pushBottom(batch[bIdx])
+          if stolenCount > 1:
+            wakeParkedWorkers(pool, stolenCount - 1)
           executeAndFree(batch[0], pool)
           stolen = true
           break
@@ -273,15 +339,22 @@ proc workerThreadEntry(ctx: ptr WorkerContext) {.thread, nimcall, gcsafe.} =
     if stolen:
       continue
 
-    # 4. Idle backoff
+    # 4. Idle backoff & OS-native Parker sleep (Dekker Store-Load barrier)
     inc spins
     if spins < 32:
       cpuPause()
     elif spins < 128:
       schedYield()
     else:
-      sleep(1)
-      spins = 32
+      resetParker(ctx.parker)
+      ctx.isParked.store(true, moSequentiallyConsistent)
+      discard pool.parkedWorkers.fetchAdd(1, moSequentiallyConsistent)
+      if not pool.stopFlag.load(moSequentiallyConsistent) and
+         pool.pendingTasks.load(moSequentiallyConsistent) == 0:
+        discard ctx.parker.parkTimeout(1)
+      if ctx.isParked.exchange(false, moAcquireRelease):
+        discard pool.parkedWorkers.fetchSub(1, moRelease)
+      spins = 0
 
   # Drain phase on shutdown
   while true:
@@ -311,12 +384,17 @@ proc initTaskPool*(numWorkers: int = 0): TaskPool =
   core.injector = initTreiberStack[Task]()
   core.stopFlag.store(false, moRelaxed)
   core.pendingTasks.store(0, moRelaxed)
+  core.parkedWorkers.store(0, moRelaxed)
+  core.callerWaiting.store(0, moRelaxed)
+  initParker(core.callerParker)
   core.rc.store(1, moRelaxed)
 
   for i in 0 ..< nw:
     core.workers[i].id = i
     core.workers[i].pool = core
     core.workers[i].deque = initChaseLevDeque[Task](128)
+    initParker(core.workers[i].parker)
+    core.workers[i].isParked.store(false, moRelaxed)
     createThread(core.threads[i], workerThreadEntry, addr core.workers[i])
 
   result.core = core
@@ -359,6 +437,26 @@ proc spawn*(pool: TaskPool, fn: CdeclTaskProc, arg: pointer) =
   let t = newTask(fn, arg)
   pool.core.spawnTask(t)
 
+proc waitOnBarrier(pool: TaskPool, barrier: var Atomic[int64]) {.inline.} =
+  let core = pool.core
+  var spins = 0
+  while barrier.load(moAcquire) > 0:
+    if pool.helpWork():
+      spins = 0
+    else:
+      inc spins
+      if spins < 64:
+        cpuPause()
+      elif spins < 256:
+        schedYield()
+      else:
+        resetParker(core.callerParker)
+        discard core.callerWaiting.fetchAdd(1, moSequentiallyConsistent)
+        if barrier.load(moSequentiallyConsistent) > 0:
+          discard core.callerParker.parkTimeout(1)
+        discard core.callerWaiting.fetchSub(1, moRelease)
+        spins = 64
+
 proc sync*(pool: TaskPool) =
   ## Blocks until all active and queued tasks in the pool have completed. The
   ## calling thread actively assists in executing tasks while waiting.
@@ -366,15 +464,21 @@ proc sync*(pool: TaskPool) =
   if unlikely(core == nil): return
   var spins = 0
   while core.pendingTasks.load(moAcquire) > 0:
-    if not pool.helpWork():
+    if pool.helpWork():
+      spins = 0
+    else:
       inc spins
-      if spins < 32:
+      if spins < 64:
         cpuPause()
-      elif spins < 128:
+      elif spins < 256:
         schedYield()
       else:
-        sleep(1)
-        spins = 32
+        resetParker(core.callerParker)
+        discard core.callerWaiting.fetchAdd(1, moSequentiallyConsistent)
+        if core.pendingTasks.load(moSequentiallyConsistent) > 0:
+          discard core.callerParker.parkTimeout(1)
+        discard core.callerWaiting.fetchSub(1, moRelease)
+        spins = 64
 
 proc forkJoin*(pool: TaskPool, left: ClosureProc, right: ClosureProc) =
   ## Executes `left` and `right` concurrently. `right` is spawned to the pool
@@ -386,22 +490,12 @@ proc forkJoin*(pool: TaskPool, left: ClosureProc, right: ClosureProc) =
   var barrier {.align: CacheLineBytes.}: Atomic[int64]
   barrier.store(1, moRelaxed)
 
-  let rightTask = newTask(right, addr barrier)
-  core.spawnTask(rightTask)
+  var rightTaskObj = initStackTask(right, addr barrier)
+  core.spawnTask(addr rightTaskObj)
 
   left()
 
-  var spins = 0
-  while barrier.load(moAcquire) > 0:
-    if not pool.helpWork():
-      inc spins
-      if spins < 32:
-        cpuPause()
-      elif spins < 128:
-        schedYield()
-      else:
-        sleep(1)
-        spins = 32
+  waitOnBarrier(pool, barrier)
 
 proc forkJoin*(pool: TaskPool, tasks: openArray[ClosureProc]) =
   ## Executes an arbitrary number of closure tasks concurrently using
@@ -417,26 +511,25 @@ proc forkJoin*(pool: TaskPool, tasks: openArray[ClosureProc]) =
   let core = pool.core
   assert core != nil, "TaskPool is uninitialized"
 
+  let numSpawn = tasks.len - 1
   var barrier {.align: CacheLineBytes.}: Atomic[int64]
-  barrier.store(int64(tasks.len - 1), moRelaxed)
+  barrier.store(int64(numSpawn), moRelaxed)
 
-  for i in 1 ..< tasks.len:
-    let t = newTask(tasks[i], addr barrier)
-    core.spawnTask(t)
-
-  tasks[0]()
-
-  var spins = 0
-  while barrier.load(moAcquire) > 0:
-    if not pool.helpWork():
-      inc spins
-      if spins < 32:
-        cpuPause()
-      elif spins < 128:
-        schedYield()
-      else:
-        sleep(1)
-        spins = 32
+  if numSpawn <= MaxStackTasks:
+    var stackTasks: array[MaxStackTasks, TaskObj]
+    for i in 1 ..< tasks.len:
+      stackTasks[i - 1] = initStackTask(tasks[i], addr barrier)
+      core.spawnTask(addr stackTasks[i - 1], notify = false)
+    wakeParkedWorkers(core, numSpawn)
+    tasks[0]()
+    waitOnBarrier(pool, barrier)
+  else:
+    for i in 1 ..< tasks.len:
+      let t = newTask(tasks[i], addr barrier)
+      core.spawnTask(t, notify = false)
+    wakeParkedWorkers(core, numSpawn)
+    tasks[0]()
+    waitOnBarrier(pool, barrier)
 
 type
   ParallelForClosurePayload = object
@@ -465,7 +558,7 @@ proc parallelFor*(
     return
 
   let numW = max(1, pool.numWorkers)
-  let effChunk = if chunkSize > 0: chunkSize else: max(1, count div (numW * 4))
+  let effChunk = if chunkSize > 0: chunkSize else: max(1, (count + numW * 4 - 1) div (numW * 4))
   if count <= effChunk:
     for i in first .. last:
       fn(i)
@@ -473,33 +566,42 @@ proc parallelFor*(
 
   let r = cast[ClosureRepr](fn)
   let numChunks = (count + effChunk - 1) div effChunk
-  var payloads = newSeq[ParallelForClosurePayload](numChunks)
+  let numSpawn = numChunks - 1
 
   var barrier {.align: CacheLineBytes.}: Atomic[int64]
-  barrier.store(int64(numChunks - 1), moRelaxed)
+  barrier.store(int64(numSpawn), moRelaxed)
 
-  for c in 1 ..< numChunks:
-    let cStart = first + c * effChunk
-    let cEnd = min(last, cStart + effChunk - 1)
-    payloads[c] = ParallelForClosurePayload(first: cStart, last: cEnd, rawFn: r.fn, rawEnv: r.env)
-    let t = newTask(runClosureChunkTask, cast[pointer](addr payloads[c]), addr barrier)
-    pool.core.spawnTask(t)
+  if numSpawn <= MaxStackTasks:
+    var stackPayloads: array[MaxStackTasks, ParallelForClosurePayload]
+    var stackTasks: array[MaxStackTasks, TaskObj]
+    for c in 1 ..< numChunks:
+      let cStart = first + c * effChunk
+      let cEnd = min(last, cStart + effChunk - 1)
+      stackPayloads[c - 1] = ParallelForClosurePayload(first: cStart, last: cEnd, rawFn: r.fn, rawEnv: r.env)
+      stackTasks[c - 1] = initStackTask(runClosureChunkTask, cast[pointer](addr stackPayloads[c - 1]), addr barrier)
+      pool.core.spawnTask(addr stackTasks[c - 1], notify = false)
+    wakeParkedWorkers(pool.core, numSpawn)
 
-  let cEnd0 = min(last, first + effChunk - 1)
-  for i in first .. cEnd0:
-    fn(i)
+    let cEnd0 = min(last, first + effChunk - 1)
+    for i in first .. cEnd0:
+      fn(i)
 
-  var spins = 0
-  while barrier.load(moAcquire) > 0:
-    if not pool.helpWork():
-      inc spins
-      if spins < 32:
-        cpuPause()
-      elif spins < 128:
-        schedYield()
-      else:
-        sleep(1)
-        spins = 32
+    waitOnBarrier(pool, barrier)
+  else:
+    var payloads = newSeq[ParallelForClosurePayload](numChunks)
+    for c in 1 ..< numChunks:
+      let cStart = first + c * effChunk
+      let cEnd = min(last, cStart + effChunk - 1)
+      payloads[c] = ParallelForClosurePayload(first: cStart, last: cEnd, rawFn: r.fn, rawEnv: r.env)
+      let t = newTask(runClosureChunkTask, cast[pointer](addr payloads[c]), addr barrier)
+      pool.core.spawnTask(t, notify = false)
+    wakeParkedWorkers(pool.core, numSpawn)
+
+    let cEnd0 = min(last, first + effChunk - 1)
+    for i in first .. cEnd0:
+      fn(i)
+
+    waitOnBarrier(pool, barrier)
 
 proc parallelFor*(
     pool: TaskPool,
@@ -540,8 +642,8 @@ proc runCdeclChunk(payload: ptr ParallelForCdeclPayload) {.cdecl, gcsafe.} =
     )
     var barrier {.align: CacheLineBytes.}: Atomic[int64]
     barrier.store(1, moRelaxed)
-    let rightTask = newTask(runCdeclTaskProc, cast[pointer](addr rightPayload), addr barrier)
-    payload.pool.core.spawnTask(rightTask)
+    var rightTaskObj = initStackTask(runCdeclTaskProc, cast[pointer](addr rightPayload), addr barrier)
+    payload.pool.core.spawnTask(addr rightTaskObj)
 
     var leftPayload = ParallelForCdeclPayload(
       pool: payload.pool,
@@ -553,17 +655,7 @@ proc runCdeclChunk(payload: ptr ParallelForCdeclPayload) {.cdecl, gcsafe.} =
     )
     runCdeclChunk(addr leftPayload)
 
-    var spins = 0
-    while barrier.load(moAcquire) > 0:
-      if not payload.pool.helpWork():
-        inc spins
-        if spins < 32:
-          cpuPause()
-        elif spins < 128:
-          schedYield()
-        else:
-          sleep(1)
-          spins = 32
+    waitOnBarrier(payload.pool, barrier)
 
 proc parallelFor*(
     pool: TaskPool,
@@ -581,7 +673,7 @@ proc parallelFor*(
     return
 
   let numW = max(1, pool.numWorkers)
-  let effChunk = if chunkSize > 0: chunkSize else: max(1, count div (numW * 4))
+  let effChunk = if chunkSize > 0: chunkSize else: max(1, (count + numW * 4 - 1) div (numW * 4))
   var payload = ParallelForCdeclPayload(
     pool: pool,
     first: first,
@@ -596,14 +688,18 @@ proc shutdown*(pool: var TaskPool, wait: bool = true) {.gcsafe.} =
   ## Gracefully shuts down the task pool and joins all worker threads.
   let core = pool.core
   if core == nil: return
-  if core.stopFlag.exchange(true, moRelease):
+  if core.stopFlag.exchange(true, moSequentiallyConsistent):
     # Already initiated shutdown
     return
+
+  for i in 0 ..< core.numWorkers:
+    core.workers[i].parker.unpark()
 
   if wait:
     pool.sync()
 
   for i in 0 ..< core.numWorkers:
+    core.workers[i].parker.unpark()
     joinThread(core.threads[i])
 
   # Drain and free any residual tasks in injector or worker deques
@@ -621,6 +717,7 @@ proc shutdown*(pool: var TaskPool, wait: bool = true) {.gcsafe.} =
         executeAndFree(opt.get, core)
       else:
         break
+    deinitParker(core.workers[i].parker)
     `=destroy`(core.workers[i].deque)
 
 proc join*(pool: var TaskPool) {.inline.} =
@@ -629,6 +726,7 @@ proc join*(pool: var TaskPool) {.inline.} =
 
 proc freeCore(core: ptr TaskPoolCore) {.gcsafe.} =
   if core != nil:
+    deinitParker(core.callerParker)
     if core.workers != nil:
       deallocShared(core.workers)
       core.workers = nil

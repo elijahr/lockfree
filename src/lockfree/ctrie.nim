@@ -379,6 +379,14 @@ proc getOrRegisterHandleCore[MaxThreads: static int](
   for entry in gCtrieTlsHandles:
     if entry.trieId == trieId:
       return ThreadHandle[MaxThreads, ccMulti](idx: entry.handleIdx, manager: manager)
+  let activeMask = manager.activeThreadMask.load(moAcquire)
+  for idx in 0 ..< MaxThreads:
+    if (activeMask and (1'u64 shl idx)) != 0'u64:
+      if isCurrent(manager.threads[idx].threadId.load(moAcquire)):
+        if gCtrieTlsHandles.len >= MaxCachedTlsHandles:
+          gCtrieTlsHandles.delete(0)
+        gCtrieTlsHandles.add(TlsHandleEntry(trieId: trieId, handleIdx: idx))
+        return ThreadHandle[MaxThreads, ccMulti](idx: idx, manager: manager)
   let h = registerThread(manager[])
   if gCtrieTlsHandles.len >= MaxCachedTlsHandles:
     gCtrieTlsHandles.delete(0)

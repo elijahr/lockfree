@@ -177,3 +177,19 @@ suite "ARC/ORC Managed Types Lifetime":
     check map.delete(5) == true
     check not map.contains(5)
     check map.len == 19
+
+  test "Accessing >32 SkipListMap instances on one thread recovers DEBRA handle without slot leak (MED-MEM-02)":
+    const NumMaps = 48
+    var maps = newSeq[SkipListMap[int, int]](NumMaps)
+    for m in 0 ..< NumMaps:
+      maps[m] = newSkipListMap[int, int]()
+
+    # Cycle through all 48 maps 100 times (evicting the 32-entry TLS cache 4,800 times)
+    for round in 0 ..< 100:
+      for m in 0 ..< NumMaps:
+        maps[m][round] = m + round
+        check maps[m].get(round) == some(m + round)
+
+    for m in 0 ..< NumMaps:
+      check maps[m].len == 100
+

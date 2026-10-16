@@ -671,11 +671,11 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       raise newException(ChannelClosedDefect, "RendezvousChannel is closed")
 
     try:
-      while waiter.state.load(moSeqCst) == rsWaiting and not self.chan.isClosed:
+      while waiter.currentState(moSeqCst) == rsWaiting and not self.chan.isClosed:
         await sig.wait()
     except CatchableError as e:
-      let transferred = self.chan.finishAsyncSender(waiter)
-      let leftover = waiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+      var leftover: pointer = nil
+      let transferred = self.chan.finishAsyncSender(waiter, leftover)
       if leftover != nil:
         GC_unref(cast[AsyncSignal](leftover))
       sig.pruneFinishedWaiters()
@@ -683,8 +683,8 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         return true
       raise e
 
-    let transferred = self.chan.finishAsyncSender(waiter)
-    let leftover = waiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+    var leftover: pointer = nil
+    let transferred = self.chan.finishAsyncSender(waiter, leftover)
     if leftover != nil:
       GC_unref(cast[AsyncSignal](leftover))
     sig.pruneFinishedWaiters()
@@ -716,11 +716,11 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       return none(T)
 
     try:
-      while waiter.state.load(moSeqCst) == rsWaiting and not self.chan.isClosed:
+      while waiter.currentState(moSeqCst) == rsWaiting and not self.chan.isClosed:
         await sig.wait()
     except CatchableError as e:
-      let matched = self.chan.finishAsyncReceiver(waiter, val, corrId)
-      let leftover = waiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+      var leftover: pointer = nil
+      let matched = self.chan.finishAsyncReceiver(waiter, val, corrId, leftover)
       if leftover != nil:
         GC_unref(cast[AsyncSignal](leftover))
       sig.pruneFinishedWaiters()
@@ -728,8 +728,8 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         return some(val)
       raise e
 
-    let matched = self.chan.finishAsyncReceiver(waiter, val, corrId)
-    let leftover = waiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+    var leftover: pointer = nil
+    let matched = self.chan.finishAsyncReceiver(waiter, val, corrId, leftover)
     if leftover != nil:
       GC_unref(cast[AsyncSignal](leftover))
     sig.pruneFinishedWaiters()

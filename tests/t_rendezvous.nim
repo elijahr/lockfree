@@ -356,3 +356,35 @@ suite "RendezvousChannel — Remediation Regression Verification":
     check receivedVal == 4242
     check sCid > 0
     check sCid == rCid
+
+  test "Waiter node recycling pool bounds memory across 20,000 handoffs (CRIT-MEM-01)":
+    let chan = initRendezvousChannel[int]()
+    const Iters = 20_000
+
+    type RecycleArg = object
+      ch: RendezvousChannel[int]
+      count: int
+      sum: int64
+
+    proc senderLoop(arg: ptr RecycleArg) {.thread.} =
+      for i in 1 .. arg.count:
+        discard arg.ch.send(i)
+
+    var sArg = RecycleArg(ch: chan, count: Iters, sum: 0)
+    var th: Thread[ptr RecycleArg]
+    createThread(th, senderLoop, addr sArg)
+
+    var total: int64 = 0
+    for i in 1 .. Iters:
+      var v = 0
+      discard chan.recv(v)
+      total += int64(v)
+
+    joinThread(th)
+    check total == int64(Iters) * int64(Iters + 1) div 2
+    let wIdx = chan.core.freeWriteIdx.load(moAcquire)
+    let rIdx = chan.core.freeReadIdx.load(moAcquire)
+    check wIdx >= uint64(Iters div 2)
+    check rIdx >= uint64(Iters div 2 - 600)
+    check wIdx - rIdx <= 1024'u64
+
