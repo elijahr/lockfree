@@ -36,7 +36,13 @@ when defined(lockfreeChronos):
     import chronos/[asyncsync, threadsync]
 
   when not chronosBridgeReachable:
-    {.error: "lockfree/async_bridge: -d:lockfreeChronos was set but chronos is not installed.".}
+    {.
+      error:
+        "lockfree/async_bridge requires the `chronos` package when compiled with " &
+        "`-d:lockfreeChronos`, but `chronos` could not be resolved on the search path. " &
+        "Install it cleanly in your project environment with: " &
+        "`nimble install \"chronos >= 4.0.0, < 5.0.0\"` (see docs/api/chronos.md)."
+    .}
 
 when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption("threads"):
   import std/options
@@ -426,6 +432,16 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
   ): Future[Option[T]] {.inline.} =
     self.recvAsync()
 
+  template event*[T; ccProd, ccCons: static PinScopeCardinality; N, P, C: static int](
+      self: AsyncBQueue[T, ccProd, ccCons, N, P, C]
+  ): AsyncSignal =
+    self.consumerSignal
+
+  template asyncEvent*[T; ccProd, ccCons: static PinScopeCardinality; N, P, C: static int](
+      self: AsyncBQueue[T, ccProd, ccCons, N, P, C]
+  ): AsyncSignal =
+    self.consumerSignal
+
   # Direct on BQueue:
   proc tryPopAsync*[T; N: static int](
       self: var BQueue[T, ccSingle, ccSingle, N, 0, 0]
@@ -540,6 +556,26 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       self: AsyncQueue[T, ccSingle, ccSingle, ST, S, MaxThreads]
   ): Future[Option[T]] {.inline.} =
     self.recvAsync()
+
+  template event*[
+      T;
+      ccProd, ccCons: static PinScopeCardinality,
+      ST: static DeallocationStrategy,
+      S, MaxThreads: static int,
+  ](
+      self: AsyncQueue[T, ccProd, ccCons, ST, S, MaxThreads]
+  ): AsyncSignal =
+    self.consumerSignal
+
+  template asyncEvent*[
+      T;
+      ccProd, ccCons: static PinScopeCardinality,
+      ST: static DeallocationStrategy,
+      S, MaxThreads: static int,
+  ](
+      self: AsyncQueue[T, ccProd, ccCons, ST, S, MaxThreads]
+  ): AsyncSignal =
+    self.consumerSignal
 
   # Direct on Queue:
   proc tryPopAsync*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
