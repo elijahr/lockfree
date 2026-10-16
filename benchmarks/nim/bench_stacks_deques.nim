@@ -29,7 +29,7 @@ when defined(adapter_rust_ffi_available):
   proc cb_deque_push(d: pointer, item: uint64) {.importc, cdecl.}
   proc cb_deque_pop(d: pointer, outVal: ptr uint64): bool {.importc, cdecl.}
   proc cb_deque_steal(d: pointer, outVal: ptr uint64): bool {.importc, cdecl.}
-  proc cb_deque_steal_batch(d: pointer, thiefIdx: csize_t, maxBatch: csize_t): csize_t {.importc, cdecl.}
+  proc cb_deque_steal_batch(d: pointer, thiefIdx: csize_t, outBuf: ptr uint64, maxBatch: csize_t): csize_t {.importc, cdecl.}
   proc cb_deque_is_empty(d: pointer): bool {.importc, cdecl.}
   proc cb_deque_destroy(d: pointer) {.importc, cdecl.}
 
@@ -290,10 +290,17 @@ proc dequeWorkerBody(ctxPtr: ptr DequeWorkerCtx) {.thread.} =
             benchBackoffOnPeerWait()
     of dkCrossbeamBatch:
       when defined(adapter_rust_ffi_available):
+        var batchBuf: array[StealBatchLimit, uint64]
         while not ctx.doneFlag[].load(moAcquire) or not cb_deque_is_empty(ctx.cbPtr):
-          let n = cb_deque_steal_batch(ctx.cbPtr, csize_t(ctx.thiefIdx), csize_t(StealBatchLimit))
+          let n = int(cb_deque_steal_batch(
+            ctx.cbPtr,
+            csize_t(ctx.thiefIdx),
+            addr batchBuf[0],
+            csize_t(StealBatchLimit)
+          ))
           if n > 0:
-            localSum += uint64(n)
+            for k in 0 ..< n:
+              localSum += batchBuf[k]
           else:
             benchBackoffOnPeerWait()
   ctxPtr.checksum = localSum
@@ -362,8 +369,12 @@ proc runDequeBenchmark(dequeKind: DequeKind, numThieves: int, itemsCount: int): 
     return 0.0
   result = float(itemsCount) * 1_000_000.0 / elapsedNs
 
+proc matchesFilter(libSlug: string, filters: seq[string]): bool {.inline.} =
+  filters.len == 0 or libSlug in filters
+
 proc main() =
   var outputPath = ""
+  var filters: seq[string] = @[]
   var p = initOptParser(commandLineParams())
   while true:
     p.next()
@@ -372,7 +383,32 @@ proc main() =
     of cmdLongOption, cmdShortOption:
       if p.key in ["o", "output", "bmf-out"]:
         outputPath = p.val
-    of cmdArgument: discard
+    of cmdArgument:
+      filters.add(p.key)
+
+  var stackTargets = @[
+    (skTreiber, "treiber_stack"),
+    (skLocked, "locked_stack")
+  ]
+  when defined(adapter_boost_lockfree_available) and defined(cpp):
+    stackTargets.insert((skBoost, "boost_lockfree_stack"), 1)
+
+  var dequeTargets = @[
+    (dkChaseLevSingle, "chase_lev_deque"),
+    (dkChaseLevBatch, "chase_lev_deque_batch")
+  ]
+  when defined(adapter_rust_ffi_available):
+    dequeTargets.insert((dkCrossbeamSingle, "crossbeam_deque"), 1)
+    dequeTargets.add((dkCrossbeamBatch, "crossbeam_deque_batch"))
+
+  if filters.len > 0:
+    var supported: seq[string] = @[]
+    for (_, slug) in stackTargets: supported.add(slug)
+    for (_, slug) in dequeTargets: supported.add(slug)
+    for f in filters:
+      if f notin supported:
+        echo &"Unknown target: {f} (supported: {supported})"
+        quit 1
 
   echo "Stacks & Deques Benchmark (Nim vs Rust vs C++)"
   echo "=============================================="
@@ -382,15 +418,10 @@ proc main() =
   # 1. Stacks MPMC Contention
   echo "\n--- MPMC Stacks Contention ---"
   let stackShapes = [(1, 1, "1p1c"), (2, 2, "2p2c"), (4, 4, "4p4c"), (8, 8, "8p8c")]
-  var stackTargets = @[
-    (skTreiber, "treiber_stack"),
-    (skLocked, "locked_stack")
-  ]
-  when defined(adapter_boost_lockfree_available) and defined(cpp):
-    stackTargets.insert((skBoost, "boost_lockfree_stack"), 1)
 
   for (np, nc, shape) in stackShapes:
     for (sKind, libSlug) in stackTargets:
+      if not matchesFilter(libSlug, filters): continue
       for _ in 0 ..< BenchStackWarmup:
         discard runStackBenchmark(sKind, np, nc, BenchStackMsgCount)
       var samples = newSeq[float](BenchStackRuns)
@@ -405,16 +436,10 @@ proc main() =
   # 2. Work-Stealing Deques (Single steal vs Batch steal)
   echo "\n--- Work-Stealing Deques (1 Worker + N Thieves) ---"
   let dequeShapes = [(1, "1w1t"), (2, "1w2t"), (4, "1w4t"), (8, "1w8t")]
-  var dequeTargets = @[
-    (dkChaseLevSingle, "chase_lev_deque"),
-    (dkChaseLevBatch, "chase_lev_deque_batch")
-  ]
-  when defined(adapter_rust_ffi_available):
-    dequeTargets.insert((dkCrossbeamSingle, "crossbeam_deque"), 1)
-    dequeTargets.add((dkCrossbeamBatch, "crossbeam_deque_batch"))
 
   for (numThieves, shape) in dequeShapes:
     for (dKind, libSlug) in dequeTargets:
+      if not matchesFilter(libSlug, filters): continue
       for _ in 0 ..< BenchStackWarmup:
         discard runDequeBenchmark(dKind, numThieves, BenchStackMsgCount)
       var samples = newSeq[float](BenchStackRuns)

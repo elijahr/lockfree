@@ -269,8 +269,12 @@ proc runStreamBenchmark(kind: StreamKind, chunkSize: int, totalBytes: int): (flo
   let mbS = (float(totalBytes) / (1024.0 * 1024.0)) / (elapsedNs / 1_000_000_000.0)
   result = (opsMs, mbS)
 
+proc matchesFilter(libSlug: string, filters: seq[string]): bool {.inline.} =
+  filters.len == 0 or libSlug in filters
+
 proc main() =
   var outputPath = ""
+  var filters: seq[string] = @[]
   var p = initOptParser(commandLineParams())
   while true:
     p.next()
@@ -279,7 +283,32 @@ proc main() =
     of cmdLongOption, cmdShortOption:
       if p.key in ["o", "output", "bmf-out"]:
         outputPath = p.val
-    of cmdArgument: discard
+    of cmdArgument:
+      filters.add(p.key)
+
+  var rlTargets = @[
+    (rlkTokenBucket, "token_bucket"),
+    (rlkLeakyBucket, "leaky_bucket")
+  ]
+  when defined(adapter_rust_ffi_available):
+    rlTargets.add((rlkGovernor, "governor_gcra"))
+
+  var streamTargets = @[
+    (skStreamRing, "stream_ring")
+  ]
+  when defined(adapter_rust_ffi_available):
+    streamTargets.add((skRtrb, "rtrb_stream"))
+  when defined(adapter_boost_lockfree_available) and defined(cpp):
+    streamTargets.add((skBoostSpsc, "boost_spsc_stream"))
+
+  if filters.len > 0:
+    var supported: seq[string] = @[]
+    for (_, slug) in rlTargets: supported.add(slug)
+    for (_, slug) in streamTargets: supported.add(slug)
+    for f in filters:
+      if f notin supported:
+        echo &"Unknown target: {f} (supported: {supported})"
+        quit 1
 
   echo "Rate Limiting & Streaming Benchmark (Nim vs Rust vs C++)"
   echo "========================================================"
@@ -289,14 +318,9 @@ proc main() =
   # 1. Rate Limiter Contention
   echo "\n--- Rate Limiter Multi-Threaded Contention ---"
   let threadConfigs = [1, 2, 4, 8, 16]
-  var rlTargets = @[
-    (rlkTokenBucket, "token_bucket"),
-    (rlkLeakyBucket, "leaky_bucket")
-  ]
-  when defined(adapter_rust_ffi_available):
-    rlTargets.add((rlkGovernor, "governor_gcra"))
 
   for (rKind, libSlug) in rlTargets:
+    if not matchesFilter(libSlug, filters): continue
     for threads in threadConfigs:
       for _ in 0 ..< BenchRLWarmup:
         discard runRateLimiterBenchmark(rKind, threads, BenchTokenCount)
@@ -317,15 +341,9 @@ proc main() =
     (4096, "4kb"),
     (65536, "64kb")
   ]
-  var streamTargets = @[
-    (skStreamRing, "stream_ring")
-  ]
-  when defined(adapter_rust_ffi_available):
-    streamTargets.add((skRtrb, "rtrb_stream"))
-  when defined(adapter_boost_lockfree_available) and defined(cpp):
-    streamTargets.add((skBoostSpsc, "boost_spsc_stream"))
 
   for (sKind, libSlug) in streamTargets:
+    if not matchesFilter(libSlug, filters): continue
     for (cSize, slugSize) in chunkConfigs:
       for _ in 0 ..< BenchRLWarmup:
         discard runStreamBenchmark(sKind, cSize, BenchStreamBytes)

@@ -222,9 +222,16 @@ type
     rkDeferredMutex
     rkCrossbeamEpoch
 
+  RetiredMutexEntry = object
+    ptrNode: pointer
+    retireEpoch: uint64
+
   DeferredMutexPool = object
     lock: Lock
-    retired: seq[pointer]
+    globalEpoch: uint64
+    activeMask: uint32
+    threadEpochs: array[16, uint64]
+    retired: seq[RetiredMutexEntry]
 
   RetireWorkerCtx = object
     kind: RetireKind
@@ -233,6 +240,23 @@ type
     activeWorkers: ptr Atomic[int]
     opsCount: int
     threadId: int
+
+proc reclaimSafeMutexEntries(pool: var DeferredMutexPool) {.inline.} =
+  var minActiveEpoch = high(uint64)
+  if pool.activeMask != 0'u32:
+    for tid in 0 ..< 16:
+      if (pool.activeMask and (1'u32 shl uint32(tid))) != 0'u32:
+        if pool.threadEpochs[tid] < minActiveEpoch:
+          minActiveEpoch = pool.threadEpochs[tid]
+  var writeIdx = 0
+  for readIdx in 0 ..< pool.retired.len:
+    let entry = pool.retired[readIdx]
+    if entry.retireEpoch <= minActiveEpoch:
+      deallocShared(entry.ptrNode)
+    else:
+      pool.retired[writeIdx] = entry
+      inc writeIdx
+  pool.retired.setLen(writeIdx)
 
 proc retireWorkerBody(ctx: ptr RetireWorkerCtx) {.thread.} =
   case ctx.kind
@@ -268,6 +292,12 @@ proc retireWorkerBody(ctx: ptr RetireWorkerCtx) {.thread.} =
       ctx.manager[].unregisterThread(handle)
 
   of rkDeferredMutex:
+    let tBit = 1'u32 shl uint32(ctx.threadId and 15)
+    acquire(ctx.mutexPool.lock)
+    ctx.mutexPool.activeMask = ctx.mutexPool.activeMask or tBit
+    ctx.mutexPool.threadEpochs[ctx.threadId and 15] = ctx.mutexPool.globalEpoch
+    release(ctx.mutexPool.lock)
+
     var localBatch: array[32, pointer]
     var bLen = 0
     for i in 0 ..< ctx.opsCount:
@@ -277,22 +307,29 @@ proc retireWorkerBody(ctx: ptr RetireWorkerCtx) {.thread.} =
       inc bLen
       if bLen == 32:
         acquire(ctx.mutexPool.lock)
+        inc ctx.mutexPool.globalEpoch
+        let curEpoch = ctx.mutexPool.globalEpoch
+        ctx.mutexPool.threadEpochs[ctx.threadId and 15] = curEpoch
         for k in 0 ..< bLen:
-          ctx.mutexPool.retired.add(localBatch[k])
-        if ctx.mutexPool.retired.len >= 64:
-          while ctx.mutexPool.retired.len > 0:
-            let p = ctx.mutexPool.retired.pop()
-            deallocShared(p)
+          ctx.mutexPool.retired.add(RetiredMutexEntry(
+            ptrNode: localBatch[k],
+            retireEpoch: curEpoch
+          ))
+        reclaimSafeMutexEntries(ctx.mutexPool[])
         release(ctx.mutexPool.lock)
         bLen = 0
-    if bLen > 0:
-      acquire(ctx.mutexPool.lock)
-      for k in 0 ..< bLen:
-        ctx.mutexPool.retired.add(localBatch[k])
-      while ctx.mutexPool.retired.len > 0:
-        let p = ctx.mutexPool.retired.pop()
-        deallocShared(p)
-      release(ctx.mutexPool.lock)
+
+    acquire(ctx.mutexPool.lock)
+    inc ctx.mutexPool.globalEpoch
+    let finalEpoch = ctx.mutexPool.globalEpoch
+    for k in 0 ..< bLen:
+      ctx.mutexPool.retired.add(RetiredMutexEntry(
+        ptrNode: localBatch[k],
+        retireEpoch: finalEpoch
+      ))
+    ctx.mutexPool.activeMask = ctx.mutexPool.activeMask and (not tBit)
+    reclaimSafeMutexEntries(ctx.mutexPool[])
+    release(ctx.mutexPool.lock)
   else:
     when defined(adapter_rust_ffi_available) or defined(adapter_crossbeam_epoch_available):
       if ctx.kind == rkCrossbeamEpoch:
@@ -302,7 +339,11 @@ proc runRetireReclaimBenchmark(kind: RetireKind, numThreads: int, opsPerThread: 
   var manager = initDebraManager[16]()
   setGlobalManager(addr manager)
 
-  var mutexPool = DeferredMutexPool(retired: newSeqOfCap[pointer](256))
+  var mutexPool = DeferredMutexPool(
+    globalEpoch: 1'u64,
+    activeMask: 0'u32,
+    retired: newSeqOfCap[RetiredMutexEntry](256)
+  )
   initLock(mutexPool.lock)
 
   var activeWorkers = Atomic[int]()
@@ -329,15 +370,19 @@ proc runRetireReclaimBenchmark(kind: RetireKind, numThreads: int, opsPerThread: 
   let elapsedNs = float(inNanoseconds(getMonoTime() - t0))
 
   while mutexPool.retired.len > 0:
-    deallocShared(mutexPool.retired.pop())
+    deallocShared(mutexPool.retired.pop().ptrNode)
   deinitLock(mutexPool.lock)
 
   let totalOps = numThreads * opsPerThread
   if elapsedNs <= 0.0: return 0.0
   result = float(totalOps) * 1_000_000.0 / elapsedNs
 
+proc matchesFilter(libSlug: string, filters: seq[string]): bool {.inline.} =
+  filters.len == 0 or libSlug in filters
+
 proc main() =
   var outputPath = ""
+  var filters: seq[string] = @[]
   var p = initOptParser(commandLineParams())
   while true:
     p.next()
@@ -346,13 +391,8 @@ proc main() =
     of cmdLongOption, cmdShortOption:
       if p.key in ["o", "output", "bmf-out"]:
         outputPath = p.val
-    of cmdArgument: discard
-
-  echo "NEBR Safe Memory Reclamation Benchmark (Pin/Unpin & Retire/Reclaim)"
-  echo "==================================================================="
-
-  var emitter = initBMFEmitter()
-  let threadCounts = [1, 2, 4, 8]
+    of cmdArgument:
+      filters.add(p.key)
 
   var pinTargets = @[
     (pgNebr, "nebr"),
@@ -362,8 +402,33 @@ proc main() =
   when defined(adapter_rust_ffi_available) or defined(adapter_crossbeam_epoch_available):
     pinTargets.add((pgCrossbeamEpoch, "crossbeam_epoch"))
 
+  var retireTargets = @[
+    (rkNebr, "nebr"),
+    (rkDeferredMutex, "deferred_mutex_free")
+  ]
+  when defined(adapter_rust_ffi_available) or defined(adapter_crossbeam_epoch_available):
+    retireTargets.add((rkCrossbeamEpoch, "crossbeam_epoch"))
+
+  if filters.len > 0:
+    var supported: seq[string] = @[]
+    for (_, slug) in pinTargets:
+      if slug notin supported: supported.add(slug)
+    for (_, slug) in retireTargets:
+      if slug notin supported: supported.add(slug)
+    for f in filters:
+      if f notin supported:
+        echo &"Unknown target: {f} (supported: {supported})"
+        quit 1
+
+  echo "NEBR Safe Memory Reclamation Benchmark (Pin/Unpin & Retire/Reclaim)"
+  echo "==================================================================="
+
+  var emitter = initBMFEmitter()
+  let threadCounts = [1, 2, 4, 8]
+
   echo "\n--- 1. Critical-Section Pin/Unpin Throughput (smr_pin_unpin) ---"
   for (kind, libSlug) in pinTargets:
+    if not matchesFilter(libSlug, filters): continue
     for nw in threadCounts:
       for _ in 0 ..< BenchSmrWarmup:
         discard runPinUnpinBenchmark(kind, nw, BenchPinOpsPerThread)
@@ -383,15 +448,9 @@ proc main() =
         emitter.addMeasure(slug, "latency_max_ns", lat.max_ns)
       echo &"{slug}: mean = {m:10.1f} ops/ms, stddev = {s:8.1f}"
 
-  var retireTargets = @[
-    (rkNebr, "nebr"),
-    (rkDeferredMutex, "deferred_mutex_free")
-  ]
-  when defined(adapter_rust_ffi_available) or defined(adapter_crossbeam_epoch_available):
-    retireTargets.add((rkCrossbeamEpoch, "crossbeam_epoch"))
-
   echo "\n--- 2. Retire/Reclaim & Neutralization Throughput (smr_retire_reclaim) ---"
   for (kind, libSlug) in retireTargets:
+    if not matchesFilter(libSlug, filters): continue
     for nw in threadCounts:
       for _ in 0 ..< BenchSmrWarmup:
         discard runRetireReclaimBenchmark(kind, nw, BenchRetireOpsPerThread)

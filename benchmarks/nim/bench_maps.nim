@@ -765,8 +765,12 @@ proc runSnapshotIterBenchmark(
   let opsMs = if elapsedNs > 0.0: totalVisited * 1_000_000.0 / elapsedNs else: 0.0
   result = (opsMs, p99)
 
+proc matchesFilter(libSlug: string, filters: seq[string]): bool {.inline.} =
+  filters.len == 0 or libSlug in filters
+
 proc main() =
   var outputPath = ""
+  var filters: seq[string] = @[]
   var p = initOptParser(commandLineParams())
   while true:
     p.next()
@@ -775,18 +779,8 @@ proc main() =
     of cmdLongOption, cmdShortOption:
       if p.key in ["o", "output", "bmf-out"]:
         outputPath = p.val
-    of cmdArgument: discard
-
-  echo "Associative Maps & Sets Benchmark (Nim vs Rust vs C++)"
-  echo "======================================================"
-
-  var emitter = initBMFEmitter()
-  let threadConfigs = [1, 2, 4, 8]
-  let workloads = [
-    (wkReadHeavy, "read_heavy"),
-    (wkBalanced, "balanced"),
-    (wkWriteHeavy, "write_heavy")
-  ]
+    of cmdArgument:
+      filters.add(p.key)
 
   var mapTargets = @[
     (mkCtrie, "ctrie"),
@@ -800,10 +794,40 @@ proc main() =
   when defined(adapter_boost_lockfree_available) and defined(cpp):
     mapTargets.add((mkBoostFlatMap, "boost_concurrent_flat_map"))
 
+  var setTargets = @[
+    (skSkipListSet, "skiplist_set"),
+    (skLockedSet, "locked_set")
+  ]
+  when defined(adapter_rust_ffi_available):
+    setTargets.add((skCrossbeamSkipSet, "crossbeam_skipset"))
+  when defined(adapter_boost_lockfree_available) and defined(cpp):
+    setTargets.add((skBoostFlatSet, "boost_concurrent_flat_set"))
+
+  if filters.len > 0:
+    var supported: seq[string] = @[]
+    for (_, slug) in mapTargets: supported.add(slug)
+    for (_, slug) in setTargets: supported.add(slug)
+    for f in filters:
+      if f notin supported:
+        echo &"Unknown target: {f} (supported: {supported})"
+        quit 1
+
+  echo "Associative Maps & Sets Benchmark (Nim vs Rust vs C++)"
+  echo "======================================================"
+
+  var emitter = initBMFEmitter()
+  let threadConfigs = [1, 2, 4, 8]
+  let workloads = [
+    (wkReadHeavy, "read_heavy"),
+    (wkBalanced, "balanced"),
+    (wkWriteHeavy, "write_heavy")
+  ]
+
   for (wKind, wSlug) in workloads:
     echo &"\n--- Workload: {wSlug} ---"
     for threads in threadConfigs:
       for (mKind, libName) in mapTargets:
+        if not matchesFilter(libName, filters): continue
         runBenchSeries(
           emitter,
           mKind,
@@ -818,17 +842,9 @@ proc main() =
 
   # Set Mixed (80% contains / 10% insert / 10% remove)
   echo "\n--- Workload: set_mixed (80% Read / 20% Mutate) ---"
-  var setTargets = @[
-    (skSkipListSet, "skiplist_set"),
-    (skLockedSet, "locked_set")
-  ]
-  when defined(adapter_rust_ffi_available):
-    setTargets.add((skCrossbeamSkipSet, "crossbeam_skipset"))
-  when defined(adapter_boost_lockfree_available) and defined(cpp):
-    setTargets.add((skBoostFlatSet, "boost_concurrent_flat_set"))
-
   for threads in threadConfigs:
     for (sKind, libName) in setTargets:
+      if not matchesFilter(libName, filters): continue
       for _ in 0 ..< BenchMapWarmup:
         discard runSetMixedBenchmark(sKind, threads, BenchMapOpsPerThread)
       var samples = newSeq[float](BenchMapRuns)
@@ -845,6 +861,7 @@ proc main() =
   let algebraIters = max(5, BenchMapOpsPerThread div 2000)
   for threads in threadConfigs:
     for (sKind, libName) in [(skSkipListSet, "skiplist_set"), (skLockedSet, "locked_set")]:
+      if not matchesFilter(libName, filters): continue
       for _ in 0 ..< BenchMapWarmup:
         discard runSetAlgebraBenchmark(sKind, threads, algebraIters)
       var samples = newSeq[float](BenchMapRuns)
@@ -868,6 +885,7 @@ proc main() =
 
   for threads in threadConfigs:
     for (mKind, libName) in snapTargets:
+      if not matchesFilter(libName, filters): continue
       for _ in 0 ..< BenchMapWarmup:
         discard runSnapshotIterBenchmark(mKind, threads, snapIters)
       var tSamples = newSeq[float](BenchMapRuns)
@@ -879,8 +897,10 @@ proc main() =
       let tm = mean(tSamples)
       let ts = stddev(tSamples)
       let lm = mean(lSamples)
+      let ls = stddev(lSamples)
       let slug = &"{libName}/snapshot_iter/{threads}t"
       emitter.addMeasure(slug, "throughput_ops_ms", tm, tm - ts, tm + ts)
+      emitter.addMeasure(slug, "latency_p99_ns", lm, max(0.0, lm - ls), lm + ls)
       echo &"{slug}: mean = {tm:10.1f} ops/ms, p99 = {lm:10.1f} ns"
 
   if outputPath.len > 0:

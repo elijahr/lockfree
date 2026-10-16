@@ -386,8 +386,12 @@ proc runOneRpc(kind: RendezvousKind, count: int): (float, LatencyMetrics) =
   )
   result = (opsMs, lat)
 
+proc matchesFilter(libSlug: string, filters: seq[string]): bool {.inline.} =
+  filters.len == 0 or libSlug in filters
+
 proc main() =
   var outputPath = ""
+  var filters: seq[string] = @[]
   var p = initOptParser(commandLineParams())
   while true:
     p.next()
@@ -396,13 +400,8 @@ proc main() =
     of cmdLongOption, cmdShortOption:
       if p.key in ["o", "output", "bmf-out"]:
         outputPath = p.val
-    of cmdArgument: discard
-
-  echo "RendezvousChannel Synchronous 0-Buffer Handoff & RPC Benchmark"
-  echo "=============================================================="
-
-  var emitter = initBMFEmitter()
-  let shapes = [(1, 1, "1p1c"), (2, 2, "2p2c"), (4, 4, "4p4c"), (8, 8, "8p8c")]
+    of cmdArgument:
+      filters.add(p.key)
 
   var targets = @[
     (rkLockfree, "rendezvous_channel"),
@@ -413,8 +412,23 @@ proc main() =
     targets.add((rkFlume, "flume_rendezvous"))
     targets.add((rkKanal, "kanal_rendezvous"))
 
+  if filters.len > 0:
+    var supported: seq[string] = @[]
+    for (_, slug) in targets: supported.add(slug)
+    for f in filters:
+      if f notin supported:
+        echo &"Unknown target: {f} (supported: {supported})"
+        quit 1
+
+  echo "RendezvousChannel Synchronous 0-Buffer Handoff & RPC Benchmark"
+  echo "=============================================================="
+
+  var emitter = initBMFEmitter()
+  let shapes = [(1, 1, "1p1c"), (2, 2, "2p2c"), (4, 4, "4p4c"), (8, 8, "8p8c")]
+
   echo "\n--- 1. Synchronous 0-Buffer Handoff Throughput (rendezvous_handoff) ---"
   for (kind, libSlug) in targets:
+    if not matchesFilter(libSlug, filters): continue
     for (np, nc, shape) in shapes:
       for _ in 0 ..< BenchRendezvousWarmup:
         discard runOneHandoff(kind, np, nc, BenchRendezvousMsgCount)
@@ -429,6 +443,7 @@ proc main() =
 
   echo "\n--- 2. Synchronous Ping-Pong RPC Round-Trip (rendezvous_rpc/1p1c) ---"
   for (kind, libSlug) in targets:
+    if not matchesFilter(libSlug, filters): continue
     for _ in 0 ..< BenchRendezvousWarmup:
       discard runOneRpc(kind, BenchRendezvousRpcCount)
     var opsSamples = newSeq[float](BenchRendezvousRuns)

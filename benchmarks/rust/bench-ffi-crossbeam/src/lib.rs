@@ -905,10 +905,12 @@ pub unsafe extern "C" fn cb_deque_steal(d: *mut c_void, out: *mut u64) -> bool {
 
 /// # Safety
 /// `d` must be a live CbDequeCtx pointer; `thief_idx` must be `< num_thieves` and unique per thief thread.
+/// `out_buf` may be null or must point to a writable buffer of at least `max_batch` `u64` elements.
 #[no_mangle]
 pub unsafe extern "C" fn cb_deque_steal_batch(
     d: *mut c_void,
     thief_idx: usize,
+    out_buf: *mut u64,
     max_batch: usize,
 ) -> usize {
     if d.is_null() || max_batch == 0 {
@@ -923,7 +925,12 @@ pub unsafe extern "C" fn cb_deque_steal_batch(
         match ctx.stealer.steal_batch_with_limit(local_w, max_batch) {
             Steal::Success(()) => {
                 let mut count = 0usize;
-                while local_w.pop().is_some() {
+                while let Some(val) = local_w.pop() {
+                    if !out_buf.is_null() && count < max_batch {
+                        unsafe {
+                            std::ptr::write(out_buf.add(count), val);
+                        }
+                    }
                     count += 1;
                 }
                 return count;
@@ -1254,12 +1261,11 @@ pub unsafe extern "C" fn rtrb_destroy(r: *mut c_void) {
 // ============================================================
 
 #[inline(always)]
-fn mix64(mut x: u64) -> u64 {
-    x ^= x >> 30;
-    x = x.wrapping_mul(0xbf58476d1ce4e5b9);
-    x ^= x >> 27;
-    x = x.wrapping_mul(0x94d049bb133111eb);
-    x ^ (x >> 31)
+fn mix64(x: u64) -> u64 {
+    let mut z = x.wrapping_add(0x9e3779b97f4a7c15);
+    z = (z ^ (z >> 30)).wrapping_mul(0xbf58476d1ce4e5b9);
+    z = (z ^ (z >> 27)).wrapping_mul(0x94d049bb133111eb);
+    z ^ (z >> 31)
 }
 
 #[no_mangle]
@@ -1283,13 +1289,23 @@ pub unsafe extern "C" fn rayon_pool_parfor(
         return false;
     }
     let pool = unsafe { &*(p as *const rayon::ThreadPool) };
-    let sum = pool.install(|| {
+    let sink = AtomicU64::new(0);
+    pool.install(|| {
         (0..count)
             .into_par_iter()
             .with_min_len(256)
-            .map(|i| mix64(i as u64))
-            .reduce(|| 0u64, |a, b| a.wrapping_add(b))
+            .for_each_init(
+                || 0u64,
+                |local_acc, i| {
+                    *local_acc = local_acc.wrapping_add(mix64(i as u64));
+                    if (i & 63) == 63 || i + 1 == count {
+                        sink.fetch_add(*local_acc, Ordering::Relaxed);
+                        *local_acc = 0;
+                    }
+                },
+            );
     });
+    let sum = sink.load(Ordering::Relaxed);
     if !out_sum.is_null() {
         unsafe {
             std::ptr::write(out_sum, sum);
@@ -1298,19 +1314,19 @@ pub unsafe extern "C" fn rayon_pool_parfor(
     true
 }
 
-fn rayon_forkjoin_rec(depth: usize, seed: u64) -> u64 {
+fn rayon_forkjoin_rec(depth: usize, seed: u64, sink: &AtomicU64) {
     if depth == 0 {
         let mut acc = seed;
         for k in 0..16u64 {
             acc = mix64(acc.wrapping_add(k));
         }
-        return acc;
+        sink.fetch_add(acc, Ordering::Relaxed);
+        return;
     }
-    let (a, b) = rayon::join(
-        || rayon_forkjoin_rec(depth - 1, seed.wrapping_mul(2).wrapping_add(1)),
-        || rayon_forkjoin_rec(depth - 1, seed.wrapping_mul(2).wrapping_add(2)),
+    rayon::join(
+        || rayon_forkjoin_rec(depth - 1, seed.wrapping_mul(2).wrapping_add(1), sink),
+        || rayon_forkjoin_rec(depth - 1, seed.wrapping_mul(2).wrapping_add(2), sink),
     );
-    a.wrapping_add(b)
 }
 
 /// # Safety
@@ -1325,7 +1341,9 @@ pub unsafe extern "C" fn rayon_pool_forkjoin(
         return false;
     }
     let pool = unsafe { &*(p as *const rayon::ThreadPool) };
-    let sum = pool.install(|| rayon_forkjoin_rec(depth.min(20), 1));
+    let sink = AtomicU64::new(0);
+    pool.install(|| rayon_forkjoin_rec(depth.min(20), 1, &sink));
+    let sum = sink.load(Ordering::Relaxed);
     if !out_sum.is_null() {
         unsafe {
             std::ptr::write(out_sum, sum);
@@ -1348,6 +1366,12 @@ pub unsafe extern "C" fn rayon_pool_destroy(p: *mut c_void) {
 
 static CBE_SHARED_SLOT: AtomicU64 = AtomicU64::new(42);
 
+#[repr(C)]
+struct CbeDummyNode {
+    val: u64,
+    pad: [u8; 56],
+}
+
 #[no_mangle]
 pub extern "C" fn cbe_pin_unpin_batch(iters: usize) -> u64 {
     let mut sum = 0u64;
@@ -1366,14 +1390,17 @@ pub extern "C" fn cbe_retire_reclaim_batch(iters: usize) -> u64 {
     let mut sum = 0u64;
     for i in 0..iters {
         let guard = crossbeam_epoch::pin();
-        let owned = crossbeam_epoch::Owned::new(i as u64);
+        let owned = crossbeam_epoch::Owned::new(CbeDummyNode {
+            val: i as u64,
+            pad: [0u8; 56],
+        });
         let shared = owned.into_shared(&guard);
         let d = unsafe { shared.deref() };
-        sum = sum.wrapping_add(*d);
+        sum = sum.wrapping_add(d.val);
         unsafe {
             guard.defer_destroy(shared);
         }
-        if (i & 63) == 63 {
+        if (i & 31) == 31 {
             guard.flush();
         }
     }
