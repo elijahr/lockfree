@@ -36,6 +36,8 @@ import lockfree/atomic_arc
 import lockfree/internal/aligned_alloc
 import lockfree/priority_queue
 export priority_queue
+import lockfree/flat_combiner
+export flat_combiner
 import std/options
 
 # ------------------------------------------------------------------------------
@@ -3073,6 +3075,132 @@ proc lfq_pqueue_is_empty*(
       pqueue.raw[].isEmpty()
   except:
     true
+
+# ------------------------------------------------------------------------------
+# 15. FlatCombiner (Hendler-Incze-Shavit-Tzafrir Synchronization Adapter)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_flat_combiner_op_fn* = proc(state: pointer, op_arg: pointer, user_data: pointer): pointer {.cdecl, gcsafe.}
+  lfq_flat_combiner_state_destructor_fn* = proc(state: pointer, user_data: pointer) {.cdecl, gcsafe.}
+
+  lfq_flat_combiner* {.exportc: "lfq_flat_combiner_t".} = object
+    defaultOpFn*: lfq_flat_combiner_op_fn
+    stateDestructor*: lfq_flat_combiner_state_destructor_fn
+    userData*: pointer
+    raw*: FlatCombiner[pointer, pointer, pointer]
+
+  lfq_flat_combiner_t* = lfq_flat_combiner
+
+  CAbiFlatCombineCtx = object
+    opFn: lfq_flat_combiner_op_fn
+    opArg: pointer
+    userData: pointer
+    result: pointer
+
+proc cAbiFlatCombineExec(state: var pointer, rawCtx: pointer) {.nimcall, gcsafe.} =
+  let ctx = cast[ptr CAbiFlatCombineCtx](rawCtx)
+  if ctx.opFn != nil:
+    ctx.result = ctx.opFn(state, ctx.opArg, ctx.userData)
+
+proc lfq_flat_combiner_create*(
+    state: pointer,
+    default_op_fn: lfq_flat_combiner_op_fn,
+    state_destructor: lfq_flat_combiner_state_destructor_fn,
+    user_data: pointer,
+    max_combining_rounds: csize_t,
+    cleanup_interval: csize_t,
+    out_combiner: ptr ptr lfq_flat_combiner_t
+): lfq_status_t {.exportc: "lfq_flat_combiner_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(out_combiner == nil):
+    return LFQ_ERR_INVALID_ARG
+  let rounds = if max_combining_rounds == 0: DefaultCombiningRounds else: int(max_combining_rounds)
+  let cleanup = if cleanup_interval == 0: DefaultCleanupInterval else: int(cleanup_interval)
+  cAbiBoundary:
+    let fc = cast[ptr lfq_flat_combiner_t](allocShared0(sizeof(lfq_flat_combiner_t)))
+    fc.defaultOpFn = default_op_fn
+    fc.stateDestructor = state_destructor
+    fc.userData = user_data
+    fc.raw = initFlatCombiner[pointer](state, maxCombiningRounds = rounds, cleanupInterval = cleanup)
+    out_combiner[] = fc
+    LFQ_OK
+
+proc lfq_flat_combiner_destroy*(
+    combiner: ptr lfq_flat_combiner_t
+): lfq_status_t {.exportc: "lfq_flat_combiner_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(combiner == nil or not combiner.raw.isInitialized()):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    if combiner.stateDestructor != nil and combiner.raw.core != nil:
+      try:
+        combiner.stateDestructor(combiner.raw.core.state, combiner.userData)
+      except:
+        discard
+    `=destroy`(combiner.raw)
+    zeroMem(addr combiner.raw, sizeof(combiner.raw))
+    deallocShared(combiner)
+    LFQ_OK
+
+proc lfq_flat_combiner_combine*(
+    combiner: ptr lfq_flat_combiner_t,
+    op_arg: pointer,
+    out_result: ptr pointer
+): lfq_status_t {.exportc: "lfq_flat_combiner_combine", cdecl, gcsafe, raises: [].} =
+  if unlikely(combiner == nil or not combiner.raw.isInitialized() or combiner.defaultOpFn == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    var ctx = CAbiFlatCombineCtx(
+      opFn: combiner.defaultOpFn,
+      opArg: op_arg,
+      userData: combiner.userData,
+      result: nil
+    )
+    combiner.raw.combineRaw(cAbiFlatCombineExec, addr ctx)
+    if out_result != nil:
+      out_result[] = ctx.result
+    LFQ_OK
+
+proc lfq_flat_combiner_combine_fn*(
+    combiner: ptr lfq_flat_combiner_t,
+    op_fn: lfq_flat_combiner_op_fn,
+    op_arg: pointer,
+    op_user_data: pointer,
+    out_result: ptr pointer
+): lfq_status_t {.exportc: "lfq_flat_combiner_combine_fn", cdecl, gcsafe, raises: [].} =
+  if unlikely(combiner == nil or not combiner.raw.isInitialized() or op_fn == nil):
+    return LFQ_ERR_INVALID_ARG
+  cAbiBoundary:
+    var ctx = CAbiFlatCombineCtx(
+      opFn: op_fn,
+      opArg: op_arg,
+      userData: op_user_data,
+      result: nil
+    )
+    combiner.raw.combineRaw(cAbiFlatCombineExec, addr ctx)
+    if out_result != nil:
+      out_result[] = ctx.result
+    LFQ_OK
+
+proc lfq_flat_combiner_pass_count*(
+    combiner: ptr lfq_flat_combiner_t
+): uint64 {.exportc: "lfq_flat_combiner_pass_count", cdecl, gcsafe, raises: [].} =
+  if unlikely(combiner == nil or not combiner.raw.isInitialized()):
+    return 0'u64
+  combiner.raw.passCount()
+
+proc lfq_flat_combiner_total_combined_ops*(
+    combiner: ptr lfq_flat_combiner_t
+): uint64 {.exportc: "lfq_flat_combiner_total_combined_ops", cdecl, gcsafe, raises: [].} =
+  if unlikely(combiner == nil or not combiner.raw.isInitialized()):
+    return 0'u64
+  combiner.raw.totalCombinedOps()
+
+proc lfq_flat_combiner_active_records*(
+    combiner: ptr lfq_flat_combiner_t
+): csize_t {.exportc: "lfq_flat_combiner_active_records", cdecl, gcsafe, raises: [].} =
+  if unlikely(combiner == nil or not combiner.raw.isInitialized()):
+    return 0.csize_t
+  csize_t(combiner.raw.activePublicationRecords())
 
 
 

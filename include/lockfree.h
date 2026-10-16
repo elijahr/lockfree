@@ -438,6 +438,12 @@ bool lfq_topic_bus_has_topic(const lfq_topic_bus_t* bus, const char* topic);
 
 #include "lockfree_pqueue.h"
 
+/* -------------------------------------------------------------------------
+ * 15. Flat Combiner (Hendler-Incze-Shavit-Tzafrir Synchronization Adapter)
+ * ------------------------------------------------------------------------- */
+
+#include "lockfree_flat_combiner.h"
+
 #ifdef __cplusplus
 }
 #endif

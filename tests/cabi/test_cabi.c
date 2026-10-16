@@ -1541,6 +1541,80 @@ static void test_cabi_atomic_arc(void) {
 }
 
 /* -------------------------------------------------------------------------
+ * Test 15: FlatCombiner (lfq_flat_combiner_*) Lifecycle & Combining
+ * ------------------------------------------------------------------------- */
+typedef struct {
+    int64_t acc;
+    int destroyed;
+} fc_cabi_state_t;
+
+static void* fc_cabi_default_op(void* state, void* op_arg, void* user_data) {
+    fc_cabi_state_t* st = (fc_cabi_state_t*)state;
+    intptr_t delta = (intptr_t)op_arg;
+    intptr_t bonus = user_data != NULL ? (intptr_t)user_data : 0;
+    st->acc += (int64_t)(delta + bonus);
+    return (void*)(intptr_t)st->acc;
+}
+
+static void* fc_cabi_mul_op(void* state, void* op_arg, void* user_data) {
+    (void)user_data;
+    fc_cabi_state_t* st = (fc_cabi_state_t*)state;
+    intptr_t factor = (intptr_t)op_arg;
+    st->acc *= (int64_t)factor;
+    return (void*)(intptr_t)st->acc;
+}
+
+static void fc_cabi_destructor(void* state, void* user_data) {
+    if (state != NULL) {
+        fc_cabi_state_t* st = (fc_cabi_state_t*)state;
+        st->destroyed += 1;
+    }
+    if (user_data != NULL) {
+        int* flag = (int*)user_data;
+        *flag += 1;
+    }
+}
+
+static void test_cabi_flat_combiner(void) {
+    printf("Running test_cabi_flat_combiner...\n");
+
+    fc_cabi_state_t state = {0, 0};
+    int destroy_flag = 0;
+    lfq_flat_combiner_t* combiner = NULL;
+
+    TEST_ASSERT(lfq_flat_combiner_create(NULL, fc_cabi_default_op, NULL, NULL, 0, 0, NULL) == LFQ_ERR_INVALID_ARG,
+                "lfq_flat_combiner_create NULL out_combiner should fail");
+
+    lfq_status_t st = lfq_flat_combiner_create(
+        &state,
+        fc_cabi_default_op,
+        fc_cabi_destructor,
+        &destroy_flag,
+        8,
+        64,
+        &combiner
+    );
+    TEST_ASSERT(st == LFQ_OK && combiner != NULL, "lfq_flat_combiner_create failed");
+
+    void* res = NULL;
+    st = lfq_flat_combiner_combine(combiner, (void*)(intptr_t)15, &res);
+    TEST_ASSERT(st == LFQ_OK, "lfq_flat_combiner_combine failed");
+
+    state.acc = 10;
+    st = lfq_flat_combiner_combine_fn(combiner, fc_cabi_mul_op, (void*)(intptr_t)4, NULL, &res);
+    TEST_ASSERT(st == LFQ_OK && (intptr_t)res == 40 && state.acc == 40, "lfq_flat_combiner_combine_fn failed");
+    TEST_ASSERT(lfq_flat_combiner_total_combined_ops(combiner) == 2, "total_combined_ops should be 2");
+    TEST_ASSERT(lfq_flat_combiner_pass_count(combiner) >= 1, "pass_count should be >= 1");
+
+    destroy_flag = 0;
+    st = lfq_flat_combiner_destroy(combiner);
+    TEST_ASSERT(st == LFQ_OK, "lfq_flat_combiner_destroy failed");
+    TEST_ASSERT(state.destroyed == 1 && destroy_flag == 1, "FlatCombiner state destructor not invoked");
+
+    printf("test_cabi_flat_combiner PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
  * Main Entry Point
  * ------------------------------------------------------------------------- */
 int main(void) {
@@ -1561,6 +1635,7 @@ int main(void) {
     test_cabi_streambuffer();
     test_cabi_associative();
     test_cabi_atomic_arc();
+    test_cabi_flat_combiner();
     test_cabi_concurrency();
 
     /* TaskPool C ABI */
