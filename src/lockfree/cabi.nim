@@ -32,6 +32,8 @@ import lockfree/ratelimit
 export ratelimit
 import lockfree/streambuffer
 export streambuffer
+import lockfree/atomic_arc
+import lockfree/internal/aligned_alloc
 import std/options
 
 # ------------------------------------------------------------------------------
@@ -2662,6 +2664,279 @@ proc lfq_table_atomic_update*(
     out_val_len: ptr csize_t
 ): bool {.exportc: "lfq_table_atomic_update", cdecl, gcsafe, raises: [].} =
   lfq_skiplist_atomic_update(map, key, key_len, update_fn, user_data, out_val, out_val_len)
+
+# ------------------------------------------------------------------------------
+# 13. Lock-Free 128-Bit DWCAS Atomic Shared Pointer (AtomicArc & ArcGuard)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_arc_destructor_fn* = proc(item: pointer, userData: pointer) {.cdecl, gcsafe, raises: [].}
+
+  lfq_arc_guard_handle* {.exportc: "lfq_arc_guard_t".} = object
+    raw*: ArcGuard[pointer]
+
+  lfq_arc_guard_t* = lfq_arc_guard_handle
+
+  lfq_atomic_arc_handle* {.exportc: "lfq_atomic_arc_t".} = object
+    raw*: AtomicArc[pointer]
+
+  lfq_atomic_arc_t* = lfq_atomic_arc_handle
+
+proc wrapArcGuard(g: sink ArcGuard[pointer]): ptr lfq_arc_guard_t {.inline.} =
+  if g.isNil:
+    return nil
+  result = cast[ptr lfq_arc_guard_t](allocShared0(sizeof(lfq_arc_guard_t)))
+  if result != nil:
+    result.raw = g
+
+proc lfq_arc_guard_create*(
+    item: pointer,
+    destructor: lfq_arc_destructor_fn,
+    userData: pointer,
+    outGuard: ptr ptr lfq_arc_guard_t
+): lfq_status_t {.exportc: "lfq_arc_guard_create", cdecl, gcsafe, raises: [].} =
+  cAbiBoundary:
+    if unlikely(outGuard == nil):
+      return LFQ_ERR_INVALID_ARG
+    if item == nil and destructor == nil:
+      outGuard[] = nil
+      return LFQ_OK
+    var g = initArcGuard[pointer](item, cast[ArcItemDestroyCallback](destructor), userData)
+    let h = wrapArcGuard(move(g))
+    if unlikely(h == nil):
+      return LFQ_ERR_FAILURE
+    outGuard[] = h
+    return LFQ_OK
+
+proc lfq_arc_guard_get*(
+    guard: ptr lfq_arc_guard_t
+): pointer {.exportc: "lfq_arc_guard_get", cdecl, gcsafe, raises: [].} =
+  if guard == nil or guard.raw.isNil:
+    return nil
+  try:
+    guard.raw.get()
+  except:
+    nil
+
+proc lfq_arc_guard_clone*(
+    guard: ptr lfq_arc_guard_t,
+    outClone: ptr ptr lfq_arc_guard_t
+): lfq_status_t {.exportc: "lfq_arc_guard_clone", cdecl, gcsafe, raises: [].} =
+  cAbiBoundary:
+    if unlikely(outClone == nil):
+      return LFQ_ERR_INVALID_ARG
+    if guard == nil or guard.raw.isNil:
+      outClone[] = nil
+      return LFQ_OK
+    var cloned = guard.raw.clone()
+    let h = wrapArcGuard(move(cloned))
+    if unlikely(h == nil):
+      return LFQ_ERR_FAILURE
+    outClone[] = h
+    return LFQ_OK
+
+proc lfq_arc_guard_release*(
+    guard: ptr lfq_arc_guard_t
+): lfq_status_t {.exportc: "lfq_arc_guard_release", cdecl, gcsafe, raises: [].} =
+  cAbiBoundary:
+    if guard != nil:
+      `=destroy`(guard.raw)
+      deallocShared(guard)
+    return LFQ_OK
+
+proc lfq_atomic_arc_create*(
+    initialItem: pointer,
+    destructor: lfq_arc_destructor_fn,
+    userData: pointer,
+    outArc: ptr ptr lfq_atomic_arc_t
+): lfq_status_t {.exportc: "lfq_atomic_arc_create", cdecl, gcsafe, raises: [].} =
+  cAbiBoundary:
+    if unlikely(outArc == nil):
+      return LFQ_ERR_INVALID_ARG
+    let h = allocAligned[lfq_atomic_arc_t]()
+    if unlikely(h == nil):
+      return LFQ_ERR_FAILURE
+    if initialItem == nil and destructor == nil:
+      h.raw = initAtomicArc[pointer]()
+    else:
+      h.raw = initAtomicArc[pointer](
+        initialItem, cast[ArcItemDestroyCallback](destructor), userData
+      )
+    outArc[] = h
+    return LFQ_OK
+
+proc lfq_atomic_arc_destroy*(
+    arc: ptr lfq_atomic_arc_t
+): lfq_status_t {.exportc: "lfq_atomic_arc_destroy", cdecl, gcsafe, raises: [].} =
+  cAbiBoundary:
+    if unlikely(arc == nil):
+      return LFQ_ERR_INVALID_ARG
+    `=destroy`(arc.raw)
+    freeAligned(arc)
+    return LFQ_OK
+
+proc lfq_atomic_arc_is_null*(
+    arc: ptr lfq_atomic_arc_t
+): bool {.exportc: "lfq_atomic_arc_is_null", cdecl, gcsafe, raises: [].} =
+  if arc == nil:
+    return true
+  try:
+    arc.raw.isNil()
+  except:
+    true
+
+proc lfq_atomic_arc_load*(
+    arc: ptr lfq_atomic_arc_t,
+    outGuard: ptr ptr lfq_arc_guard_t
+): lfq_status_t {.exportc: "lfq_atomic_arc_load", cdecl, gcsafe, raises: [].} =
+  cAbiBoundary:
+    if unlikely(arc == nil or outGuard == nil):
+      return LFQ_ERR_INVALID_ARG
+    var g = arc.raw.load()
+    if g.isNil:
+      outGuard[] = nil
+      return LFQ_OK
+    let h = wrapArcGuard(move(g))
+    if unlikely(h == nil):
+      return LFQ_ERR_FAILURE
+    outGuard[] = h
+    return LFQ_OK
+
+proc lfq_atomic_arc_store*(
+    arc: ptr lfq_atomic_arc_t,
+    newItem: pointer,
+    destructor: lfq_arc_destructor_fn,
+    userData: pointer
+): lfq_status_t {.exportc: "lfq_atomic_arc_store", cdecl, gcsafe, raises: [].} =
+  cAbiBoundary:
+    if unlikely(arc == nil):
+      return LFQ_ERR_INVALID_ARG
+    if newItem == nil and destructor == nil:
+      arc.raw.storeNil()
+    else:
+      arc.raw.store(newItem, cast[ArcItemDestroyCallback](destructor), userData)
+    return LFQ_OK
+
+proc lfq_atomic_arc_store_guard*(
+    arc: ptr lfq_atomic_arc_t,
+    guard: ptr lfq_arc_guard_t
+): lfq_status_t {.exportc: "lfq_atomic_arc_store_guard", cdecl, gcsafe, raises: [].} =
+  cAbiBoundary:
+    if unlikely(arc == nil):
+      return LFQ_ERR_INVALID_ARG
+    if guard == nil or guard.raw.isNil:
+      arc.raw.storeNil()
+    else:
+      arc.raw.store(guard.raw)
+    return LFQ_OK
+
+proc lfq_atomic_arc_swap*(
+    arc: ptr lfq_atomic_arc_t,
+    newItem: pointer,
+    destructor: lfq_arc_destructor_fn,
+    userData: pointer,
+    outOldGuard: ptr ptr lfq_arc_guard_t
+): lfq_status_t {.exportc: "lfq_atomic_arc_swap", cdecl, gcsafe, raises: [].} =
+  cAbiBoundary:
+    if unlikely(arc == nil or outOldGuard == nil):
+      return LFQ_ERR_INVALID_ARG
+    var oldG: ArcGuard[pointer]
+    if newItem == nil and destructor == nil:
+      let empty = ArcGuard[pointer](cb: nil)
+      oldG = arc.raw.swap(empty)
+    else:
+      oldG = arc.raw.swap(newItem, cast[ArcItemDestroyCallback](destructor), userData)
+    if oldG.isNil:
+      outOldGuard[] = nil
+      return LFQ_OK
+    let h = wrapArcGuard(move(oldG))
+    if unlikely(h == nil):
+      return LFQ_ERR_FAILURE
+    outOldGuard[] = h
+    return LFQ_OK
+
+proc lfq_atomic_arc_swap_guard*(
+    arc: ptr lfq_atomic_arc_t,
+    guard: ptr lfq_arc_guard_t,
+    outOldGuard: ptr ptr lfq_arc_guard_t
+): lfq_status_t {.exportc: "lfq_atomic_arc_swap_guard", cdecl, gcsafe, raises: [].} =
+  cAbiBoundary:
+    if unlikely(arc == nil or outOldGuard == nil):
+      return LFQ_ERR_INVALID_ARG
+    var oldG: ArcGuard[pointer]
+    if guard == nil or guard.raw.isNil:
+      let empty = ArcGuard[pointer](cb: nil)
+      oldG = arc.raw.swap(empty)
+    else:
+      oldG = arc.raw.swap(guard.raw)
+    if oldG.isNil:
+      outOldGuard[] = nil
+      return LFQ_OK
+    let h = wrapArcGuard(move(oldG))
+    if unlikely(h == nil):
+      return LFQ_ERR_FAILURE
+    outOldGuard[] = h
+    return LFQ_OK
+
+proc lfq_atomic_arc_compare_exchange_guard*(
+    arc: ptr lfq_atomic_arc_t,
+    inoutExpected: ptr ptr lfq_arc_guard_t,
+    desired: ptr lfq_arc_guard_t,
+    outSwapped: ptr bool
+): lfq_status_t {.exportc: "lfq_atomic_arc_compare_exchange_guard", cdecl, gcsafe, raises: [].} =
+  cAbiBoundary:
+    if unlikely(arc == nil or inoutExpected == nil or outSwapped == nil):
+      return LFQ_ERR_INVALID_ARG
+    var expGuard =
+      if inoutExpected[] != nil and not inoutExpected[].raw.isNil:
+        inoutExpected[].raw.clone()
+      else:
+        ArcGuard[pointer](cb: nil)
+    let desGuard =
+      if desired != nil and not desired.raw.isNil:
+        desired.raw
+      else:
+        ArcGuard[pointer](cb: nil)
+    let swapped = arc.raw.compareExchange(expGuard, desGuard)
+    outSwapped[] = swapped
+    if not swapped:
+      if expGuard.isNil:
+        if inoutExpected[] != nil:
+          `=destroy`(inoutExpected[].raw)
+          deallocShared(inoutExpected[])
+          inoutExpected[] = nil
+      else:
+        if inoutExpected[] != nil:
+          inoutExpected[].raw = move(expGuard)
+        else:
+          let h = wrapArcGuard(move(expGuard))
+          if unlikely(h == nil):
+            return LFQ_ERR_FAILURE
+          inoutExpected[] = h
+    return LFQ_OK
+
+proc lfq_atomic_arc_compare_exchange*(
+    arc: ptr lfq_atomic_arc_t,
+    inoutExpected: ptr ptr lfq_arc_guard_t,
+    desiredItem: pointer,
+    destructor: lfq_arc_destructor_fn,
+    userData: pointer,
+    outSwapped: ptr bool
+): lfq_status_t {.exportc: "lfq_atomic_arc_compare_exchange", cdecl, gcsafe, raises: [].} =
+  cAbiBoundary:
+    if unlikely(arc == nil or inoutExpected == nil or outSwapped == nil):
+      return LFQ_ERR_INVALID_ARG
+    if desiredItem == nil and destructor == nil:
+      return lfq_atomic_arc_compare_exchange_guard(arc, inoutExpected, nil, outSwapped)
+    var desHandle: lfq_arc_guard_t
+    desHandle.raw = initArcGuard[pointer](
+      desiredItem, cast[ArcItemDestroyCallback](destructor), userData
+    )
+    let st = lfq_atomic_arc_compare_exchange_guard(
+      arc, inoutExpected, addr desHandle, outSwapped
+    )
+    `=destroy`(desHandle.raw)
+    return st
 
 
 

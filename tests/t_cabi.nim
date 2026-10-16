@@ -1215,6 +1215,77 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
 
     check lfq_table_destroy(table) == LFQ_OK
 
+  test "AtomicArc & ArcGuard C ABI (load, store, swap, compare_exchange & destructor)":
+    type ArcAbiTracker = object
+      count: int
+      sum: int
+
+    proc arcAbiDtor(item: pointer, userData: pointer) {.cdecl, gcsafe, raises: [].} =
+      let t = cast[ptr ArcAbiTracker](userData)
+      if t != nil:
+        inc t.count
+        t.sum += cast[int](item)
+
+    var tracker = ArcAbiTracker(count: 0, sum: 0)
+    var arc: ptr lfq_atomic_arc_t = nil
+    check lfq_atomic_arc_create(cast[pointer](10), arcAbiDtor, addr tracker, addr arc) == LFQ_OK
+    check arc != nil
+    check lfq_atomic_arc_is_null(arc) == false
+
+    var g1: ptr lfq_arc_guard_t = nil
+    check lfq_atomic_arc_load(arc, addr g1) == LFQ_OK
+    check g1 != nil
+    check cast[int](lfq_arc_guard_get(g1)) == 10
+
+    var g1Clone: ptr lfq_arc_guard_t = nil
+    check lfq_arc_guard_clone(g1, addr g1Clone) == LFQ_OK
+    check g1Clone != nil
+    check cast[int](lfq_arc_guard_get(g1Clone)) == 10
+
+    # Store 20; 10 is kept alive by g1 and g1Clone
+    check lfq_atomic_arc_store(arc, cast[pointer](20), arcAbiDtor, addr tracker) == LFQ_OK
+    check tracker.count == 0
+
+    check lfq_arc_guard_release(g1) == LFQ_OK
+    check tracker.count == 0
+    check lfq_arc_guard_release(g1Clone) == LFQ_OK
+    check tracker.count == 1
+    check tracker.sum == 10
+
+    # Swap 20 -> 30
+    var oldG: ptr lfq_arc_guard_t = nil
+    check lfq_atomic_arc_swap(arc, cast[pointer](30), arcAbiDtor, addr tracker, addr oldG) == LFQ_OK
+    check oldG != nil
+    check cast[int](lfq_arc_guard_get(oldG)) == 20
+    check tracker.count == 1
+    check lfq_arc_guard_release(oldG) == LFQ_OK
+    check tracker.count == 2
+    check tracker.sum == 30
+
+    # compare_exchange mismatch updates expected from NULL -> 30
+    var expectedG: ptr lfq_arc_guard_t = nil
+    var swapped: bool = false
+    check lfq_atomic_arc_compare_exchange(arc, addr expectedG, cast[pointer](40), arcAbiDtor, addr tracker, addr swapped) == LFQ_OK
+    check swapped == false
+    check expectedG != nil
+    check cast[int](lfq_arc_guard_get(expectedG)) == 30
+    # Failed desired_item (40) was immediately cleaned up!
+    check tracker.count == 3
+    check tracker.sum == 70
+
+    # Retry compare_exchange with updated expectedG (30) -> 50 succeeds!
+    check lfq_atomic_arc_compare_exchange(arc, addr expectedG, cast[pointer](50), arcAbiDtor, addr tracker, addr swapped) == LFQ_OK
+    check swapped == true
+    check lfq_arc_guard_release(expectedG) == LFQ_OK
+    # 30 is now destroyed!
+    check tracker.count == 4
+    check tracker.sum == 100
+
+    check lfq_atomic_arc_destroy(arc) == LFQ_OK
+    # 50 is now destroyed!
+    check tracker.count == 5
+    check tracker.sum == 150
+
   test "Direct C99 Header Interoperability":
     let code1 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree.h"))
     check code1 == 0
@@ -1226,6 +1297,8 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check code4 == 0
     let code5 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_associative.h"))
     check code5 == 0
+    let code6 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_atomic_arc.h"))
+    check code6 == 0
 
   test "Compiled C99 test harness execution (clang + liblockfree.a)":
     let rootDir = currentSourcePath().parentDir() / ".."

@@ -27,5 +27,6 @@ import ../t_channel_threaded
 import ../t_ratelimit_threaded
 import ../t_streambuffer_threaded
 import ../t_associative_threaded
+import ../t_atomic_arc_threaded
 import ../t_async_bridge
 import ../t_cabi

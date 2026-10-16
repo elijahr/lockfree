@@ -64,5 +64,6 @@ import ../t_user_guide_snippets
 import ../t_ratelimit
 import ../t_streambuffer
 import ../t_associative
+import ../t_atomic_arc
 import ../t_test_watchdog
 

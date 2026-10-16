@@ -426,6 +426,12 @@ bool lfq_topic_bus_has_topic(const lfq_topic_bus_t* bus, const char* topic);
 
 #include "lockfree_associative.h"
 
+/* -------------------------------------------------------------------------
+ * 13. Lock-Free 128-Bit DWCAS Atomic Shared Pointer (AtomicArc & ArcGuard)
+ * ------------------------------------------------------------------------- */
+
+#include "lockfree_atomic_arc.h"
+
 #ifdef __cplusplus
 }
 #endif

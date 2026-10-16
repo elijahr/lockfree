@@ -1498,6 +1498,49 @@ static void test_cabi_associative(void) {
 }
 
 /* -------------------------------------------------------------------------
+ * Test 14: AtomicArc & ArcGuard (128-Bit DWCAS Split-Refcount)
+ * ------------------------------------------------------------------------- */
+typedef struct {
+    test_atomic_size_t destroyed_count;
+    test_atomic_uint64_t destroyed_sum;
+} arc_c_tracker_t;
+
+static void arc_c_destructor(void* item, void* user_data) {
+    arc_c_tracker_t* tr = (arc_c_tracker_t*)user_data;
+    if (tr != NULL) {
+        ATOMIC_INC(&tr->destroyed_count);
+        ATOMIC_ADD(&tr->destroyed_sum, (uint64_t)(uintptr_t)item);
+    }
+}
+
+static void test_cabi_atomic_arc(void) {
+    printf("Running test_cabi_atomic_arc...\n");
+    arc_c_tracker_t tracker = { 0, 0 };
+    lfq_atomic_arc_t* arc = NULL;
+    lfq_status_t st = lfq_atomic_arc_create((void*)(uintptr_t)100, arc_c_destructor, &tracker, &arc);
+    TEST_ASSERT(st == LFQ_OK && arc != NULL, "lfq_atomic_arc_create failed");
+    TEST_ASSERT(!lfq_atomic_arc_is_null(arc), "arc should not be null");
+
+    lfq_arc_guard_t* g1 = NULL;
+    st = lfq_atomic_arc_load(arc, &g1);
+    TEST_ASSERT(st == LFQ_OK && g1 != NULL, "lfq_atomic_arc_load failed");
+    TEST_ASSERT((uintptr_t)lfq_arc_guard_get(g1) == 100, "lfq_arc_guard_get mismatch");
+
+    st = lfq_atomic_arc_store(arc, (void*)(uintptr_t)200, arc_c_destructor, &tracker);
+    TEST_ASSERT(st == LFQ_OK, "lfq_atomic_arc_store failed");
+    TEST_ASSERT(ATOMIC_LOAD(&tracker.destroyed_count) == 0, "100 should still be alive via g1");
+
+    TEST_ASSERT(lfq_arc_guard_release(g1) == LFQ_OK, "lfq_arc_guard_release failed");
+    TEST_ASSERT(ATOMIC_LOAD(&tracker.destroyed_count) == 1, "100 should be destroyed after g1 release");
+    TEST_ASSERT(ATOMIC_LOAD(&tracker.destroyed_sum) == 100, "destroyed_sum should be 100");
+
+    TEST_ASSERT(lfq_atomic_arc_destroy(arc) == LFQ_OK, "lfq_atomic_arc_destroy failed");
+    TEST_ASSERT(ATOMIC_LOAD(&tracker.destroyed_count) == 2, "200 should be destroyed after arc destroy");
+    TEST_ASSERT(ATOMIC_LOAD(&tracker.destroyed_sum) == 300, "destroyed_sum should be 300");
+    printf("test_cabi_atomic_arc PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
  * Main Entry Point
  * ------------------------------------------------------------------------- */
 int main(void) {
@@ -1517,6 +1560,7 @@ int main(void) {
     test_cabi_ratelimit();
     test_cabi_streambuffer();
     test_cabi_associative();
+    test_cabi_atomic_arc();
     test_cabi_concurrency();
 
     /* TaskPool C ABI */
