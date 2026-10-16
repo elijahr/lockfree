@@ -1,6 +1,7 @@
 ## Tier 1: Fast Deterministic Behavioral & Unit Test Runner
 ## Executes single-threaded unit tests with mock destructors in <15 seconds.
 
+import ../test_watchdog
 import ../t_aligned_alloc
 import ../t_atomic_dsl
 import ../t_backoff
@@ -63,3 +64,5 @@ import ../t_user_guide_snippets
 import ../t_ratelimit
 import ../t_streambuffer
 import ../t_associative
+import ../t_test_watchdog
+

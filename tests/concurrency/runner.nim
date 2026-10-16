@@ -3,6 +3,7 @@
 
 {.warning[UnusedImport]: off.}
 
+import ../test_watchdog
 import ../t_queue_bounded_mpsc_threaded
 import ../t_queue_bounded_spsc_threaded
 import ../t_queue_bounded_mpmc_threaded

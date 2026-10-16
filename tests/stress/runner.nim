@@ -3,6 +3,7 @@
 ## the Path-C 25-row generic composition matrix (23 BQueue types),
 ## and the 8 pop-clear payload verification modules.
 
+import ../test_watchdog
 import ../t_stress
 import ../composition/t_path_c_matrix
 import ../composition/t_verify_pop_clears_spsc_bounded

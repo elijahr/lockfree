@@ -4,10 +4,11 @@
 
 {.warning[UnusedImport]: off.}
 
+import ./test_watchdog
 import ./unit/runner as unit_runner
 import ./concurrency/runner as concurrency_runner
 
-export unit_runner, concurrency_runner
+export test_watchdog, unit_runner, concurrency_runner
 
 # chronos adapter tests gated on chronos availability
 # (chronos is NOT in lockfree.nimble requires). When chronos
