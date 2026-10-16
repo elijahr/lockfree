@@ -85,10 +85,6 @@ proc allocVBox[T](item: sink T): ptr VBox[T] {.inline.} =
   result.rc.store(1, moRelaxed)
   result.val = item
 
-proc incRef[T](box: ptr VBox[T]) {.inline.} =
-  if box != nil:
-    discard box.rc.fetchAdd(1, moRelaxed)
-
 proc decRef[T](box: ptr VBox[T]) {.inline, gcsafe.} =
   if box != nil:
     if box.rc.fetchSub(1, moRelease) == 1:
@@ -106,8 +102,8 @@ when defined(macosx) or defined(macos) or defined(ios):
   const
     UL_COMPARE_AND_WAIT = 1'u32
 
-  proc ulock_wait(operation: uint32, address: pointer, value: uint64, timeout_us: uint32): cint {.importc: "__ulock_wait".}
-  proc ulock_wake(operation: uint32, address: pointer, wake_value: uint64): cint {.importc: "__ulock_wake".}
+  proc ulock_wait(operation: uint32, address: pointer, value: uint64, timeoutUs: uint32): cint {.importc: "__ulock_wait".}
+  proc ulock_wake(operation: uint32, address: pointer, wakeValue: uint64): cint {.importc: "__ulock_wake".}
 
 elif defined(linux):
   const
@@ -132,6 +128,8 @@ elif defined(windows):
   proc WakeByAddressSingle(Address: pointer) {.stdcall, dynlib: "api-ms-win-core-synch-l1-2-0.dll|kernelbase.dll|kernel32.dll", importc: "WakeByAddressSingle".}
 
 type
+  ParkerWakeProc* = proc(arg: pointer) {.nimcall, gcsafe, raises: [].}
+
   Parker* = object
     when defined(macosx) or defined(macos) or defined(ios):
       word*: Atomic[uint32]
@@ -141,8 +139,10 @@ type
       lock*: Lock
       cond*: Cond
       signaled*: Atomic[bool]
+    wakeCb*: Atomic[pointer]
+    wakeArg*: Atomic[pointer]
 
-proc initParker(p: var Parker) {.inline.} =
+proc initParker*(p: var Parker) {.inline.} =
   when defined(macosx) or defined(macos) or defined(ios):
     p.word.store(0, moRelaxed)
   elif defined(linux) or defined(windows):
@@ -151,19 +151,23 @@ proc initParker(p: var Parker) {.inline.} =
     initLock(p.lock)
     initCond(p.cond)
     p.signaled.store(false, moRelaxed)
+  p.wakeCb.store(nil, moRelaxed)
+  p.wakeArg.store(nil, moRelaxed)
 
-proc deinitParker(p: var Parker) {.inline.} =
+proc deinitParker*(p: var Parker) {.inline.} =
   when not (defined(macosx) or defined(macos) or defined(ios) or defined(linux) or defined(windows)):
     deinitLock(p.lock)
     deinitCond(p.cond)
 
-proc resetParker(p: var Parker) {.inline.} =
+proc resetParker*(p: var Parker) {.inline.} =
   when defined(macosx) or defined(macos) or defined(ios):
     p.word.store(0, moRelaxed)
   elif defined(linux) or defined(windows):
     p.word.store(0, moRelaxed)
   else:
     p.signaled.store(false, moRelaxed)
+  p.wakeCb.store(nil, moRelaxed)
+  p.wakeArg.store(nil, moRelaxed)
 
 proc unpark*(p: var Parker) {.inline.} =
   when defined(macosx) or defined(macos) or defined(ios):
@@ -180,6 +184,11 @@ proc unpark*(p: var Parker) {.inline.} =
     acquire(p.lock)
     signal(p.cond)
     release(p.lock)
+  let arg = p.wakeArg.exchange(nil, moAcquireRelease)
+  if arg != nil:
+    let cb = cast[ParkerWakeProc](p.wakeCb.load(moAcquire))
+    if cb != nil:
+      cb(arg)
 
 proc park*(p: var Parker) {.inline.} =
   # Spin-before-park optimization (Section 7.1)
@@ -255,6 +264,11 @@ proc parkTimeout*(p: var Parker, timeoutMs: int): bool =
 # Dual Queue Nodes & State Machine
 # ---------------------------------------------------------------------------
 
+const
+  WaiterPoolCap = 1024
+  WaiterPoolMask = uint64(WaiterPoolCap - 1)
+  WaiterQuarantine = 512'u64
+
 type
   WaiterMode* = enum
     wmSender       ## Offering a value
@@ -267,13 +281,34 @@ type
 
   RendezvousWaiter*[T] = object
     mode*: WaiterMode
-    state*: Atomic[RendezvousState]
+    taggedState*: Atomic[uint64]
+    lifecycleRc*: Atomic[int32]
     vbox*: Atomic[ptr VBox[T]]
     correlationId*: uint64
     next*: Atomic[ptr RendezvousWaiter[T]]
-    allNext*: ptr RendezvousWaiter[T]
+    poolNext*: Atomic[ptr RendezvousWaiter[T]]
     parker*: Parker
-    pad: array[8, byte]
+
+proc makeWaiterTag(epoch: uint64, mode: WaiterMode, st: RendezvousState): uint64 {.inline.} =
+  (epoch shl 3) or (uint64(ord(mode)) shl 2) or uint64(ord(st))
+
+proc tagEpoch(tag: uint64): uint64 {.inline.} =
+  tag shr 3
+
+proc tagMode(tag: uint64): WaiterMode {.inline.} =
+  WaiterMode((tag shr 2) and 1'u64)
+
+proc tagState(tag: uint64): RendezvousState {.inline, raises: [].} =
+  RendezvousState(tag and 3'u64)
+
+proc withTagState(tag: uint64, st: RendezvousState): uint64 {.inline, raises: [].} =
+  (tag and not 3'u64) or uint64(ord(st))
+
+proc currentState*[T](
+    w: ptr RendezvousWaiter[T], order: static MemoryOrder = moAcquire
+): RendezvousState {.inline, raises: [].} =
+  ## Loads the current `RendezvousState` from the waiter's 64-bit `taggedState`.
+  tagState(w.taggedState.load(order))
 
 # ---------------------------------------------------------------------------
 # Channel Core & Memory Reclamation
@@ -287,15 +322,89 @@ type
     tail*: Atomic[ptr RendezvousWaiter[T]]
     padTail: array[CacheLine - sizeof(Atomic[pointer]), byte]
 
-    allNodes*: Atomic[ptr RendezvousWaiter[T]]
-    padAll: array[CacheLine - sizeof(Atomic[pointer]), byte]
+    freeWriteIdx*: Atomic[uint64]
+    freeReadIdx*: Atomic[uint64]
+    freeSlots*: array[WaiterPoolCap, Atomic[ptr RendezvousWaiter[T]]]
+    overflowHead*: Atomic[ptr RendezvousWaiter[T]]
 
     nextCorrId*: Atomic[uint64]
+    nextWaiterEpoch*: Atomic[uint64]
     rc*: Atomic[int]
     isClosed*: Atomic[bool]
 
   RendezvousChannel*[T] = object
     core*: ptr RendezvousChannelCore[T]
+
+proc pushOverflowWaiter[T](core: ptr RendezvousChannelCore[T], w: ptr RendezvousWaiter[T]) {.inline, raises: [].} =
+  var head = core.overflowHead.load(moAcquire)
+  while true:
+    w.poolNext.store(head, moRelaxed)
+    if core.overflowHead.compareExchangeWeak(head, w, moAcquireRelease, moAcquire):
+      return
+
+proc pushFreeWaiter[T](core: ptr RendezvousChannelCore[T], w: ptr RendezvousWaiter[T]) {.inline, raises: [].} =
+  while true:
+    var wIdx = core.freeWriteIdx.load(moAcquire)
+    let rIdx = core.freeReadIdx.load(moAcquire)
+    if wIdx - rIdx >= uint64(WaiterPoolCap):
+      pushOverflowWaiter(core, w)
+      return
+    let slotIdx = int(wIdx and WaiterPoolMask)
+    if core.freeSlots[slotIdx].load(moAcquire) != nil:
+      pushOverflowWaiter(core, w)
+      return
+    if core.freeWriteIdx.compareExchangeWeak(wIdx, wIdx + 1, moAcquireRelease, moRelaxed):
+      let prev = core.freeSlots[slotIdx].exchange(w, moAcquireRelease)
+      if prev != nil:
+        pushOverflowWaiter(core, prev)
+      return
+
+proc popFreeWaiter[T](core: ptr RendezvousChannelCore[T]): ptr RendezvousWaiter[T] {.inline, raises: [].} =
+  var rIdx = core.freeReadIdx.load(moAcquire)
+  let wIdx = core.freeWriteIdx.load(moAcquire)
+  if wIdx < rIdx or wIdx - rIdx < WaiterQuarantine:
+    return nil
+  let slotIdx = int(rIdx and WaiterPoolMask)
+  if core.freeSlots[slotIdx].load(moAcquire) == nil:
+    return nil
+  if core.freeReadIdx.compareExchangeWeak(rIdx, rIdx + 1, moAcquireRelease, moRelaxed):
+    return core.freeSlots[slotIdx].exchange(nil, moAcquireRelease)
+  return nil
+
+proc releaseWaiter[T](
+    core: ptr RendezvousChannelCore[T],
+    w: ptr RendezvousWaiter[T],
+    count: int32 = 1
+) {.inline.} =
+  if w == nil:
+    return
+  if w.lifecycleRc.fetchSub(count, moAcquireRelease) == count:
+    pushFreeWaiter(core, w)
+
+proc recycleUnenqueuedWaiter[T](
+    core: ptr RendezvousChannelCore[T],
+    w: ptr RendezvousWaiter[T]
+) {.inline.} =
+  if w == nil:
+    return
+  w.vbox.store(nil, moRelaxed)
+  w.lifecycleRc.store(0, moRelaxed)
+  pushFreeWaiter(core, w)
+
+proc advanceHead[T](
+    core: ptr RendezvousChannelCore[T],
+    h: var ptr RendezvousWaiter[T],
+    hEpoch: uint64,
+    hNext: ptr RendezvousWaiter[T]
+): bool {.inline.} =
+  if tagEpoch(h.taggedState.load(moAcquire)) != hEpoch:
+    return false
+  var t = core.tail.load(moAcquire)
+  if t == h:
+    discard core.tail.compareExchangeStrong(t, hNext, moAcquireRelease, moRelaxed)
+  result = core.head.compareExchangeStrong(h, hNext, moAcquireRelease, moRelaxed)
+  if result:
+    releaseWaiter(core, h, 1)
 
 proc purgeCancelledWaiters[T](core: ptr RendezvousChannelCore[T], maxSpins: int = 16) =
   ## Bounded purge of contiguous rsCancelled waiters from core.head.
@@ -306,11 +415,13 @@ proc purgeCancelledWaiters[T](core: ptr RendezvousChannelCore[T], maxSpins: int 
     let t = core.tail.load(moAcquire)
     if h == nil or t == nil or h == t:
       break
+    let hEpoch = tagEpoch(h.taggedState.load(moAcquire))
     let hNext = h.next.load(moAcquire)
-    if hNext == nil or h != core.head.load(moAcquire):
+    if hNext == nil or h != core.head.load(moAcquire) or
+       tagEpoch(h.taggedState.load(moAcquire)) != hEpoch:
       break
-    if hNext.state.load(moAcquire) == rsCancelled:
-      if core.head.compareExchangeStrong(h, hNext, moAcquireRelease, moRelaxed):
+    if tagState(hNext.taggedState.load(moAcquire)) == rsCancelled:
+      if advanceHead(core, h, hEpoch, hNext):
         inc spins
       else:
         cpuPause()
@@ -322,39 +433,43 @@ proc allocWaiter[T](
     core: ptr RendezvousChannelCore[T],
     mode: WaiterMode,
     vbox: ptr VBox[T],
-    corrId: uint64
+    corrId: uint64,
+    outEpoch: var uint64
 ): ptr RendezvousWaiter[T] {.inline.} =
-  result = allocSharedAligned[RendezvousWaiter[T]]()
-  initParker(result.parker)
+  result = popFreeWaiter(core)
+  if result == nil:
+    result = allocSharedAligned[RendezvousWaiter[T]]()
+    initParker(result.parker)
+  else:
+    resetParker(result.parker)
+  let epoch = core.nextWaiterEpoch.fetchAdd(1, moRelaxed) + 1
+  outEpoch = epoch
   result.mode = mode
-  result.state.store(rsWaiting, moRelease)
+  result.lifecycleRc.store(3, moRelease)
   result.vbox.store(vbox, moRelease)
   result.correlationId = corrId
-  result.next.store(nil, moRelaxed)
-
-  # Track for clean deallocation in freeChannelCore
-  while true:
-    var cur = core.allNodes.load(moAcquire)
-    result.allNext = cur
-    if core.allNodes.compareExchangeWeak(cur, result, moRelease, moRelaxed):
-      break
+  result.next.store(nil, moRelease)
+  result.taggedState.store(makeWaiterTag(epoch, mode, rsWaiting), moRelease)
 
 proc initRendezvousChannel*[T](): RendezvousChannel[T] =
   ## Constructs a new zero-buffer MPMC synchronous rendezvous channel.
   let core = allocSharedAligned[RendezvousChannelCore[T]]()
 
-  # Allocate sentinel dummy node
+  # Allocate sentinel dummy node (only holds Ref #1: Queue Sentinel Ref)
   let dummy = allocSharedAligned[RendezvousWaiter[T]]()
   initParker(dummy.parker)
   dummy.mode = wmReceiver
-  dummy.state.store(rsMatched, moRelaxed)
+  dummy.taggedState.store(makeWaiterTag(1'u64, wmReceiver, rsMatched), moRelaxed)
+  dummy.lifecycleRc.store(1, moRelaxed)
   dummy.next.store(nil, moRelaxed)
-  dummy.allNext = nil
 
   core.head.store(dummy, moRelaxed)
   core.tail.store(dummy, moRelaxed)
-  core.allNodes.store(dummy, moRelaxed)
+  core.freeWriteIdx.store(0, moRelaxed)
+  core.freeReadIdx.store(0, moRelaxed)
+  core.overflowHead.store(nil, moRelaxed)
   core.nextCorrId.store(0, moRelaxed)
+  core.nextWaiterEpoch.store(1, moRelaxed)
   core.rc.store(1, moRelaxed)
   core.isClosed.store(false, moRelaxed)
   result.core = core
@@ -362,22 +477,33 @@ proc initRendezvousChannel*[T](): RendezvousChannel[T] =
 proc freeChannelCore[T](core: ptr RendezvousChannelCore[T]) =
   if core == nil: return
 
-  # Drain remaining active VBoxes in queue
+  # Drain and free active nodes reachable from core.head
   var curr = core.head.load(moRelaxed)
   while curr != nil:
-    if curr.state.load(moRelaxed) == rsWaiting and curr.mode == wmSender:
-      let vb = curr.vbox.load(moRelaxed)
+    let nextNode = curr.next.load(moRelaxed)
+    let tag = curr.taggedState.load(moRelaxed)
+    if tagState(tag) == rsWaiting and tagMode(tag) == wmSender:
+      let vb = curr.vbox.exchange(nil, moRelaxed)
       if vb != nil:
         decRef(vb)
-    curr = curr.next.load(moRelaxed)
+    deinitParker(curr.parker)
+    freeSharedAligned(curr)
+    curr = nextNode
 
-  # Free every allocated node cleanly via allNodes list
-  var node = core.allNodes.load(moAcquire)
-  while node != nil:
-    let nextNode = node.allNext
-    deinitParker(node.parker)
-    freeSharedAligned(node)
-    node = nextNode
+  # Free all pooled waiter nodes in freeSlots
+  for i in 0 ..< WaiterPoolCap:
+    let pooled = core.freeSlots[i].exchange(nil, moRelaxed)
+    if pooled != nil:
+      deinitParker(pooled.parker)
+      freeSharedAligned(pooled)
+
+  # Free any overflowed waiter nodes in overflowHead
+  var ov = core.overflowHead.exchange(nil, moRelaxed)
+  while ov != nil:
+    let nextOv = ov.poolNext.load(moRelaxed)
+    deinitParker(ov.parker)
+    freeSharedAligned(ov)
+    ov = nextOv
 
   freeSharedAligned(core)
 
@@ -412,10 +538,16 @@ proc close*[T](self: RendezvousChannel[T]) =
     if not self.core.isClosed.exchange(true, moAcquireRelease):
       var curr = self.core.head.load(moAcquire)
       while curr != nil:
-        var exp = rsWaiting
-        if curr.state.compareExchangeStrong(exp, rsCancelled, moAcquireRelease, moRelaxed):
-          curr.parker.unpark()
-        curr = curr.next.load(moAcquire)
+        let nextNode = curr.next.load(moAcquire)
+        var tag = curr.taggedState.load(moAcquire)
+        while tagState(tag) == rsWaiting:
+          if curr.taggedState.compareExchangeWeak(
+            tag, withTagState(tag, rsCancelled), moAcquireRelease, moAcquire
+          ):
+            curr.parker.unpark()
+            releaseWaiter(self.core, curr, 1)
+            break
+        curr = nextNode
 
 # ---------------------------------------------------------------------------
 # Core Operations: send & recv
@@ -431,12 +563,15 @@ proc send*[T](self: RendezvousChannel[T], item: sink T): uint64 =
   let myVBox = allocVBox(item)
   let corrId = core.nextCorrId.fetchAdd(1, moRelaxed) + 1
   var myWaiter: ptr RendezvousWaiter[T] = nil
+  var myEpoch: uint64 = 0
 
   while true:
     purgeCancelledWaiters(core)
     if core.isClosed.load(moAcquire):
+      if myWaiter != nil:
+        recycleUnenqueuedWaiter(core, myWaiter)
+        myWaiter = nil
       decRef(myVBox)
-      myWaiter = nil
       raise newException(ChannelClosedDefect, "RendezvousChannel is closed")
 
     var h = core.head.load(moAcquire)
@@ -445,45 +580,78 @@ proc send*[T](self: RendezvousChannel[T], item: sink T): uint64 =
     if h == nil or t == nil:
       continue
 
+    let hEpoch = tagEpoch(h.taggedState.load(moAcquire))
+    let tTag = t.taggedState.load(moAcquire)
+    let tEpoch = tagEpoch(tTag)
     var next = t.next.load(moAcquire)
-    if t == core.tail.load(moAcquire):
+    if t == core.tail.load(moAcquire) and tagEpoch(t.taggedState.load(moAcquire)) == tEpoch:
       if next != nil:
         discard core.tail.compareExchangeWeak(t, next, moAcquireRelease, moRelaxed)
         continue
 
-      if h == t or t.mode == wmSender:
+      if h == t or tagMode(tTag) == wmSender:
         if myWaiter == nil:
-          myWaiter = allocWaiter[T](core, wmSender, myVBox, corrId)
+          myWaiter = allocWaiter[T](core, wmSender, myVBox, corrId, myEpoch)
 
         var nilExp: ptr RendezvousWaiter[T] = nil
         if t.next.compareExchangeStrong(nilExp, myWaiter, moAcquireRelease, moRelaxed):
           discard core.tail.compareExchangeWeak(t, myWaiter, moAcquireRelease, moRelaxed)
+          let waitTag = makeWaiterTag(myEpoch, wmSender, rsWaiting)
+          let cancelTag = makeWaiterTag(myEpoch, wmSender, rsCancelled)
+          if core.isClosed.load(moAcquire):
+            var expTag = waitTag
+            if myWaiter.taggedState.compareExchangeStrong(expTag, cancelTag, moAcquireRelease, moRelaxed):
+              myWaiter.parker.unpark()
+              releaseWaiter(core, myWaiter, 1)
           # Park until matched or closed
           while not core.isClosed.load(moAcquire):
             myWaiter.parker.park()
-            if myWaiter.state.load(moAcquire) == rsMatched:
+            if tagState(myWaiter.taggedState.load(moAcquire)) == rsMatched:
+              releaseWaiter(core, myWaiter, 1)
               return corrId
-          if myWaiter.state.load(moAcquire) == rsMatched:
+          var expWaiting = waitTag
+          if myWaiter.taggedState.compareExchangeStrong(expWaiting, cancelTag, moAcquireRelease, moRelaxed):
+            discard myWaiter.vbox.exchange(nil, moAcquireRelease)
+            releaseWaiter(core, myWaiter, 2)
+            decRef(myVBox)
+            purgeCancelledWaiters(core)
+            raise newException(ChannelClosedDefect, "RendezvousChannel closed while waiting")
+          elif tagState(expWaiting) == rsMatched:
+            releaseWaiter(core, myWaiter, 1)
             return corrId
-          decRef(myVBox)
-          raise newException(ChannelClosedDefect, "RendezvousChannel closed while waiting")
+          else:
+            discard myWaiter.vbox.exchange(nil, moAcquireRelease)
+            releaseWaiter(core, myWaiter, 1)
+            decRef(myVBox)
+            purgeCancelledWaiters(core)
+            raise newException(ChannelClosedDefect, "RendezvousChannel closed while waiting")
       else:
         # Opposite mode: queue has waiting receivers!
         let hNext = h.next.load(moAcquire)
-        if h == core.head.load(moAcquire) and hNext != nil:
-          if hNext.mode != wmReceiver:
-            if hNext.state.load(moAcquire) != rsWaiting:
-              discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+        if h == core.head.load(moAcquire) and hNext != nil and
+           tagEpoch(h.taggedState.load(moAcquire)) == hEpoch:
+          let hnTag = hNext.taggedState.load(moAcquire)
+          if tagMode(hnTag) != wmReceiver:
+            if tagState(hnTag) != rsWaiting:
+              discard advanceHead(core, h, hEpoch, hNext)
             continue
-          var exp = rsWaiting
-          if hNext.state.compareExchangeStrong(exp, rsMatched, moAcquireRelease, moRelaxed):
+          if tagState(hnTag) != rsWaiting:
+            discard advanceHead(core, h, hEpoch, hNext)
+            continue
+          var expTag = hnTag
+          let matchedTag = withTagState(hnTag, rsMatched)
+          if hNext.taggedState.compareExchangeStrong(expTag, matchedTag, moAcquireRelease, moRelaxed):
+            if myWaiter != nil:
+              recycleUnenqueuedWaiter(core, myWaiter)
+              myWaiter = nil
             hNext.correlationId = corrId
             hNext.vbox.store(myVBox, moRelease)
             hNext.parker.unpark()
-            discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+            discard advanceHead(core, h, hEpoch, hNext)
+            releaseWaiter(core, hNext, 1)
             return corrId
           else:
-            discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+            discard advanceHead(core, h, hEpoch, hNext)
 
 proc recv*[T](self: RendezvousChannel[T], outVal: var T): uint64 =
   ## Synchronously receives an item, blocking until a sender provides it. Stores
@@ -493,10 +661,14 @@ proc recv*[T](self: RendezvousChannel[T], outVal: var T): uint64 =
 
   let core = self.core
   var myWaiter: ptr RendezvousWaiter[T] = nil
+  var myEpoch: uint64 = 0
 
   while true:
     purgeCancelledWaiters(core)
     if core.isClosed.load(moAcquire):
+      if myWaiter != nil:
+        recycleUnenqueuedWaiter(core, myWaiter)
+        myWaiter = nil
       raise newException(ChannelClosedDefect, "RendezvousChannel is closed")
 
     var h = core.head.load(moAcquire)
@@ -505,57 +677,87 @@ proc recv*[T](self: RendezvousChannel[T], outVal: var T): uint64 =
     if h == nil or t == nil:
       continue
 
+    let hEpoch = tagEpoch(h.taggedState.load(moAcquire))
+    let tTag = t.taggedState.load(moAcquire)
+    let tEpoch = tagEpoch(tTag)
     var next = t.next.load(moAcquire)
-    if t == core.tail.load(moAcquire):
+    if t == core.tail.load(moAcquire) and tagEpoch(t.taggedState.load(moAcquire)) == tEpoch:
       if next != nil:
         discard core.tail.compareExchangeWeak(t, next, moAcquireRelease, moRelaxed)
         continue
 
-      if h == t or t.mode == wmReceiver:
+      if h == t or tagMode(tTag) == wmReceiver:
         if myWaiter == nil:
-          myWaiter = allocWaiter[T](core, wmReceiver, nil, 0)
+          myWaiter = allocWaiter[T](core, wmReceiver, nil, 0, myEpoch)
 
         var nilExp: ptr RendezvousWaiter[T] = nil
         if t.next.compareExchangeStrong(nilExp, myWaiter, moAcquireRelease, moRelaxed):
           discard core.tail.compareExchangeWeak(t, myWaiter, moAcquireRelease, moRelaxed)
+          let waitTag = makeWaiterTag(myEpoch, wmReceiver, rsWaiting)
+          let cancelTag = makeWaiterTag(myEpoch, wmReceiver, rsCancelled)
+          if core.isClosed.load(moAcquire):
+            var expTag = waitTag
+            if myWaiter.taggedState.compareExchangeStrong(expTag, cancelTag, moAcquireRelease, moRelaxed):
+              myWaiter.parker.unpark()
+              releaseWaiter(core, myWaiter, 1)
           while not core.isClosed.load(moAcquire):
             myWaiter.parker.park()
-            if myWaiter.state.load(moAcquire) == rsMatched:
+            if tagState(myWaiter.taggedState.load(moAcquire)) == rsMatched:
               while myWaiter.vbox.load(moAcquire) == nil:
                 cpuPause()
-              let transferred = myWaiter.vbox.load(moAcquire)
+              let transferred = myWaiter.vbox.exchange(nil, moAcquireRelease)
               outVal = transferred.val
               let cid = myWaiter.correlationId
               decRef(transferred)
+              releaseWaiter(core, myWaiter, 1)
               return cid
-          if myWaiter.state.load(moAcquire) == rsMatched:
+          var expWaiting = waitTag
+          if myWaiter.taggedState.compareExchangeStrong(expWaiting, cancelTag, moAcquireRelease, moRelaxed):
+            releaseWaiter(core, myWaiter, 2)
+            purgeCancelledWaiters(core)
+            raise newException(ChannelClosedDefect, "RendezvousChannel closed while waiting")
+          elif tagState(expWaiting) == rsMatched:
             while myWaiter.vbox.load(moAcquire) == nil:
               cpuPause()
-            let transferred = myWaiter.vbox.load(moAcquire)
+            let transferred = myWaiter.vbox.exchange(nil, moAcquireRelease)
             outVal = transferred.val
             let cid = myWaiter.correlationId
             decRef(transferred)
+            releaseWaiter(core, myWaiter, 1)
             return cid
-          raise newException(ChannelClosedDefect, "RendezvousChannel closed while waiting")
+          else:
+            releaseWaiter(core, myWaiter, 1)
+            purgeCancelledWaiters(core)
+            raise newException(ChannelClosedDefect, "RendezvousChannel closed while waiting")
       else:
         # Opposite mode: queue has waiting senders!
         let hNext = h.next.load(moAcquire)
-        if h == core.head.load(moAcquire) and hNext != nil:
-          if hNext.mode != wmSender:
-            if hNext.state.load(moAcquire) != rsWaiting:
-              discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+        if h == core.head.load(moAcquire) and hNext != nil and
+           tagEpoch(h.taggedState.load(moAcquire)) == hEpoch:
+          let hnTag = hNext.taggedState.load(moAcquire)
+          if tagMode(hnTag) != wmSender:
+            if tagState(hnTag) != rsWaiting:
+              discard advanceHead(core, h, hEpoch, hNext)
             continue
-          var exp = rsWaiting
-          if hNext.state.compareExchangeStrong(exp, rsMatched, moAcquireRelease, moRelaxed):
-            let transferred = hNext.vbox.load(moAcquire)
+          if tagState(hnTag) != rsWaiting:
+            discard advanceHead(core, h, hEpoch, hNext)
+            continue
+          var expTag = hnTag
+          let matchedTag = withTagState(hnTag, rsMatched)
+          if hNext.taggedState.compareExchangeStrong(expTag, matchedTag, moAcquireRelease, moRelaxed):
+            if myWaiter != nil:
+              recycleUnenqueuedWaiter(core, myWaiter)
+              myWaiter = nil
+            let transferred = hNext.vbox.exchange(nil, moAcquireRelease)
             outVal = transferred.val
             let cid = hNext.correlationId
             decRef(transferred)
             hNext.parker.unpark()
-            discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+            discard advanceHead(core, h, hEpoch, hNext)
+            releaseWaiter(core, hNext, 1)
             return cid
           else:
-            discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+            discard advanceHead(core, h, hEpoch, hNext)
 
 proc recv*[T](self: RendezvousChannel[T]): tuple[val: T, correlationId: uint64] {.inline.} =
   var item: T
@@ -578,25 +780,36 @@ proc trySend*[T](self: RendezvousChannel[T], item: sink T, outCorrId: var uint64
     var h = core.head.load(moAcquire)
     var t = core.tail.load(moAcquire)
 
-    if h == nil or t == nil or h == t or t.mode != wmReceiver:
+    if h == nil or t == nil or h == t or tagMode(t.taggedState.load(moAcquire)) != wmReceiver:
       return false
 
+    let hEpoch = tagEpoch(h.taggedState.load(moAcquire))
     let hNext = h.next.load(moAcquire)
-    if hNext == nil or h != core.head.load(moAcquire) or hNext.mode != wmReceiver:
+    if hNext == nil or h != core.head.load(moAcquire) or
+       tagEpoch(h.taggedState.load(moAcquire)) != hEpoch:
       return false
 
-    var exp = rsWaiting
-    if hNext.state.compareExchangeStrong(exp, rsMatched, moAcquireRelease, moRelaxed):
+    let hnTag = hNext.taggedState.load(moAcquire)
+    if tagMode(hnTag) != wmReceiver:
+      return false
+    if tagState(hnTag) != rsWaiting:
+      discard advanceHead(core, h, hEpoch, hNext)
+      continue
+
+    var expTag = hnTag
+    let matchedTag = withTagState(hnTag, rsMatched)
+    if hNext.taggedState.compareExchangeStrong(expTag, matchedTag, moAcquireRelease, moRelaxed):
       let corrId = core.nextCorrId.fetchAdd(1, moRelaxed) + 1
       let myVBox = allocVBox(item)
       hNext.correlationId = corrId
       hNext.vbox.store(myVBox, moRelease)
       hNext.parker.unpark()
-      discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+      discard advanceHead(core, h, hEpoch, hNext)
+      releaseWaiter(core, hNext, 1)
       outCorrId = corrId
       return true
     else:
-      discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+      discard advanceHead(core, h, hEpoch, hNext)
 
 proc tryRecv*[T](self: RendezvousChannel[T], outVal: var T, outCorrId: var uint64): bool =
   ## Attempts an immediate non-blocking receive. Returns true if a sender was
@@ -610,24 +823,35 @@ proc tryRecv*[T](self: RendezvousChannel[T], outVal: var T, outCorrId: var uint6
     var h = core.head.load(moAcquire)
     var t = core.tail.load(moAcquire)
 
-    if h == nil or t == nil or h == t or t.mode != wmSender:
+    if h == nil or t == nil or h == t or tagMode(t.taggedState.load(moAcquire)) != wmSender:
       return false
 
+    let hEpoch = tagEpoch(h.taggedState.load(moAcquire))
     let hNext = h.next.load(moAcquire)
-    if hNext == nil or h != core.head.load(moAcquire) or hNext.mode != wmSender:
+    if hNext == nil or h != core.head.load(moAcquire) or
+       tagEpoch(h.taggedState.load(moAcquire)) != hEpoch:
       return false
 
-    var exp = rsWaiting
-    if hNext.state.compareExchangeStrong(exp, rsMatched, moAcquireRelease, moRelaxed):
-      let transferred = hNext.vbox.load(moAcquire)
+    let hnTag = hNext.taggedState.load(moAcquire)
+    if tagMode(hnTag) != wmSender:
+      return false
+    if tagState(hnTag) != rsWaiting:
+      discard advanceHead(core, h, hEpoch, hNext)
+      continue
+
+    var expTag = hnTag
+    let matchedTag = withTagState(hnTag, rsMatched)
+    if hNext.taggedState.compareExchangeStrong(expTag, matchedTag, moAcquireRelease, moRelaxed):
+      let transferred = hNext.vbox.exchange(nil, moAcquireRelease)
       outVal = transferred.val
       outCorrId = hNext.correlationId
       decRef(transferred)
       hNext.parker.unpark()
-      discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+      discard advanceHead(core, h, hEpoch, hNext)
+      releaseWaiter(core, hNext, 1)
       return true
     else:
-      discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+      discard advanceHead(core, h, hEpoch, hNext)
 
 proc sendWithTimeout*[T](
     self: RendezvousChannel[T],
@@ -644,12 +868,16 @@ proc sendWithTimeout*[T](
   let core = self.core
   let myVBox = allocVBox(item)
   let corrId = core.nextCorrId.fetchAdd(1, moRelaxed) + 1
-  let myWaiter = allocWaiter[T](core, wmSender, myVBox, corrId)
+  var myEpoch: uint64 = 0
+  let myWaiter = allocWaiter[T](core, wmSender, myVBox, corrId, myEpoch)
+  let waitTag = makeWaiterTag(myEpoch, wmSender, rsWaiting)
+  let cancelTag = makeWaiterTag(myEpoch, wmSender, rsCancelled)
 
   # Enqueue waiter
   while true:
     purgeCancelledWaiters(core)
     if core.isClosed.load(moAcquire):
+      recycleUnenqueuedWaiter(core, myWaiter)
       decRef(myVBox)
       return false
 
@@ -657,50 +885,77 @@ proc sendWithTimeout*[T](
     var t = core.tail.load(moAcquire)
     if h == nil or t == nil: continue
 
+    let hEpoch = tagEpoch(h.taggedState.load(moAcquire))
+    let tTag = t.taggedState.load(moAcquire)
+    let tEpoch = tagEpoch(tTag)
     var next = t.next.load(moAcquire)
-    if t == core.tail.load(moAcquire):
+    if t == core.tail.load(moAcquire) and tagEpoch(t.taggedState.load(moAcquire)) == tEpoch:
       if next != nil:
         discard core.tail.compareExchangeWeak(t, next, moAcquireRelease, moRelaxed)
         continue
 
-      if h == t or t.mode == wmSender:
+      if h == t or tagMode(tTag) == wmSender:
         var nilExp: ptr RendezvousWaiter[T] = nil
         if t.next.compareExchangeStrong(nilExp, myWaiter, moAcquireRelease, moRelaxed):
           discard core.tail.compareExchangeWeak(t, myWaiter, moAcquireRelease, moRelaxed)
+          if core.isClosed.load(moAcquire):
+            var expW = waitTag
+            if myWaiter.taggedState.compareExchangeStrong(expW, cancelTag, moAcquireRelease, moRelaxed):
+              myWaiter.parker.unpark()
+              releaseWaiter(core, myWaiter, 1)
           break
       else:
         # Match head receiver
         let hNext = h.next.load(moAcquire)
-        if h == core.head.load(moAcquire) and hNext != nil:
-          if hNext.mode != wmReceiver:
-            if hNext.state.load(moAcquire) != rsWaiting:
-              discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+        if h == core.head.load(moAcquire) and hNext != nil and
+           tagEpoch(h.taggedState.load(moAcquire)) == hEpoch:
+          let hnTag = hNext.taggedState.load(moAcquire)
+          if tagMode(hnTag) != wmReceiver:
+            if tagState(hnTag) != rsWaiting:
+              discard advanceHead(core, h, hEpoch, hNext)
             continue
-          var exp = rsWaiting
-          if hNext.state.compareExchangeStrong(exp, rsMatched, moAcquireRelease, moRelaxed):
+          if tagState(hnTag) != rsWaiting:
+            discard advanceHead(core, h, hEpoch, hNext)
+            continue
+          var expTag = hnTag
+          let matchedTag = withTagState(hnTag, rsMatched)
+          if hNext.taggedState.compareExchangeStrong(expTag, matchedTag, moAcquireRelease, moRelaxed):
+            recycleUnenqueuedWaiter(core, myWaiter)
             hNext.correlationId = corrId
             hNext.vbox.store(myVBox, moRelease)
             hNext.parker.unpark()
-            discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+            discard advanceHead(core, h, hEpoch, hNext)
+            releaseWaiter(core, hNext, 1)
             outCorrId = corrId
             return true
           else:
-            discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+            discard advanceHead(core, h, hEpoch, hNext)
 
   # Wait with timeout
   let signaled = myWaiter.parker.parkTimeout(timeoutMs)
-  if signaled and myWaiter.state.load(moAcquire) == rsMatched:
+  if signaled and tagState(myWaiter.taggedState.load(moAcquire)) == rsMatched:
+    releaseWaiter(core, myWaiter, 1)
     outCorrId = corrId
     return true
 
   # Section 5.1 Timeout Cancellation Race Resolution
-  var expWaiting = rsWaiting
-  if myWaiter.state.compareExchangeStrong(expWaiting, rsCancelled, moAcquireRelease, moRelaxed):
+  var expWaiting = waitTag
+  if myWaiter.taggedState.compareExchangeStrong(expWaiting, cancelTag, moAcquireRelease, moRelaxed):
+    discard myWaiter.vbox.exchange(nil, moAcquireRelease)
     decRef(myVBox)
+    releaseWaiter(core, myWaiter, 2)
+    purgeCancelledWaiters(core)
     return false
-  else:
+  elif tagState(expWaiting) == rsMatched:
+    releaseWaiter(core, myWaiter, 1)
     outCorrId = corrId
     return true
+  else:
+    discard myWaiter.vbox.exchange(nil, moAcquireRelease)
+    decRef(myVBox)
+    releaseWaiter(core, myWaiter, 1)
+    purgeCancelledWaiters(core)
+    return false
 
 proc recvWithTimeout*[T](
     self: RendezvousChannel[T],
@@ -715,68 +970,360 @@ proc recvWithTimeout*[T](
     return false
 
   let core = self.core
-  let myWaiter = allocWaiter[T](core, wmReceiver, nil, 0)
+  var myEpoch: uint64 = 0
+  let myWaiter = allocWaiter[T](core, wmReceiver, nil, 0, myEpoch)
+  let waitTag = makeWaiterTag(myEpoch, wmReceiver, rsWaiting)
+  let cancelTag = makeWaiterTag(myEpoch, wmReceiver, rsCancelled)
 
   while true:
     purgeCancelledWaiters(core)
     if core.isClosed.load(moAcquire):
+      recycleUnenqueuedWaiter(core, myWaiter)
       return false
 
     var h = core.head.load(moAcquire)
     var t = core.tail.load(moAcquire)
     if h == nil or t == nil: continue
 
+    let hEpoch = tagEpoch(h.taggedState.load(moAcquire))
+    let tTag = t.taggedState.load(moAcquire)
+    let tEpoch = tagEpoch(tTag)
     var next = t.next.load(moAcquire)
-    if t == core.tail.load(moAcquire):
+    if t == core.tail.load(moAcquire) and tagEpoch(t.taggedState.load(moAcquire)) == tEpoch:
       if next != nil:
         discard core.tail.compareExchangeWeak(t, next, moAcquireRelease, moRelaxed)
         continue
 
-      if h == t or t.mode == wmReceiver:
+      if h == t or tagMode(tTag) == wmReceiver:
         var nilExp: ptr RendezvousWaiter[T] = nil
         if t.next.compareExchangeStrong(nilExp, myWaiter, moAcquireRelease, moRelaxed):
           discard core.tail.compareExchangeWeak(t, myWaiter, moAcquireRelease, moRelaxed)
+          if core.isClosed.load(moAcquire):
+            var expW = waitTag
+            if myWaiter.taggedState.compareExchangeStrong(expW, cancelTag, moAcquireRelease, moRelaxed):
+              myWaiter.parker.unpark()
+              releaseWaiter(core, myWaiter, 1)
           break
       else:
         let hNext = h.next.load(moAcquire)
-        if h == core.head.load(moAcquire) and hNext != nil:
-          if hNext.mode != wmSender:
-            if hNext.state.load(moAcquire) != rsWaiting:
-              discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+        if h == core.head.load(moAcquire) and hNext != nil and
+           tagEpoch(h.taggedState.load(moAcquire)) == hEpoch:
+          let hnTag = hNext.taggedState.load(moAcquire)
+          if tagMode(hnTag) != wmSender:
+            if tagState(hnTag) != rsWaiting:
+              discard advanceHead(core, h, hEpoch, hNext)
             continue
-          var exp = rsWaiting
-          if hNext.state.compareExchangeStrong(exp, rsMatched, moAcquireRelease, moRelaxed):
-            let transferred = hNext.vbox.load(moAcquire)
+          if tagState(hnTag) != rsWaiting:
+            discard advanceHead(core, h, hEpoch, hNext)
+            continue
+          var expTag = hnTag
+          let matchedTag = withTagState(hnTag, rsMatched)
+          if hNext.taggedState.compareExchangeStrong(expTag, matchedTag, moAcquireRelease, moRelaxed):
+            recycleUnenqueuedWaiter(core, myWaiter)
+            let transferred = hNext.vbox.exchange(nil, moAcquireRelease)
             outVal = transferred.val
             outCorrId = hNext.correlationId
             decRef(transferred)
             hNext.parker.unpark()
-            discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+            discard advanceHead(core, h, hEpoch, hNext)
+            releaseWaiter(core, hNext, 1)
             return true
           else:
-            discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+            discard advanceHead(core, h, hEpoch, hNext)
 
   let signaled = myWaiter.parker.parkTimeout(timeoutMs)
-  if signaled and myWaiter.state.load(moAcquire) == rsMatched:
+  if signaled and tagState(myWaiter.taggedState.load(moAcquire)) == rsMatched:
     while myWaiter.vbox.load(moAcquire) == nil:
       cpuPause()
-    let transferred = myWaiter.vbox.load(moAcquire)
+    let transferred = myWaiter.vbox.exchange(nil, moAcquireRelease)
     outVal = transferred.val
     outCorrId = myWaiter.correlationId
     decRef(transferred)
+    releaseWaiter(core, myWaiter, 1)
     return true
 
-  var expWaiting = rsWaiting
-  if myWaiter.state.compareExchangeStrong(expWaiting, rsCancelled, moAcquireRelease, moRelaxed):
+  var expWaiting = waitTag
+  if myWaiter.taggedState.compareExchangeStrong(expWaiting, cancelTag, moAcquireRelease, moRelaxed):
+    releaseWaiter(core, myWaiter, 2)
+    purgeCancelledWaiters(core)
     return false
-  else:
+  elif tagState(expWaiting) == rsMatched:
     while myWaiter.vbox.load(moAcquire) == nil:
       cpuPause()
-    let transferred = myWaiter.vbox.load(moAcquire)
+    let transferred = myWaiter.vbox.exchange(nil, moAcquireRelease)
     outVal = transferred.val
     outCorrId = myWaiter.correlationId
     decRef(transferred)
+    releaseWaiter(core, myWaiter, 1)
     return true
+  else:
+    releaseWaiter(core, myWaiter, 1)
+    purgeCancelledWaiters(core)
+    return false
+
+# ---------------------------------------------------------------------------
+# Async Bridge Delegation Primitives (Lock-Free Scherer-Scott Dual Queue)
+# ---------------------------------------------------------------------------
+
+proc enqueueAsyncSender*[T](
+    self: RendezvousChannel[T],
+    item: sink T,
+    wakeCb: ParkerWakeProc,
+    wakeArg: pointer,
+    outCorrId: var uint64
+): ptr RendezvousWaiter[T] =
+  ## Attempts an immediate lock-free match against a waiting receiver in the
+  ## dual queue (`result == nil`, `outCorrId > 0`), or enqueues a `wmSender`
+  ## waiter node with `wakeCb`/`wakeArg` attached (`result != nil`).
+  if self.core == nil or self.core.isClosed.load(moAcquire):
+    outCorrId = 0
+    return nil
+
+  if self.trySend(item, outCorrId):
+    return nil
+
+  let core = self.core
+  let myVBox = allocVBox(item)
+  let corrId = core.nextCorrId.fetchAdd(1, moRelaxed) + 1
+  var myEpoch: uint64 = 0
+  let myWaiter = allocWaiter[T](core, wmSender, myVBox, corrId, myEpoch)
+  let waitTag = makeWaiterTag(myEpoch, wmSender, rsWaiting)
+  let cancelTag = makeWaiterTag(myEpoch, wmSender, rsCancelled)
+  myWaiter.parker.wakeCb.store(cast[pointer](wakeCb), moRelease)
+  myWaiter.parker.wakeArg.store(wakeArg, moRelease)
+
+  while true:
+    purgeCancelledWaiters(core)
+    if core.isClosed.load(moAcquire):
+      discard myWaiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+      myWaiter.taggedState.store(cancelTag, moRelease)
+      let vb = myWaiter.vbox.exchange(nil, moAcquireRelease)
+      if vb != nil:
+        decRef(vb)
+      recycleUnenqueuedWaiter(core, myWaiter)
+      outCorrId = 0
+      return nil
+
+    var h = core.head.load(moAcquire)
+    var t = core.tail.load(moAcquire)
+    if h == nil or t == nil:
+      continue
+
+    let hEpoch = tagEpoch(h.taggedState.load(moAcquire))
+    let tTag = t.taggedState.load(moAcquire)
+    let tEpoch = tagEpoch(tTag)
+    var next = t.next.load(moAcquire)
+    if t == core.tail.load(moAcquire) and tagEpoch(t.taggedState.load(moAcquire)) == tEpoch:
+      if next != nil:
+        discard core.tail.compareExchangeWeak(t, next, moAcquireRelease, moRelaxed)
+        continue
+
+      if h == t or tagMode(tTag) == wmSender:
+        var nilExp: ptr RendezvousWaiter[T] = nil
+        if t.next.compareExchangeStrong(nilExp, myWaiter, moAcquireRelease, moRelaxed):
+          discard core.tail.compareExchangeWeak(t, myWaiter, moAcquireRelease, moRelaxed)
+          if core.isClosed.load(moAcquire):
+            var expW = waitTag
+            if myWaiter.taggedState.compareExchangeStrong(expW, cancelTag, moAcquireRelease, moRelaxed):
+              myWaiter.parker.unpark()
+              releaseWaiter(core, myWaiter, 1)
+          outCorrId = corrId
+          return myWaiter
+      else:
+        let hNext = h.next.load(moAcquire)
+        if h == core.head.load(moAcquire) and hNext != nil and
+           tagEpoch(h.taggedState.load(moAcquire)) == hEpoch:
+          let hnTag = hNext.taggedState.load(moAcquire)
+          if tagMode(hnTag) != wmReceiver:
+            if tagState(hnTag) != rsWaiting:
+              discard advanceHead(core, h, hEpoch, hNext)
+            continue
+          if tagState(hnTag) != rsWaiting:
+            discard advanceHead(core, h, hEpoch, hNext)
+            continue
+          var expTag = hnTag
+          let matchedTag = withTagState(hnTag, rsMatched)
+          if hNext.taggedState.compareExchangeStrong(expTag, matchedTag, moAcquireRelease, moRelaxed):
+            discard myWaiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+            myWaiter.taggedState.store(cancelTag, moRelease)
+            discard myWaiter.vbox.exchange(nil, moAcquireRelease)
+            recycleUnenqueuedWaiter(core, myWaiter)
+            hNext.correlationId = corrId
+            hNext.vbox.store(myVBox, moRelease)
+            hNext.parker.unpark()
+            discard advanceHead(core, h, hEpoch, hNext)
+            releaseWaiter(core, hNext, 1)
+            outCorrId = corrId
+            return nil
+          else:
+            discard advanceHead(core, h, hEpoch, hNext)
+
+proc finishAsyncSender*[T](
+    self: RendezvousChannel[T],
+    waiter: ptr RendezvousWaiter[T],
+    outLeftoverWakeArg: var pointer
+): bool =
+  ## Resolves bilateral CAS arbitration when an async sender wakes or cancels.
+  ## Atomically extracts any unconsumed `wakeArg` into `outLeftoverWakeArg`
+  ## before releasing the owner's waiter lifecycle reference.
+  var tag = waiter.taggedState.load(moAcquire)
+  var wonCancel = false
+  while tagState(tag) == rsWaiting:
+    if waiter.taggedState.compareExchangeWeak(
+      tag, withTagState(tag, rsCancelled), moAcquireRelease, moAcquire
+    ):
+      wonCancel = true
+      break
+  outLeftoverWakeArg = waiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+  if not wonCancel and tagState(tag) == rsMatched:
+    if self.core != nil:
+      releaseWaiter(self.core, waiter, 1)
+    return true
+  let vb = waiter.vbox.exchange(nil, moAcquireRelease)
+  if vb != nil:
+    decRef(vb)
+  if self.core != nil:
+    releaseWaiter(self.core, waiter, if wonCancel: 2 else: 1)
+    purgeCancelledWaiters(self.core)
+  return false
+
+proc finishAsyncSender*[T](
+    self: RendezvousChannel[T],
+    waiter: ptr RendezvousWaiter[T]
+): bool {.inline.} =
+  var dummy: pointer = nil
+  finishAsyncSender(self, waiter, dummy)
+
+proc enqueueAsyncReceiver*[T](
+    self: RendezvousChannel[T],
+    wakeCb: ParkerWakeProc,
+    wakeArg: pointer,
+    outVal: var T,
+    outCorrId: var uint64
+): ptr RendezvousWaiter[T] =
+  ## Attempts an immediate lock-free match against a waiting sender in the dual
+  ## queue (`result == nil`, `outCorrId > 0`, `outVal` populated), or enqueues a
+  ## `wmReceiver` waiter node with `wakeCb`/`wakeArg` attached (`result != nil`).
+  if self.core == nil or self.core.isClosed.load(moAcquire):
+    outCorrId = 0
+    return nil
+
+  if self.tryRecv(outVal, outCorrId):
+    return nil
+
+  let core = self.core
+  var myEpoch: uint64 = 0
+  let myWaiter = allocWaiter[T](core, wmReceiver, nil, 0, myEpoch)
+  let waitTag = makeWaiterTag(myEpoch, wmReceiver, rsWaiting)
+  let cancelTag = makeWaiterTag(myEpoch, wmReceiver, rsCancelled)
+  myWaiter.parker.wakeCb.store(cast[pointer](wakeCb), moRelease)
+  myWaiter.parker.wakeArg.store(wakeArg, moRelease)
+
+  while true:
+    purgeCancelledWaiters(core)
+    if core.isClosed.load(moAcquire):
+      discard myWaiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+      myWaiter.taggedState.store(cancelTag, moRelease)
+      recycleUnenqueuedWaiter(core, myWaiter)
+      outCorrId = 0
+      return nil
+
+    var h = core.head.load(moAcquire)
+    var t = core.tail.load(moAcquire)
+    if h == nil or t == nil:
+      continue
+
+    let hEpoch = tagEpoch(h.taggedState.load(moAcquire))
+    let tTag = t.taggedState.load(moAcquire)
+    let tEpoch = tagEpoch(tTag)
+    var next = t.next.load(moAcquire)
+    if t == core.tail.load(moAcquire) and tagEpoch(t.taggedState.load(moAcquire)) == tEpoch:
+      if next != nil:
+        discard core.tail.compareExchangeWeak(t, next, moAcquireRelease, moRelaxed)
+        continue
+
+      if h == t or tagMode(tTag) == wmReceiver:
+        var nilExp: ptr RendezvousWaiter[T] = nil
+        if t.next.compareExchangeStrong(nilExp, myWaiter, moAcquireRelease, moRelaxed):
+          discard core.tail.compareExchangeWeak(t, myWaiter, moAcquireRelease, moRelaxed)
+          if core.isClosed.load(moAcquire):
+            var expW = waitTag
+            if myWaiter.taggedState.compareExchangeStrong(expW, cancelTag, moAcquireRelease, moRelaxed):
+              myWaiter.parker.unpark()
+              releaseWaiter(core, myWaiter, 1)
+          outCorrId = 0
+          return myWaiter
+      else:
+        let hNext = h.next.load(moAcquire)
+        if h == core.head.load(moAcquire) and hNext != nil and
+           tagEpoch(h.taggedState.load(moAcquire)) == hEpoch:
+          let hnTag = hNext.taggedState.load(moAcquire)
+          if tagMode(hnTag) != wmSender:
+            if tagState(hnTag) != rsWaiting:
+              discard advanceHead(core, h, hEpoch, hNext)
+            continue
+          if tagState(hnTag) != rsWaiting:
+            discard advanceHead(core, h, hEpoch, hNext)
+            continue
+          var expTag = hnTag
+          let matchedTag = withTagState(hnTag, rsMatched)
+          if hNext.taggedState.compareExchangeStrong(expTag, matchedTag, moAcquireRelease, moRelaxed):
+            discard myWaiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+            myWaiter.taggedState.store(cancelTag, moRelease)
+            recycleUnenqueuedWaiter(core, myWaiter)
+            let transferred = hNext.vbox.exchange(nil, moAcquireRelease)
+            outVal = transferred.val
+            outCorrId = hNext.correlationId
+            decRef(transferred)
+            hNext.parker.unpark()
+            discard advanceHead(core, h, hEpoch, hNext)
+            releaseWaiter(core, hNext, 1)
+            return nil
+          else:
+            discard advanceHead(core, h, hEpoch, hNext)
+
+proc finishAsyncReceiver*[T](
+    self: RendezvousChannel[T],
+    waiter: ptr RendezvousWaiter[T],
+    outVal: var T,
+    outCorrId: var uint64,
+    outLeftoverWakeArg: var pointer
+): bool =
+  ## Resolves bilateral CAS arbitration when an async receiver wakes or cancels.
+  ## Atomically extracts any unconsumed `wakeArg` into `outLeftoverWakeArg`
+  ## before releasing the owner's waiter lifecycle reference.
+  var tag = waiter.taggedState.load(moAcquire)
+  var wonCancel = false
+  while tagState(tag) == rsWaiting:
+    if waiter.taggedState.compareExchangeWeak(
+      tag, withTagState(tag, rsCancelled), moAcquireRelease, moAcquire
+    ):
+      wonCancel = true
+      break
+  outLeftoverWakeArg = waiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+  if not wonCancel and tagState(tag) == rsMatched:
+    while waiter.vbox.load(moAcquire) == nil:
+      cpuPause()
+    let transferred = waiter.vbox.exchange(nil, moAcquireRelease)
+    outVal = transferred.val
+    outCorrId = waiter.correlationId
+    decRef(transferred)
+    if self.core != nil:
+      releaseWaiter(self.core, waiter, 1)
+    return true
+  if self.core != nil:
+    releaseWaiter(self.core, waiter, if wonCancel: 2 else: 1)
+    purgeCancelledWaiters(self.core)
+  return false
+
+proc finishAsyncReceiver*[T](
+    self: RendezvousChannel[T],
+    waiter: ptr RendezvousWaiter[T],
+    outVal: var T,
+    outCorrId: var uint64
+): bool {.inline.} =
+  var dummy: pointer = nil
+  finishAsyncReceiver(self, waiter, outVal, outCorrId, dummy)
 
 # ---------------------------------------------------------------------------
 # Syntactic Sugar Operators

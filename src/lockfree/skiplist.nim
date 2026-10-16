@@ -250,10 +250,19 @@ proc getOrRegisterHandle*[K, V; MaxThreads, MaxLevel: static int](
     self: SkipListMap[K, V, MaxThreads, MaxLevel]
 ): ThreadHandle[MaxThreads, ccMulti] =
   let mapId = self.core.id
+  let manager = self.core.manager
   for entry in gTlsHandles:
     if entry.mapId == mapId:
-      return ThreadHandle[MaxThreads, ccMulti](idx: entry.handleIdx, manager: self.core.manager)
-  let h = registerThread(self.core.manager[])
+      return ThreadHandle[MaxThreads, ccMulti](idx: entry.handleIdx, manager: manager)
+  let activeMask = manager.activeThreadMask.load(moAcquire)
+  for idx in 0 ..< MaxThreads:
+    if (activeMask and (1'u64 shl idx)) != 0'u64:
+      if isCurrent(manager.threads[idx].threadId.load(moAcquire)):
+        if gTlsHandles.len >= MaxCachedTlsHandles:
+          gTlsHandles.delete(0)
+        gTlsHandles.add(TlsHandleEntry(mapId: mapId, handleIdx: idx))
+        return ThreadHandle[MaxThreads, ccMulti](idx: idx, manager: manager)
+  let h = registerThread(manager[])
   if gTlsHandles.len >= MaxCachedTlsHandles:
     gTlsHandles.delete(0)
   gTlsHandles.add(TlsHandleEntry(mapId: mapId, handleIdx: h.idx))

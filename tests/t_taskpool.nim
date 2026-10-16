@@ -292,3 +292,27 @@ suite "TaskPool - Adversarial HIGH-02 Closure Lifetime":
     pool.sync()
     check sum.load(moAcquire) > 0
     pool.shutdown(wait = true)
+
+  test "High-frequency parallelFor and forkJoin with Parker wakeups and stack tasks (HIGH-PERF-02)":
+    var pool = initTaskPool(4)
+    # Allow workers to enter Parker sleep first
+    sleep(5)
+
+    for iter in 0 ..< 200:
+      var acc: Atomic[int]
+      acc.store(0, moRelaxed)
+      pool.parallelFor(0 ..< 64, proc(i: int) {.gcsafe.} =
+        discard acc.fetchAdd(i + 1, moRelaxed)
+      )
+      check acc.load(moAcquire) == (64 * 65) div 2
+
+    var fjSum: Atomic[int]
+    fjSum.store(0, moRelaxed)
+    for iter in 0 ..< 200:
+      pool.forkJoin(
+        proc() {.gcsafe.} = discard fjSum.fetchAdd(1, moRelaxed),
+        proc() {.gcsafe.} = discard fjSum.fetchAdd(2, moRelaxed)
+      )
+    check fjSum.load(moAcquire) == 600
+    pool.shutdown(wait = true)
+

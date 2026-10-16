@@ -7,8 +7,8 @@
 ## Source-of-truth remains `lockfree.nimble`; this constant MUST
 ## be bumped in lockstep on every release.
 
-const LockfreeVersion* {.strdefine.} = "0.1.0"
-  ## In-tree package version. Mirrors the `version = "0.1.0"` line in
+const LockfreeVersion* {.strdefine.} = "0.3.0"
+  ## In-tree package version. Mirrors the `version = "0.3.0"` line in
   ## `lockfree.nimble`. `{.strdefine.}` lets downstream builds
   ## override via `-d:LockfreeVersion=<x.y.z>` for fork builds; the
   ## bench JSON captures whatever value was compiled in.
@@ -54,7 +54,7 @@ when compileOption("threads"):
   export pinscope_stub
   export with_bound
 
-  when defined(lockfreeAsyncdispatch):
+  when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch):
     import ./lockfree/async_bridge
     export async_bridge
 else:

@@ -461,6 +461,135 @@ jobs:
         run: |
           echo "::warning title=Adapter skipped::system.Channel smoke failed; bench will omit nim_channel slugs."
 
+      # ---------- Vendored C++ & C comparison adapters (atomic_queue, rigtorp, liblfds) ----------
+
+      - name: Smoke atomic_queue adapter
+        id: smoke-atomic-queue
+        if: |
+          matrix.binary == 'bench_spsc' ||
+          matrix.binary == 'bench_mpmc_bounded'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          nim cpp -d:release -d:danger --threads:on \
+            -d:adapter_atomic_queue_available \
+            -o:.tmp/smoke_atomic_queue \
+            benchmarks/nim/smoke/smoke_atomic_queue.nim
+          ./.tmp/smoke_atomic_queue
+
+      - name: Set atomic_queue adapter define (success only)
+        if: steps.smoke-atomic-queue.outcome == 'success'
+        run: echo "ADAPTER_ATOMIC_QUEUE=1" >> "$GITHUB_ENV"
+
+      - name: Smoke rigtorp adapters
+        id: smoke-rigtorp
+        if: |
+          matrix.binary == 'bench_spsc' ||
+          matrix.binary == 'bench_mpmc_bounded'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          nim cpp -d:release -d:danger --threads:on \
+            -d:adapter_rigtorp_spsc_available \
+            -d:adapter_rigtorp_mpmc_available \
+            -o:.tmp/smoke_rigtorp \
+            benchmarks/nim/smoke/smoke_rigtorp.nim
+          ./.tmp/smoke_rigtorp
+
+      - name: Set rigtorp adapter defines (success only)
+        if: steps.smoke-rigtorp.outcome == 'success'
+        run: |
+          {
+            echo "ADAPTER_RIGTORP_SPSC=1"
+            echo "ADAPTER_RIGTORP_MPMC=1"
+          } >> "$GITHUB_ENV"
+
+      - name: Install and smoke liblfds adapter (vendored C build)
+        id: smoke-liblfds
+        if: |
+          matrix.binary == 'bench_spsc' ||
+          matrix.binary == 'bench_mpmc_bounded'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          mkdir -p benchmarks/vendor/liblfds/liblfds711/bin benchmarks/vendor/liblfds/liblfds711/obj
+          for src in benchmarks/vendor/liblfds/liblfds711/src/*/*.c; do
+            obj="benchmarks/vendor/liblfds/liblfds711/obj/$(basename "$(dirname "$src")")_$(basename "$src" .c).o"
+            cc -O3 -fPIC -D__linux__ -Ibenchmarks/vendor/liblfds/liblfds711/inc -c "$src" -o "$obj"
+          done
+          ar rcs benchmarks/vendor/liblfds/liblfds711/bin/liblfds711.a benchmarks/vendor/liblfds/liblfds711/obj/*.o
+          test -f benchmarks/vendor/liblfds/liblfds711/bin/liblfds711.a
+          nim c -d:release -d:danger --threads:on \
+            -d:adapter_liblfds_available \
+            --passL:"-Lbenchmarks/vendor/liblfds/liblfds711/bin -llfds711" \
+            -o:.tmp/smoke_liblfds \
+            benchmarks/nim/smoke/smoke_liblfds.nim
+          ./.tmp/smoke_liblfds
+
+      - name: Set liblfds adapter define (success only)
+        if: steps.smoke-liblfds.outcome == 'success'
+        run: |
+          {
+            echo "ADAPTER_LIBLFDS=1"
+            echo "LIBLFDS_LIB_DIR=${GITHUB_WORKSPACE}/benchmarks/vendor/liblfds/liblfds711/bin"
+          } >> "$GITHUB_ENV"
+
+      # ---------- Consolidated Rust FFI cdylib (crossbeam, flume, kanal, dashmap, flurry, rayon, etc.) ----------
+
+      - name: Setup Rust toolchain
+        id: setup-rust
+        if: |
+          matrix.binary == 'bench_spsc' ||
+          matrix.binary == 'bench_mpmc_bounded' ||
+          matrix.binary == 'bench_unbounded_mpmc' ||
+          matrix.binary == 'bench_maps' ||
+          matrix.binary == 'bench_stacks_deques' ||
+          matrix.binary == 'bench_broadcast' ||
+          matrix.binary == 'bench_ratelimit_streaming' ||
+          matrix.binary == 'bench_rendezvous' ||
+          matrix.binary == 'bench_taskpool' ||
+          matrix.binary == 'bench_smr_nebr'
+        continue-on-error: true
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust build artifacts
+        if: steps.setup-rust.outcome == 'success'
+        continue-on-error: true
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: benchmarks/rust/bench-ffi-crossbeam
+
+      - name: Build and smoke Rust FFI cdylib
+        id: smoke-rust-ffi
+        if: steps.setup-rust.outcome == 'success'
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          cargo build --release \
+            --manifest-path benchmarks/rust/bench-ffi-crossbeam/Cargo.toml
+          nim c -d:release -d:danger --threads:on \
+            -d:adapter_crossbeam_array_queue_available \
+            -d:adapter_crossbeam_seg_queue_available \
+            --passL:"-Wl,-rpath,$(pwd)/benchmarks/rust/bench-ffi-crossbeam/target/release" \
+            -o:.tmp/smoke_crossbeam \
+            benchmarks/nim/smoke/smoke_crossbeam.nim
+          ./.tmp/smoke_crossbeam
+          nim c -d:release -d:danger --threads:on \
+            -d:adapter_flume_available \
+            -d:adapter_kanal_available \
+            --passL:"-Wl,-rpath,$(pwd)/benchmarks/rust/bench-ffi-crossbeam/target/release" \
+            -o:.tmp/smoke_comparison \
+            benchmarks/nim/smoke/smoke_comparison.nim
+          ./.tmp/smoke_comparison
+
+      - name: Set Rust FFI adapter defines (success only)
+        if: steps.smoke-rust-ffi.outcome == 'success'
+        run: |
+          {
+            echo "ADAPTER_RUST_FFI=1"
+            echo "RUST_FFI_LIB_DIR=${GITHUB_WORKSPACE}/benchmarks/rust/bench-ffi-crossbeam/target/release"
+          } >> "$GITHUB_ENV"
+
       - name: Build adapter define flags
         # Aggregates the per-adapter env flags into a single shell
         # variable consumed by the compile step. Empty when no adapter
@@ -494,6 +623,24 @@ jobs:
           fi
           if [ "${ADAPTER_NIM_CHANNEL:-}" = "1" ]; then
             flags="$flags -d:adapter_nim_channel_available"
+          fi
+          if [ "${ADAPTER_ATOMIC_QUEUE:-}" = "1" ]; then
+            flags="$flags -d:adapter_atomic_queue_available"
+            mode="cpp"
+          fi
+          if [ "${ADAPTER_RIGTORP_SPSC:-}" = "1" ]; then
+            flags="$flags -d:adapter_rigtorp_spsc_available"
+            mode="cpp"
+          fi
+          if [ "${ADAPTER_RIGTORP_MPMC:-}" = "1" ]; then
+            flags="$flags -d:adapter_rigtorp_mpmc_available"
+            mode="cpp"
+          fi
+          if [ "${ADAPTER_LIBLFDS:-}" = "1" ] && [ -n "${LIBLFDS_LIB_DIR:-}" ]; then
+            flags="$flags -d:adapter_liblfds_available --passL:-L${LIBLFDS_LIB_DIR} --passL:-llfds711"
+          fi
+          if [ "${ADAPTER_RUST_FFI:-}" = "1" ] && [ -n "${RUST_FFI_LIB_DIR:-}" ]; then
+            flags="$flags -d:adapter_rust_ffi_available -d:adapter_crossbeam_array_queue_available -d:adapter_crossbeam_seg_queue_available -d:adapter_flume_available -d:adapter_kanal_available --passL:-Wl,-rpath,${RUST_FFI_LIB_DIR}"
           fi
           {
             echo "flags=$flags"
@@ -642,6 +789,7 @@ jobs:
                 -d:BenchMapRuns=3 \
                 -d:BenchMapWarmup=1 \
                 -d:BenchMapOpsPerThread=20000 \
+                $ADAPTER_FLAGS \
                 benchmarks/nim/bench_maps.nim
               ;;
             bench_stacks_deques)
@@ -657,6 +805,7 @@ jobs:
                 -d:BenchBroadcastRuns=3 \
                 -d:BenchBroadcastWarmup=1 \
                 -d:BenchBroadcastMsgCount=50000 \
+                $ADAPTER_FLAGS \
                 benchmarks/nim/bench_broadcast.nim
               ;;
             bench_ratelimit_streaming)
@@ -674,6 +823,7 @@ jobs:
                 -d:BenchRendezvousWarmup=1 \
                 -d:BenchRendezvousMsgCount=20000 \
                 -d:BenchRendezvousRpcCount=10000 \
+                $ADAPTER_FLAGS \
                 benchmarks/nim/bench_rendezvous.nim
               ;;
             bench_taskpool)
@@ -683,6 +833,7 @@ jobs:
                 -d:BenchParForCount=50000 \
                 -d:BenchForkJoinDepth=11 \
                 -d:BenchSpawnSyncCount=10000 \
+                $ADAPTER_FLAGS \
                 benchmarks/nim/bench_taskpool.nim
               ;;
             bench_smr_nebr)
@@ -691,6 +842,7 @@ jobs:
                 -d:BenchSmrWarmup=1 \
                 -d:BenchPinOpsPerThread=50000 \
                 -d:BenchRetireOpsPerThread=10000 \
+                $ADAPTER_FLAGS \
                 benchmarks/nim/bench_smr_nebr.nim
               ;;
             *)
@@ -795,8 +947,9 @@ jobs:
     permissions:
       # `contents: write` covers both the read needed by
       # actions/checkout and the write needed by the snapshot-push step
-      # (Task 5.5.b). The push only fires on `push` to `refs/heads/devel`;
-      # PR runs and other branches keep contents:write unused.
+      # (Task 5.5.b). The push fires on `push` to `refs/heads/main` or
+      # `refs/heads/devel`; PR runs and other branches keep contents:write
+      # scoped appropriately.
       contents: write
       # `actions: write` is needed for the "Trigger docs redeploy" step
       # at the end of this job to dispatch docs.yml via the GitHub API.
@@ -809,9 +962,9 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v4
         with:
-          # Snapshot-push needs a writable working tree on `devel` so
-          # `git commit` + `git push origin devel` succeeds. Detached
-          # HEAD (the default for push events) cannot push back.
+          # Snapshot-push needs a writable working tree on `main` / `devel`
+          # so `git commit` + `git push origin HEAD:<branch>` succeeds.
+          # Detached HEAD (the default for push events) cannot push back.
           ref: ${{ github.event_name == 'push' && github.ref_name || '' }}
           # Default GITHUB_TOKEN identity (`github-actions[bot]`) is the
           # token the actor-guard short-circuits on (Task 5.5.a), so
@@ -899,7 +1052,7 @@ jobs:
 
       # snapshot the merged BMF into the docs
       # assets tree so the chart on `docs/benchmarks.md` always points
-      # at the most recent devel run. Loop-prevention against bench.yml
+      # at the most recent main/devel run. Loop-prevention against bench.yml
       # itself relies on three defensive layers:
       #   1. `paths-ignore: docs/assets/bench-results/**` on bench.yml
       #      — the snapshot push only changes files under that prefix,
@@ -911,19 +1064,15 @@ jobs:
       #      thread D1) — third defensive guard preventing recursive
       #      bench → snapshot → bench loops in edge cases where the
       #      paths-ignore evaluation order or workflow_dispatch
-      #      re-runs could otherwise re-trigger. GitHub's native
-      #      `[skip ci]` suppresses ALL workflows on the commit;
-      #      docs.yml's chart deploy is acceptable to defer because
-      #      the next non-bot push to devel will redeploy the JSON
-      #      via the normal docs build path. Symmetric with the
-      #      defensive fallback step's commit (which also carries
-      #      `[skip ci]`).
-      # Only fires on `push` to `refs/heads/devel`; tag pushes,
-      # workflow_dispatch, PR runs, and main pushes do nothing here.
-      - name: Snapshot to docs assets (devel push only)
-        if: github.event_name == 'push' && github.ref == 'refs/heads/devel'
+      #      re-runs could otherwise re-trigger.
+      # Fires on `push` to `refs/heads/main` or `refs/heads/devel`.
+      - name: Snapshot to docs assets (main / devel push)
+        if: |
+          github.event_name == 'push' &&
+          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')
         run: |
           set -euo pipefail
+          TARGET_BRANCH="${{ github.ref_name }}"
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           mkdir -p docs/assets/bench-results
@@ -931,7 +1080,7 @@ jobs:
           cp merged.json "docs/assets/bench-results/${SHA}.json"
           cp merged.json docs/assets/bench-results/latest.json
           # Auto-refresh example.json (the README's pinned source) on
-          # every devel push so it tracks the latest measured snapshot
+          # every main/devel push so it tracks the latest measured snapshot
           # without requiring hand-curation between releases.
           cp merged.json docs/assets/bench-results/example.json
           # Auto-generate dual-theme SVGs and update README benchmark tables
@@ -950,30 +1099,18 @@ jobs:
             exit 0
           fi
           git commit -m "chore(bench): refresh snapshot [skip ci]"
-          # Long bench runs leave a wide window for `devel` to advance
+          # Long bench runs leave a wide window for the branch to advance
           # before we push (a docs-only follow-up commit, an unrelated
           # merge, etc.); a plain `git push` would then be rejected
           # non-fast-forward and fail the entire bench-upload job.
-          # Retry: fetch+rebase+push up to 3 times. bench.yml's
-          # paths-ignore on docs/assets/bench-results/** prevents this
-          # commit from retriggering bench.yml, so the retry loop is
-          # safe regardless of how many fast-forwards happen.
+          # Retry: fetch+rebase+push up to 3 times.
           for attempt in 1 2 3; do
-            if git push origin HEAD:devel; then
+            if git push origin "HEAD:${TARGET_BRANCH}"; then
               exit 0
             fi
-            echo "::notice::push attempt $attempt rejected; rebasing onto origin/devel and retrying."
-            git fetch origin devel
-            # Rebase preserves our snapshot commit on top of any new
-            # commits that landed since checkout. Conflict on the
-            # snapshot files themselves is impossible (no other workflow
-            # writes to docs/assets/bench-results/), so a clean rebase
-            # is the expected outcome. Abort on rebase failure so the
-            # next iteration starts from a clean working tree (an
-            # in-progress rebase would leave HEAD detached and the next
-            # `git push` would push the partial rebase rather than the
-            # snapshot commit).
-            if ! git rebase origin/devel; then
+            echo "::notice::push attempt $attempt rejected; rebasing onto origin/${TARGET_BRANCH} and retrying."
+            git fetch origin "${TARGET_BRANCH}"
+            if ! git rebase "origin/${TARGET_BRANCH}"; then
               git rebase --abort || true
               echo "::warning::rebase attempt $attempt failed; aborted and continuing retry loop."
             fi
@@ -1043,38 +1180,15 @@ jobs:
           exit 1
 
       # v4.2.0 thread D1: defensive fallback snapshot.
-      #
-      # When `Merge BMF JSON` (id: merge) fails or is cancelled on a
-      # `devel` push or `workflow_dispatch`, the regular Snapshot step
-      # short-circuits the job and the chart on docs/benchmarks.md
-      # would silently 404 against the missing `latest.json`. This
-      # step writes a placeholder `latest.json` with `_status:
-      # "fallback"` so the chart page can render an explicit "no
-      # data — last attempt failed" state. Operators can pivot from
-      # the embedded `_workflow_run` URL to triage.
-      #
-      # Loop-safety: same three layers as the regular snapshot
-      # (paths-ignore + bot-actor guard + `[skip ci]` in the commit
-      # message).
-      #
-      # `if:` scoping (IMP-5): only fires when `merge` outcome is
-      # `failure` or `cancelled`. We deliberately do NOT fire on
-      # `success` (the regular snapshot handles that) and do NOT
-      # fire on `skipped` (means the job never reached merge — no
-      # signal to publish).
-      #
-      # The placeholder JSON omits `_commit` (IMP-6); `_workflow_run`
-      # is sufficient for traceability and avoids the misleading
-      # impression that the placeholder corresponds to a measured
-      # bench at that SHA.
       - name: Defensive snapshot fallback
         if: |
           always() && (
-            (github.event_name == 'push' && github.ref == 'refs/heads/devel') ||
-            (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/devel')
+            (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')) ||
+            (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel'))
           ) && (steps.merge.outcome == 'failure' || steps.merge.outcome == 'cancelled')
         run: |
           set -euo pipefail
+          TARGET_BRANCH="${{ github.ref_name }}"
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           mkdir -p docs/assets/bench-results
@@ -1093,19 +1207,13 @@ jobs:
             exit 0
           fi
           git commit -m "bench: defensive fallback snapshot [skip ci]"
-          # Same retry pattern as the regular snapshot step: fetch +
-          # rebase + push up to 3 times to survive concurrent advances
-          # of devel during long bench runs.
           for attempt in 1 2 3; do
-            if git push origin HEAD:devel; then
+            if git push origin "HEAD:${TARGET_BRANCH}"; then
               exit 0
             fi
-            echo "::notice::fallback push attempt $attempt rejected; rebasing onto origin/devel and retrying."
-            git fetch origin devel
-            # Same rationale as the regular snapshot step above: abort on
-            # rebase failure so the next iteration starts from a clean
-            # working tree rather than mid-rebase HEAD-detached state.
-            if ! git rebase origin/devel; then
+            echo "::notice::fallback push attempt $attempt rejected; rebasing onto origin/${TARGET_BRANCH} and retrying."
+            git fetch origin "${TARGET_BRANCH}"
+            if ! git rebase "origin/${TARGET_BRANCH}"; then
               git rebase --abort || true
               echo "::warning::fallback rebase attempt $attempt failed; aborted and continuing retry loop."
             fi
@@ -1114,20 +1222,13 @@ jobs:
           exit 1
 
       # Wake docs.yml after bench-upload has committed latest.json (or the
-      # fallback placeholder). bench-upload's commits carry [skip-ci] for
-      # loop prevention, so they don't trigger docs.yml's push trigger on
-      # their own — this explicit dispatch is the wakeup signal. Eliminates
-      # the race where docs.yml deployed before bench had published
-      # latest.json. `if: always()` so a no-op snapshot (identical
-      # checked-in copy) still wakes docs in case earlier deploys missed
-      # the file. Scoped to devel push / dispatch to mirror the snapshot
-      # steps' `if:` conditions.
+      # fallback placeholder).
       - name: Trigger docs redeploy
         if: |
           always() && (
-            (github.event_name == 'push' && github.ref == 'refs/heads/devel') ||
-            (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/devel')
+            (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')) ||
+            (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel'))
           )
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run docs.yml --ref devel
+        run: gh workflow run docs.yml --ref "${{ github.ref_name }}"

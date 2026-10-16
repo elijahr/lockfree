@@ -22,7 +22,7 @@
 ## (silent skip on missing optional dep). In CI the chronos cell
 ## installs chronos so the gate opens.
 
-when not (compiles do:
+when not defined(lockfreeChronos) or not (compiles do:
   import chronos
 ):
   # LOUD skip marker: chronos is NOT in lockfree.nimble requires, so the
@@ -34,11 +34,11 @@ when not (compiles do:
   # real assertions in the `when (compiles ...)` branch below.
   echo "================================================================"
   echo "SKIPPED [t_chronos]: chronos adapter NOT TESTED (chronos not on " &
-    "the Nim path in this build env). 0 assertions ran. Install chronos " &
-    "and re-run to exercise lockfree/chronos. This is a SKIP, not a PASS."
+    "the Nim path or -d:lockfreeChronos not set). 0 assertions ran. " &
+    "Install chronos and pass -d:lockfreeChronos to exercise lockfree/chronos."
   echo "================================================================"
 
-when (compiles do:
+when defined(lockfreeChronos) and (compiles do:
   import chronos
 ):
   # chronos own `AsyncQueue[T]` collides at unqualified scope with the
@@ -51,6 +51,7 @@ when (compiles do:
   # scope; pick the right `import` accordingly.
   import std/options
   import unittest2
+  import lockfree
   import lockfree/bqueue  # PinScopeCardinality (ccSingle / ccMulti)
   import lockfree/queue
   import lockfree/strategy
@@ -136,3 +137,20 @@ when (compiles do:
       prod.push(11)
       q.event.fire()
       check waitFor(popFut) == some(11)
+
+  suite "lockfree/chronos — unified async_bridge re-export & umbrella wiring":
+    test "umbrella LockfreeVersion is 0.3.0 and lockfree/chronos exports all 6 adapters":
+      check LockfreeVersion == "0.3.0"
+      var ch = newAsyncRendezvousChannel[int]()
+      check ch != nil
+      var ring = newAsyncBroadcastRing[int](16)
+      var sub = ring.subscribe()
+      check ring.tryPublish(77) == true
+      let item = waitFor(sub.recvAsync())
+      check item == some(77)
+      sub.unsubscribe()
+      var bus = newAsyncTopicBus[int]()
+      check bus != nil
+      var dq = newAsyncChaseLevDeque[int](16)
+      dq.pushBottom(55)
+      check waitFor(dq.stealAsync()) == some(55)

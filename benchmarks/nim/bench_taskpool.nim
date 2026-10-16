@@ -47,8 +47,11 @@ proc mix64(x: uint64): uint64 {.inline.} =
 # -----------------------------------------------------------------------------
 type
   LockedWorkItem = object
+    isForkJoin: bool
     first: int
     last: int
+    depth: int
+    seed: uint64
     outPtr: ptr Atomic[uint64]
     pending: ptr Atomic[int64]
 
@@ -60,6 +63,39 @@ type
     stop: bool
     numWorkers: int
     threads: seq[Thread[ptr LockedPoolCore]]
+
+proc submitLockedItem(core: ptr LockedPoolCore, item: LockedWorkItem) {.inline.} =
+  acquire(core.lock)
+  core.queue.add(item)
+  signal(core.cond)
+  release(core.lock)
+
+proc lockedExecuteForkJoin(
+    core: ptr LockedPoolCore,
+    depth: int,
+    seed: uint64,
+    outPtr: ptr Atomic[uint64],
+    pending: ptr Atomic[int64]
+) {.gcsafe.} =
+  var curDepth = depth
+  var curSeed = seed
+  while curDepth > 0:
+    submitLockedItem(core, LockedWorkItem(
+      isForkJoin: true,
+      depth: curDepth - 1,
+      seed: curSeed * 2'u64 + 2'u64,
+      outPtr: outPtr,
+      pending: pending
+    ))
+    curDepth -= 1
+    curSeed = curSeed * 2'u64 + 1'u64
+  var acc = curSeed
+  for k in 0 ..< 16:
+    acc = mix64(acc + uint64(k))
+  if outPtr != nil:
+    discard outPtr[].fetchAdd(acc, moRelaxed)
+  if pending != nil:
+    discard pending[].fetchSub(1'i64, moRelease)
 
 proc lockedWorkerMain(core: ptr LockedPoolCore) {.thread.} =
   while true:
@@ -81,13 +117,18 @@ proc lockedWorkerMain(core: ptr LockedPoolCore) {.thread.} =
     release(core.lock)
 
     if hasItem:
-      var localAcc = 0'u64
-      for i in item.first .. item.last:
-        localAcc = localAcc xor mix64(uint64(i))
-      if item.outPtr != nil:
-        discard item.outPtr[].fetchAdd(localAcc, moRelaxed)
-      if item.pending != nil:
-        discard item.pending[].fetchSub(1'i64, moRelease)
+      if item.isForkJoin:
+        lockedExecuteForkJoin(core, item.depth, item.seed, item.outPtr, item.pending)
+      else:
+        var localAcc = 0'u64
+        for i in item.first .. item.last:
+          localAcc += mix64(uint64(i))
+          if (i and 63) == 63 or i == item.last:
+            if item.outPtr != nil:
+              discard item.outPtr[].fetchAdd(localAcc, moRelaxed)
+            localAcc = 0'u64
+        if item.pending != nil:
+          discard item.pending[].fetchSub(1'i64, moRelease)
 
 proc initLockedPool(numWorkers: int): ptr LockedPoolCore =
   result = cast[ptr LockedPoolCore](allocShared0(sizeof(LockedPoolCore)))
@@ -115,16 +156,11 @@ proc shutdownLockedPool(core: ptr LockedPoolCore) =
   `=destroy`(core.threads)
   deallocShared(core)
 
-proc submitLockedItem(core: ptr LockedPoolCore, item: LockedWorkItem) {.inline.} =
-  acquire(core.lock)
-  core.queue.add(item)
-  signal(core.cond)
-  release(core.lock)
-
 # -----------------------------------------------------------------------------
 # 1. parallelFor Workload
 # -----------------------------------------------------------------------------
 const ParForChunkSize = 256
+var parForThreadAcc {.threadvar.}: uint64
 
 proc runTaskPoolParForTrial(pool: var TaskPool, count: int): float =
   var sinkAcc = Atomic[uint64]()
@@ -133,9 +169,12 @@ proc runTaskPoolParForTrial(pool: var TaskPool, count: int): float =
 
   let t0 = getMonoTime()
   pool.parallelFor(0, count - 1, proc(i: int) {.closure, gcsafe.} =
-    let v = mix64(uint64(i))
-    if (i and 63) == 0:
-      discard sinkPtr[].fetchAdd(v, moRelaxed)
+    let acc = parForThreadAcc + mix64(uint64(i))
+    if (i and 63) == 63 or i + 1 == count:
+      discard sinkPtr[].fetchAdd(acc, moRelaxed)
+      parForThreadAcc = 0'u64
+    else:
+      parForThreadAcc = acc
   , chunkSize = ParForChunkSize)
   let elapsedNs = float(inNanoseconds(getMonoTime() - t0))
   if elapsedNs <= 0.0: return 0.0
@@ -155,6 +194,7 @@ proc runLockedParForTrial(core: ptr LockedPoolCore, count: int): float =
     let cStart = c * effChunk
     let cEnd = min(count - 1, cStart + effChunk - 1)
     submitLockedItem(core, LockedWorkItem(
+      isForkJoin: false,
       first: cStart,
       last: cEnd,
       outPtr: addr sinkAcc,
@@ -209,16 +249,17 @@ proc runLockedForkJoinTrial(core: ptr LockedPoolCore, depth: int): float =
   var pending = Atomic[int64]()
   sinkAcc.store(0'u64, moRelaxed)
   let totalNodes = (1 shl (depth + 1)) - 1
-  pending.store(int64(totalNodes), moRelaxed)
+  let numLeaves = 1 shl max(0, depth)
+  pending.store(int64(numLeaves), moRelaxed)
 
   let t0 = getMonoTime()
-  for i in 0 ..< totalNodes:
-    submitLockedItem(core, LockedWorkItem(
-      first: i,
-      last: i + 15,
-      outPtr: addr sinkAcc,
-      pending: addr pending
-    ))
+  submitLockedItem(core, LockedWorkItem(
+    isForkJoin: true,
+    depth: depth,
+    seed: 1'u64,
+    outPtr: addr sinkAcc,
+    pending: addr pending
+  ))
   while pending.load(moAcquire) > 0:
     benchBackoffOnPeerWait()
   let elapsedNs = float(inNanoseconds(getMonoTime() - t0))
@@ -267,6 +308,7 @@ proc runLockedSpawnSyncTrial(core: ptr LockedPoolCore, taskCount: int): float =
   let t0 = getMonoTime()
   for i in 0 ..< taskCount:
     submitLockedItem(core, LockedWorkItem(
+      isForkJoin: false,
       first: i,
       last: i + 7,
       outPtr: addr sinkAcc,
@@ -288,8 +330,12 @@ proc recordSeries(
   emitter.addMeasure(slug, "throughput_ops_ms", m, m - s, m + s)
   echo &"{slug}: mean = {m:10.1f} ops/ms, stddev = {s:8.1f}"
 
+proc matchesFilter(libSlug: string, filters: seq[string]): bool {.inline.} =
+  filters.len == 0 or libSlug in filters
+
 proc main() =
   var outputPath = ""
+  var filters: seq[string] = @[]
   var p = initOptParser(commandLineParams())
   while true:
     p.next()
@@ -298,7 +344,17 @@ proc main() =
     of cmdLongOption, cmdShortOption:
       if p.key in ["o", "output", "bmf-out"]:
         outputPath = p.val
-    of cmdArgument: discard
+    of cmdArgument:
+      filters.add(p.key)
+
+  var supported = @["taskpool", "locked_task_queue"]
+  when defined(adapter_rust_ffi_available) or defined(adapter_rayon_available):
+    supported.add("rayon_pool")
+  if filters.len > 0:
+    for f in filters:
+      if f notin supported:
+        echo &"Unknown target: {f} (supported: {supported})"
+        quit 1
 
   echo "TaskPool Work-Stealing Scheduler Benchmark (parallelFor, forkJoin, spawn+sync)"
   echo "=============================================================================="
@@ -308,7 +364,7 @@ proc main() =
 
   echo "\n--- 1. Parallel Loop Throughput (taskpool_parfor) ---"
   for nw in threadCounts:
-    block:
+    if matchesFilter("taskpool", filters):
       var pool = initTaskPool(nw)
       for _ in 0 ..< BenchTaskPoolWarmup:
         discard runTaskPoolParForTrial(pool, BenchParForCount)
@@ -318,7 +374,7 @@ proc main() =
       pool.shutdown(wait = true)
       recordSeries(emitter, &"taskpool/taskpool_parfor/{nw}t", tpSamples)
 
-    block:
+    if matchesFilter("locked_task_queue", filters):
       let core = initLockedPool(nw)
       for _ in 0 ..< BenchTaskPoolWarmup:
         discard runLockedParForTrial(core, BenchParForCount)
@@ -329,7 +385,7 @@ proc main() =
       recordSeries(emitter, &"locked_task_queue/taskpool_parfor/{nw}t", lqSamples)
 
     when defined(adapter_rust_ffi_available) or defined(adapter_rayon_available):
-      block:
+      if matchesFilter("rayon_pool", filters):
         let rPool = rayon_pool_init(csize_t(nw))
         for _ in 0 ..< BenchTaskPoolWarmup:
           discard runRayonParForTrial(rPool, BenchParForCount)
@@ -341,7 +397,7 @@ proc main() =
 
   echo "\n--- 2. Recursive Fork-Join Throughput (taskpool_forkjoin) ---"
   for nw in threadCounts:
-    block:
+    if matchesFilter("taskpool", filters):
       var pool = initTaskPool(nw)
       for _ in 0 ..< BenchTaskPoolWarmup:
         discard runTaskPoolForkJoinTrial(pool, BenchForkJoinDepth)
@@ -351,7 +407,7 @@ proc main() =
       pool.shutdown(wait = true)
       recordSeries(emitter, &"taskpool/taskpool_forkjoin/{nw}t", tpSamples)
 
-    block:
+    if matchesFilter("locked_task_queue", filters):
       let core = initLockedPool(nw)
       for _ in 0 ..< BenchTaskPoolWarmup:
         discard runLockedForkJoinTrial(core, BenchForkJoinDepth)
@@ -362,7 +418,7 @@ proc main() =
       recordSeries(emitter, &"locked_task_queue/taskpool_forkjoin/{nw}t", lqSamples)
 
     when defined(adapter_rust_ffi_available) or defined(adapter_rayon_available):
-      block:
+      if matchesFilter("rayon_pool", filters):
         let rPool = rayon_pool_init(csize_t(nw))
         for _ in 0 ..< BenchTaskPoolWarmup:
           discard runRayonForkJoinTrial(rPool, BenchForkJoinDepth)
@@ -374,7 +430,7 @@ proc main() =
 
   echo "\n--- 3. High-Churn Task Spawn & Sync (taskpool_spawnsync) ---"
   for nw in threadCounts:
-    block:
+    if matchesFilter("taskpool", filters):
       var pool = initTaskPool(nw)
       for _ in 0 ..< BenchTaskPoolWarmup:
         discard runTaskPoolSpawnSyncTrial(pool, BenchSpawnSyncCount)
@@ -384,7 +440,7 @@ proc main() =
       pool.shutdown(wait = true)
       recordSeries(emitter, &"taskpool/taskpool_spawnsync/{nw}t", tpSamples)
 
-    block:
+    if matchesFilter("locked_task_queue", filters):
       let core = initLockedPool(nw)
       for _ in 0 ..< BenchTaskPoolWarmup:
         discard runLockedSpawnSyncTrial(core, BenchSpawnSyncCount)

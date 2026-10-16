@@ -353,8 +353,12 @@ proc runTopicBusBenchmark(
     return 0.0
   result = float(totalRead) * 1_000_000.0 / elapsedNs
 
+proc matchesFilter(libSlug: string, filters: seq[string]): bool {.inline.} =
+  filters.len == 0 or libSlug in filters
+
 proc main() =
   var outputPath = ""
+  var filters: seq[string] = @[]
   var p = initOptParser(commandLineParams())
   while true:
     p.next()
@@ -363,19 +367,43 @@ proc main() =
     of cmdLongOption, cmdShortOption:
       if p.key in ["o", "output", "bmf-out"]:
         outputPath = p.val
-    of cmdArgument: discard
+    of cmdArgument:
+      filters.add(p.key)
+
+  let modes = [
+    (omDropOldest, "broadcast_ring_drop"),
+    (omBackoff, "broadcast_ring_backoff")
+  ]
+  var topicTargets = @[
+    (omDropOldest, false, "topic_bus_drop"),
+    (omBackoff, false, "topic_bus_backoff")
+  ]
+  when defined(adapter_rust_ffi_available):
+    topicTargets.add((omDropOldest, true, "tokio_broadcast"))
+
+  if filters.len > 0:
+    var supported = @[
+      "broadcast_ring_drop",
+      "broadcast_ring_backoff",
+      "topic_bus_drop",
+      "topic_bus_backoff"
+    ]
+    when defined(adapter_rust_ffi_available):
+      supported.add("tokio_broadcast")
+      supported.add("rust_bus")
+    for f in filters:
+      if f notin supported:
+        echo &"Unknown target: {f} (supported: {supported})"
+        quit 1
 
   echo "BroadcastRing & TopicBus Fan-Out Benchmark (Nim vs Rust)"
   echo "========================================================"
 
   var emitter = initBMFEmitter()
   let subConfigs = [(1, "1p1c"), (2, "1p2c"), (4, "1p4c"), (8, "1p8c"), (16, "1p16c")]
-  let modes = [
-    (omDropOldest, "broadcast_ring_drop"),
-    (omBackoff, "broadcast_ring_backoff")
-  ]
 
   for (mode, libSlug) in modes:
+    if not matchesFilter(libSlug, filters): continue
     echo &"\n--- Mode: {libSlug} (fanout) ---"
     for (numSubs, shape) in subConfigs:
       for _ in 0 ..< BenchBroadcastWarmup:
@@ -391,6 +419,7 @@ proc main() =
 
   when defined(adapter_rust_ffi_available):
     for (rKind, libSlug) in [(rbkTokio, "tokio_broadcast"), (rbkBus, "rust_bus")]:
+      if not matchesFilter(libSlug, filters): continue
       echo &"\n--- Mode: {libSlug} (fanout) ---"
       for (numSubs, shape) in subConfigs:
         for _ in 0 ..< BenchBroadcastWarmup:
@@ -406,14 +435,9 @@ proc main() =
 
   # MP-to-MC TopicBus Fan-Out
   let topicShapes = [(2, 2, "2p2c"), (2, 4, "2p4c"), (4, 4, "4p4c"), (4, 8, "4p8c")]
-  var topicTargets = @[
-    (omDropOldest, false, "topic_bus_drop"),
-    (omBackoff, false, "topic_bus_backoff")
-  ]
-  when defined(adapter_rust_ffi_available):
-    topicTargets.add((omDropOldest, true, "tokio_broadcast"))
 
   for (mode, useTokio, libSlug) in topicTargets:
+    if not matchesFilter(libSlug, filters): continue
     echo &"\n--- Mode: {libSlug} (topic_bus) ---"
     for (np, nc, shape) in topicShapes:
       for _ in 0 ..< BenchBroadcastWarmup:

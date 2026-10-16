@@ -91,14 +91,18 @@ jobs:
     # throughput shifts that have no relationship to a code change.
     # Mirrors bench.yml's identical pin.
     runs-on: ubuntu-22.04
+    if: github.actor != 'github-actions[bot]'
     permissions:
-      contents: read
+      contents: write
       actions: read
     timeout-minutes: 45
 
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'push' && github.ref_name || '' }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Restore cache
         uses: actions/cache@v4
@@ -608,9 +612,9 @@ jobs:
             --bmf-out=bench_mpmc_liblfds.json \
             | tee bench_mpmc_liblfds_output.txt
 
-      # ---------- Subsystem benchmarks (Nim + Rust FFI comparison) ----------
+      # ---------- Subsystem benchmarks (Rust FFI comparison targets only) ----------
 
-      - name: Compile + run bench_maps
+      - name: Compile + run bench_maps (Rust FFI targets only)
         timeout-minutes: 12
         run: |
           set -euo pipefail
@@ -622,11 +626,11 @@ jobs:
             --passL:"-Wl,-rpath,$(pwd)/benchmarks/rust/bench-ffi-crossbeam/target/release" \
             -o:.tmp/bench_maps \
             benchmarks/nim/bench_maps.nim
-          ./.tmp/bench_maps \
+          ./.tmp/bench_maps dashmap flurry crossbeam_skipmap crossbeam_skipset \
             --bmf-out=bench_maps.json \
             | tee bench_maps_output.txt
 
-      - name: Compile + run bench_stacks_deques
+      - name: Compile + run bench_stacks_deques (Rust FFI targets only)
         timeout-minutes: 12
         run: |
           set -euo pipefail
@@ -638,11 +642,11 @@ jobs:
             --passL:"-Wl,-rpath,$(pwd)/benchmarks/rust/bench-ffi-crossbeam/target/release" \
             -o:.tmp/bench_stacks_deques \
             benchmarks/nim/bench_stacks_deques.nim
-          ./.tmp/bench_stacks_deques \
+          ./.tmp/bench_stacks_deques crossbeam_deque crossbeam_deque_batch \
             --bmf-out=bench_stacks_deques.json \
             | tee bench_stacks_deques_output.txt
 
-      - name: Compile + run bench_broadcast
+      - name: Compile + run bench_broadcast (Rust FFI targets only)
         timeout-minutes: 12
         run: |
           set -euo pipefail
@@ -654,11 +658,11 @@ jobs:
             --passL:"-Wl,-rpath,$(pwd)/benchmarks/rust/bench-ffi-crossbeam/target/release" \
             -o:.tmp/bench_broadcast \
             benchmarks/nim/bench_broadcast.nim
-          ./.tmp/bench_broadcast \
+          ./.tmp/bench_broadcast tokio_broadcast rust_bus \
             --bmf-out=bench_broadcast.json \
             | tee bench_broadcast_output.txt
 
-      - name: Compile + run bench_ratelimit_streaming
+      - name: Compile + run bench_ratelimit_streaming (Rust FFI targets only)
         timeout-minutes: 12
         run: |
           set -euo pipefail
@@ -671,11 +675,11 @@ jobs:
             --passL:"-Wl,-rpath,$(pwd)/benchmarks/rust/bench-ffi-crossbeam/target/release" \
             -o:.tmp/bench_ratelimit_streaming \
             benchmarks/nim/bench_ratelimit_streaming.nim
-          ./.tmp/bench_ratelimit_streaming \
+          ./.tmp/bench_ratelimit_streaming governor_gcra rtrb_stream \
             --bmf-out=bench_ratelimit_streaming.json \
             | tee bench_ratelimit_streaming_output.txt
 
-      - name: Compile + run bench_rendezvous
+      - name: Compile + run bench_rendezvous (Rust FFI targets only)
         timeout-minutes: 12
         run: |
           set -euo pipefail
@@ -688,11 +692,11 @@ jobs:
             --passL:"-Wl,-rpath,$(pwd)/benchmarks/rust/bench-ffi-crossbeam/target/release" \
             -o:.tmp/bench_rendezvous \
             benchmarks/nim/bench_rendezvous.nim
-          ./.tmp/bench_rendezvous \
+          ./.tmp/bench_rendezvous crossbeam_rendezvous flume_rendezvous kanal_rendezvous \
             --bmf-out=bench_rendezvous.json \
             | tee bench_rendezvous_output.txt
 
-      - name: Compile + run bench_taskpool
+      - name: Compile + run bench_taskpool (Rust FFI targets only)
         timeout-minutes: 12
         run: |
           set -euo pipefail
@@ -706,11 +710,11 @@ jobs:
             --passL:"-Wl,-rpath,$(pwd)/benchmarks/rust/bench-ffi-crossbeam/target/release" \
             -o:.tmp/bench_taskpool \
             benchmarks/nim/bench_taskpool.nim
-          ./.tmp/bench_taskpool \
+          ./.tmp/bench_taskpool rayon_pool \
             --bmf-out=bench_taskpool.json \
             | tee bench_taskpool_output.txt
 
-      - name: Compile + run bench_smr_nebr
+      - name: Compile + run bench_smr_nebr (Rust FFI targets only)
         timeout-minutes: 12
         run: |
           set -euo pipefail
@@ -723,7 +727,7 @@ jobs:
             --passL:"-Wl,-rpath,$(pwd)/benchmarks/rust/bench-ffi-crossbeam/target/release" \
             -o:.tmp/bench_smr_nebr \
             benchmarks/nim/bench_smr_nebr.nim
-          ./.tmp/bench_smr_nebr \
+          ./.tmp/bench_smr_nebr crossbeam_epoch \
             --bmf-out=bench_smr_nebr.json \
             | tee bench_smr_nebr_output.txt
 
@@ -775,3 +779,69 @@ jobs:
           # kanal, liblfds) + subsystem benchmarks.
           name: bench-comparison-external-bmf
           path: merged.json
+
+      - name: Overlay comparison BMF into docs/assets/bench-results/latest.json
+        if: |
+          github.event_name == 'push' &&
+          (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')
+        run: |
+          set -euo pipefail
+          TARGET_BRANCH="${{ github.ref_name }}"
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          mkdir -p docs/assets/bench-results
+          python3 - <<'PY'
+          import json, os, subprocess
+          latest_path = "docs/assets/bench-results/latest.json"
+          with open("merged.json", "r", encoding="utf-8") as fh:
+              comp = json.load(fh)
+          if os.path.exists(latest_path):
+              with open(latest_path, "r", encoding="utf-8") as fh:
+                  base = json.load(fh)
+              if isinstance(base, dict) and "_status" not in base:
+                  for k in list(comp.keys()):
+                      if k != "meta":
+                          base.pop(k, None)
+                  if "meta" in comp and "meta" in base and isinstance(base["meta"], dict):
+                      base["meta"].setdefault("adapters", {}).update(
+                          comp["meta"].get("adapters", {})
+                      )
+                  with open(".tmp_base_disjoint.json", "w", encoding="utf-8") as fh:
+                      json.dump(base, fh, indent=2, sort_keys=True)
+                  subprocess.run(
+                      ["python3", "benchmarks/merge_bmf.py", latest_path, ".tmp_base_disjoint.json", "merged.json"],
+                      check=True,
+                  )
+                  os.remove(".tmp_base_disjoint.json")
+              else:
+                  with open(latest_path, "w", encoding="utf-8") as fh:
+                      json.dump(comp, fh, indent=2, sort_keys=True)
+                      fh.write("\n")
+          else:
+              with open(latest_path, "w", encoding="utf-8") as fh:
+                  json.dump(comp, fh, indent=2, sort_keys=True)
+                  fh.write("\n")
+          PY
+          cp docs/assets/bench-results/latest.json docs/assets/bench-results/example.json
+          python3 benchmarks/scripts/generate_readme_benchmarks.py \
+            --bmf docs/assets/bench-results/latest.json \
+            --svg-hero docs/assets/bench-results/hero-throughput.svg \
+            --svg-latency docs/assets/bench-results/latency-ladder.svg \
+            --readme README.md
+          git add docs/assets/bench-results/ README.md
+          if git diff --cached --quiet; then
+            echo "::notice::Comparison snapshot identical to current checked-in latest.json; skipping commit."
+            exit 0
+          fi
+          git commit -m "chore(bench): refresh comparison snapshot [skip ci]"
+          for attempt in 1 2 3; do
+            if git push origin "HEAD:${TARGET_BRANCH}"; then
+              exit 0
+            fi
+            git fetch origin "${TARGET_BRANCH}"
+            if ! git rebase "origin/${TARGET_BRANCH}"; then
+              git rebase --abort || true
+            fi
+          done
+          echo "::error::Comparison snapshot push failed after 3 retries; aborting." >&2
+          exit 1

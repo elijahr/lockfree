@@ -1,164 +1,149 @@
-# Implementation Plan: Production-Ready `lockfree` & `lockfreequeues` Compatibility
+# Implementation Plan: Lockfree v0.3.1 Remediation & v0.4.0 Roadmap Primitives
 
-**Target Repository**: `/Users/eek/Development/lockfree`  
-**Compatibility Layer**: `lockfreequeues` legacy API shim  
-**Swarm Orchestrator**: `orchestrator-whipbird`  
-**Ratified Swarm Triad**:
-- `architect-horsetail`: Marcus Vance (Staff Systems Architect)
-- `auditor-pegasus`: Caleb Thorne (Verification & Adversarial Auditor)
-- `implementer-kite`: Elena Rostova (DevEx & Implementation Lead)
+> **Authority**: Ratified under Garden / Rhizo / Vine Swarm Governance
+> **Lead Orchestrator**: `@lockfree-orchestrator` (Canonical Trunk / Non-implementing Conductor)
+> **Active Fleet**: 4 Sovereign Worker Sessions (`auditor-pegasus`, `architect-lynx`, `bench-falcon`, `implementer-starling`)
 
 ---
 
 ## 1. Swarm Roster & Role Mapping
 
-| Worker Name | Persona | Role | Core Mandate & Assigned Subsystems |
-| :--- | :--- | :--- | :--- |
-| **`architect-horsetail`** | Marcus Vance | Staff Systems Architect | Memory orderings (`moAcquire`/`moRelease`), Vyukov bounded MPMC, strict LCRQ unbounded MPMC, NEBR SMR lifecycle, DEBRA pin-claim invariants. |
-| **`auditor-pegasus`** | Caleb Thorne | Verification & Adversarial Auditor | Zero green mirages, compile-fail negative controls (`tests/should_fail`), non-copyable move-analyzer tests (`=copy {.error.}`), TSAN/ASAN sanity, Two-Key Gate verification. |
-| **`implementer-kite`** | Elena Rostova | DevEx & Implementation Lead | Rapid strand implementation, `lockfreequeues` backwards-compatibility shim, porting pending candidates from `v5-port-candidates-from-v4.3.md`, Two-Key Gate clearance. |
+| Worker Name | Role & Persona | Assigned Subsystems & Responsibilities |
+| :--- | :--- | :--- |
+| **`@architect-lynx`** | Systems & SMR Architect | Core concurrency, SMR, SPSC/MPMC async bridges, spinlock elimination, dual queue memory leaks, and `AtomicArc[T]` / `AtomicSharedPtr[T]` |
+| **`@auditor-pegasus`** | Adversarial QA & Purist Auditor | Test suite wiring, unreferenced dead code purging, negative controls, TSan assertions, and `SkipListPriorityQueue[T]` |
+| **`@bench-falcon`** | Benchmarks & FFI Lead | Subsystem benchmark parity, CLI argument filters, Rust/C++ FFI asymmetry fixes, BMF snapshotting, and CI pipeline unification |
+| **`@implementer-starling`** | DevEx & Integration Lead | C ABI surface expansion (`liblockfree`), public header sync, docs restructuring, and `FlatCombiner[T]` |
 
 ---
 
 ## 2. Distributed Locking & Concurrency Schedule
 
-Before modifying any shared or critical core files, designated workers must acquire an atomic fencing lease via Rhizo:
-
-| Shared Resource | Lock Name | Primary Owner | Expected Lease | Monotonic Fencing Verification |
-| :--- | :--- | :--- | :--- | :--- |
-| `src/lockfree/smr/nebr/typestates/manager.nim` | `lock:file:nebr:manager` | `implementer-kite` | 300s | `rhizo lock lock:file:nebr:manager 300 --fencing` |
-| `src/lockfree/queue.nim` | `lock:file:core:queue` | `architect-horsetail` | 600s | `rhizo lock lock:file:core:queue 600 --fencing` |
-| `src/lockfree/compat/` | `lock:file:compat:lockfreequeues`| `implementer-kite` | 300s | `rhizo lock lock:file:compat:lockfreequeues 300 --fencing` |
-
-*Invariant*: If a lease expires, mutations must abort. Never overwrite shared state with a stale fencing token.
+Before modifying any shared header or configuration file, workers must acquire an atomic fencing lease:
+- **Lock Target**: `file:src/lockfree.nim`
+  - *Owner*: `@architect-lynx`
+  - *Command*: `rhizo lock file:src/lockfree.nim 600 --fencing`
+- **Lock Target**: `file:src/lockfree/cabi.nim`
+  - *Owner*: `@implementer-starling`
+  - *Command*: `rhizo lock file:src/lockfree/cabi.nim 600 --fencing`
+- **Lock Target**: `file:.github/workflows/bench.yml`
+  - *Owner*: `@bench-falcon`
+  - *Command*: `rhizo lock file:.github/workflows/bench.yml 600 --fencing`
 
 ---
 
 ## 3. Vine Strand Lifecycle & Verification Matrix
 
-All feature and refactoring tracks execute in isolated Rift / Git-worktree strands:
-
-1. **Strand Provisioning**:
+For all parallel tasks:
+1. **Provision Strand**:
    ```bash
-   vine new <task_id> --worktree
+   vine new <task_id> --branch strand/<task_id>
    ```
-2. **Local Implementation & Testing**:
-   - Implement assigned changes within the isolated strand directory.
-   - Run unit tests and formatters.
+2. **Execute Work Inside Strand**:
+   - Implement code changes.
+   - Run local unit tests and formatters (`nimble testUnit`, `nimble testThreaded`).
 3. **Two-Key Gate Verification**:
    ```bash
    vine gate --json
    ```
-   *Requirements*:
-   - Key 1 (Mechanical Merge-Tree): Clean mergeability against canonical trunk (`main`).
-   - Key 2 (Semantic Test Suite): Clean pass of `nim r tests/should_fail/runner.nim` and MM tests.
+   *Must verify exit code 0: Key 1 (in-memory merge-tree) PASS + Key 2 (compiler/test suite) PASS.*
 4. **Trunk Weaving**:
-   - Orchestrator (`orchestrator-whipbird`) verifies Two-Key Gate report and fast-forwards the strand into trunk:
-     ```bash
-     vine weave
-     ```
+   *Orchestrator fast-forwards verified branch into main:*
+   ```bash
+   vine weave
+   ```
 
 ---
 
 ## 4. Phase-by-Phase Task Checklist
 
-### Phase 1: SMR / NEBR Hardening (from `nim-debra` backup)
-- [x] **Task 1.1: NEBR Manager CFG False-Positive Bypass & Signal Handler Sink** (`implementer-kite`)
-  - *Strand*: `strand/nebr-cfg-fix`
-  - *Lock*: `lock:file:nebr:manager`
-  - *Action*: Port commit `0f5eb87` into `src/lockfree/smr/nebr/typestates/manager.nim`:
-    - Added `{.skipCfgAnalysis.}` to `shutdown` proc.
-    - Added `sink` annotation to `h: HandlerUninstalled` in `signal_handler.nim`.
-  - *Verification*: `nimble test` passed (6.5s).
-  - *Weave*: Woven into `main` (`4d35a15`).
+### Phase 1: v0.3.1 Adversarial Red-Team Remediation Fleet (19 Items)
 
-- [x] **Task 1.2: NEBR Hardening Audit & Verification** (`auditor-pegasus`)
-  - *Verification*: Two-Key Gate Key 1 & Key 2 passed. Woven into trunk.
+#### Wave 1A: Core Concurrency, Async Spinlocks & Memory Leaks (`@architect-lynx`)
+- [x] **Task 1.1: Fix Chronos/Async Bridge Split-Brain & Umbrella Export** (`CRIT-WIRE-01`, `CRIT-WIRE-02`)
+  - *Strand*: `strand/fix-chronos-split-brain`
+  - *Lock*: `rhizo lock file:src/lockfree.nim 600 --fencing`
+  - *Provider*: `src/lockfree/chronos.nim`, `src/lockfree.nim`
+  - *Consumer*: Export `async_bridge` when `defined(lockfreeChronos)` as well as `defined(lockfreeAsyncdispatch)`; sync `LockfreeVersion` with `lockfree.nimble`.
+  - *Replacement Deletion*: Replace legacy SPSC-only `chronos.nim` body with re-export of `async_bridge`.
+  - *Weave Gate*: `vine gate --json` (Woven @ `ead0a8d`)
 
----
+- [x] **Task 1.2: Eliminate Spinlocks & Data Races in AsyncBridge** (`CRIT-LOCK-01`, `HIGH-RACE-01`)
+  - *Strand*: `strand/fix-async-spinlocks`
+  - *Provider*: `src/lockfree/async_bridge.nim`, `src/lockfree/broadcast.nim`
+  - *Consumer*: Make `AsyncSignal` use an atomic lock-free waiter stack; route `AsyncTopicBus` via `TopicBus`'s lock-free `Ctrie` (removing spinlock & $O(N)$ `seq` scan); replace `AsyncBroadcastRing.cursors` with lock-free slot table; delegate `AsyncRendezvousChannel` to `RendezvousChannel`.
+  - *Replacement Deletion*: Delete `acquireLock(Atomic[bool])` and linear `seq` scans.
+  - *Weave Gate*: `vine gate --json` (Woven @ `d5c8aa2`)
 
-### Phase 2: Move-Analyzer & Non-Copyable Payloads
-- [x] **Task 2.1: Port Move-Analyzer Test for Unbounded MPMC** (`implementer-kite` & `auditor-pegasus`)
-  - *Strand*: `strand/mpmc-move-analyzer`
-  - *Action*: Ported Task 19 to create `tests/t_unbounded_mpmc_move_analyzer.nim`.
-    - Defined 8-byte non-copyable type (`MovePayload = object; id: int` with `proc =copy {.error.}`).
-    - Supported move-only POD types under strict-LCRQ 128-bit DWCAS (`atomics.nim`, `path_c_admit.nim`, `queue.nim`).
-    - Verified managed ref payloads (`RefPayload = ref object`) under Path C.
-    - Verified wide non-copyable payloads (`WidePayload = object; a, b, c: int`) on `BQueue`.
-  - *Verification*: `tests/t_unbounded_mpmc_move_analyzer.nim` 4/4 PASS across entire 4-lane matrix (orc, cpp, arc, refc).
-  - *Weave*: Woven into `main` (`dda67b6`).
+- [ ] **Task 1.3: Fix Unbounded Memory Leak in RendezvousChannel & Optimize Hot Paths** (`CRIT-MEM-01`, `HIGH-PERF-01`, `HIGH-PERF-02`, `MED-MEM-02`)
+  - *Strand*: `strand/fix-rendezvous-leak-and-perf`
+  - *Provider*: `src/lockfree/rendezvous.nim`, `src/lockfree/broadcast.nim`, `src/lockfree/taskpool.nim`, `src/lockfree/ctrie.nim`, `src/lockfree/skiplist.nim`
+  - *Consumer*: Recycle `RendezvousWaiter[T]` nodes (free-list/slab); eliminate `allocShared0` and 64-cursor hazard scan in `BroadcastRing.publish`; fix `tryPublish` TOCTOU race in `omBackoff`; replace `os.sleep(1)` in `TaskPool` with `Parker` eventcount; fix 32-entry TLS handle cache eviction leak in `Ctrie` and `SkipListMap`.
+  - *Weave Gate*: `vine gate --json`
 
----
+#### Wave 1B: C ABI Surface Expansion & Documentation Consolidation (`@implementer-starling`)
+- [ ] **Task 1.4: Expand C ABI & Reorganize C Headers** (`HIGH-WIRE-03`, `HIGH-WIRE-04`)
+  - *Strand*: `strand/expand-cabi-and-headers`
+  - *Lock*: `rhizo lock file:src/lockfree/cabi.nim 600 --fencing`
+  - *Provider*: `src/lockfree/cabi.nim`, `include/lockfree_rendezvous.h`, `include/lockfree.h`, `include/lockfree_streambuffer.h`
+  - *Consumer*: Add C ABI bindings for `TopicBus` (`lfq_topic_bus_*`) and `MPMCStreamRing` (`lfq_mpmc_stream_ring_*`); turn `lockfree_rendezvous.h` into a standalone header; deduplicate `lfq_rendezvous_*` and `lf_rendezvous_*`.
+  - *Replacement Deletion*: Delete circular `#include "lockfree.h"` stub in `include/lockfree_rendezvous.h`.
+  - *Weave Gate*: `vine gate --json`
 
-### Phase 3: DEBRA Pin-Claim Invariants & Memory Model Documentation
-- [x] **Task 3.1: DEBRA Invariant Headers & Happens-Before Audit** (`architect-horsetail`)
-  - *Strand*: `strand/task-debra-invariants-doc`
-  - *Lock*: `lock:file:core:queue`
-  - *Action*: Ported Tasks 17 / b751bab / 2e266a3 into `src/lockfree/queue.nim`:
-    - Inscribed the 6-rule DEBRA Pin-Claim ordering invariant doc-comment on SPMC and MPMC pop.
-    - Audited and documented happens-before chains at `queue.nim:1574-1875`.
-  - *Verification*: `vine gate` Key 1 & Key 2 green (`d89b358`).
-  - *Weave*: Woven into `main` (`39c1914`).
+- [ ] **Task 1.5: Consolidate Documentation & Purge Swarm Litter** (`MED-DEAD-02`)
+  - *Strand*: `strand/consolidate-docs`
+  - *Provider*: `docs/`
+  - *Consumer*: Merge `docs/designs/` $\to$ `docs/design/`, `docs/guides/` $\to$ `docs/guide/`, update `mkdocs.yml` links.
+  - *Replacement Deletion*: Delete `docs/reviews/`, `docs/internal/`, `docs/transitions/`, `docs/transition_plan.md`.
+  - *Weave Gate*: `vine gate --json`
 
----
+#### Wave 1C: Benchmark Asymmetry Fixes & CI Pipeline Unification (`@bench-falcon`)
+- [x] **Task 1.6: Fix Benchmark Asymmetries & Add CLI Filter Arguments** (`HIGH-BENCH-02..05`, `MED-BENCH-06`)
+  - *Strand*: `strand/fix-benchmark-asymmetries`
+  - *Provider*: `benchmarks/nim/bench_*.nim`, `benchmarks/rust/bench-ffi-crossbeam/src/lib.rs`
+  - *Consumer*: Align `dkChaseLevBatch` vs `cb_deque_steal_batch` payload handling; emit `latency_p99_ns` in `bench_maps.nim`; align `parallelFor` sink accumulation across `TaskPool`, `LockedPoolCore`, and `rayon`; match 64-byte allocations in `cbe_retire_reclaim_batch`; add CLI filter argument parsing across all 7 benchmark binaries.
+  - *Weave Gate*: `vine gate --json` (Woven @ `68eb249`)
 
-### Phase 4: `lockfreequeues` Backwards-Compatibility Shim Layer
-- [x] **Task 4.1: Design and Implement Legacy Compatibility Module** (`architect-horsetail`)
-  - *Strand*: `strand/task-compat-lockfreequeues`
-  - *Action*: Implemented `src/lockfree/compat/lockfreequeues.nim` and `src/lockfreequeues.nim`:
-    - Exported legacy bounded type aliases:
-      - `Sipsic[N, P, C, T] = BQueue[T, ccSingle, ccSingle, N, P, C]`
-      - `Mupsic[N, P, C, T] = BQueue[T, ccMulti, ccSingle, N, P, C]`
-      - `Sipmuc[N, P, C, T] = BQueue[T, ccSingle, ccMulti, N, P, C]`
-      - `Mupmuc[N, P, C, T] = BQueue[T, ccMulti, ccMulti, N, P, C]`
-    - Exported legacy unbounded type aliases:
-      - `UnboundedSipsic[T, ST, S] = Queue[T, ccSingle, ccSingle, ST, S]`
-      - `UnboundedMupsic[T, ST, S, MaxThreads] = Queue[T, ccMulti, ccSingle, ST, S, MaxThreads]`
-      - `UnboundedSipmuc[T, ST, S, MaxThreads] = Queue[T, ccSingle, ccMulti, ST, S, MaxThreads]`
-      - `UnboundedMupmuc[T, ST, S, MaxThreads] = Queue[T, ccMulti, ccMulti, ST, S, MaxThreads]`
-    - Re-exported legacy constructors: `newSipsicQueue`, `newMupsicQueue`, `newSipmucQueue`, `newMupmucQueue`, etc.
-    - Implemented `DEFECT-CRIT-01` (constructor arity overloads) and `DEFECT-WARN-01` (unbounded auto-attachment on `getProducer`/`getConsumer`).
-  - *Verification*: `tests/t_compat_lockfreequeues.nim` 7/7 PASS.
-  - *Weave*: Woven into `main` (`5cb21cc` / merge commit).
+- [x] **Task 1.7: Unify CI Benchmark Workflows & Snapshot Pipeline** (`CRIT-BENCH-01`)
+  - *Strand*: `strand/unify-bench-ci`
+  - *Lock*: `rhizo lock file:.github/workflows/bench.yml 600 --fencing`
+  - *Provider*: `.github/workflows/bench.yml`, `.github/workflows/bench-comparison.yml`
+  - *Consumer*: Merge Rust/C++ benchmark adapters into `bench.yml` so `docs/assets/bench-results/latest.json` is updated with full comparison data on `main`.
+  - *Weave Gate*: `vine gate --json` (Woven @ `7b596a8`)
 
-- [x] **Task 4.2: Audit Backwards-Compatibility Parity & Port Legacy Suite** (`migrator-falcon`)
-  - *Strand*: `strand/compat-legacy-suite`
-  - *Action*: Ported legacy test suite and examples from `lockfreequeues` v4.2.0:
-    - Ported all 5 legacy test suites to `tests/compat/`: `t_legacy_sipsic.nim`, `t_legacy_mupsic.nim`, `t_legacy_sipmuc.nim`, `t_legacy_mupmuc.nim`, `t_legacy_unbounded.nim`.
-    - Ported all 8 production examples to `examples/compat/`: `audio_buffer.nim`, `event_collector.nim`, `job_scheduler.nim`, `mupmuc.nim`, `mupsic.nim`, `sipmuc.nim`, `sipsic.nim`, `task_fanout.nim`.
-    - Added modular compatibility shims in `src/lockfreequeues/` and `src/debra.nim`.
-    - Integrated legacy suites into master aggregator `tests/test.nim`.
-  - *Verification*: 100% test pass rate across legacy test suites and examples.
-  - *Weave*: Woven into `main` (`d715458`).
+#### Wave 1D: Test Suite Wiring, Hang Prevention Watchdog & Dead Code Purge (`@auditor-pegasus`)
+- [x] **Task 1.8: Wire All 11 Omitted Test Suites into `nimble test` & Purge 31 Dead Test Files** (`HIGH-WIRE-05`, `MED-DEAD-01`)
+  - *Strand*: `strand/wire-tests-and-purge-dead-code`
+  - *Provider*: `tests/unit/runner.nim`, `tests/concurrency/runner.nim`, `tests/test.nim`
+  - *Consumer*: Import `t_path_c_matrix`, 8 `t_verify_pop_clears_*`, `t_queue_smart_constructors`, `t_cabi` into runners.
+  - *Replacement Deletion*: Delete all 47 legacy unreferenced test files.
+  - *Weave Gate*: `vine gate --json` (Woven @ `5255144`)
 
----
-
-### Phase 5: Concurrency Sanity & Production Release Gate
-- [x] **Task 5.1: High-Volume Stress Suite Verification & TSAN/ASAN Matrix** (`stress-lynx` / `auditor-pegasus`)
-  - *Strand*: `strand/stress-tsan-matrix`
-  - *Action*: Implemented comprehensive 100k unbounded stress test suite covering SPSC, MPSC, SPMC, and MPMC (Strict-LCRQ + NEBR epoch reclamation). Resolved Darwin consumer thread starvation under TSAN via `cpuPause()` and fixed Bound SPSC segment leak via `freeAligned(oldSeg)`.
-  - *Verification*:
-    - C (`-d:release`): 21/21 OK (0.39s)
-    - ThreadSanitizer (`-fsanitize=thread -d:release`): 21/21 OK (3.95s, zero data races)
-    - AddressSanitizer (`-fsanitize=address,undefined -d:release`): 21/21 OK (0.77s, zero memory errors)
-    - C++ (`cpp -d:release`): 21/21 OK (0.41s)
-  - *Weave*: Woven into `main` (`e3a1b79`).
-
-- [x] **Task 5.2: Full Multi-Backend Matrix & Two-Key Clearance** (`orchestrator-whipbird`)
-  - *Action*: Executed `nimble should_fail`, `nimble test` (C, C++, ARC, ORC, REFC lanes), TSAN/ASAN matrix, and updated release documentation (`CHANGELOG.md`, `docs/migration.md`).
-  - *Verification*: 100% exit code 0 across repository:
-    - 23/23 compile-fail negative controls pass (`nimble should_fail`).
-    - 440/440 test aggregator suite passes across ORC, ARC, C++, and REFC.
-    - 21/21 stress suites pass under TSAN (3.95s, zero data races) and ASAN (0.77s, zero memory leaks/errors).
-    - 7/7 backwards-compatibility suites pass with legacy test/example parity.
-  - *Release Status*: Production release ready on trunk (`main`).
+- [ ] **Task 1.9: Per-Test Sentinel Watchdog Thread & Hang Prevention** (`@auditor-pegasus`)
+  - *Strand*: `strand/task-test-watchdog`
+  - *Provider*: `tests/test_watchdog.nim`
+  - *Consumer*: Wire into `tests/unit/runner.nim`, `tests/concurrency/runner.nim`, `tests/test.nim`, `tests/stress/runner.nim`.
+  - *Config*: Default ON; configurable via `LFQ_TEST_TIMEOUT_SEC` / `-d:lockfreeTestTimeoutSec` (default: 180s / 3 min); turn-offable via `LFQ_TEST_WATCHDOG=0` / `-d:lockfreeNoTestWatchdog`. Sentinel thread cancelled on test completion, cleanly joined in `testRunEnded` for zero TSan thread leaks.
+  - *Weave Gate*: `vine gate --json`
 
 ---
 
-## 5. Dynamic Progress Tracking & Harness Protocol
+### Phase 2: v0.4.0 Roadmap Primitives
 
-1. **Orchestrator State Governance**:
-   - As each task is dispatched, `@orchestrator-whipbird` sends the contract with `--type task` to the assigned worker.
-   - Upon receiving the worker's gate report (`--type reply`), `@orchestrator-whipbird` verifies the gate, runs `vine weave`, and checks the `- [x]` box in this plan.
-2. **Emergent Design Addendum Protocol**:
-   - If unexpected constraints arise, workers must draft `docs/addenda/addendum_<topic>.md` and request ratification before departing from this plan.
+- [ ] **Task 2.1: Implement Lock-Free `AtomicArc[T]` / `AtomicSharedPtr[T]`** (`@architect-lynx`)
+  - *Strand*: `strand/feat-atomic-arc`
+  - *Provider*: `src/lockfree/atomic_arc.nim`, `src/lockfree.nim`
+  - *Consumer*: Provide split-reference-counted 128-bit DWCAS atomic pointer with lock-free `load()`, `store()`, `swap()`, `compareExchange()`; wire into C ABI and test suite.
+  - *Weave Gate*: `vine gate --json`
+
+- [ ] **Task 2.2: Implement Lock-Free `SkipListPriorityQueue[T]`** (`@auditor-pegasus`)
+  - *Strand*: `strand/feat-skiplist-priority-queue`
+  - *Provider*: `src/lockfree/priority_queue.nim`, `src/lockfree.nim`
+  - *Consumer*: Lindén-Jonsson lock-free priority queue with logical deletion batching and NEBR SMR; integrate with `TaskPool` deadline scheduling and test suite.
+  - *Weave Gate*: `vine gate --json`
+
+- [ ] **Task 2.3: Implement Generic `FlatCombiner[T]` Adapter** (`@implementer-starling`)
+  - *Strand*: `strand/feat-flat-combiner`
+  - *Provider*: `src/lockfree/flat_combiner.nim`, `src/lockfree.nim`
+  - *Consumer*: Hendler-Incze-Shavit-Tzafrir Flat-Combining wrapper turning sequential data structures into high-throughput concurrent structures; wire into C ABI, test suite, and benchmarks.
+  - *Weave Gate*: `vine gate --json`

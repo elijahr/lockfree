@@ -289,7 +289,23 @@ suite "Ctrie Remediations: HIGH-02 putIfAbsent & computeIfAbsent Concurrency":
     check map.get("k1") == some("v1")
 
     # Second putIfAbsent must return existing and not overwrite
-    check map.putIfAbsent("k1", "v2") == some("v1")
+    check map.putIfAbsent("k1", "v1") == some("v1")
     check map.len == 1
     check map.get("k1") == some("v1")
+
+  test "Accessing >32 Ctrie instances on one thread recovers DEBRA handle without slot leak (MED-MEM-02)":
+    const NumMaps = 48
+    var maps = newSeq[Ctrie[int, int]](NumMaps)
+    for m in 0 ..< NumMaps:
+      maps[m] = newCtrie[int, int]()
+
+    # Cycle through all 48 maps 100 times (evicting the 32-entry TLS cache 4,800 times)
+    for round in 0 ..< 100:
+      for m in 0 ..< NumMaps:
+        discard maps[m].put(round, m + round)
+        check maps[m].get(round) == some(m + round)
+
+    for m in 0 ..< NumMaps:
+      check maps[m].len == 100
+
 

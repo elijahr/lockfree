@@ -277,8 +277,12 @@ fn deque_broadcast_ratelimit_rtrb_ffi_round_trip() {
         let mut stolen = 0u64;
         assert!(cb_deque_steal(dq, &mut stolen));
         assert_eq!(stolen, 1);
-        let n = cb_deque_steal_batch(dq, 0, 4);
+        let mut batch_buf = [0u64; 4];
+        let n = cb_deque_steal_batch(dq, 0, batch_buf.as_mut_ptr(), 4);
         assert!(n >= 1 && n <= 4);
+        for item in &batch_buf[..n] {
+            assert!(*item >= 2 && *item <= 10);
+        }
         cb_deque_destroy(dq);
 
         // Tokio broadcast (including lagged -1 return)

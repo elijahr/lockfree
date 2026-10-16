@@ -237,3 +237,45 @@ suite "TopicBus — Multi-Topic Multiplexer":
 
     btcCursor.unsubscribe()
     ethCursor.unsubscribe()
+
+suite "BroadcastRing — Inline Seqlock & Non-Blocking tryPublish (HIGH-PERF-01)":
+  test "inline seqlock fast path allocates zero VBox for trivial types":
+    let ring = initBroadcastRing[int](capacity = 16, overflowMode = omDropOldest)
+    var c1 = ring.subscribe(soFromLatest)
+    var c2 = ring.subscribe(soFromLatest)
+    check ring.core.activeCursorMask.load(moAcquire) == 0b11'u64
+
+    for round in 0 ..< 20:
+      for i in 1 .. 16:
+        let v = round * 100 + i
+        ring.publish(v)
+        var out1, out2: int
+        check c1.tryRead(out1) and out1 == v
+        check c2.tryRead(out2) and out2 == v
+
+    for i in 0 ..< 16:
+      check ring.core.slots[i].vbox.load(moRelaxed) == nil
+
+    c1.unsubscribe()
+    check ring.core.activeCursorMask.load(moAcquire) == 0b10'u64
+    c2.unsubscribe()
+    check ring.core.activeCursorMask.load(moAcquire) == 0'u64
+
+  test "tryPublish in omBackoff mode atomically returns false when full":
+    let ring = initBroadcastRing[int](capacity = 16, overflowMode = omBackoff)
+    var c = ring.subscribe(soFromLatest)
+
+    for i in 1 .. 16:
+      check ring.tryPublish(i)
+
+    # Ring is now at capacity relative to slow cursor c; tryPublish must return false immediately
+    check not ring.tryPublish(999)
+
+    var v: int
+    check c.tryRead(v) and v == 1
+    # Now 1 slot freed up
+    check ring.tryPublish(17)
+    check not ring.tryPublish(18)
+
+    c.unsubscribe()
+
