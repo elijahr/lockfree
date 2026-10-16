@@ -1,7 +1,7 @@
 ## Comprehensive Unit, Concurrency, Pruning, and C ABI Tests for
 ## Hendler-Incze-Shavit-Tzafrir `FlatCombiner[T, Op, Res]`.
 
-import std/[sets, tables, unittest]
+import std/[os, sets, tables, unittest]
 import lockfree/atomics
 import lockfree/atomics/backoff
 import lockfree/flat_combiner
@@ -59,6 +59,7 @@ type
   CounterOpKind = enum
     coAdd
     coGet
+    coSleep
 
   CounterOp = object
     kind: CounterOpKind
@@ -76,6 +77,9 @@ proc applyCounter(state: var SeqCounter, op: CounterOp): int64 {.gcsafe.} =
     inc state.mutations
     prev
   of coGet:
+    state.value
+  of coSleep:
+    os.sleep(int(op.delta))
     state.value
 
 type
@@ -115,6 +119,15 @@ type
     fc: FlatCombiner[SeqCounter, CounterOp, int64]
     ops: int
     startFlag: ptr Atomic[bool]
+
+  PruneBlockerCtx = object
+    fc: FlatCombiner[SeqCounter, CounterOp, int64]
+    holdMs: int
+    startedFlag: ptr Atomic[bool]
+
+proc pruneBlocker(ctx: ptr PruneBlockerCtx) {.thread.} =
+  ctx.startedFlag[].store(true, moRelease)
+  discard ctx.fc.combine(CounterOp(kind: coSleep, delta: int64(ctx.holdMs)))
 
 proc pruneWorker(ctx: ptr PruneWorkerCtx) {.thread.} =
   if ctx.startFlag != nil:
@@ -303,6 +316,18 @@ suite "FlatCombiner[T, Op, Res] — Hendler-Incze-Shavit-Tzafrir Adapter":
 
     discard fc.combine(CounterOp(kind: coAdd, delta: 1))
 
+    # Hold the combiner lock from a background blocker thread during worker startup
+    # so all workers are guaranteed to experience contention, register publication
+    # records, and publish into pubHead before the combiner sweeps them.
+    var blockerStarted: Atomic[bool]
+    blockerStarted.store(false, moRelaxed)
+    var blockerCtx = PruneBlockerCtx(fc: fc, holdMs: 30, startedFlag: addr blockerStarted)
+    var blockerThread: Thread[ptr PruneBlockerCtx]
+    createThread(blockerThread, pruneBlocker, addr blockerCtx)
+    while not blockerStarted.load(moAcquire):
+      cpuPause()
+    os.sleep(5)
+
     const NumTempWorkers = 6
     const WorkerOps = 10
     var startFlag: Atomic[bool]
@@ -315,6 +340,7 @@ suite "FlatCombiner[T, Op, Res] — Hendler-Incze-Shavit-Tzafrir Adapter":
     startFlag.store(true, moRelease)
     for i in 0 ..< NumTempWorkers:
       joinThread(threads[i])
+    joinThread(blockerThread)
 
     let peakRecords = fc.activePublicationRecords()
     check peakRecords >= 1
