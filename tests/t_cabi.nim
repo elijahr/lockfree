@@ -1182,7 +1182,11 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
   test "Compiled C99 test harness execution (clang + liblockfree.a)":
     let rootDir = currentSourcePath().parentDir() / ".."
     let staticLib = rootDir / ".tmp/liblockfree.a"
-    let buildCode = execShellCmd("nim c --app:staticlib -d:danger --threads:on -o:" & staticLib & " " & (rootDir / "src/lockfree/cabi.nim"))
+    let buildCode = execShellCmd(
+      "nim c --app:staticlib -d:danger -d:useMalloc --threads:on --path:" &
+      (rootDir / "src") & " --nimcache:" & (rootDir / ".tmp/cabi_staticlib_cache") &
+      " -o:" & staticLib & " " & (rootDir / "src/lockfree/cabi.nim")
+    )
     check buildCode == 0
     let cTestSrc = rootDir / "tests/cabi/test_cabi.c"
     let cTestBin = rootDir / ".tmp/test_cabi"

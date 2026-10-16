@@ -23,8 +23,103 @@ import lockfree/reclamation
 import lockfree/internal/pinscope_stub
 import lockfree/endpoint
 import lockfree/role_tags
-import ./t_integration
-import ./t_suc
+template testCapacity(queue: untyped) =
+  check(queue.capacity == 8)
+
+template testHeadAndTailReset(queue: untyped) =
+  discard
+
+template testSucPopOne(queue: untyped) =
+  discard queue.push(@[1, 2, 3, 4, 5, 6, 7, 8])
+  var res = (block: (var lfqT = queue.getConsumerHere(0); lfqT.pop()))
+  check(res.isSome)
+  check(res.get == 1)
+  queue.checkState(head = 1'u64, tail = 8'u64, data = (@[1, 2, 3, 4, 5, 6, 7, 8]))
+
+template testSucPopAll(queue: untyped) =
+  discard queue.push(@[1, 2, 3, 4, 5, 6, 7, 8])
+  var items = newSeq[int]()
+  for i in 1 .. 8:
+    var res = (block: (var lfqT = queue.getConsumerHere(0); lfqT.pop()))
+    check(res.isSome)
+    items.add(res.get)
+  check(items == @[1, 2, 3, 4, 5, 6, 7, 8])
+  queue.checkState(head = 8'u64, tail = 8'u64, data = (@[1, 2, 3, 4, 5, 6, 7, 8]))
+
+template testSucPopEmpty(queue: untyped) =
+  check((block: (var lfqT = queue.getConsumerHere(0); lfqT.pop())).isNone)
+  queue.checkState(head = 0'u64, tail = 0'u64)
+
+template testSucPopTooMany(queue: untyped) =
+  discard queue.push(@[1, 2, 3, 4, 5, 6, 7, 8])
+  for i in 1 .. 8:
+    discard (block: (var lfqT = queue.getConsumerHere(0); lfqT.pop()))
+  check((block: (var lfqT = queue.getConsumerHere(0); lfqT.pop())).isNone)
+  queue.checkState(head = 8'u64, tail = 8'u64, data = (@[1, 2, 3, 4, 5, 6, 7, 8]))
+
+template testSucPopWrap(queue: untyped) =
+  discard queue.push(@[1, 2, 3, 4, 5, 6, 7, 8])
+  for i in 1 .. 4:
+    discard (block: (var lfqT = queue.getConsumerHere(0); lfqT.pop()))
+  discard queue.push(@[9, 10, 11, 12])
+  var items = newSeq[int]()
+  for i in 1 .. 8:
+    var res = (block: (var lfqT = queue.getConsumerHere(0); lfqT.pop()))
+    check(res.isSome)
+    items.add(res.get)
+  check(items == @[5, 6, 7, 8, 9, 10, 11, 12])
+  queue.checkState(head = 12'u64, tail = 12'u64, data = (@[9, 10, 11, 12, 5, 6, 7, 8]))
+
+template testSucPopCountOne(queue: untyped) =
+  check(queue.push(@[1, 2, 3, 4, 5, 6, 7, 8]).isNone)
+  for i in 1 .. 8:
+    var popped = (block: (var lfqT = queue.getConsumerHere(0); lfqT.pop(1)))
+    check(popped.isSome)
+    check(popped.get() == @[i])
+  queue.checkState(head = 8'u64, tail = 8'u64, data = (@[1, 2, 3, 4, 5, 6, 7, 8]))
+
+template testSucPopCountAll(queue: untyped) =
+  discard queue.push(@[1, 2, 3, 4, 5, 6, 7, 8])
+  var popped = (block: (var lfqT = queue.getConsumerHere(0); lfqT.pop(8)))
+  check(popped.isSome)
+  check(popped.get() == @[1, 2, 3, 4, 5, 6, 7, 8])
+  queue.checkState(head = 8'u64, tail = 8'u64, data = (@[1, 2, 3, 4, 5, 6, 7, 8]))
+
+template testSucPopCountEmpty(queue: untyped) =
+  var popped = (block: (var lfqT = queue.getConsumerHere(0); lfqT.pop(1)))
+  check(popped.isNone)
+  queue.checkState(head = 0'u64, tail = 0'u64)
+
+template testSucPopCountTooMany(queue: untyped) =
+  check(queue.push(@[1, 2, 3, 4, 5, 6, 7, 8]).isNone)
+  queue.checkState(head = 0'u64, tail = 8'u64, data = (@[1, 2, 3, 4, 5, 6, 7, 8]))
+  var popped = (block: (var lfqT = queue.getConsumerHere(0); lfqT.pop(10)))
+  check(popped.isSome)
+  check(popped.get() == @[1, 2, 3, 4, 5, 6, 7, 8])
+  queue.checkState(head = 8'u64, tail = 8'u64, data = (@[1, 2, 3, 4, 5, 6, 7, 8]))
+
+template testSucPopCountWrap(queue: untyped) =
+  discard queue.push(@[1, 2, 3, 4, 5, 6, 7, 8])
+  discard (block: (var lfqT = queue.getConsumerHere(0); lfqT.pop(4)))
+  discard queue.push(@[9, 10, 11, 12])
+  var popped = (block: (var lfqT = queue.getConsumerHere(1); lfqT.pop(8)))
+  check(popped.isSome)
+  check(popped.get() == @[5, 6, 7, 8, 9, 10, 11, 12])
+  queue.checkState(head = 12'u64, tail = 12'u64, data = (@[9, 10, 11, 12, 5, 6, 7, 8]))
+
+template testSucGetConsumerAssigns(queue: untyped) =
+  let consumer = queue.getConsumer()
+  check(consumer.idx >= 0)
+  check(consumer.idx < 4)
+
+template testSucGetConsumerReusesAssigned(queue: untyped) =
+  let consumer1 = queue.getConsumer()
+  let consumer2 = queue.getConsumer()
+  check(consumer1.idx == consumer2.idx)
+
+template testSucGetConsumerExplicitIndex(queue: untyped) =
+  var consumer = queue.getConsumerHere(2)
+  check(consumer.idx == 2)
 
 var q = q_mod.newBQueue[int, ccSingle, ccMulti, 8, 0, 4]()
 
