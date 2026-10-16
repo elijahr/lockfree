@@ -132,6 +132,8 @@ elif defined(windows):
   proc WakeByAddressSingle(Address: pointer) {.stdcall, dynlib: "api-ms-win-core-synch-l1-2-0.dll|kernelbase.dll|kernel32.dll", importc: "WakeByAddressSingle".}
 
 type
+  ParkerWakeProc* = proc(arg: pointer) {.nimcall, gcsafe, raises: [].}
+
   Parker* = object
     when defined(macosx) or defined(macos) or defined(ios):
       word*: Atomic[uint32]
@@ -141,6 +143,8 @@ type
       lock*: Lock
       cond*: Cond
       signaled*: Atomic[bool]
+    wakeCb*: Atomic[pointer]
+    wakeArg*: Atomic[pointer]
 
 proc initParker(p: var Parker) {.inline.} =
   when defined(macosx) or defined(macos) or defined(ios):
@@ -151,6 +155,8 @@ proc initParker(p: var Parker) {.inline.} =
     initLock(p.lock)
     initCond(p.cond)
     p.signaled.store(false, moRelaxed)
+  p.wakeCb.store(nil, moRelaxed)
+  p.wakeArg.store(nil, moRelaxed)
 
 proc deinitParker(p: var Parker) {.inline.} =
   when not (defined(macosx) or defined(macos) or defined(ios) or defined(linux) or defined(windows)):
@@ -164,6 +170,8 @@ proc resetParker(p: var Parker) {.inline.} =
     p.word.store(0, moRelaxed)
   else:
     p.signaled.store(false, moRelaxed)
+  p.wakeCb.store(nil, moRelaxed)
+  p.wakeArg.store(nil, moRelaxed)
 
 proc unpark*(p: var Parker) {.inline.} =
   when defined(macosx) or defined(macos) or defined(ios):
@@ -180,6 +188,11 @@ proc unpark*(p: var Parker) {.inline.} =
     acquire(p.lock)
     signal(p.cond)
     release(p.lock)
+  let arg = p.wakeArg.exchange(nil, moAcquireRelease)
+  if arg != nil:
+    let cb = cast[ParkerWakeProc](p.wakeCb.load(moAcquire))
+    if cb != nil:
+      cb(arg)
 
 proc park*(p: var Parker) {.inline.} =
   # Spin-before-park optimization (Section 7.1)
@@ -777,6 +790,200 @@ proc recvWithTimeout*[T](
     outCorrId = myWaiter.correlationId
     decRef(transferred)
     return true
+
+# ---------------------------------------------------------------------------
+# Async Bridge Delegation Primitives (Lock-Free Scherer-Scott Dual Queue)
+# ---------------------------------------------------------------------------
+
+proc enqueueAsyncSender*[T](
+    self: RendezvousChannel[T],
+    item: sink T,
+    wakeCb: ParkerWakeProc,
+    wakeArg: pointer,
+    outCorrId: var uint64
+): ptr RendezvousWaiter[T] =
+  ## Attempts an immediate lock-free match against a waiting receiver in the
+  ## dual queue (`result == nil`, `outCorrId > 0`), or enqueues a `wmSender`
+  ## waiter node with `wakeCb`/`wakeArg` attached (`result != nil`).
+  if self.core == nil or self.core.isClosed.load(moAcquire):
+    outCorrId = 0
+    return nil
+
+  if self.trySend(item, outCorrId):
+    return nil
+
+  let core = self.core
+  let myVBox = allocVBox(item)
+  let corrId = core.nextCorrId.fetchAdd(1, moRelaxed) + 1
+  let myWaiter = allocWaiter[T](core, wmSender, myVBox, corrId)
+  myWaiter.parker.wakeCb.store(cast[pointer](wakeCb), moRelease)
+  myWaiter.parker.wakeArg.store(wakeArg, moRelease)
+
+  while true:
+    purgeCancelledWaiters(core)
+    if core.isClosed.load(moAcquire):
+      discard myWaiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+      myWaiter.state.store(rsCancelled, moRelease)
+      let vb = myWaiter.vbox.exchange(nil, moAcquireRelease)
+      if vb != nil:
+        decRef(vb)
+      outCorrId = 0
+      return nil
+
+    var h = core.head.load(moAcquire)
+    var t = core.tail.load(moAcquire)
+    if h == nil or t == nil:
+      continue
+
+    var next = t.next.load(moAcquire)
+    if t == core.tail.load(moAcquire):
+      if next != nil:
+        discard core.tail.compareExchangeWeak(t, next, moAcquireRelease, moRelaxed)
+        continue
+
+      if h == t or t.mode == wmSender:
+        var nilExp: ptr RendezvousWaiter[T] = nil
+        if t.next.compareExchangeStrong(nilExp, myWaiter, moAcquireRelease, moRelaxed):
+          discard core.tail.compareExchangeWeak(t, myWaiter, moAcquireRelease, moRelaxed)
+          if core.isClosed.load(moAcquire):
+            var expW = rsWaiting
+            if myWaiter.state.compareExchangeStrong(expW, rsCancelled, moAcquireRelease, moRelaxed):
+              myWaiter.parker.unpark()
+          outCorrId = corrId
+          return myWaiter
+      else:
+        let hNext = h.next.load(moAcquire)
+        if h == core.head.load(moAcquire) and hNext != nil:
+          if hNext.mode != wmReceiver:
+            if hNext.state.load(moAcquire) != rsWaiting:
+              discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+            continue
+          var exp = rsWaiting
+          if hNext.state.compareExchangeStrong(exp, rsMatched, moAcquireRelease, moRelaxed):
+            discard myWaiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+            myWaiter.state.store(rsCancelled, moRelease)
+            discard myWaiter.vbox.exchange(nil, moAcquireRelease)
+            hNext.correlationId = corrId
+            hNext.vbox.store(myVBox, moRelease)
+            hNext.parker.unpark()
+            discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+            outCorrId = corrId
+            return nil
+          else:
+            discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+
+proc finishAsyncSender*[T](
+    self: RendezvousChannel[T],
+    waiter: ptr RendezvousWaiter[T]
+): bool =
+  ## Resolves bilateral CAS arbitration when an async sender wakes or cancels.
+  ## Returns `true` if a receiver matched and consumed the payload; `false` if
+  ## cancelled/closed (reclaiming the sender's `VBox[T]`).
+  var expWaiting = rsWaiting
+  discard waiter.state.compareExchangeStrong(expWaiting, rsCancelled, moAcquireRelease, moRelaxed)
+  if expWaiting == rsMatched:
+    return true
+  let vb = waiter.vbox.exchange(nil, moAcquireRelease)
+  if vb != nil:
+    decRef(vb)
+  if self.core != nil:
+    purgeCancelledWaiters(self.core)
+  return false
+
+proc enqueueAsyncReceiver*[T](
+    self: RendezvousChannel[T],
+    wakeCb: ParkerWakeProc,
+    wakeArg: pointer,
+    outVal: var T,
+    outCorrId: var uint64
+): ptr RendezvousWaiter[T] =
+  ## Attempts an immediate lock-free match against a waiting sender in the dual
+  ## queue (`result == nil`, `outCorrId > 0`, `outVal` populated), or enqueues a
+  ## `wmReceiver` waiter node with `wakeCb`/`wakeArg` attached (`result != nil`).
+  if self.core == nil or self.core.isClosed.load(moAcquire):
+    outCorrId = 0
+    return nil
+
+  if self.tryRecv(outVal, outCorrId):
+    return nil
+
+  let core = self.core
+  let myWaiter = allocWaiter[T](core, wmReceiver, nil, 0)
+  myWaiter.parker.wakeCb.store(cast[pointer](wakeCb), moRelease)
+  myWaiter.parker.wakeArg.store(wakeArg, moRelease)
+
+  while true:
+    purgeCancelledWaiters(core)
+    if core.isClosed.load(moAcquire):
+      discard myWaiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+      myWaiter.state.store(rsCancelled, moRelease)
+      outCorrId = 0
+      return nil
+
+    var h = core.head.load(moAcquire)
+    var t = core.tail.load(moAcquire)
+    if h == nil or t == nil:
+      continue
+
+    var next = t.next.load(moAcquire)
+    if t == core.tail.load(moAcquire):
+      if next != nil:
+        discard core.tail.compareExchangeWeak(t, next, moAcquireRelease, moRelaxed)
+        continue
+
+      if h == t or t.mode == wmReceiver:
+        var nilExp: ptr RendezvousWaiter[T] = nil
+        if t.next.compareExchangeStrong(nilExp, myWaiter, moAcquireRelease, moRelaxed):
+          discard core.tail.compareExchangeWeak(t, myWaiter, moAcquireRelease, moRelaxed)
+          if core.isClosed.load(moAcquire):
+            var expW = rsWaiting
+            if myWaiter.state.compareExchangeStrong(expW, rsCancelled, moAcquireRelease, moRelaxed):
+              myWaiter.parker.unpark()
+          outCorrId = 0
+          return myWaiter
+      else:
+        let hNext = h.next.load(moAcquire)
+        if h == core.head.load(moAcquire) and hNext != nil:
+          if hNext.mode != wmSender:
+            if hNext.state.load(moAcquire) != rsWaiting:
+              discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+            continue
+          var exp = rsWaiting
+          if hNext.state.compareExchangeStrong(exp, rsMatched, moAcquireRelease, moRelaxed):
+            discard myWaiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+            myWaiter.state.store(rsCancelled, moRelease)
+            let transferred = hNext.vbox.exchange(nil, moAcquireRelease)
+            outVal = transferred.val
+            outCorrId = hNext.correlationId
+            decRef(transferred)
+            hNext.parker.unpark()
+            discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+            return nil
+          else:
+            discard core.head.compareExchangeWeak(h, hNext, moAcquireRelease, moRelaxed)
+
+proc finishAsyncReceiver*[T](
+    self: RendezvousChannel[T],
+    waiter: ptr RendezvousWaiter[T],
+    outVal: var T,
+    outCorrId: var uint64
+): bool =
+  ## Resolves bilateral CAS arbitration when an async receiver wakes or cancels.
+  ## Returns `true` and populates `outVal` if a sender matched; `false` if
+  ## cancelled or closed.
+  var expWaiting = rsWaiting
+  discard waiter.state.compareExchangeStrong(expWaiting, rsCancelled, moAcquireRelease, moRelaxed)
+  if expWaiting == rsMatched:
+    while waiter.vbox.load(moAcquire) == nil:
+      cpuPause()
+    let transferred = waiter.vbox.exchange(nil, moAcquireRelease)
+    outVal = transferred.val
+    outCorrId = waiter.correlationId
+    decRef(transferred)
+    return true
+  if self.core != nil:
+    purgeCancelledWaiters(self.core)
+  return false
 
 # ---------------------------------------------------------------------------
 # Syntactic Sugar Operators

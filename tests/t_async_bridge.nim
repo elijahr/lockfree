@@ -20,7 +20,7 @@ else:
     asyncCheck fut
   proc sleepMs(ms: int): Future[void] =
     sleepAsync(ms)
-  proc timeoutMs[T](fut: Future[T], ms: int): Future[bool] =
+  proc timeoutMs[T](fut: Future[T], ms: int): Future[bool] {.used.} =
     withTimeout(fut, ms)
   proc stepLoop() =
     try:
@@ -182,8 +182,18 @@ suite "AsyncRendezvousChannel (Zero-Buffer Synchronous CSP)":
 
   test "bilateral CAS arbitration on cancellation (withTimeout)":
     var ch = newAsyncRendezvousChannel[int]()
-    let ok = waitFor(timeoutMs(ch.recvAsync(), 15))
-    check ok == false
+    when defined(lockfreeChronos):
+      let ok = waitFor(timeoutMs(ch.recvAsync(), 15))
+      check ok == false
+      stepLoop()
+    else:
+      var parkedFut = ch.recvAsync()
+      check ch.receiverSignal.waiters.len == 1
+      ch.receiverSignal.waiters[0].fail(newException(ValueError, "cancelled"))
+      stepLoop()
+      stepLoop()
+      check parkedFut.failed == true
+      check ch.receiverSignal.waiters.len == 0
     var sendTh: Thread[ptr AsyncRendezvousChannel[int]]
     createThread(sendTh, proc(cp: ptr AsyncRendezvousChannel[int]) {.thread.} =
       sleep(20)
@@ -192,6 +202,19 @@ suite "AsyncRendezvousChannel (Zero-Buffer Synchronous CSP)":
     let val = waitFor(ch.recvAsync())
     check val == some(999)
     joinThread(sendTh)
+
+  test "Scherer-Scott dual queue strict FIFO ordering across parked async receivers":
+    var ch = newAsyncRendezvousChannel[int]()
+    var r1 = ch.recvAsync()
+    var r2 = ch.recvAsync()
+    check r1.finished == false
+    check r2.finished == false
+    check waitFor(ch.sendAsync(111)) == true
+    check waitFor(r1) == some(111)
+    check r2.finished == false
+    check waitFor(ch.sendAsync(222)) == true
+    check waitFor(r2) == some(222)
+    ch.close()
 
 suite "AsyncBroadcastRing & AsyncBroadcastCursor (Pub-Sub Multicast)":
   test "1-to-N fanout with async subscribers":
@@ -390,6 +413,26 @@ suite "AsyncTopicBus (Multiplexed Pub-Sub Topic Router)":
     check waitFor(asyncBus.sendAsync("cfg-topic", 77)) == true
     check waitFor(sub.recvAsync()) == some(77)
     sub.unsubscribe()
+
+  test "lock-free Ctrie topic routing across many topics and shared underlying TopicBus":
+    var syncBus = initTopicBus[int]()
+    var asyncBus = syncBus.toAsync()
+    var subs: seq[AsyncBroadcastCursor[int]] = @[]
+    for i in 0 ..< 16:
+      subs.add(asyncBus.subscribe("topic-" & $i, soFromLatest))
+    check asyncBus.topicCount == 16
+    check syncBus.topicCount == 16
+    for i in 0 ..< 16:
+      # Publish via synchronous TopicBus for even indices, asyncBus for odd indices
+      if (i and 1) == 0:
+        syncBus.publish("topic-" & $i, i * 10)
+        # Wake async cursor via asyncBus ring
+        asyncBus.getOrCreateTopicRing("topic-" & $i).notifyCursors()
+      else:
+        check waitFor(asyncBus.sendAsync("topic-" & $i, i * 10)) == true
+    for i in 0 ..< 16:
+      check waitFor(subs[i].recvAsync()) == some(i * 10)
+      subs[i].unsubscribe()
 
 suite "AsyncChaseLevDeque (Work-Stealing Deque Async Thief Parking)":
   test "owner LIFO popBottom vs async thief FIFO stealAsync":

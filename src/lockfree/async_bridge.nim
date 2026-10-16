@@ -58,6 +58,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
   import ./queue
   import ./rendezvous
   import ./broadcast
+  import ./ctrie
   import ./deque
   import ./strategy
   import ./endpoint
@@ -71,45 +72,6 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     moSeqCst = moSequentiallyConsistent
 
   # ---------------------------------------------------------------------------
-  # Spinlock Helper
-  # ---------------------------------------------------------------------------
-
-  proc acquireLock(lock: var Atomic[bool]) {.inline.} =
-    while lock.exchange(true, moAcquire):
-      while lock.load(moRelaxed):
-        cpuPause()
-
-  proc releaseLock(lock: var Atomic[bool]) {.inline.} =
-    lock.store(false, moRelease)
-
-  # ---------------------------------------------------------------------------
-  # Payload Box: Safe ARC/ORC Cross-Thread Transport
-  # ---------------------------------------------------------------------------
-
-  type
-    AsyncPayloadBox[T] = object
-      rc*: Atomic[int32]
-      val*: T
-
-  proc allocPayloadBox[T](item: sink T): ptr AsyncPayloadBox[T] {.inline.} =
-    result = cast[ptr AsyncPayloadBox[T]](allocShared0(sizeof(AsyncPayloadBox[T])))
-    result.rc.store(1, moRelaxed)
-    result.val = item
-
-  proc incRef[T](box: ptr AsyncPayloadBox[T]) {.inline, used.} =
-    if box != nil:
-      discard box.rc.fetchAdd(1, moRelaxed)
-
-  proc decRef[T](box: ptr AsyncPayloadBox[T]) {.inline, gcsafe.} =
-    if box != nil:
-      if box.rc.fetchSub(1, moRelease) == 1:
-        threadFence(moAcquire)
-        when not (T is SomeNumber or T is bool or T is char or T is pointer or T is ptr):
-          {.cast(gcsafe).}:
-            `=destroy`(box.val)
-        deallocShared(box)
-
-  # ---------------------------------------------------------------------------
   # Polyglot AsyncSignal: Thread-Safe Cross-Thread Reactor Wakeup
   # ---------------------------------------------------------------------------
 
@@ -119,35 +81,117 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     ksTriggered = 2'i32
 
   type
+    AsyncSignalWaiterNodeObj = object
+      fut*: Future[void]
+      next*: ptr AsyncSignalWaiterNodeObj
+
+    AsyncSignalWaiterNode = ptr AsyncSignalWaiterNodeObj
+
     AsyncSignal* = ref object
       signaled*: Atomic[bool]
       closed*: Atomic[bool]
       kernelState*: Atomic[int32]
-      eventClosed*: bool
+      eventClosed*: Atomic[bool]
+      waitersHead*: Atomic[AsyncSignalWaiterNode]
       when defined(lockfreeChronos):
         tsig*: ThreadSignalPtr
-        waiters*: seq[Future[void]]
         tsigWaitFut*: Future[void]
       else:
         event*: AsyncEvent
-        waiters*: seq[Future[void]]
 
   proc newAsyncSignal*(): AsyncSignal =
     new result
     result.signaled.store(false, moRelaxed)
     result.closed.store(false, moRelaxed)
     result.kernelState.store(ksIdle, moRelaxed)
-    result.eventClosed = false
+    result.eventClosed.store(false, moRelaxed)
+    result.waitersHead.store(nil, moRelaxed)
     when defined(lockfreeChronos):
       let res = ThreadSignalPtr.new()
       if res.isOk:
         result.tsig = res.get()
-      result.waiters = @[]
     else:
       result.event = newAsyncEvent()
-      result.waiters = @[]
 
-  proc fire*(sig: AsyncSignal) {.inline, gcsafe.} =
+  proc pushWaiter(sig: AsyncSignal, fut: Future[void]) {.inline.} =
+    GC_ref(fut)
+    let node = cast[AsyncSignalWaiterNode](
+      allocShared0(sizeof(AsyncSignalWaiterNodeObj))
+    )
+    node.fut = fut
+    while true:
+      var cur = sig.waitersHead.load(moAcquire)
+      node.next = cur
+      if sig.waitersHead.compareExchange(cur, node, moSeqCst):
+        break
+
+  proc popAllWaiters(sig: AsyncSignal): seq[Future[void]] =
+    if sig == nil:
+      return @[]
+    var curr = sig.waitersHead.exchange(nil, moSeqCst)
+    var rev: AsyncSignalWaiterNode = nil
+    while curr != nil:
+      let nxt = curr.next
+      curr.next = rev
+      rev = curr
+      curr = nxt
+    while rev != nil:
+      let nxt = rev.next
+      let f = rev.fut
+      GC_unref(f)
+      deallocShared(rev)
+      result.add(f)
+      rev = nxt
+
+  proc filterWaiters(sig: AsyncSignal, removeTarget: Future[void] = nil) =
+    if sig == nil:
+      return
+    var curr = sig.waitersHead.exchange(nil, moSeqCst)
+    if curr == nil:
+      return
+    var rev: AsyncSignalWaiterNode = nil
+    while curr != nil:
+      let nxt = curr.next
+      curr.next = rev
+      rev = curr
+      curr = nxt
+    while rev != nil:
+      let nxt = rev.next
+      let f = rev.fut
+      when defined(lockfreeChronos):
+        let done = f.finished()
+      else:
+        let done = f.finished
+      if done or (removeTarget != nil and f == removeTarget):
+        GC_unref(f)
+        deallocShared(rev)
+      else:
+        while true:
+          var h = sig.waitersHead.load(moAcquire)
+          rev.next = h
+          if sig.waitersHead.compareExchange(h, rev, moSeqCst):
+            break
+      rev = nxt
+
+  proc pruneFinishedWaiters*(sig: AsyncSignal) {.inline.} =
+    filterWaiters(sig, nil)
+
+  proc hasWaiters*(sig: AsyncSignal): bool {.inline.} =
+    sig != nil and sig.waitersHead.load(moSeqCst) != nil
+
+  proc waiters*(sig: AsyncSignal): seq[Future[void]] {.inline, raises: [].} =
+    ## Snapshot of currently parked waiter futures in FIFO registration order.
+    if sig == nil:
+      return @[]
+    var cur = sig.waitersHead.load(moSeqCst)
+    var tmp: seq[Future[void]] = @[]
+    while cur != nil:
+      tmp.add(cur.fut)
+      cur = cur.next
+    for i in countdown(tmp.len - 1, 0):
+      result.add(tmp[i])
+
+  proc fire*(sig: AsyncSignal) {.inline, gcsafe, raises: [].} =
     ## Thread-safe, non-blocking signal trigger. Can be invoked from any OS
     ## thread. Triggers the underlying kernel event at most once per active
     ## registration (`ksRegistered -> ksTriggered`).
@@ -161,26 +205,15 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         if sig.tsig != nil:
           discard sig.tsig.fireSync()
       else:
-        sig.event.trigger()
+        try:
+          sig.event.trigger()
+        except CatchableError:
+          discard
 
   proc clear*(sig: AsyncSignal) {.inline, gcsafe.} =
     if sig == nil:
       return
     sig.signaled.store(false, moSeqCst)
-
-  proc pruneFinishedWaiters*(sig: AsyncSignal) {.inline.} =
-    if sig == nil:
-      return
-    var i = 0
-    while i < sig.waiters.len:
-      when defined(lockfreeChronos):
-        let done = sig.waiters[i].finished()
-      else:
-        let done = sig.waiters[i].finished
-      if done:
-        sig.waiters.delete(i)
-      else:
-        inc i
 
   when defined(lockfreeChronos):
     proc wait*(sig: AsyncSignal): Future[void] {.
@@ -190,18 +223,15 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       if sig != nil:
         sig.pruneFinishedWaiters()
       if sig == nil or sig.closed.load(moAcquire) or
-          (sig.waiters.len == 0 and sig.signaled.exchange(false, moSeqCst)):
+          (not sig.hasWaiters() and sig.signaled.exchange(false, moSeqCst)):
         fut.complete()
         return fut
 
       proc onCancel(udata: pointer) {.gcsafe, raises: [].} =
-        for i in 0 ..< sig.waiters.len:
-          if sig.waiters[i] == fut:
-            sig.waiters.delete(i)
-            break
+        filterWaiters(sig, fut)
 
       fut.cancelCallback = onCancel
-      sig.waiters.add(fut)
+      sig.pushWaiter(fut)
 
       if sig.kernelState.load(moSeqCst) == ksIdle and sig.tsig != nil:
         let tw = sig.tsig.wait()
@@ -209,13 +239,11 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         tw.addCallback(proc(udata: pointer) {.gcsafe, raises: [].} =
           sig.signaled.store(false, moSeqCst)
           sig.tsigWaitFut = nil
-          var pending = move sig.waiters
-          sig.waiters = @[]
+          var pending = sig.popAllWaiters()
           sig.kernelState.store(ksIdle, moSeqCst)
           threadFence(moSeqCst)
           if sig.closed.load(moAcquire):
-            if not sig.eventClosed:
-              sig.eventClosed = true
+            if not sig.eventClosed.exchange(true, moSeqCst):
               if sig.tsig != nil:
                 discard sig.tsig.close()
                 sig.tsig = nil
@@ -238,13 +266,13 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       if sig != nil:
         sig.pruneFinishedWaiters()
       if sig == nil or sig.closed.load(moAcquire) or
-          (sig.waiters.len == 0 and sig.signaled.exchange(false, moSeqCst)):
+          (not sig.hasWaiters() and sig.signaled.exchange(false, moSeqCst)):
         var fut = newFuture[void]("AsyncSignal.wait.fast")
         fut.complete()
         return fut
 
       var fut = newFuture[void]("AsyncSignal.wait.slow")
-      sig.waiters.add(fut)
+      sig.pushWaiter(fut)
 
       if sig.kernelState.load(moSeqCst) == ksIdle:
         # Register addEvent on the dispatcher BEFORE publishing
@@ -255,13 +283,11 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
           # eventcb / processBasicCallbacks completes unregister(ev)).
           callSoon(proc() {.gcsafe.} =
             sig.signaled.store(false, moSeqCst)
-            var pending = move sig.waiters
-            sig.waiters = @[]
+            var pending = sig.popAllWaiters()
             sig.kernelState.store(ksIdle, moSeqCst)
             threadFence(moSeqCst)
             if sig.closed.load(moAcquire):
-              if not sig.eventClosed:
-                sig.eventClosed = true
+              if not sig.eventClosed.exchange(true, moSeqCst):
                 try:
                   sig.event.close()
                 except CatchableError:
@@ -289,10 +315,8 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       when defined(lockfreeChronos):
         let ks = sig.kernelState.load(moSeqCst)
         if ks == ksIdle:
-          var pending = move sig.waiters
-          sig.waiters = @[]
-          if not sig.eventClosed:
-            sig.eventClosed = true
+          var pending = sig.popAllWaiters()
+          if not sig.eventClosed.exchange(true, moSeqCst):
             if sig.tsig != nil:
               discard sig.tsig.close()
               sig.tsig = nil
@@ -307,10 +331,8 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       else:
         let ks = sig.kernelState.load(moSeqCst)
         if ks == ksIdle:
-          var pending = move sig.waiters
-          sig.waiters = @[]
-          if not sig.eventClosed:
-            sig.eventClosed = true
+          var pending = sig.popAllWaiters()
+          if not sig.eventClosed.exchange(true, moSeqCst):
             try:
               sig.event.close()
             except CatchableError:
@@ -591,367 +613,148 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
   # ---------------------------------------------------------------------------
 
   type
-    AsyncRendezvousState* = enum
-      arsWaiting
-      arsMatched
-      arsCancelled
-
-    AsyncRendezvousWaiterNodeObj[T] = object
-      state*: Atomic[AsyncRendezvousState]
-      box*: Atomic[ptr AsyncPayloadBox[T]]
-      signal*: AsyncSignal
-      next*: ptr AsyncRendezvousWaiterNodeObj[T]
-
-    AsyncRendezvousWaiterNode[T] = ptr AsyncRendezvousWaiterNodeObj[T]
-
     AsyncRendezvousChannel*[T] = ref object
       chan*: RendezvousChannel[T]
-      waitingSenders*: AsyncRendezvousWaiterNode[T]
-      waitingReceivers*: AsyncRendezvousWaiterNode[T]
-      waiterLock*: Atomic[bool]
+      senderSignal*: AsyncSignal
+      receiverSignal*: AsyncSignal
 
-  proc allocWaiterNode[T](): AsyncRendezvousWaiterNode[T] {.inline.} =
-    result = cast[AsyncRendezvousWaiterNode[T]](
-      allocShared0(sizeof(AsyncRendezvousWaiterNodeObj[T]))
-    )
-    result.signal = newAsyncSignal()
-    result.state.store(arsWaiting, moRelaxed)
-    result.box.store(nil, moRelaxed)
-    result.next = nil
-
-  proc unlinkAndDestroySenderWaiter[T](
-      self: AsyncRendezvousChannel[T], waiter: AsyncRendezvousWaiterNode[T]
-  ) {.inline.} =
-    self.waiterLock.acquireLock()
-    var p: AsyncRendezvousWaiterNode[T] = nil
-    var c = self.waitingSenders
-    while c != nil:
-      if c == waiter:
-        if p == nil:
-          self.waitingSenders = c.next
-        else:
-          p.next = c.next
-        break
-      p = c
-      c = c.next
-    self.waiterLock.releaseLock()
-    waiter.signal.close()
-    waiter.signal = nil
-    deallocShared(waiter)
-
-  proc unlinkAndDestroyReceiverWaiter[T](
-      self: AsyncRendezvousChannel[T], waiter: AsyncRendezvousWaiterNode[T]
-  ) {.inline.} =
-    self.waiterLock.acquireLock()
-    var p: AsyncRendezvousWaiterNode[T] = nil
-    var c = self.waitingReceivers
-    while c != nil:
-      if c == waiter:
-        if p == nil:
-          self.waitingReceivers = c.next
-        else:
-          p.next = c.next
-        break
-      p = c
-      c = c.next
-    self.waiterLock.releaseLock()
-    waiter.signal.close()
-    waiter.signal = nil
-    deallocShared(waiter)
+  proc asyncSignalWakeProc(arg: pointer) {.nimcall, gcsafe, raises: [].} =
+    if arg != nil:
+      let sig = cast[AsyncSignal](arg)
+      sig.fire()
+      GC_unref(sig)
 
   proc newAsyncRendezvousChannel*[T](): AsyncRendezvousChannel[T] =
     new result
     result.chan = initRendezvousChannel[T]()
-    result.waiterLock.store(false, moRelaxed)
+    result.senderSignal = newAsyncSignal()
+    result.receiverSignal = newAsyncSignal()
 
   proc toAsync*[T](chan: RendezvousChannel[T]): AsyncRendezvousChannel[T] =
     new result
     result.chan = chan
-    result.waiterLock.store(false, moRelaxed)
+    result.senderSignal = newAsyncSignal()
+    result.receiverSignal = newAsyncSignal()
 
   proc isClosed*[T](self: AsyncRendezvousChannel[T]): bool {.inline.} =
     self.chan.isClosed
 
   proc close*[T](self: AsyncRendezvousChannel[T]) =
     self.chan.close()
-    self.waiterLock.acquireLock()
-    var s = self.waitingSenders
-    while s != nil:
-      s.signal.fire()
-      s = s.next
-    var r = self.waitingReceivers
-    while r != nil:
-      r.signal.fire()
-      r = r.next
-    self.waiterLock.releaseLock()
+    if self.senderSignal != nil:
+      self.senderSignal.close()
+    if self.receiverSignal != nil:
+      self.receiverSignal.close()
 
   proc sendAsync*[T](self: AsyncRendezvousChannel[T], item: sink T): Future[bool] {.async.} =
-    ## Asynchronously sends an item through the rendezvous channel. Matches an
-    ## active receiver (OS thread or coroutine) or suspends until matched.
+    ## Asynchronously sends an item through the rendezvous channel. Delegates
+    ## directly to `RendezvousChannel[T]`'s lock-free Scherer-Scott dual queue.
     ## Bilateral CAS arbitration guarantees zero item loss on cancellation.
     if self.chan.isClosed:
       raise newException(ChannelClosedDefect, "RendezvousChannel is closed")
 
     var curItem = move item
-    # Fast path 1: Check if synchronous thread is parked in chan.recv()
-    var corrId: uint64
+    var corrId: uint64 = 0
     if self.chan.trySend(curItem, corrId):
       return true
 
-    # Fast path 2: Check if async receiver is waiting
-    var matched = false
-    self.waiterLock.acquireLock()
-    var prev: AsyncRendezvousWaiterNode[T] = nil
-    var curr = self.waitingReceivers
-    while curr != nil:
-      var exp = arsWaiting
-      if curr.state.compareExchange(exp, arsMatched, moAcquireRelease):
-        if prev == nil:
-          self.waitingReceivers = curr.next
-        else:
-          prev.next = curr.next
-        let pbox = allocPayloadBox(curItem)
-        curr.box.store(pbox, moRelease)
-        curr.signal.fire()
-        matched = true
-        break
-      else:
-        # Cancelled or dead waiter
-        if prev == nil:
-          self.waitingReceivers = curr.next
-        else:
-          prev.next = curr.next
-        curr = curr.next
-    self.waiterLock.releaseLock()
-
-    if matched:
-      return true
-
-    # Slow path: Register as waiting sender
-    let waiter = allocWaiterNode[T]()
-    let pbox = allocPayloadBox(curItem)
-    waiter.box.store(pbox, moRelaxed)
-
-    self.waiterLock.acquireLock()
-    waiter.next = self.waitingSenders
-    self.waitingSenders = waiter
-    self.waiterLock.releaseLock()
+    self.senderSignal.pruneFinishedWaiters()
+    let sig = self.senderSignal
+    GC_ref(sig)
+    let waiter = self.chan.enqueueAsyncSender(
+      curItem, asyncSignalWakeProc, cast[pointer](sig), corrId
+    )
+    if waiter == nil:
+      GC_unref(sig)
+      if corrId > 0:
+        return true
+      raise newException(ChannelClosedDefect, "RendezvousChannel is closed")
 
     try:
-      await waiter.signal.wait()
+      while waiter.state.load(moSeqCst) == rsWaiting and not self.chan.isClosed:
+        await sig.wait()
     except CatchableError as e:
-      var exp = arsWaiting
-      let cancelled = waiter.state.compareExchange(exp, arsCancelled, moAcquireRelease)
-      self.unlinkAndDestroySenderWaiter(waiter)
-      if cancelled:
-        decRef(pbox)
-        raise e
-      # Peer won CAS before or concurrently with cancel; item transferred!
-      return true
+      let transferred = self.chan.finishAsyncSender(waiter)
+      let leftover = waiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+      if leftover != nil:
+        GC_unref(cast[AsyncSignal](leftover))
+      sig.pruneFinishedWaiters()
+      if transferred:
+        return true
+      raise e
 
-    var exp = arsWaiting
-    discard waiter.state.compareExchange(exp, arsCancelled, moAcquireRelease)
-    let wasMatched = (exp == arsMatched)
-    self.unlinkAndDestroySenderWaiter(waiter)
-    if wasMatched:
+    let transferred = self.chan.finishAsyncSender(waiter)
+    let leftover = waiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+    if leftover != nil:
+      GC_unref(cast[AsyncSignal](leftover))
+    sig.pruneFinishedWaiters()
+    if transferred:
       return true
-    else:
-      decRef(pbox)
-      raise newException(ChannelClosedDefect, "Channel closed while waiting")
+    raise newException(ChannelClosedDefect, "Channel closed while waiting")
 
   proc recvAsync*[T](self: AsyncRendezvousChannel[T]): Future[Option[T]] {.async.} =
-    ## Asynchronously receives an item from the rendezvous channel. Matches an
-    ## active sender (OS thread or coroutine) or suspends until matched.
+    ## Asynchronously receives an item from the rendezvous channel. Delegates
+    ## directly to `RendezvousChannel[T]`'s lock-free Scherer-Scott dual queue.
     if self.chan.isClosed:
       return none(T)
 
-    # Fast path 1: Check if synchronous thread is parked in chan.send()
     var val: T
-    var corrId: uint64
+    var corrId: uint64 = 0
     if self.chan.tryRecv(val, corrId):
       return some(val)
 
-    # Fast path 2: Check if async sender is waiting
-    var matchedBox: ptr AsyncPayloadBox[T] = nil
-    self.waiterLock.acquireLock()
-    var prev: AsyncRendezvousWaiterNode[T] = nil
-    var curr = self.waitingSenders
-    while curr != nil:
-      var exp = arsWaiting
-      if curr.state.compareExchange(exp, arsMatched, moAcquireRelease):
-        if prev == nil:
-          self.waitingSenders = curr.next
-        else:
-          prev.next = curr.next
-        matchedBox = curr.box.load(moAcquire)
-        curr.signal.fire()
-        break
-      else:
-        if prev == nil:
-          self.waitingSenders = curr.next
-        else:
-          prev.next = curr.next
-        curr = curr.next
-    self.waiterLock.releaseLock()
-
-    if matchedBox != nil:
-      var res = matchedBox.val
-      decRef(matchedBox)
-      return some(res)
-
-    # Slow path: Register as waiting receiver
-    let waiter = allocWaiterNode[T]()
-
-    self.waiterLock.acquireLock()
-    waiter.next = self.waitingReceivers
-    self.waitingReceivers = waiter
-    self.waiterLock.releaseLock()
-
-    try:
-      await waiter.signal.wait()
-    except CatchableError as e:
-      var exp = arsWaiting
-      let cancelled = waiter.state.compareExchange(exp, arsCancelled, moAcquireRelease)
-      var pbox: ptr AsyncPayloadBox[T] = nil
-      if not cancelled:
-        self.waiterLock.acquireLock()
-        pbox = waiter.box.load(moAcquire)
-        self.waiterLock.releaseLock()
-      self.unlinkAndDestroyReceiverWaiter(waiter)
-      if cancelled:
-        raise e
-      var res = pbox.val
-      decRef(pbox)
-      return some(res)
-
-    var exp = arsWaiting
-    discard waiter.state.compareExchange(exp, arsCancelled, moAcquireRelease)
-    let wasMatched = (exp == arsMatched)
-    var pbox: ptr AsyncPayloadBox[T] = nil
-    if wasMatched:
-      self.waiterLock.acquireLock()
-      pbox = waiter.box.load(moAcquire)
-      self.waiterLock.releaseLock()
-    self.unlinkAndDestroyReceiverWaiter(waiter)
-    if wasMatched:
-      var res = pbox.val
-      decRef(pbox)
-      return some(res)
-    else:
+    self.receiverSignal.pruneFinishedWaiters()
+    let sig = self.receiverSignal
+    GC_ref(sig)
+    let waiter = self.chan.enqueueAsyncReceiver(
+      asyncSignalWakeProc, cast[pointer](sig), val, corrId
+    )
+    if waiter == nil:
+      GC_unref(sig)
+      if corrId > 0:
+        return some(val)
       return none(T)
 
+    try:
+      while waiter.state.load(moSeqCst) == rsWaiting and not self.chan.isClosed:
+        await sig.wait()
+    except CatchableError as e:
+      let matched = self.chan.finishAsyncReceiver(waiter, val, corrId)
+      let leftover = waiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+      if leftover != nil:
+        GC_unref(cast[AsyncSignal](leftover))
+      sig.pruneFinishedWaiters()
+      if matched:
+        return some(val)
+      raise e
+
+    let matched = self.chan.finishAsyncReceiver(waiter, val, corrId)
+    let leftover = waiter.parker.wakeArg.exchange(nil, moAcquireRelease)
+    if leftover != nil:
+      GC_unref(cast[AsyncSignal](leftover))
+    sig.pruneFinishedWaiters()
+    if matched:
+      return some(val)
+    return none(T)
+
   proc tryPopAsync*[T](self: AsyncRendezvousChannel[T]): Future[Option[T]] =
-    ## Speculative non-blocking try-recv.
+    ## Speculative non-blocking try-recv delegated to `RendezvousChannel[T]`.
     var val: T
     var corrId: uint64
-    if self.chan.tryRecv(val, corrId):
-      var fut = newFuture[Option[T]]("tryPopAsync")
-      fut.complete(some(val))
-      return fut
-
-    var matchedBox: ptr AsyncPayloadBox[T] = nil
-    self.waiterLock.acquireLock()
-    var prev: AsyncRendezvousWaiterNode[T] = nil
-    var curr = self.waitingSenders
-    while curr != nil:
-      var exp = arsWaiting
-      if curr.state.compareExchange(exp, arsMatched, moAcquireRelease):
-        if prev == nil:
-          self.waitingSenders = curr.next
-        else:
-          prev.next = curr.next
-        matchedBox = curr.box.load(moAcquire)
-        curr.signal.fire()
-        break
-      else:
-        if prev == nil:
-          self.waitingSenders = curr.next
-        else:
-          prev.next = curr.next
-        curr = curr.next
-    self.waiterLock.releaseLock()
-
     var fut = newFuture[Option[T]]("tryPopAsync")
-    if matchedBox != nil:
-      var res = matchedBox.val
-      decRef(matchedBox)
-      fut.complete(some(res))
+    if self.chan.tryRecv(val, corrId):
+      fut.complete(some(val))
     else:
       fut.complete(none(T))
     return fut
 
-  proc send*[T](self: AsyncRendezvousChannel[T], item: sink T): uint64 =
-    ## Synchronous send on AsyncRendezvousChannel (e.g. from an OS worker
-    ## thread). Wakes a waiting async receiver or falls back to sync
-    ## RendezvousChannel.
-    if self.chan.isClosed:
-      raise newException(ChannelClosedDefect, "RendezvousChannel is closed")
+  proc send*[T](self: AsyncRendezvousChannel[T], item: sink T): uint64 {.inline.} =
+    ## Synchronous send on AsyncRendezvousChannel delegated to `RendezvousChannel[T]`.
+    self.chan.send(item)
 
-    var curItem = move item
-    var matched = false
-    self.waiterLock.acquireLock()
-    var prev: AsyncRendezvousWaiterNode[T] = nil
-    var curr = self.waitingReceivers
-    while curr != nil:
-      var exp = arsWaiting
-      if curr.state.compareExchange(exp, arsMatched, moAcquireRelease):
-        if prev == nil:
-          self.waitingReceivers = curr.next
-        else:
-          prev.next = curr.next
-        let pbox = allocPayloadBox(curItem)
-        curr.box.store(pbox, moRelease)
-        curr.signal.fire()
-        matched = true
-        break
-      else:
-        if prev == nil:
-          self.waitingReceivers = curr.next
-        else:
-          prev.next = curr.next
-        curr = curr.next
-    self.waiterLock.releaseLock()
-
-    if matched:
-      return 1
-
-    result = self.chan.send(curItem)
-
-  proc recv*[T](self: AsyncRendezvousChannel[T], outVal: var T): uint64 =
-    ## Synchronous recv on AsyncRendezvousChannel (e.g. from an OS worker
-    ## thread). Wakes a waiting async sender or falls back to sync
-    ## RendezvousChannel.
-    if self.chan.isClosed:
-      raise newException(ChannelClosedDefect, "RendezvousChannel is closed")
-
-    var matchedBox: ptr AsyncPayloadBox[T] = nil
-    self.waiterLock.acquireLock()
-    var prev: AsyncRendezvousWaiterNode[T] = nil
-    var curr = self.waitingSenders
-    while curr != nil:
-      var exp = arsWaiting
-      if curr.state.compareExchange(exp, arsMatched, moAcquireRelease):
-        if prev == nil:
-          self.waitingSenders = curr.next
-        else:
-          prev.next = curr.next
-        matchedBox = curr.box.load(moAcquire)
-        curr.signal.fire()
-        break
-      else:
-        if prev == nil:
-          self.waitingSenders = curr.next
-        else:
-          prev.next = curr.next
-        curr = curr.next
-    self.waiterLock.releaseLock()
-
-    if matchedBox != nil:
-      outVal = matchedBox.val
-      decRef(matchedBox)
-      return 1
-
-    result = self.chan.recv(outVal)
+  proc recv*[T](self: AsyncRendezvousChannel[T], outVal: var T): uint64 {.inline.} =
+    ## Synchronous recv on AsyncRendezvousChannel delegated to `RendezvousChannel[T]`.
+    self.chan.recv(outVal)
 
   # Direct on RendezvousChannel:
   proc tryPopAsync*[T](self: RendezvousChannel[T]): Future[Option[T]] =
@@ -973,16 +776,27 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       ring*: BroadcastRing[T]
       waitingProducerCount* {.align: CacheLineBytes.}: Atomic[int32]
       waitingCursorCount* {.align: CacheLineBytes.}: Atomic[int32]
-      cursorsLock* {.align: CacheLineBytes.}: Atomic[bool]
-      cursors*: seq[AsyncBroadcastCursor[T]]
+      maxReaders*: int
+      cursorSignals*: seq[AsyncSignal]
+      cursorWaiting*: seq[Atomic[bool]]
       producerSignal*: AsyncSignal
 
     AsyncBroadcastCursor*[T] = ref object
       cursor*: BroadcastCursor[T]
       ring*: AsyncBroadcastRing[T]
+      slotId*: int
       signal*: AsyncSignal
       isWaiting* {.align: CacheLineBytes.}: Atomic[bool]
       closed*: Atomic[bool]
+
+  proc initCursorSlotTable[T](self: AsyncBroadcastRing[T], maxReaders: int) =
+    let maxR = max(1, maxReaders)
+    self.maxReaders = maxR
+    self.cursorSignals = newSeq[AsyncSignal](maxR)
+    self.cursorWaiting = newSeq[Atomic[bool]](maxR)
+    for i in 0 ..< maxR:
+      self.cursorSignals[i] = newAsyncSignal()
+      self.cursorWaiting[i].store(false, moRelaxed)
 
   proc newAsyncBroadcastRing*[T](
       capacity: int = DefaultRingCapacity,
@@ -993,8 +807,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     result.ring = initBroadcastRing[T](capacity, overflowMode, maxReaders)
     result.waitingProducerCount.store(0, moRelaxed)
     result.waitingCursorCount.store(0, moRelaxed)
-    result.cursorsLock.store(false, moRelaxed)
-    result.cursors = @[]
+    result.initCursorSlotTable(result.ring.core.maxReaders)
     result.producerSignal = newAsyncSignal()
 
   proc toAsync*[T](ring: sink BroadcastRing[T]): AsyncBroadcastRing[T] =
@@ -1002,18 +815,16 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     result.ring = ring
     result.waitingProducerCount.store(0, moRelaxed)
     result.waitingCursorCount.store(0, moRelaxed)
-    result.cursorsLock.store(false, moRelaxed)
-    result.cursors = @[]
+    let maxR = if result.ring.core != nil: result.ring.core.maxReaders else: DefaultMaxReaders
+    result.initCursorSlotTable(maxR)
     result.producerSignal = newAsyncSignal()
 
   proc notifyCursors*[T](self: AsyncBroadcastRing[T]) {.inline, gcsafe.} =
     if self == nil:
       return
-    self.cursorsLock.acquireLock()
-    for i in 0 ..< self.cursors.len:
-      if self.cursors[i] != nil and self.cursors[i].isWaiting.load(moSeqCst):
-        self.cursors[i].signal.fire()
-    self.cursorsLock.releaseLock()
+    for i in 0 ..< self.maxReaders:
+      if self.cursorWaiting[i].load(moSeqCst):
+        self.cursorSignals[i].fire()
 
   proc notifyProducers*[T](self: AsyncBroadcastRing[T]) {.inline, gcsafe.} =
     if self == nil or self.producerSignal == nil:
@@ -1025,6 +836,9 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       return
     if self.producerSignal != nil:
       self.producerSignal.close()
+    for i in 0 ..< self.maxReaders:
+      if self.cursorSignals[i] != nil:
+        self.cursorSignals[i].close()
 
   proc subscribe*[T](
       self: AsyncBroadcastRing[T],
@@ -1033,33 +847,31 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     new result
     result.ring = self
     result.cursor = self.ring.subscribe(origin)
-    result.signal = newAsyncSignal()
+    let id = result.cursor.cursorId
+    result.slotId = id
+    result.signal = self.cursorSignals[id]
+    result.signal.clear()
+    self.cursorWaiting[id].store(false, moSeqCst)
     result.isWaiting.store(false, moRelaxed)
     result.closed.store(false, moRelaxed)
-    self.cursorsLock.acquireLock()
-    self.cursors.add(result)
-    self.cursorsLock.releaseLock()
 
   proc unsubscribe*[T](self: AsyncBroadcastCursor[T]) =
-    ## Deregisters the async cursor, removes it from the ring's active cursor
-    ## list, releases its slot in the underlying BroadcastRing cursor table,
-    ## closes its dedicated AsyncSignal, and wakes any stalled omBackoff
-    ## producers.
+    ## Deregisters the async cursor, clears its lock-free slot in the ring's
+    ## cursor table, releases its slot in the underlying BroadcastRing cursor
+    ## table, wakes any coroutine awaiting this cursor, and wakes any stalled
+    ## omBackoff producers.
     if self == nil:
       return
     if not self.closed.exchange(true, moAcquireRelease):
-      if self.ring != nil:
+      let id = self.slotId
+      if self.ring != nil and id >= 0 and id < self.ring.maxReaders:
+        self.ring.cursorWaiting[id].store(false, moSeqCst)
         if self.isWaiting.exchange(false, moSeqCst):
           discard self.ring.waitingCursorCount.fetchSub(1, moSeqCst)
-        self.ring.cursorsLock.acquireLock()
-        for i in 0 ..< self.ring.cursors.len:
-          if self.ring.cursors[i] == self:
-            self.ring.cursors.delete(i)
-            break
-        self.ring.cursorsLock.releaseLock()
 
       self.cursor.unsubscribe()
-      self.signal.close()
+      if self.signal != nil:
+        self.signal.fire()
 
       if self.ring != nil:
         threadFence(moSeqCst)
@@ -1112,7 +924,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         return true
 
       self.producerSignal.pruneFinishedWaiters()
-      if self.producerSignal.waiters.len == 0:
+      if not self.producerSignal.hasWaiters():
         self.producerSignal.clear()
       discard self.waitingProducerCount.fetchAdd(1, moSeqCst)
       threadFence(moSeqCst)
@@ -1153,8 +965,10 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       if self.isReadable():
         return true
 
+      let id = self.slotId
       self.signal.clear()
       if not self.isWaiting.exchange(true, moSeqCst):
+        self.ring.cursorWaiting[id].store(true, moSeqCst)
         discard self.ring.waitingCursorCount.fetchAdd(1, moSeqCst)
       threadFence(moSeqCst)
 
@@ -1166,6 +980,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         await self.signal.wait()
       finally:
         if self.isWaiting.exchange(false, moSeqCst):
+          self.ring.cursorWaiting[id].store(false, moSeqCst)
           discard self.ring.waitingCursorCount.fetchSub(1, moSeqCst)
 
   proc pollAsync*[T](self: AsyncBroadcastCursor[T]): Future[PollResult[T]] {.async.} =
@@ -1184,8 +999,10 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
           self.ring.notifyProducers()
         return r1
 
+      let id = self.slotId
       self.signal.clear()
       if not self.isWaiting.exchange(true, moSeqCst):
+        self.ring.cursorWaiting[id].store(true, moSeqCst)
         discard self.ring.waitingCursorCount.fetchAdd(1, moSeqCst)
       threadFence(moSeqCst)
 
@@ -1193,6 +1010,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         let r2 = self.cursor.poll()
         if r2.kind != prEmpty:
           if self.isWaiting.exchange(false, moSeqCst):
+            self.ring.cursorWaiting[id].store(false, moSeqCst)
             discard self.ring.waitingCursorCount.fetchSub(1, moSeqCst)
           threadFence(moSeqCst)
           if self.ring != nil and self.ring.waitingProducerCount.load(moSeqCst) > 0:
@@ -1205,6 +1023,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         await self.signal.wait()
       finally:
         if self.isWaiting.exchange(false, moSeqCst):
+          self.ring.cursorWaiting[id].store(false, moSeqCst)
           discard self.ring.waitingCursorCount.fetchSub(1, moSeqCst)
 
   proc recvAsync*[T](self: AsyncBroadcastCursor[T]): Future[Option[T]] {.async.} =
@@ -1267,15 +1086,10 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
   # ---------------------------------------------------------------------------
 
   type
-    AsyncTopicEntry[T] = object
-      topic*: string
-      ring*: AsyncBroadcastRing[T]
-
     AsyncTopicBus*[T] = ref object
       bus*: TopicBus[T]
       config*: TopicBusConfig
-      lock* {.align: CacheLineBytes.}: Atomic[bool]
-      entries*: seq[AsyncTopicEntry[T]]
+      topics*: Ctrie[string, AsyncBroadcastRing[T]]
 
   proc newAsyncTopicBus*[T](
       config: TopicBusConfig = TopicBusConfig(
@@ -1287,8 +1101,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     new result
     result.bus = initTopicBus[T](config)
     result.config = config
-    result.lock.store(false, moRelaxed)
-    result.entries = @[]
+    result.topics = initCtrie[string, AsyncBroadcastRing[T]]()
 
   proc toAsync*[T](bus: sink TopicBus[T]): AsyncTopicBus[T] =
     new result
@@ -1302,26 +1115,19 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
           defaultOverflowMode: omDropOldest,
           defaultMaxReaders: DefaultMaxReaders
         )
-    result.lock.store(false, moRelaxed)
-    result.entries = @[]
+    result.topics = initCtrie[string, AsyncBroadcastRing[T]]()
 
   proc getOrCreateTopicRing*[T](self: AsyncTopicBus[T], topic: string): AsyncBroadcastRing[T] =
-    self.lock.acquireLock()
-    try:
-      for i in 0 ..< self.entries.len:
-        if self.entries[i].topic == topic:
-          return self.entries[i].ring
-
-      # Bind to the underlying TopicBus[T]'s BroadcastRing[T] for this topic
-      var tempCursor = self.bus.subscribe(topic, soFromLatest)
-      let syncRing = tempCursor.ring
-      tempCursor.unsubscribe()
-
-      let asyncRing = toAsync(syncRing)
-      self.entries.add(AsyncTopicEntry[T](topic: topic, ring: asyncRing))
-      return asyncRing
-    finally:
-      self.lock.releaseLock()
+    let existing = self.topics.get(topic)
+    if existing.isSome:
+      return existing.get
+    let syncRing = self.bus.getOrCreateRing(topic)
+    let newAsyncRing = toAsync(syncRing)
+    let prev = self.topics.putIfAbsent(topic, newAsyncRing)
+    if prev.isSome:
+      newAsyncRing.close()
+      return prev.get
+    return newAsyncRing
 
   proc subscribe*[T](
       self: AsyncTopicBus[T],
@@ -1476,7 +1282,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         return self.deque.steal()
 
       self.thiefSignal.pruneFinishedWaiters()
-      if self.thiefSignal.waiters.len == 0:
+      if not self.thiefSignal.hasWaiters():
         self.thiefSignal.clear()
       discard self.waitingThieves.fetchAdd(1, moSeqCst)
       threadFence(moSeqCst)
@@ -1520,7 +1326,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         return self.deque.stealBatch(maxItems)
 
       self.thiefSignal.pruneFinishedWaiters()
-      if self.thiefSignal.waiters.len == 0:
+      if not self.thiefSignal.hasWaiters():
         self.thiefSignal.clear()
       discard self.waitingThieves.fetchAdd(1, moSeqCst)
       threadFence(moSeqCst)

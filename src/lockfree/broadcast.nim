@@ -538,7 +538,7 @@ proc `=sink`*[T](dest: var TopicBus[T], src: TopicBus[T]) =
 proc isNil*[T](bus: TopicBus[T]): bool {.inline.} =
   bus.core == nil
 
-proc getOrCreateRing[T](bus: TopicBus[T], topic: string): BroadcastRing[T] =
+proc getOrCreateRing*[T](bus: TopicBus[T], topic: string): BroadcastRing[T] =
   let existing = bus.core.topics.get(topic)
   if existing.isSome:
     return existing.get
