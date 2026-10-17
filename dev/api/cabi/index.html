@@ -9110,6 +9110,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
 - Optional item cleanup callbacks on queue destroy
 - Strict <code>cAbiBoundary</code> exception firewall preventing any Nim exception/panic
   from escaping across the FFI boundary
+- C99 POSIX consumers using <code>&lt;pthread.h&gt;</code> / <code>&lt;time.h&gt;</code> (<code>nanosleep</code>) under
+  <code>-std=c99</code> on glibc should compile with <code>-D_POSIX_C_SOURCE=199309L</code>
 ==============================================================================</p>
       </div>
     
@@ -9143,8 +9145,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L59" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:59
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L61" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:61
           </a>
         
       </div>
@@ -9181,8 +9183,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L60" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:60
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L62" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:62
           </a>
         
       </div>
@@ -9219,8 +9221,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L105" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:105
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L107" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:107
           </a>
         
       </div>
@@ -9257,8 +9259,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L114" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:114
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L116" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:116
           </a>
         
       </div>
@@ -9295,8 +9297,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L124" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:124
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L126" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:126
           </a>
         
       </div>
@@ -9390,8 +9392,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L631" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:631
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L633" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:633
           </a>
         
       </div>
@@ -9491,8 +9493,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L718" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:718
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L720" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:720
           </a>
         
       </div>
@@ -9562,8 +9564,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L751" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:751
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L753" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:753
           </a>
         
       </div>
@@ -9633,8 +9635,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L757" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:757
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L759" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:759
           </a>
         
       </div>
@@ -9710,8 +9712,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L765" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:765
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L767" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:767
           </a>
         
       </div>
@@ -9781,8 +9783,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L776" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:776
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L778" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:778
           </a>
         
       </div>
@@ -9858,8 +9860,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L782" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:782
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L784" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:784
           </a>
         
       </div>
@@ -9929,8 +9931,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L791" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:791
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L793" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:793
           </a>
         
       </div>
@@ -10006,8 +10008,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L797" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:797
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L799" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:799
           </a>
         
       </div>
@@ -10083,8 +10085,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L805" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:805
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L807" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:807
           </a>
         
       </div>
@@ -10166,8 +10168,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L811" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:811
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L813" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:813
           </a>
         
       </div>
@@ -10237,8 +10239,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L823" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:823
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L825" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:825
           </a>
         
       </div>
@@ -10308,8 +10310,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L831" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:831
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L833" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:833
           </a>
         
       </div>
@@ -10379,8 +10381,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L839" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:839
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L841" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:841
           </a>
         
       </div>
@@ -10456,8 +10458,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L844" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:844
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L846" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:846
           </a>
         
       </div>
@@ -10533,8 +10535,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L847" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:847
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L849" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:849
           </a>
         
       </div>
@@ -10571,8 +10573,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L860" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:860
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L862" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:862
           </a>
         
       </div>
@@ -10654,8 +10656,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L862" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:862
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L864" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:864
           </a>
         
       </div>
@@ -10725,8 +10727,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L879" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:879
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L881" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:881
           </a>
         
       </div>
@@ -10802,8 +10804,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L898" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:898
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L900" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:900
           </a>
         
       </div>
@@ -10879,8 +10881,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L905" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:905
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L907" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:907
           </a>
         
       </div>
@@ -10956,8 +10958,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L916" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:916
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L918" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:918
           </a>
         
       </div>
@@ -11039,8 +11041,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L927" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:927
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L929" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:929
           </a>
         
       </div>
@@ -11110,8 +11112,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L948" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:948
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L950" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:950
           </a>
         
       </div>
@@ -11181,8 +11183,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L957" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:957
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L959" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:959
           </a>
         
       </div>
@@ -11219,8 +11221,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L975" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:975
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L977" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:977
           </a>
         
       </div>
@@ -11308,8 +11310,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L977" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:977
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L979" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:979
           </a>
         
       </div>
@@ -11379,8 +11381,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L997" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:997
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L999" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:999
           </a>
         
       </div>
@@ -11456,8 +11458,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1016" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1016
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1018" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1018
           </a>
         
       </div>
@@ -11533,8 +11535,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1023" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1023
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1025" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1025
           </a>
         
       </div>
@@ -11610,8 +11612,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1034" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1034
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1036" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1036
           </a>
         
       </div>
@@ -11693,8 +11695,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1045" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1045
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1047" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1047
           </a>
         
       </div>
@@ -11764,8 +11766,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1059" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1059
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1061" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1061
           </a>
         
       </div>
@@ -11835,8 +11837,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1068" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1068
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1070" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1070
           </a>
         
       </div>
@@ -11906,8 +11908,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1077" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1077
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1079" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1079
           </a>
         
       </div>
@@ -11944,8 +11946,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1095" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1095
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1097" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1097
           </a>
         
       </div>
@@ -12027,8 +12029,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1097" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1097
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1099" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1099
           </a>
         
       </div>
@@ -12098,8 +12100,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1114" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1114
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1116" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1116
           </a>
         
       </div>
@@ -12187,8 +12189,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1129" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1129
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1131" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1131
           </a>
         
       </div>
@@ -12270,8 +12272,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1143" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1143
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1145" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1145
           </a>
         
       </div>
@@ -12353,8 +12355,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1158" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1158
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1160" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1160
           </a>
         
       </div>
@@ -12436,8 +12438,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1174" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1174
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1176" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1176
           </a>
         
       </div>
@@ -12513,8 +12515,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1181" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1181
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1183" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1183
           </a>
         
       </div>
@@ -12584,8 +12586,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1189" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1189
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1191" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1191
           </a>
         
       </div>
@@ -12655,8 +12657,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1198" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1198
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1200" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1200
           </a>
         
       </div>
@@ -12693,8 +12695,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1216" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1216
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1218" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1218
           </a>
         
       </div>
@@ -12776,8 +12778,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1218" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1218
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1220" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1220
           </a>
         
       </div>
@@ -12847,8 +12849,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1235" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1235
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1237" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1237
           </a>
         
       </div>
@@ -12930,8 +12932,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1250" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1250
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1252" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1252
           </a>
         
       </div>
@@ -13013,8 +13015,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1263" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1263
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1265" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1265
           </a>
         
       </div>
@@ -13090,8 +13092,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1279" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1279
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1281" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1281
           </a>
         
       </div>
@@ -13161,8 +13163,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1287" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1287
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1289" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1289
           </a>
         
       </div>
@@ -13232,8 +13234,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1296" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1296
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1298" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1298
           </a>
         
       </div>
@@ -13270,8 +13272,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1312" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1312
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1314" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1314
           </a>
         
       </div>
@@ -13308,8 +13310,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1313" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1313
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1315" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1315
           </a>
         
       </div>
@@ -13346,8 +13348,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1314" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1314
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1316" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1316
           </a>
         
       </div>
@@ -13423,8 +13425,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1316" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1316
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1318" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1318
           </a>
         
       </div>
@@ -13494,8 +13496,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1330" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1330
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1332" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1332
           </a>
         
       </div>
@@ -13577,8 +13579,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1339" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1339
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1341" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1341
           </a>
         
       </div>
@@ -13678,8 +13680,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1360" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1360
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1362" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1362
           </a>
         
       </div>
@@ -13749,8 +13751,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1375" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1375
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1377" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1377
           </a>
         
       </div>
@@ -13820,8 +13822,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1382" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1382
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1384" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1384
           </a>
         
       </div>
@@ -13858,8 +13860,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1400" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1400
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1402" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1402
           </a>
         
       </div>
@@ -13896,8 +13898,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1405" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1405
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1407" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1407
           </a>
         
       </div>
@@ -13979,8 +13981,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1407" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1407
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1409" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1409
           </a>
         
       </div>
@@ -14050,8 +14052,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1424" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1424
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1426" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1426
           </a>
         
       </div>
@@ -14139,8 +14141,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1439" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1439
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1441" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1441
           </a>
         
       </div>
@@ -14228,8 +14230,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1453" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1453
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1455" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1455
           </a>
         
       </div>
@@ -14311,8 +14313,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1461" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1461
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1463" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1463
           </a>
         
       </div>
@@ -14394,8 +14396,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1476" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1476
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1478" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1478
           </a>
         
       </div>
@@ -14477,8 +14479,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1483" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1483
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1485" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1485
           </a>
         
       </div>
@@ -14560,8 +14562,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1500" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1500
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1502" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1502
           </a>
         
       </div>
@@ -14637,8 +14639,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1507" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1507
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1509" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1509
           </a>
         
       </div>
@@ -14708,8 +14710,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1515" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1515
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1517" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1517
           </a>
         
       </div>
@@ -14779,8 +14781,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1524" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1524
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1526" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1526
           </a>
         
       </div>
@@ -14856,8 +14858,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1534" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1534
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1536" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1536
           </a>
         
       </div>
@@ -14933,8 +14935,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1549" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1549
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1551" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1551
           </a>
         
       </div>
@@ -15004,8 +15006,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1555" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1555
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1557" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1557
           </a>
         
       </div>
@@ -15087,8 +15089,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1564" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1564
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1566" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1566
           </a>
         
       </div>
@@ -15170,8 +15172,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1579" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1579
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1581" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1581
           </a>
         
       </div>
@@ -15247,8 +15249,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1586" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1586
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1588" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1588
           </a>
         
       </div>
@@ -15318,8 +15320,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1594" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1594
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1596" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1596
           </a>
         
       </div>
@@ -15389,8 +15391,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1603" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1603
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1605" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1605
           </a>
         
       </div>
@@ -15427,8 +15429,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1632" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1632
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1634" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1634
           </a>
         
       </div>
@@ -15465,8 +15467,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1637" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1637
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1639" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1639
           </a>
         
       </div>
@@ -15554,8 +15556,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1639" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1639
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1641" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1641
           </a>
         
       </div>
@@ -15625,8 +15627,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1658" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1658
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1660" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1660
           </a>
         
       </div>
@@ -15702,8 +15704,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1670" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1670
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1672" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1672
           </a>
         
       </div>
@@ -15785,8 +15787,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1680" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1680
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1682" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1682
           </a>
         
       </div>
@@ -15856,8 +15858,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1697" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1697
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1699" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1699
           </a>
         
       </div>
@@ -15945,8 +15947,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1710" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1710
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1712" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1712
           </a>
         
       </div>
@@ -16022,8 +16024,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1743" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1743
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1745" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1745
           </a>
         
       </div>
@@ -16093,8 +16095,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1757" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1757
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1759" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1759
           </a>
         
       </div>
@@ -16164,8 +16166,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1767" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1767
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1769" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1769
           </a>
         
       </div>
@@ -16235,8 +16237,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1777" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1777
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1779" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1779
           </a>
         
       </div>
@@ -16306,8 +16308,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1787" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1787
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1789" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1789
           </a>
         
       </div>
@@ -16377,8 +16379,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1797" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1797
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1799" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1799
           </a>
         
       </div>
@@ -16415,8 +16417,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1815" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1815
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1817" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1817
           </a>
         
       </div>
@@ -16504,8 +16506,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1817" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1817
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1819" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1819
           </a>
         
       </div>
@@ -16575,8 +16577,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1841" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1841
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1843" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1843
           </a>
         
       </div>
@@ -16658,8 +16660,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1853" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1853
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1855" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1855
           </a>
         
       </div>
@@ -16747,8 +16749,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1864" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1864
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1866" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1866
           </a>
         
       </div>
@@ -16818,8 +16820,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1882" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1882
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1884" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1884
           </a>
         
       </div>
@@ -16895,8 +16897,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1892" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1892
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1894" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1894
           </a>
         
       </div>
@@ -16933,8 +16935,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1911" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1911
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1913" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1913
           </a>
         
       </div>
@@ -17004,8 +17006,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1913" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1913
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1915" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1915
           </a>
         
       </div>
@@ -17075,8 +17077,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1926" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1926
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1928" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1928
           </a>
         
       </div>
@@ -17146,8 +17148,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1938" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1938
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1940" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1940
           </a>
         
       </div>
@@ -17217,8 +17219,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1947" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1947
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1949" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1949
           </a>
         
       </div>
@@ -17300,8 +17302,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1957" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1957
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1959" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1959
           </a>
         
       </div>
@@ -17383,8 +17385,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1972" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1972
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1974" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1974
           </a>
         
       </div>
@@ -17466,8 +17468,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1989" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:1989
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L1991" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:1991
           </a>
         
       </div>
@@ -17549,8 +17551,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2010" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2010
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2012" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2012
           </a>
         
       </div>
@@ -17638,8 +17640,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2033" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2033
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2035" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2035
           </a>
         
       </div>
@@ -17727,8 +17729,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2055" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2055
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2057" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2057
           </a>
         
       </div>
@@ -17804,8 +17806,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2083" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2083
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2085" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2085
           </a>
         
       </div>
@@ -17870,8 +17872,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2096" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2096
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2098" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2098
           </a>
         
       </div>
@@ -17942,8 +17944,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2102" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2102
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2104" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2104
           </a>
         
       </div>
@@ -18019,8 +18021,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2113" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2113
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2115" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2115
           </a>
         
       </div>
@@ -18085,8 +18087,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2126" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2126
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2128" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2128
           </a>
         
       </div>
@@ -18151,8 +18153,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2132" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2132
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2134" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2134
           </a>
         
       </div>
@@ -18189,8 +18191,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2158" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2158
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2160" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2160
           </a>
         
       </div>
@@ -18227,8 +18229,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2159" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2159
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2161" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2161
           </a>
         
       </div>
@@ -18304,8 +18306,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2161" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2161
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2163" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2163
           </a>
         
       </div>
@@ -18370,8 +18372,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2179" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2179
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2181" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2181
           </a>
         
       </div>
@@ -18447,8 +18449,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2192" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2192
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2194" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2194
           </a>
         
       </div>
@@ -18513,8 +18515,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2198" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2198
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2200" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2200
           </a>
         
       </div>
@@ -18584,8 +18586,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2203" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2203
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2205" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2205
           </a>
         
       </div>
@@ -18655,8 +18657,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2212" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2212
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2214" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2214
           </a>
         
       </div>
@@ -18726,8 +18728,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2221" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2221
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2223" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2223
           </a>
         
       </div>
@@ -18797,8 +18799,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2230" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2230
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2232" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2232
           </a>
         
       </div>
@@ -18868,8 +18870,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2239" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2239
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2241" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2241
           </a>
         
       </div>
@@ -18939,8 +18941,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2248" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2248
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2250" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2250
           </a>
         
       </div>
@@ -19010,8 +19012,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2253" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2253
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2255" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2255
           </a>
         
       </div>
@@ -19081,8 +19083,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2258" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2258
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2260" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2260
           </a>
         
       </div>
@@ -19152,8 +19154,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2263" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2263
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2265" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2265
           </a>
         
       </div>
@@ -19223,8 +19225,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2268" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2268
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2270" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2270
           </a>
         
       </div>
@@ -19306,8 +19308,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2273" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2273
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2275" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2275
           </a>
         
       </div>
@@ -19389,8 +19391,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2286" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2286
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2288" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2288
           </a>
         
       </div>
@@ -19478,8 +19480,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2299" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2299
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2301" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2301
           </a>
         
       </div>
@@ -19567,8 +19569,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2313" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2313
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2315" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2315
           </a>
         
       </div>
@@ -19650,8 +19652,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2327" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2327
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2329" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2329
           </a>
         
       </div>
@@ -19733,8 +19735,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2334" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2334
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2336" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2336
           </a>
         
       </div>
@@ -19822,8 +19824,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2341" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2341
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2343" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2343
           </a>
         
       </div>
@@ -19911,8 +19913,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2349" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2349
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2351" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2351
           </a>
         
       </div>
@@ -19988,8 +19990,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2357" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2357
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2359" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2359
           </a>
         
       </div>
@@ -20060,8 +20062,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2372" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2372
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2374" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2374
           </a>
         
       </div>
@@ -20137,8 +20139,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2382" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2382
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2384" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2384
           </a>
         
       </div>
@@ -20209,8 +20211,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2397" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2397
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2399" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2399
           </a>
         
       </div>
@@ -20286,8 +20288,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2407" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2407
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2409" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2409
           </a>
         
       </div>
@@ -20358,8 +20360,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2413" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2413
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2415" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2415
           </a>
         
       </div>
@@ -20435,8 +20437,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2419" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2419
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2421" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2421
           </a>
         
       </div>
@@ -20507,8 +20509,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2425" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2425
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2427" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2427
           </a>
         
       </div>
@@ -20545,8 +20547,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2439" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2439
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2441" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2441
           </a>
         
       </div>
@@ -20616,8 +20618,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2441" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2441
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2443" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2443
           </a>
         
       </div>
@@ -20682,8 +20684,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2458" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2458
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2460" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2460
           </a>
         
       </div>
@@ -20753,8 +20755,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2471" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2471
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2473" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2473
           </a>
         
       </div>
@@ -20824,8 +20826,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2480" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2480
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2482" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2482
           </a>
         
       </div>
@@ -20895,8 +20897,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2489" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2489
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2491" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2491
           </a>
         
       </div>
@@ -20966,8 +20968,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2498" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2498
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2500" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2500
           </a>
         
       </div>
@@ -21037,8 +21039,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2507" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2507
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2509" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2509
           </a>
         
       </div>
@@ -21120,8 +21122,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2516" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2516
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2518" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2518
           </a>
         
       </div>
@@ -21203,8 +21205,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2529" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2529
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2531" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2531
           </a>
         
       </div>
@@ -21241,8 +21243,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2547" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2547
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2549" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2549
           </a>
         
       </div>
@@ -21280,8 +21282,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2549" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2549
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2551" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2551
           </a>
         
       </div>
@@ -21319,8 +21321,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2550" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2550
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2552" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2552
           </a>
         
       </div>
@@ -21426,8 +21428,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2552" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2552
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2554" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2554
           </a>
         
       </div>
@@ -21533,8 +21535,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2575" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2575
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2577" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2577
           </a>
         
       </div>
@@ -21640,8 +21642,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2601" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2601
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2603" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2603
           </a>
         
       </div>
@@ -21747,8 +21749,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2624" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2624
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2626" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2626
           </a>
         
       </div>
@@ -21854,8 +21856,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2650" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2650
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2652" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2652
           </a>
         
       </div>
@@ -21961,8 +21963,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2661" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2661
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2663" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2663
           </a>
         
       </div>
@@ -21999,8 +22001,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2677" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2677
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2679" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2679
           </a>
         
       </div>
@@ -22037,8 +22039,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2682" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2682
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2684" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2684
           </a>
         
       </div>
@@ -22075,8 +22077,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2687" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2687
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2689" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2689
           </a>
         
       </div>
@@ -22164,8 +22166,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2696" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2696
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2698" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2698
           </a>
         
       </div>
@@ -22235,8 +22237,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2715" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2715
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2717" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2717
           </a>
         
       </div>
@@ -22312,8 +22314,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2725" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2725
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2727" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2727
           </a>
         
       </div>
@@ -22383,8 +22385,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2742" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2742
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2744" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2744
           </a>
         
       </div>
@@ -22472,8 +22474,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2751" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2751
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2753" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2753
           </a>
         
       </div>
@@ -22543,8 +22545,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2772" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2772
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2774" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2774
           </a>
         
       </div>
@@ -22614,8 +22616,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2782" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2782
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2784" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2784
           </a>
         
       </div>
@@ -22691,8 +22693,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2792" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2792
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2794" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2794
           </a>
         
       </div>
@@ -22780,8 +22782,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2809" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2809
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2811" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2811
           </a>
         
       </div>
@@ -22857,8 +22859,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2824" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2824
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2826" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2826
           </a>
         
       </div>
@@ -22952,8 +22954,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2837" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2837
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2839" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2839
           </a>
         
       </div>
@@ -23035,8 +23037,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2862" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2862
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2864" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2864
           </a>
         
       </div>
@@ -23124,8 +23126,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2885" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2885
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2887" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2887
           </a>
         
       </div>
@@ -23225,8 +23227,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2922" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2922
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2924" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2924
           </a>
         
       </div>
@@ -23263,8 +23265,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2950" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2950
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2952" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2952
           </a>
         
       </div>
@@ -23304,8 +23306,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2952" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2952
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2954" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2954
           </a>
         
       </div>
@@ -23387,8 +23389,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2957" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2957
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2959" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2959
           </a>
         
       </div>
@@ -23458,8 +23460,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2976" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2976
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2978" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2978
           </a>
         
       </div>
@@ -23529,8 +23531,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2990" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:2990
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L2992" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:2992
           </a>
         
       </div>
@@ -23612,8 +23614,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3008" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:3008
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3010" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:3010
           </a>
         
       </div>
@@ -23695,8 +23697,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3020" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:3020
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3022" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:3022
           </a>
         
       </div>
@@ -23778,8 +23780,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3038" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:3038
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3040" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:3040
           </a>
         
       </div>
@@ -23849,8 +23851,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3057" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:3057
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3059" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:3059
           </a>
         
       </div>
@@ -23920,8 +23922,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3068" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:3068
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3070" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:3070
           </a>
         
       </div>
@@ -23959,8 +23961,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3084" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:3084
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3086" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:3086
           </a>
         
       </div>
@@ -23997,8 +23999,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3085" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:3085
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3087" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:3087
           </a>
         
       </div>
@@ -24035,8 +24037,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3093" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:3093
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3095" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:3095
           </a>
         
       </div>
@@ -24142,8 +24144,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3106" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:3106
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3108" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:3108
           </a>
         
       </div>
@@ -24213,8 +24215,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3128" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:3128
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3130" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:3130
           </a>
         
       </div>
@@ -24296,8 +24298,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3144" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:3144
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3146" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:3146
           </a>
         
       </div>
@@ -24391,8 +24393,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3163" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:3163
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3165" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:3165
           </a>
         
       </div>
@@ -24462,8 +24464,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3184" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:3184
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3186" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:3186
           </a>
         
       </div>
@@ -24533,8 +24535,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3191" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:3191
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3193" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:3193
           </a>
         
       </div>
@@ -24604,8 +24606,8 @@ Wraps bounded (BQueue) and unbounded (Queue) lock-free MPMC queues with:
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3198" target="_blank" rel="noopener">
-            src/lockfree/cabi.nim:3198
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/cabi.nim#L3200" target="_blank" rel="noopener">
+            src/lockfree/cabi.nim:3200
           </a>
         
       </div>
