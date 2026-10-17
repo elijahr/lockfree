@@ -280,7 +280,7 @@ task benchteststress, "Runs the bench harness test suite including 3.3M-sample s
 
 
 task cabi, "Builds and runs the C ABI verification test suite":
-  exec "nim c -d:danger --threads:on -r tests/t_cabi.nim"
+  exec "nim c -d:danger --threads:on --path:src -r tests/t_cabi.nim"
  
  
 task channel, "Builds and runs the Channel facade test suite":

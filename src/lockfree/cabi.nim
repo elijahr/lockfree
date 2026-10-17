@@ -10,6 +10,8 @@
 ## - Optional item cleanup callbacks on queue destroy
 ## - Strict `cAbiBoundary` exception firewall preventing any Nim exception/panic
 ##   from escaping across the FFI boundary
+## - C99 POSIX consumers using `<pthread.h>` / `<time.h>` (`nanosleep`) under
+##   `-std=c99` on glibc should compile with `-D_POSIX_C_SOURCE=199309L`
 ## ==============================================================================
 
 import lockfree/atomics

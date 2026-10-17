@@ -10,6 +10,13 @@
  *   4. Multithreaded concurrent producer/consumer execution via POSIX threads
  * ============================================================================== */
 
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 199309L
+#endif
+#ifndef _DEFAULT_SOURCE
+#define _DEFAULT_SOURCE
+#endif
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>

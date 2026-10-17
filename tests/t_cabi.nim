@@ -1311,7 +1311,7 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
       check buildCode == 0
       let cTestSrc = rootDir / "tests/cabi/test_cabi.c"
       let cTestBin = rootDir / ".tmp/test_cabi"
-      let compileCmd = "clang -std=c99 -Wall -Wextra -Werror -I" & includeDir & " " & cTestSrc & " -L" & (rootDir / ".tmp") & " -llockfree -o " & cTestBin
+      let compileCmd = "clang -std=c99 -D_POSIX_C_SOURCE=199309L -Wall -Wextra -Werror -I" & includeDir & " " & cTestSrc & " -L" & (rootDir / ".tmp") & " -llockfree -o " & cTestBin
       let compCode = execShellCmd(compileCmd)
       check compCode == 0
       let runCode = execShellCmd(cTestBin)
