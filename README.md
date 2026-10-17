@@ -189,21 +189,34 @@ At the core of `lockfree`'s Morrison-Afek LCRQ unbounded MPMC queue and NEBR rec
 | **MPSC** | `Queue` | `newUnboundedMpscQueue[T, Strategy, S, MaxT]()` | Lock-free / Wait-free | Linked Segments | NEBR Epoch SMR |
 | **MPMC** | `BQueue` | `newMpmcQueue[T, N, P, C]()` / `BoundedMpmcQueue` | Lock-free / Lock-free | Zero-alloc (Ring buffer) | None (Static slots) |
 | **MPMC** | `Queue` | `newUnboundedMpmcQueue[T, Strategy, S, MaxT]()` | Lock-free (LCRQ DWCAS) / Lock-free | Linked Segments | NEBR Epoch SMR |
+| **MPMC** | `BStack` | `initBStack[T, Cap]()` / `BoundedStack` | Lock-free / Lock-free | Zero-alloc (Indexed pool) | None (64-bit ABA tag) |
 | **MPMC** | `Stack` | `initTreiberStack[T]()` / `ConcurrentStack` | Lock-free / Lock-free | Dynamic Node Pool | Elimination-Backoff / Tagged DWCAS |
+| **MPMC** | `BPriorityQueue` | `initBPriorityQueue[T, Cap]()` / `BoundedPriorityQueue` | Lock-free (SeqLock) | Zero-alloc (Binary heap) | None (Static array) |
+| **MPMC** | `SkipListPriorityQueue` | `newSkipListPriorityQueue[T]()` / `PriorityQueue` | Lock-free / Lock-free | Dynamically Unbounded | NEBR Epoch SMR |
 | **Worker / Thief** | `Deque` | `initChaseLevDeque[T]()` / `ConcurrentDeque` | Lock-free (Bottom) / Lock-free (Top) | Dynamic Circular Buffer | Retired-Chain SMR |
+| **MPMC** | `BTable` | `initBTable[K, V, Cap]()` / `BoundedTable` | Wait-free (Get) / Lock-free (Put/Del) | Zero-alloc (Open address) | None (64-bit state word) |
+| **MPMC** | `Ctrie` | `newCtrie[K, V]()` / `Table` / `ConcurrentTable` | Lock-free / Wait-free ($O(1)$ Snapshot) | Dynamically Unbounded | NEBR Epoch SMR |
 | **MPMC** | `SkipListMap` | `newSkipListMap[K, V]()` / `SortedTable` | Lock-free (Put/Del) / Wait-free (Get) | Dynamically Unbounded | NEBR Epoch SMR |
 | **MPMC** | `SkipListSet` | `newSkipListSet[T]()` / `ConcurrentSet` | Lock-free (Ins/Rem) / Wait-free (Has) | Dynamically Unbounded | NEBR Epoch SMR |
+| **MPMC** | `FlatCombiner` | `newFlatCombiner[T, Op, Res]()` | Flat-Combined Delegation | Static 64-Slot Array | Thread-Local Slot Reuse |
+| **SPMC / MPMC** | `BroadcastRing` | `newBroadcastRing[T](cap)` / `TopicBus` | Wait-free (SPMC) / Lock-free (MPMC) | Zero-alloc (Ring buffer) | Sequence Overwrite |
+| **MPMC** | `RateLimiter` | `initTokenBucket` / `initLeakyBucket` | Lock-free (128-bit DWCAS) | Zero-alloc (16B state) | None (In-place state) |
+| **SPSC / MPSC** | `StreamBuffer` | `newStreamBuffer(cap)` | Lock-free | Zero-alloc (Byte ring) | None (In-place ring) |
 | **CSP** | `Channel` | `newBoundedChannel[T](cap)` / `newChannel[T]` | Lock-free / Lock-free | Dynamic Tiers (64, 1024, 65536) | None (BQueue-backed) |
 | **CSP** | `Channel` | `newUnboundedChannel[T](segSize)` | Lock-free / Lock-free | Linked Segments | NEBR Epoch SMR |
-| **C ABI** | `lfq_*` | `lfq_queue_*`, `lfq_stack_*`, `lfq_deque_*`, `lfq_table_*`, `lfq_set_*` | Topology-dependent | C Heap | NEBR / Internal |
+| **CSP (0-Buf)** | `RendezvousChannel` | `newRendezvousChannel[T]()` | Lock-free Fast Path + Futex | Dynamic Waiter Nodes | Refcounted / Wait-Queue |
+| **Work-Stealing** | `TaskPool` | `newTaskPool(numThreads)` | Lock-free Work-Stealing | Pinned Deques + Stack | Task Arena / Retired Array |
+| **Shared Ptr** | `AtomicArc` | `newAtomicArc[T](val)` / `AtomicWeak[T]` | Wait-free (Clone) / Lock-free (Upgrade) | ControlBlock Allocation | Split Strong/Weak Refcount |
+| **C ABI** | `lfq_*` | `lfq_queue_*`, `lfq_stack_*`, `lfq_deque_*`, `lfq_table_*`, `lfq_set_*`, `lfq_flat_combiner_*` | Topology-dependent | C Heap | NEBR / Internal |
 
 ### Sizing and Topology Guidance:
-- **`BQueue` (Bounded)**: Ring buffers with compile-time or tiered runtime capacity. Ideal for embedded, real-time audio, and zero-allocation high-frequency packet loops.
+- **`BQueue`, `BStack`, `BPriorityQueue`, `BTable` (Bounded Zero-SMR)**: Pre-allocated structures with compile-time capacity and zero heap allocations in steady state. Ideal for embedded, real-time audio, bounded caches, and high-frequency packet loops.
 - **`Queue` (Unbounded)**: Segmented queues that expand under burst loads without blocking producers. Multi-consumer variants employ Morrison-Afek LCRQ and NEBR epoch reclamation.
 - **`Stack` (Treiber LIFO)**: High-concurrency stack featuring an Elimination-Backoff Array where overlapping push/pop pairs exchange data directly without serializing on the stack top.
 - **`Deque` (Chase-Lev Work-Stealing)**: Single-worker (bottom LIFO) and concurrent multi-thief (top FIFO) circular deque for fork-join parallelism, work-stealing schedulers, and task pools.
-- **`SkipListMap` & `SkipListSet` (Ordered Associative)**: Lock-free skip list maintaining total key ordering at level 0 with Harris-style logical deletion marking and NEBR epoch safety.
-- **`Channel` (Actor Facade)**: Ergonomic `Sender[T]` / `Receiver[T]` handles with split refcounting, automatic thread registration via thread-local storage (`{.threadvar.}`), and clean shutdown semantics.
+- **`Ctrie`, `SkipListMap`, `SkipListSet` & `SkipListPriorityQueue` (Dynamic Associative & Priority)**: Lock-free dynamic structures backed by NEBR epoch reclamation—`Ctrie` provides $O(1)$ linearizable snapshots, while SkipList variants maintain total key/priority ordering at level 0 with Harris-style logical deletion marking.
+- **`FlatCombiner` (Batch Delegation)**: Converts sequential data structures into high-throughput concurrent primitives by electing a combiner thread to execute up to 64 thread-local publication-list requests per pass.
+- **`Channel` & `RendezvousChannel` (Actor Facade)**: Ergonomic `Sender[T]` / `Receiver[T]` handles with split refcounting, automatic thread registration via thread-local storage (`{.threadvar.}`), and zero-buffer synchronous handoffs.
 - **`lfq_*` (C ABI)**: Clean C99 FFI surface (`include/lockfree.h`) exportable to C, C++, Rust, Zig, and Python.
 
 ---
@@ -258,6 +271,7 @@ nimble testASan      # Full matrix AddressSanitizer sweep (0 leaks, 0 use-after-
 Full architectural guides, typestate diagrams, and API references are hosted at:  
 👉 **<https://elijahr.github.io/lockfree>**
 
+- [Concurrency Architecture & Taxonomy Guide](docs/guide/architecture_taxonomy.md)
 - [Getting Started & Core Concepts](https://elijahr.github.io/lockfree/guide/getting-started/)
 - [Safety Model & Path-C ManagedRef](https://elijahr.github.io/lockfree/guide/safety-model/)
 - [Typestate Slot-Ownership Machine](https://elijahr.github.io/lockfree/guide/slot-ownership-typestates/)

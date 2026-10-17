@@ -88,6 +88,7 @@ nav:
   - User Guide: guide/user_guide.md
   - Guide:
     - Overview: guide/index.md
+    - Architecture & Taxonomy: guide/architecture_taxonomy.md
     - Getting Started: guide/getting-started.md
     - Concepts:
       - Lock-freedom: guide/concepts/lock-freedom.md
