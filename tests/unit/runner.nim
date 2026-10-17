@@ -68,4 +68,5 @@ import ../t_atomic_arc
 import ../t_test_watchdog
 import ../t_priority_queue
 import ../t_flat_combiner
+import ../t_bounded_primitives
 

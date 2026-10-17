@@ -38,6 +38,11 @@ const LockfreeVersion* {.strdefine.} = "0.4.0"
 ##   - **Rate Limiting Surface** (`lockfree/ratelimit`):
 ##     - `TokenBucket`: Hardware 128-bit DWCAS burst-tolerant rate limiter with zero-drift nano-tokens.
 ##     - `LeakyBucket`: Hardware 128-bit DWCAS GCRA virtual scheduling traffic smoother.
+##   - **Bounded Zero-SMR Surface** (`lockfree/bqueue`, `lockfree/bstack`, `lockfree/bpriority_queue`, `lockfree/btable`):
+##     - `BQueue` / `BoundedQueue`: Preallocated bounded SPSC/MPSC/SPMC/MPMC FIFO queue.
+##     - `BStack` / `BoundedStack`: Preallocated bounded SPSC/MPSC/SPMC/MPMC LIFO stack with elimination backoff.
+##     - `BPriorityQueue` / `BoundedPriorityQueue`: Preallocated bounded SPSC/MPSC/SPMC/MPMC binary min-heap priority queue with strict FIFO tie-breaking.
+##     - `BTable` / `BoundedTable`: Preallocated bounded SPSC/MPSC/SPMC/MPMC open-addressing concurrent hash table.
 ##   - Strategy / reclamation / pinscope-stub enums re-exported for
 ##     consumer code that references `stEager`, `stManual`, `ccSingle`,
 ##     `ccMulti` (and the legacy `rkNone`/`rkEbr` symbols) directly.
@@ -45,12 +50,12 @@ const LockfreeVersion* {.strdefine.} = "0.4.0"
 when compileOption("threads"):
   import lockfree/atomics
   import lockfree/atomics/dsl
-  import ./lockfree/[atomic_arc, bqueue, broadcast, cardinality, channel, ctrie, deque, endpoint, exceptions, flat_combiner, priority_queue, queue, ratelimit, reclamation, rendezvous, set, skiplist, stack, strategy, streambuffer, taskpool]
+  import ./lockfree/[atomic_arc, bpriority_queue, bqueue, broadcast, bstack, btable, cardinality, channel, ctrie, deque, endpoint, exceptions, flat_combiner, priority_queue, queue, ratelimit, reclamation, rendezvous, set, skiplist, stack, strategy, streambuffer, taskpool]
   import ./lockfree/internal/pinscope_stub
   import ./lockfree/typestates/with_bound
 
   export atomics, dsl
-  export atomic_arc, bqueue, broadcast, cardinality, channel, ctrie, deque, endpoint, exceptions, flat_combiner, priority_queue, queue, ratelimit, reclamation, rendezvous, set, skiplist, stack, strategy, streambuffer, taskpool
+  export atomic_arc, bpriority_queue, bqueue, broadcast, bstack, btable, cardinality, channel, ctrie, deque, endpoint, exceptions, flat_combiner, priority_queue, queue, ratelimit, reclamation, rendezvous, set, skiplist, stack, strategy, streambuffer, taskpool
   export pinscope_stub
   export with_bound
 
@@ -58,15 +63,15 @@ when compileOption("threads"):
     import ./lockfree/async_bridge
     export async_bridge
 else:
-  # threading off, only provide the unified Queue + its supporting enums
-  # (Queue SPSC works without threads).
+  # threading off, only provide the unified Queue + bounded zero-SMR primitives
+  # + supporting enums.
   import lockfree/atomics
   import lockfree/atomics/dsl
-  import ./lockfree/[bqueue, cardinality, channel, endpoint, queue, reclamation, stack, strategy]
+  import ./lockfree/[bpriority_queue, bqueue, bstack, btable, cardinality, channel, endpoint, queue, reclamation, stack, strategy]
   import ./lockfree/internal/pinscope_stub
   import ./lockfree/typestates/with_bound
 
   export atomics, dsl
-  export bqueue, cardinality, channel, endpoint, queue, reclamation, stack, strategy
+  export bpriority_queue, bqueue, bstack, btable, cardinality, channel, endpoint, queue, reclamation, stack, strategy
   export pinscope_stub
   export with_bound
