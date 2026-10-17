@@ -3,7 +3,7 @@ import os
 # Package
 version        = "0.4.0"
 author         = "Elijah Shaw-Rutschman"
-description    = "High-performance, non-blocking lock-free data structures (Tables, Sets, Stacks, Queues, Channels, Deques, Broadcast Rings, TaskPools) with Debra SMR and ARC/ORC support for Nim."
+description    = "Industrial-strength lock-free concurrency toolkit for Nim & C99: MPMC Queues, SkipLists, Ctries, Broadcast Rings, Flat Combining, Work-Stealing TaskPools, 128-bit DWCAS Atomics, and NEBR SMR."
 license        = "MIT"
 srcDir         = "src"
 entryPoints    = @["tests/test.nim"]
