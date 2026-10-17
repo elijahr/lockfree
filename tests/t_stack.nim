@@ -154,3 +154,96 @@ suite "TreiberStack - Managed Types (ARC/ORC/Refc)":
     let a = s.pop()
     check a.isSome and a.get.id == 1 and a.get.data == "alpha"
     check s.isEmpty
+
+  test "managed string drain and drainInto":
+    var s = initStack[string]()
+    for i in 0 ..< 64:
+      s.push("payload_segment_" & $i & "_with_heap_allocation")
+    let drained = s.drain()
+    check drained.len == 64
+    check drained[0] == "payload_segment_63_with_heap_allocation"
+    check drained[63] == "payload_segment_0_with_heap_allocation"
+    check s.isEmpty
+
+    var intoSeq: seq[string] = @["prefix"]
+    for i in 0 ..< 32:
+      s.push("into_" & $i)
+    s.drainInto(intoSeq)
+    check intoSeq.len == 33
+    check intoSeq[0] == "prefix"
+    check intoSeq[1] == "into_31"
+    check intoSeq[32] == "into_0"
+    check s.isEmpty
+
+when compileOption("threads"):
+  proc c_sched_yield(): cint {.importc: "sched_yield", header: "<sched.h>".}
+
+  type
+    PreemptStressCtx = object
+      stack: ptr TreiberStack[string]
+      pushedCount: ptr Atomic[int]
+      poppedCount: ptr Atomic[int]
+      corruptedFound: ptr Atomic[bool]
+      threadIdx: int
+
+  proc preemptStressWorker(ctx: ptr PreemptStressCtx) {.thread.} =
+    {.cast(gcsafe).}:
+      ctx.stack[].registerThread()
+      defer:
+        ctx.stack[].unregisterThread()
+      for i in 0 ..< 400:
+        let msg = "thread_" & $ctx.threadIdx & "_item_" & $i & "_heap_string_payload"
+        ctx.stack[].push(msg)
+        discard ctx.pushedCount[].fetchAdd(1, moRelaxed)
+        if (i and 3) == 0:
+          discard c_sched_yield()
+        let peeked = ctx.stack[].peek()
+        if peeked.isSome:
+          let pVal = peeked.get
+          if pVal.len < 14 or pVal[0 .. 6] != "thread_":
+            ctx.corruptedFound[].store(true, moRelaxed)
+        if (i and 1) == 0:
+          discard c_sched_yield()
+        let popped = ctx.stack[].pop()
+        if popped.isSome:
+          let val = popped.get
+          if val.len < 14 or val[0 .. 6] != "thread_":
+            ctx.corruptedFound[].store(true, moRelaxed)
+          discard ctx.poppedCount[].fetchAdd(1, moRelaxed)
+
+  suite "TreiberStack - Preemptive SMR & Managed Payload Soundness":
+    test "concurrent preemptive push/peek/pop with managed strings":
+      var s = initTreiberStack[string]()
+      var pushedCount: Atomic[int]
+      var poppedCount: Atomic[int]
+      var corruptedFound: Atomic[bool]
+      pushedCount.store(0, moRelaxed)
+      poppedCount.store(0, moRelaxed)
+      corruptedFound.store(false, moRelaxed)
+
+      const NumThreads = 6
+      var ctxs: array[NumThreads, PreemptStressCtx]
+      var threads: array[NumThreads, Thread[ptr PreemptStressCtx]]
+
+      for i in 0 ..< NumThreads:
+        ctxs[i] = PreemptStressCtx(
+          stack: addr s,
+          pushedCount: addr pushedCount,
+          poppedCount: addr poppedCount,
+          corruptedFound: addr corruptedFound,
+          threadIdx: i
+        )
+        createThread(threads[i], preemptStressWorker, addr ctxs[i])
+
+      for i in 0 ..< NumThreads:
+        joinThread(threads[i])
+
+      let remaining = s.drain()
+      for item in remaining:
+        check item.len >= 14
+        check item[0 .. 6] == "thread_"
+
+      check not corruptedFound.load(moRelaxed)
+      check pushedCount.load(moRelaxed) == poppedCount.load(moRelaxed) + remaining.len
+      check s.isEmpty
+

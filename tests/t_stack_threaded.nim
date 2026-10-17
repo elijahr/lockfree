@@ -225,3 +225,69 @@ suite "TreiberStack - Multithreaded Concurrency":
     check totalPushed.load(moRelaxed) == totalPopped.load(moRelaxed) + drained.len
     check s.isEmpty
     check s.len == 0
+
+  test "Preemptive high-contention push/pop/peek/drain with sched_yield":
+    proc c_sched_yield(): cint {.importc: "sched_yield", header: "<sched.h>".}
+
+    const
+      StressThreads = 8
+      StressIters = 1000
+    var s = initTreiberStack[int]()
+    var pushedSum {.global.}: Atomic[int]
+    var poppedSum {.global.}: Atomic[int]
+    var invalidPeek {.global.}: Atomic[bool]
+    pushedSum.store(0, moRelaxed)
+    poppedSum.store(0, moRelaxed)
+    invalidPeek.store(false, moRelaxed)
+
+    type PreemptIntCtx = object
+      stack: ptr TreiberStack[int]
+      tid: int
+
+    proc preemptIntWorker(ctx: ptr PreemptIntCtx) {.thread.} =
+      {.cast(gcsafe).}:
+        ctx.stack[].registerThread()
+        defer:
+          ctx.stack[].unregisterThread()
+        for i in 1 .. StressIters:
+          let val = ctx.tid * 10000 + i
+          ctx.stack[].push(val)
+          discard pushedSum.fetchAdd(val, moRelaxed)
+          if (i and 7) == 0:
+            discard c_sched_yield()
+          let pk = ctx.stack[].peek()
+          if pk.isSome:
+            if pk.get <= 0:
+              invalidPeek.store(true, moRelaxed)
+          if (i and 3) == 0:
+            discard c_sched_yield()
+          if (i mod 97) == 0:
+            let batch = ctx.stack[].drain()
+            var batchSum = 0
+            for b in batch:
+              batchSum += b
+            discard poppedSum.fetchAdd(batchSum, moRelaxed)
+          else:
+            let popped = ctx.stack[].pop()
+            if popped.isSome:
+              discard poppedSum.fetchAdd(popped.get, moRelaxed)
+
+    var ctxs: array[StressThreads, PreemptIntCtx]
+    var threads: array[StressThreads, Thread[ptr PreemptIntCtx]]
+    for i in 0 ..< StressThreads:
+      ctxs[i] = PreemptIntCtx(stack: addr s, tid: i + 1)
+      createThread(threads[i], preemptIntWorker, addr ctxs[i])
+
+    for i in 0 ..< StressThreads:
+      joinThread(threads[i])
+
+    let tailDrain = s.drain()
+    var tailSum = 0
+    for v in tailDrain:
+      tailSum += v
+
+    check not invalidPeek.load(moRelaxed)
+    check pushedSum.load(moRelaxed) == poppedSum.load(moRelaxed) + tailSum
+    check s.isEmpty
+    check s.len == 0
+
