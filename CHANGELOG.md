@@ -7,7 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.3.0] - 2026-10-14
+## [0.4.0] - 2026-10-17
+
+### Added
+
+- **Bounded Zero-SMR Concurrency Primitives (`src/lockfree/bounded_primitives.nim`)**:
+  - `BStack[T]`: Bounded lock-free LIFO stack based on a circular sequence-counter ring buffer. Guarantees zero dynamic allocation, zero epoch/SMR overhead, and wait-free fast paths under bounded capacity constraints.
+  - `BPriorityQueue[T]`: Bounded lock-free priority queue using multi-lane tiered skip-list structures with atomic ticket counters and monotonic sequence barriers, eliminating all dynamic node reclamation requirements.
+  - `BTable[K, V]`: Bounded lock-free concurrent hash table using open-addressed Robin Hood backward-shift hashing with cache-line-aligned slot buckets and atomic state markers.
+- **Concurrency Architecture & Taxonomy Guide (`docs/guide/architecture_taxonomy.md`)**:
+  - Formal categorization and decision matrices covering SMR (NEBR / DEBRA) vs. Zero-SMR bounded architectures.
+  - Topology taxonomy: Single-Producer Single-Consumer (SPSC), Multi-Producer Multi-Consumer (MPMC), Single-Producer Multi-Consumer (SPMC), and Work-Stealing patterns.
+  - Linearizability models, forward-progress guarantees (wait-free, lock-free, obstruction-free), typestate lifecycle contracts, and memory ordering profiles across all `lockfree` collections.
+
+### Fixed
+
+- **`TreiberStack[T]` Preemption Soundness & ABA Elimination (`src/lockfree/stack.nim`)**:
+  - Integrated NEBR epoch-based safe memory reclamation and a 3-state exclusive claim protocol on pop operations, eliminating use-after-free and ABA hazards under arbitrary OS thread preemption.
+- **Cross-Platform Matrix & Runtime Hardening**:
+  - Replaced platform-specific `<sched.h>` POSIX includes with cross-platform `lockfree/backoff.schedYield()` supporting POSIX `sched_yield()` and Windows `SwitchToThread()`.
+  - Enforced strict `proc =destroy*(x: var T)` destructor signatures for all bounded primitives, flat combiners, and tracked test payloads under legacy `--mm:refc`.
+  - Guarded multithreaded test suites using managed heap structures (`string`, `seq`, `Table`) to respect thread-local heap isolation under `--mm:refc`.
+  - Replaced eager preallocation of 64 `AsyncSignal` descriptors in `AsyncBroadcastRing` with lazy subscription allocation, preventing Linux epoll file descriptor exhaustion (`maxFD = 1024`).
+  - Added AddressSanitizer `detect_stack_use_after_return=0` to accommodate NEBR's signal-assisted stack unwinding.
 
 ### Added
 
