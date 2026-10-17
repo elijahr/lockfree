@@ -19,7 +19,7 @@ Every data structure in `lockfree` belongs to one of three architectural familie
 | **`BQueue`** | `lockfree/bqueue` | SPSC, MPSC, SPMC, MPMC | Compile-time `N` (or runtime tier) | **Zero** | None (Preallocated ring) | Wait-free (SPSC) / Lock-free (MPMC) | 64-bit CAS & FAA |
 | **`BStack`** | `lockfree/bstack` | SPSC, MPSC, SPMC, MPMC | Compile-time `Cap` | **Zero** | None (Tagged index pool) | Lock-free (Elimination-backed) | 64-bit CAS & FAA |
 | **`BPriorityQueue`** | `lockfree/bpriority_queue` | SPSC, MPSC, SPMC, MPMC | Compile-time `Cap` | **Zero** | None (Contiguous min-heap) | Flat-combined lock-handed | 64-bit CAS & FAA |
-| **`BTable`** | `lockfree/btable` | SPSC, MPSC, SPMC, MPMC | Compile-time `Cap` (`2 * nextPow2(Cap)` slots) | **Zero** | None (Open-addressing + seq) | Lock-free optimistic read / Flat-combined write | 64-bit CAS & SeqLock |
+| **`BTable`** | `lockfree/btable` | SPSC, MPSC, SPMC, MPMC | Compile-time `Cap` (`2 * nextPow2(Cap)` slots) | **Zero** | None (Open-addressing + seq) | Wait-free (`len`/`isEmpty`/`isFull`) / Flat-combined (`tryGet`/`tryPut`/`remove`) | 64-bit CAS & SeqCounters |
 | **`Queue` (SPSC)** | `lockfree/queue` | SPSC | Unbounded (`S`-slot segments) | On segment boundary | Inline segment recycling | Wait-free fast path | 64-bit load/store |
 | **`Queue` (MPSC/SPMC)** | `lockfree/queue` | MPSC, SPMC | Unbounded (`S`-slot segments) | On segment boundary | NEBR Epoch SMR | Lock-free / Wait-free single side | 64-bit CAS & FAA |
 | **`Queue` (MPMC)** | `lockfree/queue` | MPMC | Unbounded (`S`-slot LCRQ rings) | On ring exhaustion | NEBR Epoch SMR | Lock-free (Morrison-Afek LCRQ) | **128-bit DWCAS** + 64-bit FAA |
@@ -100,7 +100,7 @@ The bounded zero-SMR family (`BQueue`, `BStack`, `BPriorityQueue`, `BTable`) is 
   - Each slot transitions among `BTableSlotEmpty` (`0`), `BTableSlotOccupied` (`1`), and `BTableSlotTombstone` (`2`).
   - During insertion (`directTryPut`), the prober records the first encountered tombstone index (`firstTombstone`), but **never stops early at a tombstone**: it continues scanning up to `ProbeSlots` steps until it either locates an existing occupied slot with matching `hashVal` and `key` (updating it in-place) or reaches `BTableSlotEmpty` (or exhausts `ProbeSlots` steps). Only after confirming the key is absent does it reuse `firstTombstone` (if $\ge 0$) or the terminal `BTableSlotEmpty` slot.
   - This guarantees two critical invariants: (1) updating an existing key positioned behind an earlier tombstone never creates duplicate keys, and (2) table churn (repeated insert/remove cycles at capacity `Cap` where every slot becomes `Occupied` or `Tombstone`) terminates deterministically in at most `ProbeSlots` steps and reclaims tombstones without false overflow.
-- **Wait-Free Optimistic Reads (`tryGet` / `contains`)**: When `K` and `V` are trivially copyable (no GC/ARC references), readers execute a lock-free optimistic sequence-counter scan (`s1 = slot.seq.load(moAcquire)`, check `(s1 and 1) == 0`, copy `key`/`val`, fence, verify `s2 == s1`). For managed `string`/`ref` keys or values, reads synchronize safely through the combiner to prevent ARC/ORC reference-count tearing.
+- **Flat-Combined Operations & Wait-Free Metadata (`tryGet` / `contains` / `len` / `isEmpty`)**: `tryGet`, `contains`, `tryPut`, `remove`, and atomic RMW callbacks route through `submitBTableOp`—taking the direct combiner fast path when uncontended or delegating via a thread-local 128-byte-aligned `BTablePubSlot` under contention—while maintaining per-slot sequence counters (`slot.seq: Atomic[uint64]`) and wait-free atomic metadata queries (`len`, `isEmpty`, `isFull`).
 
 ---
 
@@ -117,12 +117,12 @@ Unbounded and dynamically resized structures cannot recycle heap nodes immediate
 - **SPSC / MPSC / SPMC**: Uses cache-line-aligned segment chains with per-slot committed flags, achieving wait-free SPSC operation and lock-free multi-side scaling.
 
 ### 4.3 `TreiberStack[T]` (`lockfree/stack`)
-- **128-Bit Tagged Top Pointer**: Represents `top` as `Atomic[TaggedNodePtr]` (`[ptr: pointer, tag: uint64]`) updated via 128-bit DWCAS (`cmpxchg16b` / `caspal`), + an 8-slot Elimination-Backoff Array.
-- **NEBR Epoch Protection & 3-State Per-Node Claim Protocol**:
-  - Every `tryPush`, `tryPop`, and `peek` enters an NEBR critical section (`enterQuiescent` / `leaveQuiescent`) so no node pointer loaded from `top` can be freed while a thread inspects `node.next` or `node.value`.
-  - Because `tryPop()` moves and resets `node.value` (`outItem = move(node.value); reset(node.value)`) to prevent ARC/ORC payload leaks while `node` awaits epoch reclamation, `TreiberStack` enforces a **3-state per-node `claimCount` protocol** (`ClaimPopBit = 1'u32 shl 30`, `ClaimRetireBit = 1'u32 shl 31`, low 30 bits = active `peek` reader count):
-    1. `peek()` atomically increments the reader count in `node.claimCount` (only while `ClaimPopBit == 0`), copies `node.value`, and decrements the reader count on exit. If the last active `peek` exits after a popper has set `ClaimPopBit`, `peek` sets `ClaimRetireBit` and retires the node to `DebraManager`.
-    2. `tryPop()` wins the `top` DWCAS and sets `ClaimPopBit` via `fetchOr`. It waits until active `peek` readers on that node drain to zero (`(claimCount and ClaimReaderMask) == 0`) before moving and resetting `node.value`, then sets `ClaimRetireBit` to retire the node to `DebraManager`.
+- **128-Bit Tagged Top Pointer**: Represents `top` as `Atomic[Pair[uint64, uint64]]` (`[ptr: uint64, tag: uint64]`) updated via 128-bit DWCAS (`cmpxchg16b` / `caspal`), paired with an 8-slot Elimination-Backoff Array.
+- **NEBR Epoch Protection & Exclusive 3-State Node Claim Protocol**:
+  - Every `tryPopTreiber`, `peek`, `drain`, and `drainInto` pins the NEBR epoch via `unpinned(handle).pin()` and advances reclamation via `retireReady(pinned)` on exit so no `StackNode[T]` pointer loaded from `top` can be freed while a thread inspects `node.next` or `node.data`.
+  - Because `tryPopTreiber()` (as well as `drain()` and `drainInto()`) moves `node.data` out and resets the slot (`outVal = move(node.data); reset(node.data)`) before retiring `node` to `DebraManager`, `StackNode[T]` enforces an **exclusive 3-state `claim: Atomic[int32]` word** (`NodeClaimFree = 0'i32`, `NodeClaimPeek = 1'i32`, `NodeClaimPopped = -1'i32`):
+    1. `peek()` pins the NEBR epoch, transitions `node.claim` from `NodeClaimFree (0) -> NodeClaimPeek (1)` via CAS, verifies `self.top == oldTop`, copies `node.data` under exclusive ownership (preventing concurrent `peek()` calls from racing on Nim's non-atomic `--mm:orc`/`--mm:arc` string/seq refcount header), and releases `node.claim -> NodeClaimFree (0)`.
+    2. `tryPopTreiber()` (and `drain` / `drainInto` on every node in the detached chain) wins the `top` DWCAS, calls `claimNodeForPop(node)` (spinning until `node.claim` transitions `NodeClaimFree (0) -> NodeClaimPopped (-1)`), moves `node.data` out, and retires `node` to `DebraManager`.
 
 ### 4.4 `SkipListPriorityQueue[T]` (`lockfree/priority_queue`)
 - **Lindén-Jonsson Algorithm**: Minimizes pop contention on the minimum element by logically deleting nodes along level 0 (`node.deleted` CAS `false -> true`) without modifying `head.next[0]` on every `popMin`.
@@ -140,8 +140,8 @@ Unbounded and dynamically resized structures cannot recycle heap nodes immediate
 
 ### 5.1 `FlatCombiner[T, Op, Res]` (`lockfree/flat_combiner`)
 - Turns any sequential state `T` and reducer `proc(state: var T, op: var Op): Res` into a cache-friendly concurrent state machine.
-- Each calling thread lazily acquires a 128-byte-aligned `PublicationSlot[Op, Res]` linked into `pubHead` and stored in thread-local storage.
-- The thread holding `combinerLock` executes up to `DefaultCombineRounds = 8` sweeps over active slots, amortizing synchronization overhead and keeping `state: T` hot in L1 cache. Periodically (`DefaultPruneInterval = 64` passes), inactive slots are unlinked from `pubHead`.
+- Each calling thread lazily acquires a 128-byte-aligned `PublicationRecord[T, Op, Res]` linked into `pubHead` and stored in thread-local storage.
+- The thread holding `combinerLock` executes up to `DefaultCombiningRounds = 8` sweeps over active publication records, amortizing synchronization overhead and keeping `state: T` hot in L1 cache. Periodically (`DefaultCleanupInterval = 64` passes), inactive records are unlinked from `pubHead`.
 - Also exported over the C99 ABI (`include/lockfree_flat_combiner.h`, `lfq_flat_combiner_*`).
 
 ### 5.2 `BroadcastRing[T]` & `TopicBus[T]` (`lockfree/broadcast`)

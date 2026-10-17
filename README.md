@@ -190,11 +190,11 @@ At the core of `lockfree`'s Morrison-Afek LCRQ unbounded MPMC queue and NEBR rec
 | **MPMC** | `BQueue` | `newMpmcQueue[T, N, P, C]()` / `BoundedMpmcQueue` | Lock-free / Lock-free | Zero-alloc (Ring buffer) | None (Static slots) |
 | **MPMC** | `Queue` | `newUnboundedMpmcQueue[T, Strategy, S, MaxT]()` | Lock-free (LCRQ DWCAS) / Lock-free | Linked Segments | NEBR Epoch SMR |
 | **MPMC** | `BStack` | `initBStack[T, Cap]()` / `BoundedStack` | Lock-free / Lock-free | Zero-alloc (Indexed pool) | None (64-bit ABA tag) |
-| **MPMC** | `Stack` | `initTreiberStack[T]()` / `ConcurrentStack` | Lock-free / Lock-free | Dynamic Node Pool | Elimination-Backoff / Tagged DWCAS |
-| **MPMC** | `BPriorityQueue` | `initBPriorityQueue[T, Cap]()` / `BoundedPriorityQueue` | Lock-free (SeqLock) | Zero-alloc (Binary heap) | None (Static array) |
+| **MPMC** | `Stack` | `initTreiberStack[T]()` / `ConcurrentStack` | Lock-free / Lock-free | Dynamic Heap Nodes | NEBR Epoch SMR + Tagged DWCAS |
+| **MPMC** | `BPriorityQueue` | `initBPriorityQueue[T, Cap]()` / `BoundedPriorityQueue` | Flat-Combined Delegation | Zero-alloc (Binary heap) | None (Static array) |
 | **MPMC** | `SkipListPriorityQueue` | `newSkipListPriorityQueue[T]()` / `PriorityQueue` | Lock-free / Lock-free | Dynamically Unbounded | NEBR Epoch SMR |
 | **Worker / Thief** | `Deque` | `initChaseLevDeque[T]()` / `ConcurrentDeque` | Lock-free (Bottom) / Lock-free (Top) | Dynamic Circular Buffer | Retired-Chain SMR |
-| **MPMC** | `BTable` | `initBTable[K, V, Cap]()` / `BoundedTable` | Wait-free (Get) / Lock-free (Put/Del) | Zero-alloc (Open address) | None (64-bit state word) |
+| **MPMC** | `BTable` | `initBTable[K, V, Cap]()` / `BoundedTable` | Wait-free (`len`/`isEmpty`) / Flat-Combined (`tryGet`/`tryPut`) | Zero-alloc (Open address) | None (Per-slot seq counter) |
 | **MPMC** | `Ctrie` | `newCtrie[K, V]()` / `Table` / `ConcurrentTable` | Lock-free / Wait-free ($O(1)$ Snapshot) | Dynamically Unbounded | NEBR Epoch SMR |
 | **MPMC** | `SkipListMap` | `newSkipListMap[K, V]()` / `SortedTable` | Lock-free (Put/Del) / Wait-free (Get) | Dynamically Unbounded | NEBR Epoch SMR |
 | **MPMC** | `SkipListSet` | `newSkipListSet[T]()` / `ConcurrentSet` | Lock-free (Ins/Rem) / Wait-free (Has) | Dynamically Unbounded | NEBR Epoch SMR |
@@ -207,7 +207,7 @@ At the core of `lockfree`'s Morrison-Afek LCRQ unbounded MPMC queue and NEBR rec
 | **CSP (0-Buf)** | `RendezvousChannel` | `newRendezvousChannel[T]()` | Lock-free Fast Path + Futex | Dynamic Waiter Nodes | Refcounted / Wait-Queue |
 | **Work-Stealing** | `TaskPool` | `newTaskPool(numThreads)` | Lock-free Work-Stealing | Pinned Deques + Stack | Task Arena / Retired Array |
 | **Shared Ptr** | `AtomicArc` | `newAtomicArc[T](val)` / `AtomicWeak[T]` | Wait-free (Clone) / Lock-free (Upgrade) | ControlBlock Allocation | Split Strong/Weak Refcount |
-| **C ABI** | `lfq_*` | `lfq_queue_*`, `lfq_stack_*`, `lfq_deque_*`, `lfq_table_*`, `lfq_set_*`, `lfq_flat_combiner_*` | Topology-dependent | C Heap | NEBR / Internal |
+| **C ABI** | `lfq_*` | `lfq_queue_*`, `lfq_stack_*`, `lfq_deque_*`, `lfq_table_*`, `lfq_set_*`, `lfq_pqueue_*`, `lfq_flat_combiner_*`, `lfq_atomic_arc_*` | Topology-dependent | C Heap | NEBR / Internal |
 
 ### Sizing and Topology Guidance:
 - **`BQueue`, `BStack`, `BPriorityQueue`, `BTable` (Bounded Zero-SMR)**: Pre-allocated structures with compile-time capacity and zero heap allocations in steady state. Ideal for embedded, real-time audio, bounded caches, and high-frequency packet loops.
