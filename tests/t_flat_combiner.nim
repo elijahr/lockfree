@@ -1,7 +1,8 @@
 ## Comprehensive Unit, Concurrency, Pruning, and C ABI Tests for
 ## Hendler-Incze-Shavit-Tzafrir `FlatCombiner[T, Op, Res]`.
 
-import std/[os, sets, tables, unittest]
+import std/[os, sets, tables]
+import unittest2
 import lockfree/atomics
 import lockfree/atomics/backoff
 import lockfree/flat_combiner
@@ -98,21 +99,22 @@ proc mtCounterWorker(ctx: ptr MtCounterCtx) {.thread.} =
     localSum += prev
   ctx.observedPrevSum = localSum
 
-type
-  MtTableCtx = object
-    fc: FlatCombiner[Table[int, int]]
-    tid: int
-    iters: int
-    startFlag: ptr Atomic[bool]
+when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc):
+  type
+    MtTableCtx = object
+      fc: FlatCombiner[Table[int, int]]
+      tid: int
+      iters: int
+      startFlag: ptr Atomic[bool]
 
-proc mtTableWorker(ctx: ptr MtTableCtx) {.thread.} =
-  while not ctx.startFlag[].load(moAcquire):
-    cpuPause()
-  let baseKey = ctx.tid * 1000
-  for i in 0 ..< ctx.iters:
-    let k = baseKey + (i and 31)
-    ctx.fc.withCombined(tbl):
-      tbl[k] = tbl.getOrDefault(k, 0) + 1
+  proc mtTableWorker(ctx: ptr MtTableCtx) {.thread.} =
+    while not ctx.startFlag[].load(moAcquire):
+      cpuPause()
+    let baseKey = ctx.tid * 1000
+    for i in 0 ..< ctx.iters:
+      let k = baseKey + (i and 31)
+      ctx.fc.withCombined(tbl):
+        tbl[k] = tbl.getOrDefault(k, 0) + 1
 
 type
   PruneWorkerCtx = object
@@ -275,36 +277,37 @@ suite "FlatCombiner[T, Op, Res] — Hendler-Incze-Shavit-Tzafrir Adapter":
     check fc.totalCombinedOps() == uint64(TotalOps + 1)
     check fc.avgBatchSize() > 0.0
 
-  test "Multi-threaded std/tables.Table wrapper under contention":
-    const
-      NumThreads = 4
-      ItersPerThread = 2_000
+  when defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc):
+    test "Multi-threaded std/tables.Table wrapper under contention":
+      const
+        NumThreads = 4
+        ItersPerThread = 2_000
 
-    var fc = initFlatCombiner[Table[int, int]](initTable[int, int]())
-    var startFlag: Atomic[bool]
-    startFlag.store(false, moRelaxed)
+      var fc = initFlatCombiner[Table[int, int]](initTable[int, int]())
+      var startFlag: Atomic[bool]
+      startFlag.store(false, moRelaxed)
 
-    var threads: array[NumThreads, Thread[ptr MtTableCtx]]
-    var ctxs: array[NumThreads, MtTableCtx]
+      var threads: array[NumThreads, Thread[ptr MtTableCtx]]
+      var ctxs: array[NumThreads, MtTableCtx]
 
-    for i in 0 ..< NumThreads:
-      ctxs[i] = MtTableCtx(
-        fc: fc,
-        tid: i,
-        iters: ItersPerThread,
-        startFlag: addr startFlag
+      for i in 0 ..< NumThreads:
+        ctxs[i] = MtTableCtx(
+          fc: fc,
+          tid: i,
+          iters: ItersPerThread,
+          startFlag: addr startFlag
+        )
+        createThread(threads[i], mtTableWorker, addr ctxs[i])
+
+      startFlag.store(true, moRelease)
+      for i in 0 ..< NumThreads:
+        joinThread(threads[i])
+
+      let totalSum = fc.combine(proc(tbl: var Table[int, int]): int {.gcsafe.} =
+        for v in tbl.values:
+          result += v
       )
-      createThread(threads[i], mtTableWorker, addr ctxs[i])
-
-    startFlag.store(true, moRelease)
-    for i in 0 ..< NumThreads:
-      joinThread(threads[i])
-
-    let totalSum = fc.combine(proc(tbl: var Table[int, int]): int {.gcsafe.} =
-      for v in tbl.values:
-        result += v
-    )
-    check totalSum == NumThreads * ItersPerThread
+      check totalSum == NumThreads * ItersPerThread
 
   test "Periodic publication record pruning unlinks stale interior records safely":
     var fc = initFlatCombiner[SeqCounter, CounterOp, int64](

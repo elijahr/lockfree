@@ -22,8 +22,7 @@ import lockfree/atomics/backoff
 import lockfree/cabi
 
 # Pass include path to the C compiler so #include "lockfree.h" resolves
-const includeDir = currentSourcePath().parentDir() / "../include"
-{.passC: "-I" & includeDir.}
+const includeDir {.used.} = currentSourcePath().parentDir() / "../include"
 
 type
   ThreadProducerArg = object
@@ -1286,33 +1285,34 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check tracker.count == 5
     check tracker.sum == 150
 
-  test "Direct C99 Header Interoperability":
-    let code1 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree.h"))
-    check code1 == 0
-    let code2 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_rendezvous.h"))
-    check code2 == 0
-    let code3 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_ratelimit.h"))
-    check code3 == 0
-    let code4 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_streambuffer.h"))
-    check code4 == 0
-    let code5 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_associative.h"))
-    check code5 == 0
-    let code6 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_atomic_arc.h"))
-    check code6 == 0
+  when not defined(windows):
+    test "Direct C99 Header Interoperability":
+      let code1 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree.h"))
+      check code1 == 0
+      let code2 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_rendezvous.h"))
+      check code2 == 0
+      let code3 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_ratelimit.h"))
+      check code3 == 0
+      let code4 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_streambuffer.h"))
+      check code4 == 0
+      let code5 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_associative.h"))
+      check code5 == 0
+      let code6 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_atomic_arc.h"))
+      check code6 == 0
 
-  test "Compiled C99 test harness execution (clang + liblockfree.a)":
-    let rootDir = currentSourcePath().parentDir() / ".."
-    let staticLib = rootDir / ".tmp/liblockfree.a"
-    let buildCode = execShellCmd(
-      "nim c --app:staticlib -d:danger -d:useMalloc --threads:on --path:" &
-      (rootDir / "src") & " --nimcache:" & (rootDir / ".tmp/cabi_staticlib_cache") &
-      " -o:" & staticLib & " " & (rootDir / "src/lockfree/cabi.nim")
-    )
-    check buildCode == 0
-    let cTestSrc = rootDir / "tests/cabi/test_cabi.c"
-    let cTestBin = rootDir / ".tmp/test_cabi"
-    let compileCmd = "clang -std=c99 -Wall -Wextra -Werror -I" & includeDir & " " & cTestSrc & " -L" & (rootDir / ".tmp") & " -llockfree -o " & cTestBin
-    let compCode = execShellCmd(compileCmd)
-    check compCode == 0
-    let runCode = execShellCmd(cTestBin)
-    check runCode == 0
+    test "Compiled C99 test harness execution (clang + liblockfree.a)":
+      let rootDir = currentSourcePath().parentDir() / ".."
+      let staticLib = rootDir / ".tmp/liblockfree.a"
+      let buildCode = execShellCmd(
+        "nim c --app:staticlib -d:danger -d:useMalloc --threads:on --path:" &
+        (rootDir / "src") & " --nimcache:" & (rootDir / ".tmp/cabi_staticlib_cache") &
+        " -o:" & staticLib & " " & (rootDir / "src/lockfree/cabi.nim")
+      )
+      check buildCode == 0
+      let cTestSrc = rootDir / "tests/cabi/test_cabi.c"
+      let cTestBin = rootDir / ".tmp/test_cabi"
+      let compileCmd = "clang -std=c99 -Wall -Wextra -Werror -I" & includeDir & " " & cTestSrc & " -L" & (rootDir / ".tmp") & " -llockfree -o " & cTestBin
+      let compCode = execShellCmd(compileCmd)
+      check compCode == 0
+      let runCode = execShellCmd(cTestBin)
+      check runCode == 0

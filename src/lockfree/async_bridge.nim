@@ -108,10 +108,11 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
           sig.tsig = nil
     else:
       if not sig.eventClosed.exchange(true, moSeqCst):
-        try:
-          sig.event.close()
-        except CatchableError:
-          discard
+        if pointer(sig.event) != nil:
+          try:
+            sig.event.close()
+          except CatchableError:
+            discard
     var curr = sig.waitersHead.exchange(nil, moSeqCst)
     while curr != nil:
       let nxt = curr.next
@@ -833,7 +834,6 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     self.cursorSignals = newSeq[AsyncSignal](maxR)
     self.cursorWaiting = newSeq[Atomic[bool]](maxR)
     for i in 0 ..< maxR:
-      self.cursorSignals[i] = newAsyncSignal()
       self.cursorWaiting[i].store(false, moRelaxed)
 
   proc newAsyncBroadcastRing*[T](
@@ -862,7 +862,8 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       return
     for i in 0 ..< self.maxReaders:
       if self.cursorWaiting[i].load(moSeqCst):
-        self.cursorSignals[i].fire()
+        if self.cursorSignals[i] != nil:
+          self.cursorSignals[i].fire()
 
   proc notifyProducers*[T](self: AsyncBroadcastRing[T]) {.inline, gcsafe.} =
     if self == nil or self.producerSignal == nil:
@@ -887,6 +888,8 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     result.cursor = self.ring.subscribe(origin)
     let id = result.cursor.cursorId
     result.slotId = id
+    if self.cursorSignals[id] == nil:
+      self.cursorSignals[id] = newAsyncSignal()
     result.signal = self.cursorSignals[id]
     result.signal.clear()
     self.cursorWaiting[id].store(false, moSeqCst)
