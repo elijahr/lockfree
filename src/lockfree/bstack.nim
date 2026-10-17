@@ -159,7 +159,7 @@ proc `=destroy`*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BStack[T, Cap, ccProd, ccCons]) =
+](self: var BStack[T, Cap, ccProd, ccCons]) =
   if self.core != nil:
     if self.core.rc.fetchSub(1, moAcquireRelease) == 1:
       destroyBStackCore(self.core)

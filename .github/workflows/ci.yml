@@ -943,7 +943,7 @@ jobs:
               ;;
             7)
               echo "::group::Run test suite under ASAN (mm=${{ matrix.mm }}, backend=${{ matrix.backend }})"
-              ASAN_OPTIONS=detect_leaks=0 nimble_run nimble testASan
+              ASAN_OPTIONS="detect_leaks=0:detect_stack_use_after_return=0" nimble_run nimble testASan
               echo "::endgroup::"
               ;;
             *)

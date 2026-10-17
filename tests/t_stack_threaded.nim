@@ -9,6 +9,7 @@ import unittest2
 
 import lockfree/stack
 import lockfree/atomics
+import lockfree/backoff
 
 const
   ItemCount = 2000
@@ -227,8 +228,6 @@ suite "TreiberStack - Multithreaded Concurrency":
     check s.len == 0
 
   test "Preemptive high-contention push/pop/peek/drain with sched_yield":
-    proc c_sched_yield(): cint {.importc: "sched_yield", header: "<sched.h>".}
-
     const
       StressThreads = 8
       StressIters = 1000
@@ -254,13 +253,13 @@ suite "TreiberStack - Multithreaded Concurrency":
           ctx.stack[].push(val)
           discard pushedSum.fetchAdd(val, moRelaxed)
           if (i and 7) == 0:
-            discard c_sched_yield()
+            schedYield()
           let pk = ctx.stack[].peek()
           if pk.isSome:
             if pk.get <= 0:
               invalidPeek.store(true, moRelaxed)
           if (i and 3) == 0:
-            discard c_sched_yield()
+            schedYield()
           if (i mod 97) == 0:
             let batch = ctx.stack[].drain()
             var batchSum = 0

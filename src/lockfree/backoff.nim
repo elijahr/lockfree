@@ -31,6 +31,7 @@
 ## emits the real `pause`/`yield` instruction.
 
 import lockfree/atomics/backoff
+export backoff
 
 const
   InitialSpin* {.intdefine.} = 4

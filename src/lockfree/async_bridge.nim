@@ -99,6 +99,26 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       else:
         event*: AsyncEvent
 
+  proc `=destroy`*(sig: var typeof(AsyncSignal()[])) =
+    sig.closed.store(true, moSeqCst)
+    when defined(lockfreeChronos):
+      if not sig.eventClosed.exchange(true, moSeqCst):
+        if sig.tsig != nil:
+          discard sig.tsig.close()
+          sig.tsig = nil
+    else:
+      if not sig.eventClosed.exchange(true, moSeqCst):
+        try:
+          sig.event.close()
+        except CatchableError:
+          discard
+    var curr = sig.waitersHead.exchange(nil, moSeqCst)
+    while curr != nil:
+      let nxt = curr.next
+      GC_unref(curr.fut)
+      deallocShared(curr)
+      curr = nxt
+
   proc newAsyncSignal*(): AsyncSignal =
     new result
     result.signaled.store(false, moRelaxed)
@@ -464,6 +484,13 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
   ): AsyncSignal =
     self.consumerSignal
 
+  proc close*[T; ccProd, ccCons: static PinScopeCardinality; N, P, C: static int](
+      self: AsyncBQueue[T, ccProd, ccCons, N, P, C]
+  ) =
+    if self != nil:
+      self.consumerSignal.close()
+      self.producerSignal.close()
+
   # Direct on BQueue:
   proc tryPopAsync*[T; N: static int](
       self: var BQueue[T, ccSingle, ccSingle, N, 0, 0]
@@ -598,6 +625,17 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       self: AsyncQueue[T, ccProd, ccCons, ST, S, MaxThreads]
   ): AsyncSignal =
     self.consumerSignal
+
+  proc close*[
+      T;
+      ccProd, ccCons: static PinScopeCardinality,
+      ST: static DeallocationStrategy,
+      S, MaxThreads: static int,
+  ](
+      self: AsyncQueue[T, ccProd, ccCons, ST, S, MaxThreads]
+  ) =
+    if self != nil:
+      self.consumerSignal.close()
 
   # Direct on Queue:
   proc tryPopAsync*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](

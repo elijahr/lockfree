@@ -565,6 +565,7 @@ suite "AsyncBridge Dekker Store-Load Stress & Zero Dropped Signals":
     check received.len == TotalItems
     for i in 0 ..< TotalItems:
       check received[i] == i + 1
+    q.close()
 
   test "AsyncQueue high churn cross-thread producer to async consumer":
     var q = newAsyncQueue(AsyncQueueSpsc[int, 64, 1])
@@ -592,3 +593,4 @@ suite "AsyncBridge Dekker Store-Load Stress & Zero Dropped Signals":
     check received.len == TotalItems
     for i in 0 ..< TotalItems:
       check received[i] == i + 1
+    q.close()

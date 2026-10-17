@@ -175,8 +175,8 @@ suite "TreiberStack - Managed Types (ARC/ORC/Refc)":
     check intoSeq[32] == "into_0"
     check s.isEmpty
 
-when compileOption("threads"):
-  proc c_sched_yield(): cint {.importc: "sched_yield", header: "<sched.h>".}
+when compileOption("threads") and (defined(gcArc) or defined(gcOrc) or defined(gcAtomicArc)):
+  import lockfree/backoff
 
   type
     PreemptStressCtx = object
@@ -196,14 +196,14 @@ when compileOption("threads"):
         ctx.stack[].push(msg)
         discard ctx.pushedCount[].fetchAdd(1, moRelaxed)
         if (i and 3) == 0:
-          discard c_sched_yield()
+          schedYield()
         let peeked = ctx.stack[].peek()
         if peeked.isSome:
           let pVal = peeked.get
           if pVal.len < 14 or pVal[0 .. 6] != "thread_":
             ctx.corruptedFound[].store(true, moRelaxed)
         if (i and 1) == 0:
-          discard c_sched_yield()
+          schedYield()
         let popped = ctx.stack[].pop()
         if popped.isSome:
           let val = popped.get

@@ -366,7 +366,7 @@ proc `=destroy`*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons]) =
+](self: var BTable[K, V, Cap, ccProd, ccCons]) =
   if self.core != nil:
     if self.core.rc.fetchSub(1, moAcquireRelease) == 1:
       destroyBTableCore(self.core)

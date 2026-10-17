@@ -14,7 +14,7 @@ var
   gTrackedLiveCount: Atomic[int]
   gTrackedDestroyCount: Atomic[int]
 
-proc `=destroy`(x: TrackedPayload) =
+proc `=destroy`(x: var TrackedPayload) =
   if x.id != 0:
     discard gTrackedLiveCount.fetchSub(1, moAcquireRelease)
     discard gTrackedDestroyCount.fetchAdd(1, moAcquireRelease)

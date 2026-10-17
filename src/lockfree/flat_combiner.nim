@@ -141,7 +141,7 @@ proc destroyCore[T, Op, Res](core: ptr FlatCombinerCore[T, Op, Res]) {.gcsafe.} 
     `=destroy`(core.state)
     freeAligned(core)
 
-proc `=destroy`*[T, Op, Res](self: FlatCombiner[T, Op, Res]) =
+proc `=destroy`*[T, Op, Res](self: var FlatCombiner[T, Op, Res]) =
   if self.core != nil:
     if self.core.rc.fetchSub(1, moRelease) == 1:
       threadFence(moAcquire)
