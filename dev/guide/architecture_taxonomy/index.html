@@ -7,9 +7,13 @@
       
       
       
-        <link rel="canonical" href="https://elijahr.github.io/lockfree/latest/reviews/audit_slash_and_burn_compat_repos/">
+        <link rel="canonical" href="https://elijahr.github.io/lockfree/latest/guide/architecture_taxonomy/">
       
       
+        <link rel="prev" href="../">
+      
+      
+        <link rel="next" href="../getting-started/">
       
       
         
@@ -20,7 +24,7 @@
     
     
       
-        <title>Audit Report: Slash-and-Burn Analysis for lockfreequeues &amp; nim-debra - lockfree</title>
+        <title>Architecture &amp; Taxonomy - lockfree</title>
       
     
     
@@ -89,7 +93,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#audit-report-slash-and-burn-analysis-for-lockfreequeues-nim-debra" class="md-skip">
+        <a href="#concurrency-architecture-taxonomy-guide" class="md-skip">
           Skip to content
         </a>
       
@@ -129,7 +133,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Audit Report: Slash-and-Burn Analysis for lockfreequeues &amp; nim-debra
+              Architecture &amp; Taxonomy
             
           </span>
         </div>
@@ -302,7 +306,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guides/user_guide/" class="md-nav__link">
+      <a href="../user_guide/" class="md-nav__link">
         
   
   
@@ -326,8 +330,10 @@
       
   
   
+    
   
   
+  
     
     
     
@@ -338,13 +344,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--section md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3">
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" checked="">
         
           
           <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="">
@@ -365,7 +369,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
@@ -383,7 +387,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/" class="md-nav__link">
+      <a href="../" class="md-nav__link">
         
   
   
@@ -408,10 +412,368 @@
                 
   
   
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture &amp; Taxonomy
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Architecture &amp; Taxonomy
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+      
+        <li class="md-nav__item">
+  <a href="#1-master-concurrency-taxonomy-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Master Concurrency Taxonomy Matrix
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1. Master Concurrency Taxonomy Matrix">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#complete-primitive-comparison-table" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Complete Primitive Comparison Table
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-decision-flowchart-choosing-the-right-primitive" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Decision Flowchart: Choosing the Right Primitive
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-deep-dive-bounded-zero-smr-primitives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Deep-Dive: Bounded Zero-SMR Primitives
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3. Deep-Dive: Bounded Zero-SMR Primitives">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-common-design-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Common Design Invariants
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-bqueuet-ccprod-cccons-n-p-c-lockfreebqueue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 BQueue[T, ccProd, ccCons, N, P, C] (lockfree/bqueue)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-bstackt-cap-ccprod-cccons-lockfreebstack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 BStack[T, Cap, ccProd, ccCons] (lockfree/bstack)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-bpriorityqueuet-cap-ccprod-cccons-lockfreebpriority_queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 BPriorityQueue[T, Cap, ccProd, ccCons] (lockfree/bpriority_queue)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-btablek-v-cap-ccprod-cccons-lockfreebtable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.5 BTable[K, V, Cap, ccProd, ccCons] (lockfree/btable)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-deep-dive-dynamic-nebr-smr-primitives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Deep-Dive: Dynamic NEBR SMR Primitives
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Deep-Dive: Dynamic NEBR SMR Primitives">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-neutralization-enhanced-bounded-epoch-reclamation-nebr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Neutralization-Enhanced Bounded Epoch Reclamation (NEBR)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-unbounded-queue-lockfreequeue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Unbounded Queue (lockfree/queue)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-treiberstackt-lockfreestack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 TreiberStack[T] (lockfree/stack)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-skiplistpriorityqueuet-lockfreepriority_queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 SkipListPriorityQueue[T] (lockfree/priority_queue)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-associative-maps-sets-ctrie-skiplistmap-skiplistset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Associative Maps &amp; Sets (Ctrie, SkipListMap, SkipListSet)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-specialized-concurrency-constructs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Specialized Concurrency Constructs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Specialized Concurrency Constructs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-flatcombinert-op-res-lockfreeflat_combiner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 FlatCombiner[T, Op, Res] (lockfree/flat_combiner)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-broadcastringt-topicbust-lockfreebroadcast" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 BroadcastRing[T] &amp; TopicBus[T] (lockfree/broadcast)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-tokenbucket-leakybucket-lockfreeratelimit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 TokenBucket &amp; LeakyBucket (lockfree/ratelimit)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54-rendezvouschannelt-lockfreerendezvous-channelt-lockfreechannel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 RendezvousChannel[T] (lockfree/rendezvous) &amp; Channel[T] (lockfree/channel)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-memory-model-runtime-matrix-safety-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Memory Model, Runtime Matrix &amp; Safety Invariants
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Memory Model, Runtime Matrix &amp; Safety Invariants">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-nim-2x-memory-manager-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Nim 2.x Memory Manager Matrix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-path-c-payload-destructor-safety-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Path-C Payload &amp; Destructor Safety Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
   
   
     <li class="md-nav__item">
-      <a href="../../guide/getting-started/" class="md-nav__link">
+      <a href="../getting-started/" class="md-nav__link">
         
   
   
@@ -451,10 +813,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_3">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4">
         
           
-          <label class="md-nav__link" for="__nav_3_3" id="__nav_3_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
             
   
   
@@ -472,8 +834,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_3">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -490,7 +852,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/concepts/lock-freedom/" class="md-nav__link">
+      <a href="../concepts/lock-freedom/" class="md-nav__link">
         
   
   
@@ -518,7 +880,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/concepts/smr/" class="md-nav__link">
+      <a href="../concepts/smr/" class="md-nav__link">
         
   
   
@@ -546,7 +908,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/concepts/memory-management/" class="md-nav__link">
+      <a href="../concepts/memory-management/" class="md-nav__link">
         
   
   
@@ -554,205 +916,6 @@
     
   
     Memory management
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-          </ul>
-        </nav>
-      
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    
-    
-    
-    
-      
-    
-    
-    <li class="md-nav__item md-nav__item--nested">
-      
-        
-        
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_4">
-        
-          
-          <label class="md-nav__link" for="__nav_3_4" id="__nav_3_4_label" tabindex="0">
-            
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Queues
-  
-
-    
-  </span>
-  
-  
-
-            <span class="md-nav__icon md-icon"></span>
-          </label>
-        
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_4_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_4">
-            <span class="md-nav__icon md-icon"></span>
-            
-  
-    Queues
-  
-
-          </label>
-          <ul class="md-nav__list" data-md-scrollfix="">
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../guide/queues/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Overview
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../guide/queues/bounded-vyukov/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Bounded (Vyukov)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../guide/queues/strict-lcrq-mpmc/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Unbounded MPMC (strict-LCRQ)
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../guide/queues/legacy/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Legacy cardinalities
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../guide/queues/benchmarks/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Benchmarks
   
 
     
@@ -803,7 +966,7 @@
   <span class="md-ellipsis">
     
   
-    Channels
+    Queues
   
 
     
@@ -819,7 +982,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Channels
+    Queues
   
 
           </label>
@@ -832,14 +995,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/channels/" class="md-nav__link">
+      <a href="../queues/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Channels &amp; Rendezvous
+    Overview
   
 
     
@@ -860,14 +1023,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../designs/design_rendezvous_channel/" class="md-nav__link">
+      <a href="../queues/bounded-vyukov/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Rendezvous Dual-Queue
+    Bounded (Vyukov)
   
 
     
@@ -888,14 +1051,70 @@
   
   
     <li class="md-nav__item">
-      <a href="../../designs/design_async_bridge/" class="md-nav__link">
+      <a href="../queues/strict-lcrq-mpmc/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Async Bridge
+    Unbounded MPMC (strict-LCRQ)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../queues/legacy/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Legacy cardinalities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../queues/benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
   
 
     
@@ -946,7 +1165,7 @@
   <span class="md-ellipsis">
     
   
-    Maps &amp; Sets
+    Channels
   
 
     
@@ -962,7 +1181,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Maps &amp; Sets
+    Channels
   
 
           </label>
@@ -975,14 +1194,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/maps-sets/" class="md-nav__link">
+      <a href="../channels/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Overview
+    Channels &amp; Rendezvous
   
 
     
@@ -1003,14 +1222,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../designs/design_ctrie/" class="md-nav__link">
+      <a href="../../design/design_rendezvous_channel/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Concurrent Hash Trie (Ctrie)
+    Rendezvous Dual-Queue
   
 
     
@@ -1031,42 +1250,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../designs/design_atomic_associative/" class="md-nav__link">
+      <a href="../../design/design_async_bridge/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    SkipList Map &amp; Set
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../guide/maps-sets/benchmarks/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Benchmarks
+    Async Bridge
   
 
     
@@ -1117,7 +1308,7 @@
   <span class="md-ellipsis">
     
   
-    Stacks &amp; Deques
+    Maps &amp; Sets
   
 
     
@@ -1133,7 +1324,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Stacks &amp; Deques
+    Maps &amp; Sets
   
 
           </label>
@@ -1146,7 +1337,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/stacks-deques/" class="md-nav__link">
+      <a href="../maps-sets/" class="md-nav__link">
         
   
   
@@ -1174,7 +1365,63 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/stacks-deques/benchmarks/" class="md-nav__link">
+      <a href="../../design/design_ctrie/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Concurrent Hash Trie (Ctrie)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/design_atomic_associative/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SkipList Map &amp; Set
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../maps-sets/benchmarks/" class="md-nav__link">
         
   
   
@@ -1232,7 +1479,7 @@
   <span class="md-ellipsis">
     
   
-    Broadcast &amp; Rendezvous
+    Stacks &amp; Deques
   
 
     
@@ -1248,7 +1495,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Broadcast &amp; Rendezvous
+    Stacks &amp; Deques
   
 
           </label>
@@ -1261,14 +1508,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/broadcast/" class="md-nav__link">
+      <a href="../stacks-deques/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Broadcast Ring &amp; TopicBus
+    Overview
   
 
     
@@ -1289,98 +1536,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../designs/design_broadcast_ring/" class="md-nav__link">
+      <a href="../stacks-deques/benchmarks/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Broadcast Architecture
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../designs/design_rendezvous_channel/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Rendezvous Dual-Queue
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../guide/broadcast/benchmarks/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Broadcast Benchmarks
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../guide/rendezvous/benchmarks/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Rendezvous Benchmarks
+    Benchmarks
   
 
     
@@ -1431,7 +1594,7 @@
   <span class="md-ellipsis">
     
   
-    TaskPool
+    Broadcast &amp; Rendezvous
   
 
     
@@ -1447,7 +1610,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    TaskPool
+    Broadcast &amp; Rendezvous
   
 
           </label>
@@ -1460,14 +1623,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/taskpool/" class="md-nav__link">
+      <a href="../broadcast/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Work-Stealing Scheduler
+    Broadcast Ring &amp; TopicBus
   
 
     
@@ -1488,14 +1651,98 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/taskpool/benchmarks/" class="md-nav__link">
+      <a href="../../design/design_broadcast_ring/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Benchmarks
+    Broadcast Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/design_rendezvous_channel/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rendezvous Dual-Queue
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../broadcast/benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Broadcast Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../rendezvous/benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rendezvous Benchmarks
   
 
     
@@ -1546,7 +1793,7 @@
   <span class="md-ellipsis">
     
   
-    Rate Limiting &amp; Streaming
+    TaskPool
   
 
     
@@ -1562,7 +1809,7 @@
             <span class="md-nav__icon md-icon"></span>
             
   
-    Rate Limiting &amp; Streaming
+    TaskPool
   
 
           </label>
@@ -1575,14 +1822,14 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/ratelimit-streambuffer/" class="md-nav__link">
+      <a href="../taskpool/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Overview
+    Work-Stealing Scheduler
   
 
     
@@ -1603,63 +1850,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../designs/design_ratelimit/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Rate Limiting Architecture
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../designs/design_streambuffer/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    StreamBuffer Architecture
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../../guide/ratelimit-streambuffer/benchmarks/" class="md-nav__link">
+      <a href="../taskpool/benchmarks/" class="md-nav__link">
         
   
   
@@ -1717,7 +1908,7 @@
   <span class="md-ellipsis">
     
   
-    C ABI
+    Rate Limiting &amp; Streaming
   
 
     
@@ -1730,6 +1921,177 @@
         
         <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_11_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3_11">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Rate Limiting &amp; Streaming
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix="">
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ratelimit-streambuffer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/design_ratelimit/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Rate Limiting Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/design_streambuffer/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    StreamBuffer Architecture
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../ratelimit-streambuffer/benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_12">
+        
+          
+          <label class="md-nav__link" for="__nav_3_12" id="__nav_3_12_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    C ABI
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_12_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_12">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1746,7 +2108,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/cabi/" class="md-nav__link">
+      <a href="../cabi/" class="md-nav__link">
         
   
   
@@ -1822,10 +2184,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_12">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_13">
         
           
-          <label class="md-nav__link" for="__nav_3_12" id="__nav_3_12_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_13" id="__nav_3_13_label" tabindex="0">
             
   
   
@@ -1843,8 +2205,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_12_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_12">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_13_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_13">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1861,7 +2223,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/smr/nebr/" class="md-nav__link">
+      <a href="../smr/nebr/" class="md-nav__link">
         
   
   
@@ -1889,7 +2251,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guides/smr_nebr_lifecycle/" class="md-nav__link">
+      <a href="../smr_nebr_lifecycle/" class="md-nav__link">
         
   
   
@@ -1917,7 +2279,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/atomics/" class="md-nav__link">
+      <a href="../atomics/" class="md-nav__link">
         
   
   
@@ -1945,7 +2307,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/smr/benchmarks/" class="md-nav__link">
+      <a href="../smr/benchmarks/" class="md-nav__link">
         
   
   
@@ -1993,10 +2355,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_13">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_14">
         
           
-          <label class="md-nav__link" for="__nav_3_13" id="__nav_3_13_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_14" id="__nav_3_14_label" tabindex="0">
             
   
   
@@ -2014,8 +2376,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_13_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_13">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_14_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_14">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2032,7 +2394,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/managed-ref/" class="md-nav__link">
+      <a href="../managed-ref/" class="md-nav__link">
         
   
   
@@ -2060,7 +2422,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/managed-slice/" class="md-nav__link">
+      <a href="../managed-slice/" class="md-nav__link">
         
   
   
@@ -2096,7 +2458,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/typestates/" class="md-nav__link">
+      <a href="../typestates/" class="md-nav__link">
         
   
   
@@ -2124,7 +2486,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/nimony/" class="md-nav__link">
+      <a href="../nimony/" class="md-nav__link">
         
   
   
@@ -2164,10 +2526,10 @@
         
           
         
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_16">
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_17">
         
           
-          <label class="md-nav__link" for="__nav_3_16" id="__nav_3_16_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3_17" id="__nav_3_17_label" tabindex="0">
             
   
   
@@ -2185,8 +2547,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_16_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3_16">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_17_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3_17">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -2203,7 +2565,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/core-concepts/" class="md-nav__link">
+      <a href="../core-concepts/" class="md-nav__link">
         
   
   
@@ -2231,7 +2593,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/bounded-vs-unbounded/" class="md-nav__link">
+      <a href="../bounded-vs-unbounded/" class="md-nav__link">
         
   
   
@@ -2259,7 +2621,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/slot-ownership-typestates/" class="md-nav__link">
+      <a href="../slot-ownership-typestates/" class="md-nav__link">
         
   
   
@@ -2287,7 +2649,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/safety-model/" class="md-nav__link">
+      <a href="../safety-model/" class="md-nav__link">
         
   
   
@@ -2315,7 +2677,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/performance-tuning/" class="md-nav__link">
+      <a href="../performance-tuning/" class="md-nav__link">
         
   
   
@@ -2343,7 +2705,7 @@
   
   
     <li class="md-nav__item">
-      <a href="../../guide/examples/" class="md-nav__link">
+      <a href="../examples/" class="md-nav__link">
         
   
   
@@ -4048,34 +4410,6 @@
   
   
     <li class="md-nav__item">
-      <a href="../../transition_plan/" class="md-nav__link">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Transition Plan
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-  
-  
-    <li class="md-nav__item">
       <a href="../../migrations/from-lockfreequeues-v5/" class="md-nav__link">
         
   
@@ -4186,231 +4520,25 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
       
         <li class="md-nav__item">
-  <a href="#1-executive-summary-audit-mandate" class="md-nav__link">
+  <a href="#1-master-concurrency-taxonomy-matrix" class="md-nav__link">
     <span class="md-ellipsis">
       
-        1. Executive Summary &amp; Audit Mandate
+        1. Master Concurrency Taxonomy Matrix
       
     </span>
   </a>
   
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#2-repository-1-lockfreequeues" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Repository 1: lockfreequeues
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="2. Repository 1: lockfreequeues">
+    <nav class="md-nav" aria-label="1. Master Concurrency Taxonomy Matrix">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#21-findings-overview" class="md-nav__link">
+  <a href="#complete-primitive-comparison-table" class="md-nav__link">
     <span class="md-ellipsis">
       
-        2.1 Findings Overview
+        Complete Primitive Comparison Table
       
     </span>
   </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#22-concrete-deletion-inventory-lockfreequeues" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.2 Concrete Deletion Inventory: lockfreequeues
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="2.2 Concrete Deletion Inventory: lockfreequeues">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#a-delete-entire-benchmarks-directory-56-files" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        A. Delete Entire benchmarks/ Directory (56 files)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#b-delete-entire-stress-tests-directory-11-files" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        B. Delete Entire stress-tests/ Directory (11 files)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#c-delete-dead-engine-code-in-src-27-files" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        C. Delete Dead Engine Code in src/ (27 files)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#d-delete-orphaned-dead-tests-in-tests-57-files" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        D. Delete Orphaned Dead Tests in tests/ (57 files)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#e-delete-obsolete-ci-workflows-docs-18-files" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        E. Delete Obsolete CI Workflows &amp; Docs (18 files)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#23-proposed-target-lean-structure-lockfreequeues" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.3 Proposed Target Lean Structure: lockfreequeues
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="2.3 Proposed Target Lean Structure: lockfreequeues">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#nimble-ci-adjustments-for-lockfreequeues" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Nimble &amp; CI Adjustments for lockfreequeues:
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#3-repository-2-nim-debra" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. Repository 2: nim-debra
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="3. Repository 2: nim-debra">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#31-findings-overview" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.1 Findings Overview
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#32-concrete-deletion-inventory-nim-debra" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.2 Concrete Deletion Inventory: nim-debra
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="3.2 Concrete Deletion Inventory: nim-debra">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#a-delete-redundant-documentation-mkdocs-33-files" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        A. Delete Redundant Documentation &amp; MkDocs (33 files)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#b-delete-orphaned-benchmark-standalone-probes-10-files" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        B. Delete Orphaned Benchmark &amp; Standalone Probes (10 files)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#33-proposed-target-lean-structure-nim-debra" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.3 Proposed Target Lean Structure: nim-debra
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="3.3 Proposed Target Lean Structure: nim-debra">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#nimble-ci-adjustments-for-nim-debra" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Nimble &amp; CI Adjustments for nim-debra:
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
         
@@ -4420,10 +4548,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-impact-assessment" class="md-nav__link">
+  <a href="#2-decision-flowchart-choosing-the-right-primitive" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Impact Assessment
+        2. Decision Flowchart: Choosing the Right Primitive
       
     </span>
   </a>
@@ -4431,13 +4559,246 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-recommended-execution-order" class="md-nav__link">
+  <a href="#3-deep-dive-bounded-zero-smr-primitives" class="md-nav__link">
     <span class="md-ellipsis">
       
-        5. Recommended Execution Order
+        3. Deep-Dive: Bounded Zero-SMR Primitives
       
     </span>
   </a>
+  
+    <nav class="md-nav" aria-label="3. Deep-Dive: Bounded Zero-SMR Primitives">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#31-common-design-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.1 Common Design Invariants
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#32-bqueuet-ccprod-cccons-n-p-c-lockfreebqueue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.2 BQueue[T, ccProd, ccCons, N, P, C] (lockfree/bqueue)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#33-bstackt-cap-ccprod-cccons-lockfreebstack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.3 BStack[T, Cap, ccProd, ccCons] (lockfree/bstack)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#34-bpriorityqueuet-cap-ccprod-cccons-lockfreebpriority_queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.4 BPriorityQueue[T, Cap, ccProd, ccCons] (lockfree/bpriority_queue)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#35-btablek-v-cap-ccprod-cccons-lockfreebtable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3.5 BTable[K, V, Cap, ccProd, ccCons] (lockfree/btable)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-deep-dive-dynamic-nebr-smr-primitives" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Deep-Dive: Dynamic NEBR SMR Primitives
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Deep-Dive: Dynamic NEBR SMR Primitives">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#41-neutralization-enhanced-bounded-epoch-reclamation-nebr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.1 Neutralization-Enhanced Bounded Epoch Reclamation (NEBR)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#42-unbounded-queue-lockfreequeue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.2 Unbounded Queue (lockfree/queue)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#43-treiberstackt-lockfreestack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.3 TreiberStack[T] (lockfree/stack)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#44-skiplistpriorityqueuet-lockfreepriority_queue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.4 SkipListPriorityQueue[T] (lockfree/priority_queue)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#45-associative-maps-sets-ctrie-skiplistmap-skiplistset" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4.5 Associative Maps &amp; Sets (Ctrie, SkipListMap, SkipListSet)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-specialized-concurrency-constructs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Specialized Concurrency Constructs
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5. Specialized Concurrency Constructs">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#51-flatcombinert-op-res-lockfreeflat_combiner" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.1 FlatCombiner[T, Op, Res] (lockfree/flat_combiner)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#52-broadcastringt-topicbust-lockfreebroadcast" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.2 BroadcastRing[T] &amp; TopicBus[T] (lockfree/broadcast)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#53-tokenbucket-leakybucket-lockfreeratelimit" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.3 TokenBucket &amp; LeakyBucket (lockfree/ratelimit)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#54-rendezvouschannelt-lockfreerendezvous-channelt-lockfreechannel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5.4 RendezvousChannel[T] (lockfree/rendezvous) &amp; Channel[T] (lockfree/channel)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-memory-model-runtime-matrix-safety-invariants" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Memory Model, Runtime Matrix &amp; Safety Invariants
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Memory Model, Runtime Matrix &amp; Safety Invariants">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#61-nim-2x-memory-manager-matrix" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.1 Nim 2.x Memory Manager Matrix
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#62-path-c-payload-destructor-safety-rules" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6.2 Path-C Payload &amp; Destructor Safety Rules
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -4461,334 +4822,396 @@
   
 
 
-<h1 id="audit-report-slash-and-burn-analysis-for-lockfreequeues-nim-debra">Audit Report: Slash-and-Burn Analysis for <code>lockfreequeues</code> &amp; <code>nim-debra</code><a class="headerlink" href="#audit-report-slash-and-burn-analysis-for-lockfreequeues-nim-debra" title="Permanent link">¶</a></h1>
-<p><strong>Date</strong>: 2026-10-11<br>
-<strong>Auditor</strong>: Caleb Thorne (<code>auditor-pegasus</code>), Verification &amp; Adversarial Auditor<br>
-<strong>Directive</strong>: <code>msg_1791696743_orchestrator-whipbird_9354</code><br>
-<strong>Target Repositories</strong>:
-- <code>/Users/eek/Development/lockfreequeues</code> (Compatibility Facade for <code>lockfree</code>)
-- <code>/Users/eek/Development/nim-debra</code> (Compatibility Facade for <code>lockfree/smr/nebr</code>)</p>
+<h1 id="concurrency-architecture-taxonomy-guide">Concurrency Architecture &amp; Taxonomy Guide<a class="headerlink" href="#concurrency-architecture-taxonomy-guide" title="Permanent link">¶</a></h1>
+<p>This guide provides the canonical architectural reference for selecting, composing, and reasoning about every concurrent data structure and synchronization primitive in <code>lockfree</code>. It classifies the library across <strong>producer/consumer cardinality topologies</strong>, <strong>bounded zero-SMR vs. dynamic NEBR-reclaimed memory models</strong>, <strong>progress guarantees</strong>, <strong>hardware atomic instruction requirements</strong>, and <strong>Nim 2.x memory manager invariants</strong>.</p>
 <hr>
-<h2 id="1-executive-summary-audit-mandate">1. Executive Summary &amp; Audit Mandate<a class="headerlink" href="#1-executive-summary-audit-mandate" title="Permanent link">¶</a></h2>
-<p>Following the consolidation of <code>lockfreequeues</code> and <code>nim-debra</code> into the unified <code>lockfree</code> architecture (v0.1.0 / v5.1.0), the downstream repositories exist solely as <strong>zero-overhead backwards-compatibility facades</strong>. Their sole mission is preventing breakages for historical Nimble consumers by mapping legacy imports and types onto canonical <code>lockfree</code> engines.</p>
-<p>However, an empirical audit reveals substantial legacy accumulation across both repositories:
-- <strong><code>lockfreequeues</code></strong> carries an obsolete, out-of-date 56-file benchmark suite, 11 unmaintained stress test files, 27 files of dead v4 typestate implementation in <code>src/</code>, 57 orphaned tests in <code>tests/</code> that are unimported by <code>test.nim</code>, and 52KB of dead benchmark CI workflows.
-- <strong><code>nim-debra</code></strong> carries an orphaned benchmark, hardware probes already ported to <code>lockfree</code>, redundant documentation already archived in <code>lockfree/docs/legacy/nim-debra/</code>, and excessive CI workflow steps.</p>
-<p>This report establishes a definitive, file-by-file <strong>Slash-and-Burn Deletion Inventory</strong>, an impact assessment, and proposed target lean structures for both repositories.</p>
-<hr>
-<h2 id="2-repository-1-lockfreequeues">2. Repository 1: <code>lockfreequeues</code><a class="headerlink" href="#2-repository-1-lockfreequeues" title="Permanent link">¶</a></h2>
-<h3 id="21-findings-overview">2.1 Findings Overview<a class="headerlink" href="#21-findings-overview" title="Permanent link">¶</a></h3>
+<h2 id="1-master-concurrency-taxonomy-matrix">1. Master Concurrency Taxonomy Matrix<a class="headerlink" href="#1-master-concurrency-taxonomy-matrix" title="Permanent link">¶</a></h2>
+<p>Every data structure in <code>lockfree</code> belongs to one of three architectural families:</p>
 <ol>
-<li><strong>Benchmark Suite</strong>: Completely duplicated and superseded by <code>lockfree/benchmarks/</code>. The copy in <code>lockfreequeues</code> is frozen, drifts behind modern fixes (e.g. clamp fixes added during <code>lockfree</code> PR reviews), and wastes Bencher quotas and CI runners.</li>
-<li><strong>Stress Tests</strong>: <code>stress-tests/stress_test.nim</code> has unbounded tests disabled/commented out since v3.2.0. Neither <code>build.yml</code> nor any CI workflow runs <code>nimble stresstests</code>.</li>
-<li><strong>Dead Typestate Engine in <code>src/</code></strong>: <code>src/lockfreequeues.nim</code> imports modern <code>lockfree/bqueue</code> and <code>lockfree/queue</code>. The 26 internal typestate files in <code>src/lockfreequeues/typestates/</code> and <code>typestates.nim</code> are never imported by the compatibility facade.</li>
-<li><strong>Dead Tests</strong>: <code>tests/test.nim</code> imports exactly 9 test suites (42 tests, passing in 0.03s). 57 other test files in <code>tests/</code> are completely orphaned.</li>
-<li><strong>README &amp; Docs</strong>: The <code>README.md</code> already contains prominent consolidation warnings and redirects to <code>lockfree</code>. The local documentation site and bench result JSON files are redundant.</li>
+<li><strong>Bounded Zero-SMR Primitives (<code>BQueue</code>, <code>BStack</code>, <code>BPriorityQueue</code>, <code>BTable</code>)</strong>: Preallocate 100% of their storage inside a cache-line-aligned core object at initialization time. Hot-path operations perform <strong>zero heap allocations</strong> and require <strong>zero Safe Memory Reclamation (SMR)</strong> thread registration.</li>
+<li><strong>Dynamic NEBR-Managed Primitives (<code>Queue</code>, <code>TreiberStack</code>, <code>SkipListPriorityQueue</code>, <code>Ctrie</code>, <code>SkipListMap</code>, <code>SkipListSet</code>)</strong>: Scale dynamically on the heap without fixed capacity limits, using <strong>Neutralization-Enhanced Bounded Epoch Reclamation (<code>DebraManager</code> / NEBR)</strong> to reclaim unlinked segments and nodes safely without use-after-free or ABA corruption.</li>
+<li><strong>Specialized Synchronization &amp; Communication Constructs (<code>FlatCombiner</code>, <code>BroadcastRing</code>, <code>TopicBus</code>, <code>RendezvousChannel</code>, <code>Channel</code>, <code>TaskPool</code>, <code>ChaseLevDeque</code>, <code>TokenBucket</code>, <code>LeakyBucket</code>, <code>StreamBuffer</code>, <code>AtomicArc</code>)</strong>: Purpose-built engines for pub-sub multicast, synchronous handoff, flat combining, work-stealing scheduling, traffic shaping, and lock-free shared ownership.</li>
 </ol>
-<hr>
-<h3 id="22-concrete-deletion-inventory-lockfreequeues">2.2 Concrete Deletion Inventory: <code>lockfreequeues</code><a class="headerlink" href="#22-concrete-deletion-inventory-lockfreequeues" title="Permanent link">¶</a></h3>
-<h4 id="a-delete-entire-benchmarks-directory-56-files">A. Delete Entire <code>benchmarks/</code> Directory (56 files)<a class="headerlink" href="#a-delete-entire-benchmarks-directory-56-files" title="Permanent link">¶</a></h4>
-<p>Benchmarking is 100% centralized in <code>lockfree/benchmarks/</code>.
-</p><div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>benchmarks/
-<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>├── README.md
-<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>├── merge_bmf.py
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>├── runner.py
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>├── nim/
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>│   ├── adapter.nim
-<a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│   ├── bench_common.nim
-<a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│   ├── bench_latency.nim
-<a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│   ├── bench_mpmc.nim
-<a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│   ├── bench_mpsc.nim
-<a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│   ├── bench_spsc.nim
-<a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│   ├── bench_unbounded.nim
-<a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│   ├── config.nims
-<a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│   ├── results.nim
-<a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│   ├── stats.nim
-<a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│   ├── adapters/ (18 files: crossbeam, moodycamel, boost, loony, lockfreequeues adapters)
-<a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>│   ├── smoke/ (4 files)
-<a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│   └── tests/ (5 files)
-<a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>├── results/ (3 JSON files: latest.json, nim-test.json, etc.)
-<a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>├── rust/bench-ffi-crossbeam/ (4 files: Cargo.toml, src/lib.rs, etc.)
-<a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>├── scripts/superset_check.py
-<a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>├── tests/ (3 files: test_merge_bmf.py, test_superset_check.py, etc.)
-<a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>└── vendor/concurrentqueue/ (4 files: MoodyCamel vendored C++)
-</code></pre></div>
-<em>Rationale</em>: Centralized in <code>lockfree</code>. Wastes runner time and Bencher quota.<p></p>
-<h4 id="b-delete-entire-stress-tests-directory-11-files">B. Delete Entire <code>stress-tests/</code> Directory (11 files)<a class="headerlink" href="#b-delete-entire-stress-tests-directory-11-files" title="Permanent link">¶</a></h4>
-<p></p><div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>stress-tests/
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>├── stress_test.nim
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>├── t_mupmuc_threaded.nim
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>├── t_mupsic_threaded.nim
-<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>├── t_sipmuc_threaded.nim
-<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>├── t_sipsic_threaded.nim
-<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>├── t_unbounded_mupmuc_threaded.nim
-<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>├── t_unbounded_mupsic_threaded.nim
-<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>├── t_unbounded_sipmuc_threaded.nim
-<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>└── t_unbounded_sipsic_threaded.nim
-</code></pre></div>
-<em>Rationale</em>: Unbounded stress tests commented out; not run in CI; canonical stress suite lives in <code>lockfree/tests/t_stress.nim</code>.<p></p>
-<h4 id="c-delete-dead-engine-code-in-src-27-files">C. Delete Dead Engine Code in <code>src/</code> (27 files)<a class="headerlink" href="#c-delete-dead-engine-code-in-src-27-files" title="Permanent link">¶</a></h4>
-<p></p><div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>src/lockfreequeues/typestates.nim
-<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>src/lockfreequeues/internal/aligned_alloc.nim
-<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>src/lockfreequeues/typestates/
-<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>├── atomic_loaders.nim
-<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>├── cas.nim
-<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>├── fullness_checks.nim
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>├── mpmc_cell.nim
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>├── mpmc_pop.nim
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>├── mpmc_push.nim
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>├── mpsc_pop.nim
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>├── mpsc_push.nim
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>├── slot_seq_n.nim
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>├── spmc_pop.nim
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>├── spmc_push.nim
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>├── spsc_pop.nim
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>├── spsc_push.nim
-<a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a>├── storage_n.nim
-<a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a>├── storage_n1.nim
-<a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a>├── unbounded_mpmc_pop.nim
-<a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>├── unbounded_mpmc_push.nim
-<a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a>├── unbounded_mpsc_pop.nim
-<a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a>├── unbounded_mpsc_push.nim
-<a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a>├── unbounded_spmc_pop.nim
-<a id="__codelineno-2-24" name="__codelineno-2-24" href="#__codelineno-2-24"></a>├── unbounded_spmc_push.nim
-<a id="__codelineno-2-25" name="__codelineno-2-25" href="#__codelineno-2-25"></a>├── unbounded_spsc_pop.nim
-<a id="__codelineno-2-26" name="__codelineno-2-26" href="#__codelineno-2-26"></a>├── unbounded_spsc_push.nim
-<a id="__codelineno-2-27" name="__codelineno-2-27" href="#__codelineno-2-27"></a>├── virtual_values_n.nim
-<a id="__codelineno-2-28" name="__codelineno-2-28" href="#__codelineno-2-28"></a>└── virtual_values_n1.nim
-</code></pre></div>
-<em>Rationale</em>: Dead code. <code>src/lockfreequeues.nim</code> delegates directly to <code>lockfree</code> packages.<p></p>
-<h4 id="d-delete-orphaned-dead-tests-in-tests-57-files">D. Delete Orphaned Dead Tests in <code>tests/</code> (57 files)<a class="headerlink" href="#d-delete-orphaned-dead-tests-in-tests-57-files" title="Permanent link">¶</a></h4>
-<p>Only files imported by <code>tests/test.nim</code> should remain.
-- <strong>Typestate v4 unit tests (19 files)</strong>:
-  <code>t_unbounded_mpmc_pop_typestate.nim</code>, <code>t_unbounded_mpmc_push_typestate.nim</code>, <code>t_unbounded_mpsc_pop_typestate.nim</code>, <code>t_unbounded_mpsc_push_typestate.nim</code>, <code>t_unbounded_spmc_pop_typestate.nim</code>, <code>t_unbounded_spmc_push_typestate.nim</code>, <code>t_unbounded_spsc_pop_typestate.nim</code>, <code>t_unbounded_spsc_push_typestate.nim</code>, <code>t_typestates_import.nim</code>, <code>t_virtual_values_n.nim</code>, <code>t_virtual_values_n1.nim</code>, <code>t_storage_n.nim</code>, <code>t_storage_n1.nim</code>, <code>t_slot_seq_n.nim</code>, <code>t_slot_seq_generation_rollover.nim</code>, <code>t_mpmc_cell.nim</code>, <code>t_cas.nim</code>, <code>t_atomic_loaders.nim</code>, <code>t_fullness_checks.nim</code>.
-- <strong>Benchmark harness test files (5 files)</strong>:
-  <code>t_bench_common.nim</code>, <code>t_bench_latency.nim</code>, <code>t_bench_adapters.nim</code>, <code>t_topology_split.nim</code>, <code>fixtures/pre-split-slugs.json</code>.
-- <strong>Legacy bounded unit tests (8 files)</strong>:
-  <code>t_sipsic.nim</code>, <code>t_mupsic.nim</code>, <code>t_sipmuc.nim</code>, <code>t_mupmuc.nim</code>, <code>t_sipsic_threaded.nim</code>, <code>t_mupsic_threaded.nim</code>, <code>t_sipmuc_threaded.nim</code>, <code>t_mupmuc_threaded.nim</code>.
-- <strong>Legacy unbounded unit tests (12 files)</strong>:
-  <code>t_unbounded_sipsic.nim</code>, <code>t_unbounded_mupsic.nim</code>, <code>t_unbounded_sipmuc.nim</code>, <code>t_unbounded_mupmuc.nim</code>, <code>t_unbounded_sipsic_threaded.nim</code>, <code>t_unbounded_mupsic_threaded.nim</code>, <code>t_unbounded_sipmuc_threaded.nim</code>, <code>t_unbounded_mupmuc_threaded.nim</code>, <code>t_unbounded_auto_create.nim</code>, <code>t_unbounded_padding.nim</code>, <code>t_unbounded_sipsic_lockfree_check.nim</code>, <code>t_unbounded_sipsic_lockfree_types.nim</code>.
-- <strong>Legacy role tags and dead runners (8 files)</strong>:
-  <code>t_sip.nim</code>, <code>t_mup.nim</code>, <code>t_sic.nim</code>, <code>t_muc.nim</code>, <code>t_integration.nim</code>, <code>t_stress.nim</code>, <code>test_bounded.nim</code>, <code>test_minimal.nim</code>.
-- <strong>Internal allocator test (1 file)</strong>:
-  <code>t_aligned_alloc.nim</code> (already tested in <code>lockfree/tests/t_aligned_alloc.nim</code>; remove import from <code>test.nim</code>).</p>
-<h4 id="e-delete-obsolete-ci-workflows-docs-18-files">E. Delete Obsolete CI Workflows &amp; Docs (18 files)<a class="headerlink" href="#e-delete-obsolete-ci-workflows-docs-18-files" title="Permanent link">¶</a></h4>
-<ul>
-<li><strong>Workflows</strong>:</li>
-<li><code>.github/workflows/bench.yml</code> (44KB)</li>
-<li><code>.github/workflows/bench-comparison.yml</code> (8KB)</li>
-<li><strong>Documentation Assets</strong>:</li>
-<li><code>docs/assets/bench-results/</code> (10 JSON files)</li>
-<li><code>docs/assets/bench-charts.css</code></li>
-<li><code>docs/assets/bench-charts.js</code></li>
-<li><code>docs/assets/uplot-1.6.27.iife.min.js</code></li>
-<li><code>docs/assets/uplot-1.6.27.min.css</code></li>
-<li><code>docs/benchmarks.md</code></li>
-<li><code>docs/plans/</code> (2 files)</li>
-</ul>
-<hr>
-<h3 id="23-proposed-target-lean-structure-lockfreequeues">2.3 Proposed Target Lean Structure: <code>lockfreequeues</code><a class="headerlink" href="#23-proposed-target-lean-structure-lockfreequeues" title="Permanent link">¶</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>lockfreequeues/
-<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>├── .github/
-<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>│   └── workflows/
-<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>│       ├── build.yml          # Streamlined matrix testing (test + examples)
-<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>│       └── release.yml        # Nimble release automation
-<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>├── examples/                  # 8 examples demonstrating legacy API
-<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>├── src/
-<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>│   ├── debra.nim              # Compatibility re-export of lockfree/smr/nebr
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>│   ├── lockfreequeues.nim     # Compatibility facade mapping types to BQueue/Queue
-<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>│   └── lockfreequeues/        # 13 thin re-export/alias modules:
-<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>│       ├── atomic_dsl.nim
-<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>│       ├── backoff.nim
-<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>│       ├── endpoint.nim
-<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>│       ├── exceptions.nim
-<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>│       ├── mupmuc.nim
-<a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>│       ├── mupsic.nim
-<a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>│       ├── role_tags.nim
-<a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>│       ├── sipmuc.nim
-<a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>│       ├── sipsic.nim
-<a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>│       ├── unbounded_mupmuc.nim
-<a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>│       ├── unbounded_mupsic.nim
-<a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>│       ├── unbounded_sipmuc.nim
-<a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>│       └── unbounded_sipsic.nim
-<a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>├── tests/
-<a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>│   ├── test.nim               # Master test runner (8 suites)
-<a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>│   ├── t_atomic_dsl.nim
-<a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>│   ├── t_backoff.nim
-<a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>│   ├── t_wraparound.nim
-<a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a>│   ├── t_legacy_sipsic.nim
-<a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a>│   ├── t_legacy_mupsic.nim
-<a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a>│   ├── t_legacy_sipmuc.nim
-<a id="__codelineno-3-32" name="__codelineno-3-32" href="#__codelineno-3-32"></a>│   ├── t_legacy_mupmuc.nim
-<a id="__codelineno-3-33" name="__codelineno-3-33" href="#__codelineno-3-33"></a>│   └── t_legacy_unbounded.nim
-<a id="__codelineno-3-34" name="__codelineno-3-34" href="#__codelineno-3-34"></a>├── CHANGELOG.md
-<a id="__codelineno-3-35" name="__codelineno-3-35" href="#__codelineno-3-35"></a>├── LICENSE
-<a id="__codelineno-3-36" name="__codelineno-3-36" href="#__codelineno-3-36"></a>├── README.md                  # Prominent consolidation notice &amp; migration links
-<a id="__codelineno-3-37" name="__codelineno-3-37" href="#__codelineno-3-37"></a>└── lockfreequeues.nimble      # Cleaned tasks &amp; dependencies
-</code></pre></div>
-<h4 id="nimble-ci-adjustments-for-lockfreequeues">Nimble &amp; CI Adjustments for <code>lockfreequeues</code>:<a class="headerlink" href="#nimble-ci-adjustments-for-lockfreequeues" title="Permanent link">¶</a></h4>
-<ol>
-<li><strong><code>lockfreequeues.nimble</code></strong>:</li>
-<li>Remove <code>requires "typestates &gt;= 0.13.0"</code> (transitive dependency of <code>lockfree</code>).</li>
-<li>Remove tasks: <code>benchmarks</code>, <code>benchtests</code>, <code>benchteststress</code>, <code>stresstests</code>.</li>
-<li>Keep tasks: <code>test</code>, <code>examples</code>.</li>
-<li><strong><code>.github/workflows/build.yml</code></strong>:</li>
-<li>Remove <code>lint</code> step running <code>typestates verify src/</code> (no typestates remain in <code>src/</code>).</li>
-</ol>
-<hr>
-<h2 id="3-repository-2-nim-debra">3. Repository 2: <code>nim-debra</code><a class="headerlink" href="#3-repository-2-nim-debra" title="Permanent link">¶</a></h2>
-<h3 id="31-findings-overview">3.1 Findings Overview<a class="headerlink" href="#31-findings-overview" title="Permanent link">¶</a></h3>
-<ol>
-<li><strong><code>src/</code> is Already Lean</strong>: All 22 files in <code>src/</code> were already converted to 4-line facades re-exporting <code>lockfree/smr/nebr/*</code>.</li>
-<li><strong>Duplicate Documentation</strong>: The entire <code>docs/</code> hierarchy (30+ markdown files and architecture SVGs) has been 100% archived into <code>lockfree/docs/legacy/nim-debra/</code>. Maintaining MkDocs builds in <code>nim-debra</code> is redundant.</li>
-<li><strong>Orphaned Benchmark &amp; Probes</strong>:</li>
-<li><code>tests/bench/dwcas_weak_spurious.nim</code> is unreferenced.</li>
-<li><code>tests/probes/</code> (standalone C probe and expected outputs) is duplicated in <code>lockfree/tests/smr/debra-legacy/probes/</code>.</li>
-<li><code>tests/audit_dwcas_pair_arc.sh</code> is duplicated in <code>lockfree/tests/smr/debra-legacy/audit_dwcas_pair_arc.sh</code>.</li>
-<li><strong>Test Suite</strong>: <code>tests/test.nim</code> imports 34 suites running 329 tests against the <code>debra</code> facade. All 329 pass cleanly in 0.04s. These should be preserved as regression guards.</li>
-</ol>
-<hr>
-<h3 id="32-concrete-deletion-inventory-nim-debra">3.2 Concrete Deletion Inventory: <code>nim-debra</code><a class="headerlink" href="#32-concrete-deletion-inventory-nim-debra" title="Permanent link">¶</a></h3>
-<h4 id="a-delete-redundant-documentation-mkdocs-33-files">A. Delete Redundant Documentation &amp; MkDocs (33 files)<a class="headerlink" href="#a-delete-redundant-documentation-mkdocs-33-files" title="Permanent link">¶</a></h4>
-<p>Archived in <code>lockfree/docs/legacy/nim-debra/</code>.
-</p><div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>docs/
-<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>├── api.md
-<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>├── contributing.md
-<a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>├── index.md
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a>├── safety-model.md
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>├── MIGRATION_v0.8.0.md
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a>├── css/custom.css
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a>├── overrides/.gitkeep
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a>├── design/ (2 files)
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>├── guide/ (10 files)
-<a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a>├── reviews/review_nim_debra.md
-<a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>└── assets/diagrams/ (11 SVG diagrams)
-<a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>mkdocs.yml
-<a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a>docs-requirements.txt
-<a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a>.github/workflows/docs.yml
-</code></pre></div>
-<em>Rationale</em>: Centralized in <code>lockfree</code>. <code>README.md</code> links directly to canonical docs.<p></p>
-<h4 id="b-delete-orphaned-benchmark-standalone-probes-10-files">B. Delete Orphaned Benchmark &amp; Standalone Probes (10 files)<a class="headerlink" href="#b-delete-orphaned-benchmark-standalone-probes-10-files" title="Permanent link">¶</a></h4>
-<p></p><div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>tests/bench/dwcas_weak_spurious.nim
-<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>tests/audit_dwcas_pair_arc.sh
-<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>tests/probes/
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>├── README.md
-<a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a>├── dwcas_macro_probe.c
-<a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>├── dwcas_macro_probe.expected.macos-15
-<a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>├── dwcas_macro_probe.expected.ubuntu-24.04-arm
-<a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a>├── dwcas_macro_probe.expected.ubuntu-24.04.clang
-<a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>├── dwcas_macro_probe.expected.ubuntu-24.04.gcc
-<a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a>└── dwcas_objdump_fixture.nim
-</code></pre></div>
-<em>Rationale</em>: Hardware DWCAS instruction verification belongs to <code>lockfree</code> where assembly routines live.<p></p>
-<hr>
-<h3 id="33-proposed-target-lean-structure-nim-debra">3.3 Proposed Target Lean Structure: <code>nim-debra</code><a class="headerlink" href="#33-proposed-target-lean-structure-nim-debra" title="Permanent link">¶</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>nim-debra/
-<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>├── .github/
-<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>│   └── workflows/
-<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>│       ├── ci.yml             # Matrix test runner for facade validation
-<a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a>│       └── release.yml        # Nimble release automation
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>├── examples/                  # 13 examples demonstrating legacy debra API
-<a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a>├── src/
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a>│   ├── debra.nim              # Core facade re-exporting lockfree/smr/nebr
-<a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>│   └── debra/                 # 21 facade shims (atomics, typestates, etc.)
-<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a>├── tests/
-<a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>│   ├── test.nim               # Master test runner (34 suites, 329 tests)
-<a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a>│   ├── t_*.nim                # 28 facade test files
-<a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>│   ├── test_dwcas_*.nim       # 6 DWCAS facade tests
-<a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a>│   ├── compile_only/          # Compile-time negative checks
-<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a>│   └── should_fail/           # PinnedScope compile-fail negative controls
-<a id="__codelineno-6-16" name="__codelineno-6-16" href="#__codelineno-6-16"></a>├── CHANGELOG.md
-<a id="__codelineno-6-17" name="__codelineno-6-17" href="#__codelineno-6-17"></a>├── LICENSE
-<a id="__codelineno-6-18" name="__codelineno-6-18" href="#__codelineno-6-18"></a>├── README.md                  # Prominent consolidation notice &amp; migration links
-<a id="__codelineno-6-19" name="__codelineno-6-19" href="#__codelineno-6-19"></a>└── debra.nimble               # Cleaned dependencies &amp; tasks
-</code></pre></div>
-<h4 id="nimble-ci-adjustments-for-nim-debra">Nimble &amp; CI Adjustments for <code>nim-debra</code>:<a class="headerlink" href="#nimble-ci-adjustments-for-nim-debra" title="Permanent link">¶</a></h4>
-<ol>
-<li><strong><code>debra.nimble</code></strong>:</li>
-<li>Remove <code>requires "typestates &gt;= 0.13.0"</code> (transitive dependency via <code>lockfree</code>).</li>
-<li>Keep tasks: <code>test</code>, <code>testExamples</code>.</li>
-<li><strong><code>.github/workflows/ci.yml</code></strong>:</li>
-<li>Remove <code>typestates verify src/</code> from <code>lint</code> job.</li>
-<li>Remove <code>dwcas_macro_probe.c</code> compilation and diff step.</li>
-</ol>
-<hr>
-<h2 id="4-impact-assessment">4. Impact Assessment<a class="headerlink" href="#4-impact-assessment" title="Permanent link">¶</a></h2>
+<h3 id="complete-primitive-comparison-table">Complete Primitive Comparison Table<a class="headerlink" href="#complete-primitive-comparison-table" title="Permanent link">¶</a></h3>
 <table>
 <thead>
 <tr>
-<th style="text-align: left;">Metric</th>
-<th style="text-align: left;">Current State</th>
-<th style="text-align: left;">Post Slash-and-Burn</th>
-<th style="text-align: left;">Benefit</th>
+<th style="text-align: left;">Primitive</th>
+<th style="text-align: left;">Module</th>
+<th style="text-align: left;">Topologies</th>
+<th style="text-align: left;">Capacity</th>
+<th style="text-align: left;">Steady-State Heap Alloc</th>
+<th style="text-align: left;">Memory Reclamation</th>
+<th style="text-align: left;">Progress Guarantee</th>
+<th style="text-align: left;">Hardware Atomics</th>
 </tr>
 </thead>
 <tbody>
 <tr>
-<td style="text-align: left;"><strong><code>lockfreequeues</code> File Count</strong></td>
-<td style="text-align: left;">~180 files</td>
-<td style="text-align: left;">~26 files</td>
-<td style="text-align: left;">-85% reduction in repository footprint</td>
+<td style="text-align: left;"><strong><code>BQueue</code></strong></td>
+<td style="text-align: left;"><code>lockfree/bqueue</code></td>
+<td style="text-align: left;">SPSC, MPSC, SPMC, MPMC</td>
+<td style="text-align: left;">Compile-time <code>N</code> (or runtime tier)</td>
+<td style="text-align: left;"><strong>Zero</strong></td>
+<td style="text-align: left;">None (Preallocated ring)</td>
+<td style="text-align: left;">Wait-free (SPSC) / Lock-free (MPMC)</td>
+<td style="text-align: left;">64-bit CAS &amp; FAA</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong><code>lockfreequeues</code> CI Time</strong></td>
-<td style="text-align: left;">~45 min (bench + build)</td>
-<td style="text-align: left;">&lt; 3 min</td>
-<td style="text-align: left;">Eliminates Bencher quota burn &amp; Rust toolchains</td>
+<td style="text-align: left;"><strong><code>BStack</code></strong></td>
+<td style="text-align: left;"><code>lockfree/bstack</code></td>
+<td style="text-align: left;">SPSC, MPSC, SPMC, MPMC</td>
+<td style="text-align: left;">Compile-time <code>Cap</code></td>
+<td style="text-align: left;"><strong>Zero</strong></td>
+<td style="text-align: left;">None (Tagged index pool)</td>
+<td style="text-align: left;">Lock-free (Elimination-backed)</td>
+<td style="text-align: left;">64-bit CAS &amp; FAA</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong><code>lockfreequeues</code> Test Run</strong></td>
-<td style="text-align: left;">42 tests</td>
-<td style="text-align: left;">42 tests</td>
-<td style="text-align: left;">100% legacy coverage maintained, 0 dead files</td>
+<td style="text-align: left;"><strong><code>BPriorityQueue</code></strong></td>
+<td style="text-align: left;"><code>lockfree/bpriority_queue</code></td>
+<td style="text-align: left;">SPSC, MPSC, SPMC, MPMC</td>
+<td style="text-align: left;">Compile-time <code>Cap</code></td>
+<td style="text-align: left;"><strong>Zero</strong></td>
+<td style="text-align: left;">None (Contiguous min-heap)</td>
+<td style="text-align: left;">Flat-combined lock-handed</td>
+<td style="text-align: left;">64-bit CAS &amp; FAA</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong><code>nim-debra</code> File Count</strong></td>
-<td style="text-align: left;">~110 files</td>
-<td style="text-align: left;">~67 files</td>
-<td style="text-align: left;">-39% reduction in repository footprint</td>
+<td style="text-align: left;"><strong><code>BTable</code></strong></td>
+<td style="text-align: left;"><code>lockfree/btable</code></td>
+<td style="text-align: left;">SPSC, MPSC, SPMC, MPMC</td>
+<td style="text-align: left;">Compile-time <code>Cap</code> (<code>2 * nextPow2(Cap)</code> slots)</td>
+<td style="text-align: left;"><strong>Zero</strong></td>
+<td style="text-align: left;">None (Open-addressing + seq)</td>
+<td style="text-align: left;">Wait-free (<code>len</code>/<code>isEmpty</code>/<code>isFull</code>) / Flat-combined (<code>tryGet</code>/<code>tryPut</code>/<code>remove</code>)</td>
+<td style="text-align: left;">64-bit CAS &amp; SeqCounters</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong><code>nim-debra</code> CI Workflows</strong></td>
-<td style="text-align: left;">4 workflows (ci, docs, momus, release)</td>
-<td style="text-align: left;">2 workflows (ci, release)</td>
-<td style="text-align: left;">Eliminates duplicate docs builds and C probes</td>
+<td style="text-align: left;"><strong><code>Queue</code> (SPSC)</strong></td>
+<td style="text-align: left;"><code>lockfree/queue</code></td>
+<td style="text-align: left;">SPSC</td>
+<td style="text-align: left;">Unbounded (<code>S</code>-slot segments)</td>
+<td style="text-align: left;">On segment boundary</td>
+<td style="text-align: left;">Inline segment recycling</td>
+<td style="text-align: left;">Wait-free fast path</td>
+<td style="text-align: left;">64-bit load/store</td>
 </tr>
 <tr>
-<td style="text-align: left;"><strong>Downstream CI Safety Net</strong></td>
-<td style="text-align: left;"><code>lockfree/downstream-compat.yml</code></td>
-<td style="text-align: left;">Identical</td>
-<td style="text-align: left;">Zero impact; tests pass cleanly and much faster</td>
+<td style="text-align: left;"><strong><code>Queue</code> (MPSC/SPMC)</strong></td>
+<td style="text-align: left;"><code>lockfree/queue</code></td>
+<td style="text-align: left;">MPSC, SPMC</td>
+<td style="text-align: left;">Unbounded (<code>S</code>-slot segments)</td>
+<td style="text-align: left;">On segment boundary</td>
+<td style="text-align: left;">NEBR Epoch SMR</td>
+<td style="text-align: left;">Lock-free / Wait-free single side</td>
+<td style="text-align: left;">64-bit CAS &amp; FAA</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>Queue</code> (MPMC)</strong></td>
+<td style="text-align: left;"><code>lockfree/queue</code></td>
+<td style="text-align: left;">MPMC</td>
+<td style="text-align: left;">Unbounded (<code>S</code>-slot LCRQ rings)</td>
+<td style="text-align: left;">On ring exhaustion</td>
+<td style="text-align: left;">NEBR Epoch SMR</td>
+<td style="text-align: left;">Lock-free (Morrison-Afek LCRQ)</td>
+<td style="text-align: left;"><strong>128-bit DWCAS</strong> + 64-bit FAA</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>TreiberStack</code></strong></td>
+<td style="text-align: left;"><code>lockfree/stack</code></td>
+<td style="text-align: left;">MPMC</td>
+<td style="text-align: left;">Unbounded</td>
+<td style="text-align: left;">Per <code>push</code> node</td>
+<td style="text-align: left;">NEBR Epoch SMR + 3-state claim</td>
+<td style="text-align: left;">Lock-free (Elimination-backed)</td>
+<td style="text-align: left;"><strong>128-bit DWCAS</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>SkipListPriorityQueue</code></strong></td>
+<td style="text-align: left;"><code>lockfree/priority_queue</code></td>
+<td style="text-align: left;">MPMC</td>
+<td style="text-align: left;">Unbounded (<code>MaxLevel</code>)</td>
+<td style="text-align: left;">Per <code>push</code> node</td>
+<td style="text-align: left;">NEBR Epoch SMR</td>
+<td style="text-align: left;">Lock-free (Lindén-Jonsson)</td>
+<td style="text-align: left;">64-bit CAS &amp; FAA</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>Ctrie</code></strong></td>
+<td style="text-align: left;"><code>lockfree/ctrie</code></td>
+<td style="text-align: left;">MPMC</td>
+<td style="text-align: left;">Unbounded</td>
+<td style="text-align: left;">Per <code>INode</code>/<code>CNode</code>/<code>SNode</code></td>
+<td style="text-align: left;">NEBR Epoch SMR</td>
+<td style="text-align: left;">Lock-free + <strong>$O(1)$ Wait-Free Snapshot</strong></td>
+<td style="text-align: left;">64-bit CAS</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>SkipListMap</code> / <code>Set</code></strong></td>
+<td style="text-align: left;"><code>lockfree/skiplist</code>, <code>set</code></td>
+<td style="text-align: left;">MPMC</td>
+<td style="text-align: left;">Unbounded (<code>MaxLevel</code>)</td>
+<td style="text-align: left;">Per tower node</td>
+<td style="text-align: left;">NEBR Epoch SMR</td>
+<td style="text-align: left;">Wait-free lookup / Lock-free mutation</td>
+<td style="text-align: left;">64-bit CAS</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>ChaseLevDeque</code></strong></td>
+<td style="text-align: left;"><code>lockfree/deque</code></td>
+<td style="text-align: left;">Single Owner + Multi-Thief</td>
+<td style="text-align: left;">Dynamic circular array</td>
+<td style="text-align: left;">On power-of-2 resize</td>
+<td style="text-align: left;">Retired buffer chain</td>
+<td style="text-align: left;">Lock-free (<code>pushBottom</code>/<code>popBottom</code>/<code>steal</code>)</td>
+<td style="text-align: left;">64-bit CAS &amp; fences</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>FlatCombiner</code></strong></td>
+<td style="text-align: left;"><code>lockfree/flat_combiner</code></td>
+<td style="text-align: left;">MPMC</td>
+<td style="text-align: left;">Dynamic state <code>T</code> + publication list</td>
+<td style="text-align: left;">Once per thread TLS slot</td>
+<td style="text-align: left;">Pruned publication list</td>
+<td style="text-align: left;">Lock-handed batch combining</td>
+<td style="text-align: left;">64-bit CAS</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>BroadcastRing</code> / <code>TopicBus</code></strong></td>
+<td style="text-align: left;"><code>lockfree/broadcast</code></td>
+<td style="text-align: left;">SPMC, MPMC</td>
+<td style="text-align: left;">Power-of-2 ring</td>
+<td style="text-align: left;"><strong>Zero</strong> in steady state</td>
+<td style="text-align: left;">Sequence-gated overwrite</td>
+<td style="text-align: left;">Lock-free (<code>omDropOldest</code> / <code>omBackpressure</code>)</td>
+<td style="text-align: left;">64-bit CAS &amp; FAA</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>RendezvousChannel</code></strong></td>
+<td style="text-align: left;"><code>lockfree/rendezvous</code></td>
+<td style="text-align: left;">MPMC</td>
+<td style="text-align: left;"><code>0</code> (Synchronous handoff)</td>
+<td style="text-align: left;"><strong>Zero</strong> via TLS node reuse</td>
+<td style="text-align: left;">Intrusive refCount + epoch</td>
+<td style="text-align: left;">Lock-free dual-queue + futex wake</td>
+<td style="text-align: left;">64-bit CAS + OS Futex</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>Channel</code></strong></td>
+<td style="text-align: left;"><code>lockfree/channel</code></td>
+<td style="text-align: left;">MPMC</td>
+<td style="text-align: left;">Bounded (<code>64</code>/<code>1024</code>/<code>65536</code>) or Unbounded</td>
+<td style="text-align: left;">Zero (Bounded) / Segment (Unbounded)</td>
+<td style="text-align: left;">Automatic TLS NEBR handle</td>
+<td style="text-align: left;">Lock-free</td>
+<td style="text-align: left;">64-bit / 128-bit DWCAS</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>TokenBucket</code> / <code>LeakyBucket</code></strong></td>
+<td style="text-align: left;"><code>lockfree/ratelimit</code></td>
+<td style="text-align: left;">MPMC</td>
+<td style="text-align: left;">Configurable burst</td>
+<td style="text-align: left;"><strong>Zero</strong></td>
+<td style="text-align: left;">None (16-byte state)</td>
+<td style="text-align: left;">Lock-free</td>
+<td style="text-align: left;"><strong>128-bit DWCAS</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>StreamBuffer</code></strong></td>
+<td style="text-align: left;"><code>lockfree/streambuffer</code></td>
+<td style="text-align: left;">SPSC, MPSC, SPMC, MPMC</td>
+<td style="text-align: left;">Power-of-2 byte ring</td>
+<td style="text-align: left;"><strong>Zero</strong></td>
+<td style="text-align: left;">None (Preallocated ring)</td>
+<td style="text-align: left;">Wait-free (SPSC) / Lock-free (MPMC)</td>
+<td style="text-align: left;">64-bit CAS &amp; FAA</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>TaskPool</code></strong></td>
+<td style="text-align: left;"><code>lockfree/taskpool</code></td>
+<td style="text-align: left;">MPMC submit + Work-stealing</td>
+<td style="text-align: left;">Configurable worker count</td>
+<td style="text-align: left;">Per task arena/future</td>
+<td style="text-align: left;">Worker deque + injector</td>
+<td style="text-align: left;">Lock-free work-stealing</td>
+<td style="text-align: left;">64-bit CAS + <strong>128-bit DWCAS</strong></td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong><code>AtomicArc</code></strong></td>
+<td style="text-align: left;"><code>lockfree/atomic_arc</code></td>
+<td style="text-align: left;">MPMC</td>
+<td style="text-align: left;">Single shared payload <code>T</code></td>
+<td style="text-align: left;">Once at construction</td>
+<td style="text-align: left;">Intrusive atomic refcount</td>
+<td style="text-align: left;">Wait-free clone/drop (<code>fetchAdd</code>/<code>fetchSub</code>)</td>
+<td style="text-align: left;">64-bit FAA &amp; CAS</td>
 </tr>
 </tbody>
 </table>
 <hr>
-<h2 id="5-recommended-execution-order">5. Recommended Execution Order<a class="headerlink" href="#5-recommended-execution-order" title="Permanent link">¶</a></h2>
+<h2 id="2-decision-flowchart-choosing-the-right-primitive">2. Decision Flowchart: Choosing the Right Primitive<a class="headerlink" href="#2-decision-flowchart-choosing-the-right-primitive" title="Permanent link">¶</a></h2>
+<pre class="mermaid"><code>flowchart TD
+    Start["Select Concurrency Primitive"] --&gt; Kind{"Workload Pattern?"}
+    Kind --&gt;|FIFO Queue| QCap{"Known Upper Bound?"}
+    QCap --&gt;|Yes: Zero-Alloc / Real-Time| BQueue["BQueue[T, ccProd, ccCons, N]"]
+    QCap --&gt;|No: Dynamic Bursts| UQueue["Queue[T, ccProd, ccCons] (LCRQ + NEBR)"]
+
+    Kind --&gt;|LIFO Stack| SCap{"Known Upper Bound?"}
+    SCap --&gt;|Yes: Zero-Alloc / Zero-SMR| BStack["BStack[T, Cap, ccProd, ccCons]"]
+    SCap --&gt;|No: Unbounded Depth| TStack["TreiberStack[T] (DWCAS + NEBR)"]
+
+    Kind --&gt;|Priority Queue| PQCap{"Known Upper Bound?"}
+    PQCap --&gt;|Yes: Preallocated Binary Heap| BPQ["BPriorityQueue[T, Cap, ccProd, ccCons]"]
+    PQCap --&gt;|No: Unbounded Skiplist| SLPQ["SkipListPriorityQueue[T] (Lindén-Jonsson + NEBR)"]
+
+    Kind --&gt;|Key-Value Map / Set| MapKind{"Ordering or Bounded?"}
+    MapKind --&gt;|Bounded Zero-Alloc| BTable["BTable[K, V, Cap, ccProd, ccCons]"]
+    MapKind --&gt;|Unbounded + O(1) Snapshot| Ctrie["Ctrie[K, V] (HAMT + NEBR)"]
+    MapKind --&gt;|Unbounded + Sorted Keys| SkipList["SkipListMap[K, V] / SkipListSet[T]"]
+
+    Kind --&gt;|Pub-Sub / Handoff / Sequential State| SpecKind{"Communication Mode?"}
+    SpecKind --&gt;|0-Buffer Sync Handoff| Rendezvous["RendezvousChannel[T]"]
+    SpecKind --&gt;|Multi-Reader Fan-Out| Broadcast["BroadcastRing[T] / TopicBus[T]"]
+    SpecKind --&gt;|Custom Sequential State| FC["FlatCombiner[T, Op, Res]"]</code></pre>
+<hr>
+<h2 id="3-deep-dive-bounded-zero-smr-primitives">3. Deep-Dive: Bounded Zero-SMR Primitives<a class="headerlink" href="#3-deep-dive-bounded-zero-smr-primitives" title="Permanent link">¶</a></h2>
+<p>The bounded zero-SMR family (<code>BQueue</code>, <code>BStack</code>, <code>BPriorityQueue</code>, <code>BTable</code>) is engineered for real-time pipelines, embedded services, high-frequency trading/telemetry loops, and <code>--threads:off</code> single-threaded or interrupt-driven contexts where dynamic heap allocation and epoch reclamation are undesirable.</p>
+<h3 id="31-common-design-invariants">3.1 Common Design Invariants<a class="headerlink" href="#31-common-design-invariants" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Single Contiguous Allocation at Init</strong>: Every bounded primitive allocates a single 64/128-byte-aligned <code>*Core</code> struct via <code>allocAligned</code> during <code>init*</code> / <code>new*</code>. All data slots, sequence numbers, elimination slots, and combiner publication slots reside inline inside that core struct.</li>
+<li><strong>Zero Hot-Path Heap Traffic</strong>: Steady-state operations (<code>tryPush</code>, <code>tryPop</code>, <code>tryPopMin</code>, <code>tryPut</code>, <code>tryGet</code>, <code>remove</code>) perform zero <code>alloc</code>/<code>dealloc</code> calls.</li>
+<li><strong>Deterministic ARC/ORC Cleanup</strong>: Whenever an element is popped, removed, or cleared from a preallocated slot, the implementation moves the value out and immediately invokes <code>reset(slot.data)</code> before returning the slot to the available pool. This guarantees that managed Nim payloads (<code>string</code>, <code>seq[T]</code>, <code>ref T</code>, or custom destructors) release their resources immediately rather than lingering in inactive array slots.</li>
+<li><strong>Uniform Cardinality Parameterization</strong>: All four primitives accept <code>ccProd: static PinScopeCardinality</code> and <code>ccCons: static PinScopeCardinality</code> (<code>ccSingle</code> or <code>ccMulti</code>) and provide ergonomic topology aliases (<code>Spsc*</code>, <code>Mpsc*</code>, <code>Spmc*</code>, <code>Mpmc*</code>).</li>
+</ul>
+<h3 id="32-bqueuet-ccprod-cccons-n-p-c-lockfreebqueue">3.2 <code>BQueue[T, ccProd, ccCons, N, P, C]</code> (<code>lockfree/bqueue</code>)<a class="headerlink" href="#32-bqueuet-ccprod-cccons-n-p-c-lockfreebqueue" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Algorithm</strong>: Dmitry Vyukov's bounded MPMC ring buffer with per-slot atomic sequence counters (<code>seq: Atomic[uint]</code>), paired with a wait-free Lamport circular ring specialization when <code>ccProd == ccSingle and ccCons == ccSingle</code>.</li>
+<li><strong>Contention Mitigation</strong>: Producer <code>tail</code> and consumer <code>head</code> cursors are isolated on separate cache lines (<code>CacheLineBytes</code>). Each slot's sequence counter acts as an individual turnstile, preventing head/tail cache-line ping-pong during slot commits.</li>
+</ul>
+<h3 id="33-bstackt-cap-ccprod-cccons-lockfreebstack">3.3 <code>BStack[T, Cap, ccProd, ccCons]</code> (<code>lockfree/bstack</code>)<a class="headerlink" href="#33-bstackt-cap-ccprod-cccons-lockfreebstack" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Algorithm</strong>: Preallocated <code>array[Cap, BStackSlot[T]]</code> managed by two 64-bit tagged index stacks (<code>top: Atomic[uint64]</code> and <code>freeHead: Atomic[uint64]</code>), augmented with an 8-slot cache-line-aligned <strong>Elimination-Backoff Array</strong> (<code>BStackElimSlot[T]</code>).</li>
+<li><strong>64-Bit Tagged Index Encoding</strong>: Both <code>top</code> and <code>freeHead</code> pack <code>[32-bit monotonic ABA tag | 32-bit slot index]</code> into a single <code>uint64</code>. Every CAS on <code>top</code> or <code>freeHead</code> increments the 32-bit tag, preventing ABA slot-recycling races using standard 64-bit hardware CAS without requiring 128-bit DWCAS or NEBR epoch tracking.</li>
+<li><strong>Per-Slot Claim Synchronization (<code>slotLock</code> + <code>inTop</code>)</strong>: Each <code>BStackSlot[T]</code> includes an atomic <code>next: Atomic[int32]</code>, <code>inTop: Atomic[bool]</code>, and a lightweight per-slot spinlock <code>slotLock: Atomic[uint32]</code>. All reads (<code>peek</code>) and mutations (<code>tryPush</code>, <code>tryUnlinkTop</code>, <code>drainInto</code>, <code>clear</code>) of <code>slots[idx].data</code> acquire <code>slotLock</code>, guaranteeing zero data races between concurrent <code>peek()</code> and <code>tryPop()</code> -&gt; <code>releaseFreeSlot()</code> -&gt; <code>tryPush()</code> reuse under ThreadSanitizer.</li>
+<li><strong>Elimination Backoff</strong>: Under <code>ccProd == ccMulti and ccCons == ccMulti</code>, when a <code>tryLinkTop</code> CAS fails due to contention on <code>top</code>, the pusher offers its payload in a randomly chosen cache-line-isolated elimination slot (<code>BStackEliminationCapacity = 8</code>). Concurrent poppers probe the elimination array when <code>tryUnlinkTop</code> misses, exchanging values in $O(1)$ without touching <code>top</code>.</li>
+</ul>
+<h3 id="34-bpriorityqueuet-cap-ccprod-cccons-lockfreebpriority_queue">3.4 <code>BPriorityQueue[T, Cap, ccProd, ccCons]</code> (<code>lockfree/bpriority_queue</code>)<a class="headerlink" href="#34-bpriorityqueuet-cap-ccprod-cccons-lockfreebpriority_queue" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Algorithm</strong>: Preallocated binary min-heap (<code>heap: array[Cap, BHeapEntry[T]]</code>) paired with a preallocated 64-slot flat-combining publication array (<code>pubSlots: array[64, BPQPubSlot[T]]</code>, 128-byte aligned).</li>
+<li><strong>Strict FIFO Tie-Breaking</strong>: Every inserted item is stamped with a monotonically increasing 64-bit <code>seqId</code> (<code>BHeapEntry[T] = object(key: T, seqId: uint64)</code>). The heap ordering predicate <code>heapEntryLess(a, b)</code> orders first by <code>a.key &lt; b.key</code> and breaks ties via <code>a.seqId &lt; b.seqId</code>, guaranteeing deterministic FIFO ordering for items with identical priority.</li>
+<li><strong>Flat-Combined Contention Scaling</strong>: Under single-thread access (<code>SPSC</code> or uncontended <code>MPMC</code>), threads acquire <code>combinerLock</code> directly and execute binary heap <code>siftUp</code>/<code>siftDown</code> in-place. Under multi-thread contention, waiting threads publish their <code>bpqOpPush</code>, <code>bpqOpPopMin</code>, or <code>bpqOpPeekMin</code> request into their thread-owned <code>BPQPubSlot</code> and spin locally on their 128-byte-aligned <code>status</code> word while the active combiner sweeps up to <code>BPQMaxCombineRounds = 8</code> batches with warm L1 cache residency.</li>
+</ul>
+<h3 id="35-btablek-v-cap-ccprod-cccons-lockfreebtable">3.5 <code>BTable[K, V, Cap, ccProd, ccCons]</code> (<code>lockfree/btable</code>)<a class="headerlink" href="#35-btablek-v-cap-ccprod-cccons-lockfreebtable" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Algorithm</strong>: Preallocated concurrent open-addressing hash table with <code>ProbeSlots = 2 * nextPowerOfTwo(Cap)</code> probe slots (enforcing a maximum load factor $\le 0.5$), per-slot sequence counters (<code>seq: Atomic[uint64]</code>), and a preallocated 64-slot flat-combining publication array.</li>
+<li><strong>Tombstone-Aware Bounded Linear Probing</strong>:</li>
+<li>Each slot transitions among <code>BTableSlotEmpty</code> (<code>0</code>), <code>BTableSlotOccupied</code> (<code>1</code>), and <code>BTableSlotTombstone</code> (<code>2</code>).</li>
+<li>During insertion (<code>directTryPut</code>), the prober records the first encountered tombstone index (<code>firstTombstone</code>), but <strong>never stops early at a tombstone</strong>: it continues scanning up to <code>ProbeSlots</code> steps until it either locates an existing occupied slot with matching <code>hashVal</code> and <code>key</code> (updating it in-place) or reaches <code>BTableSlotEmpty</code> (or exhausts <code>ProbeSlots</code> steps). Only after confirming the key is absent does it reuse <code>firstTombstone</code> (if $\ge 0$) or the terminal <code>BTableSlotEmpty</code> slot.</li>
+<li>This guarantees two critical invariants: (1) updating an existing key positioned behind an earlier tombstone never creates duplicate keys, and (2) table churn (repeated insert/remove cycles at capacity <code>Cap</code> where every slot becomes <code>Occupied</code> or <code>Tombstone</code>) terminates deterministically in at most <code>ProbeSlots</code> steps and reclaims tombstones without false overflow.</li>
+<li><strong>Flat-Combined Operations &amp; Wait-Free Metadata (<code>tryGet</code> / <code>contains</code> / <code>len</code> / <code>isEmpty</code>)</strong>: <code>tryGet</code>, <code>contains</code>, <code>tryPut</code>, <code>remove</code>, and atomic RMW callbacks route through <code>submitBTableOp</code>—taking the direct combiner fast path when uncontended or delegating via a thread-local 128-byte-aligned <code>BTablePubSlot</code> under contention—while maintaining per-slot sequence counters (<code>slot.seq: Atomic[uint64]</code>) and wait-free atomic metadata queries (<code>len</code>, <code>isEmpty</code>, <code>isFull</code>).</li>
+</ul>
+<hr>
+<h2 id="4-deep-dive-dynamic-nebr-smr-primitives">4. Deep-Dive: Dynamic NEBR SMR Primitives<a class="headerlink" href="#4-deep-dive-dynamic-nebr-smr-primitives" title="Permanent link">¶</a></h2>
+<p>Unbounded and dynamically resized structures cannot recycle heap nodes immediately upon unlinking because concurrent readers may still hold raw pointers loaded prior to the unlink CAS. <code>lockfree</code> solves this uniformly via <strong>NEBR (<code>lockfree/smr/nebr</code>)</strong>.</p>
+<h3 id="41-neutralization-enhanced-bounded-epoch-reclamation-nebr">4.1 Neutralization-Enhanced Bounded Epoch Reclamation (NEBR)<a class="headerlink" href="#41-neutralization-enhanced-bounded-epoch-reclamation-nebr" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>3-Epoch Limbo Bags</strong>: Threads enter a critical section by pinning the global epoch (<code>pin()</code> / <code>enterQuiescent()</code>), which records the current global epoch in the thread's cache-line-isolated <code>ThreadState</code> slot. Unlinked nodes are retired to the thread's current epoch limbo bag (<code>retire(ptr, destructor)</code>). Once all active threads have observed at least two epoch advances, nodes from epoch $E - 2$ are guaranteed unreachable and freed in batch.</li>
+<li><strong>Signal-Assisted Neutralization (<code>SIGUSR1</code>)</strong>: Classic Epoch-Based Reclamation can suffer unbounded memory growth if an OS-preempted thread stalls inside a pinned read section. NEBR installs a POSIX <code>SIGUSR1</code> handler (<code>lockfree/smr/nebr/signal.nim</code>) that checks whether a signaled thread is blocked inside an interruptible read section and, if so, unwinds it to a safe recovery point via <code>siglongjmp</code>, allowing global epoch advancement and bounding worst-case limbo memory.</li>
+</ul>
+<h3 id="42-unbounded-queue-lockfreequeue">4.2 Unbounded <code>Queue</code> (<code>lockfree/queue</code>)<a class="headerlink" href="#42-unbounded-queue-lockfreequeue" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>MPMC (Morrison-Afek Strict-LCRQ)</strong>: Chains fixed-size ring segments (<code>LCRQSegment</code>), where each cell is a 16-byte aligned <code>Pair[uint, T]</code> updated via hardware <strong>128-bit DWCAS</strong>. Producers and consumers advance ticket indices via <code>fetchAdd(1)</code> rather than contending on a single CAS loop, falling back to segment allocation and NEBR retirement only when a ring closes.</li>
+<li><strong>SPSC / MPSC / SPMC</strong>: Uses cache-line-aligned segment chains with per-slot committed flags, achieving wait-free SPSC operation and lock-free multi-side scaling.</li>
+</ul>
+<h3 id="43-treiberstackt-lockfreestack">4.3 <code>TreiberStack[T]</code> (<code>lockfree/stack</code>)<a class="headerlink" href="#43-treiberstackt-lockfreestack" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>128-Bit Tagged Top Pointer</strong>: Represents <code>top</code> as <code>Atomic[Pair[uint64, uint64]]</code> (<code>[ptr: uint64, tag: uint64]</code>) updated via 128-bit DWCAS (<code>cmpxchg16b</code> / <code>caspal</code>), paired with an 8-slot Elimination-Backoff Array.</li>
+<li><strong>NEBR Epoch Protection &amp; Exclusive 3-State Node Claim Protocol</strong>:</li>
+<li>Every <code>tryPopTreiber</code>, <code>peek</code>, <code>drain</code>, and <code>drainInto</code> pins the NEBR epoch via <code>unpinned(handle).pin()</code> and advances reclamation via <code>retireReady(pinned)</code> on exit so no <code>StackNode[T]</code> pointer loaded from <code>top</code> can be freed while a thread inspects <code>node.next</code> or <code>node.data</code>.</li>
+<li>Because <code>tryPopTreiber()</code> (as well as <code>drain()</code> and <code>drainInto()</code>) moves <code>node.data</code> out and resets the slot (<code>outVal = move(node.data); reset(node.data)</code>) before retiring <code>node</code> to <code>DebraManager</code>, <code>StackNode[T]</code> enforces an <strong>exclusive 3-state <code>claim: Atomic[int32]</code> word</strong> (<code>NodeClaimFree = 0'i32</code>, <code>NodeClaimPeek = 1'i32</code>, <code>NodeClaimPopped = -1'i32</code>):<ol>
+<li><code>peek()</code> pins the NEBR epoch, transitions <code>node.claim</code> from <code>NodeClaimFree (0) -&gt; NodeClaimPeek (1)</code> via CAS, verifies <code>self.top == oldTop</code>, copies <code>node.data</code> under exclusive ownership (preventing concurrent <code>peek()</code> calls from racing on Nim's non-atomic <code>--mm:orc</code>/<code>--mm:arc</code> string/seq refcount header), and releases <code>node.claim -&gt; NodeClaimFree (0)</code>.</li>
+<li><code>tryPopTreiber()</code> (and <code>drain</code> / <code>drainInto</code> on every node in the detached chain) wins the <code>top</code> DWCAS, calls <code>claimNodeForPop(node)</code> (spinning until <code>node.claim</code> transitions <code>NodeClaimFree (0) -&gt; NodeClaimPopped (-1)</code>), moves <code>node.data</code> out, and retires <code>node</code> to <code>DebraManager</code>.</li>
+</ol>
+</li>
+</ul>
+<h3 id="44-skiplistpriorityqueuet-lockfreepriority_queue">4.4 <code>SkipListPriorityQueue[T]</code> (<code>lockfree/priority_queue</code>)<a class="headerlink" href="#44-skiplistpriorityqueuet-lockfreepriority_queue" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong>Lindén-Jonsson Algorithm</strong>: Minimizes pop contention on the minimum element by logically deleting nodes along level 0 (<code>node.deleted</code> CAS <code>false -&gt; true</code>) without modifying <code>head.next[0]</code> on every <code>popMin</code>.</li>
+<li><strong>Batch Physical Restructuring</strong>: Once the prefix of logically deleted nodes reaches <code>DefaultRestructureThreshold = 32</code> (or when the queue drains empty), the winning thread marks the deleted prefix towers from top level down to level 0, splices the entire batch out of <code>head.next[0]</code> in a single CAS, and retires the unlinked nodes to <code>DebraManager</code>.</li>
+<li><strong>Strict FIFO Tie-Breaking</strong>: Assigns a 64-bit monotonic <code>seqId</code> (<code>nextSeqId.fetchAdd(1)</code>) on every <code>push</code>, ensuring duplicate keys are popped in exact insertion order.</li>
+</ul>
+<h3 id="45-associative-maps-sets-ctrie-skiplistmap-skiplistset">4.5 Associative Maps &amp; Sets (<code>Ctrie</code>, <code>SkipListMap</code>, <code>SkipListSet</code>)<a class="headerlink" href="#45-associative-maps-sets-ctrie-skiplistmap-skiplistset" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong><code>Ctrie[K, V]</code> (<code>lockfree/ctrie</code>)</strong>: Lock-free Concurrent Hash Array Mapped Trie (Prokopec et al.) using generation-stamped indirection nodes (<code>INode</code>) and compressed bitmap branch nodes (<code>CNode</code>). Supports <strong>$O(1)$ wait-free linearizable snapshots</strong> (<code>snapshot()</code>, <code>readOnlySnapshot()</code>, <code>snapshotPairs()</code>) via double-compare-single-swap (<code>RDCSS</code>) generation increments.</li>
+<li><strong><code>SkipListMap[K, V]</code> &amp; <code>SkipListSet[T]</code> (<code>lockfree/skiplist</code>, <code>lockfree/set</code>)</strong>: Multi-level lock-free skip lists (Fraser / Herlihy) maintaining sorted key order at level 0 with pointer-bit logical deletion marking (<code>MarkBit = 1'u</code>) and NEBR retirement.</li>
+<li><strong>Atomic Associative Operations</strong>: <code>Ctrie</code>, <code>SkipListMap</code>, and <code>BTable</code> share a uniform associative RMW surface: <code>computeIfAbsent</code>, <code>atomicUpdate</code>, <code>upsert</code>, <code>take</code>, and <code>snapshotPairs</code> / <code>snapshotKeys</code> / <code>snapshotValues</code>.</li>
+</ul>
+<hr>
+<h2 id="5-specialized-concurrency-constructs">5. Specialized Concurrency Constructs<a class="headerlink" href="#5-specialized-concurrency-constructs" title="Permanent link">¶</a></h2>
+<h3 id="51-flatcombinert-op-res-lockfreeflat_combiner">5.1 <code>FlatCombiner[T, Op, Res]</code> (<code>lockfree/flat_combiner</code>)<a class="headerlink" href="#51-flatcombinert-op-res-lockfreeflat_combiner" title="Permanent link">¶</a></h3>
+<ul>
+<li>Turns any sequential state <code>T</code> and reducer <code>proc(state: var T, op: var Op): Res</code> into a cache-friendly concurrent state machine.</li>
+<li>Each calling thread lazily acquires a 128-byte-aligned <code>PublicationRecord[T, Op, Res]</code> linked into <code>pubHead</code> and stored in thread-local storage.</li>
+<li>The thread holding <code>combinerLock</code> executes up to <code>DefaultCombiningRounds = 8</code> sweeps over active publication records, amortizing synchronization overhead and keeping <code>state: T</code> hot in L1 cache. Periodically (<code>DefaultCleanupInterval = 64</code> passes), inactive records are unlinked from <code>pubHead</code>.</li>
+<li>Also exported over the C99 ABI (<code>include/lockfree_flat_combiner.h</code>, <code>lfq_flat_combiner_*</code>).</li>
+</ul>
+<h3 id="52-broadcastringt-topicbust-lockfreebroadcast">5.2 <code>BroadcastRing[T]</code> &amp; <code>TopicBus[T]</code> (<code>lockfree/broadcast</code>)<a class="headerlink" href="#52-broadcastringt-topicbust-lockfreebroadcast" title="Permanent link">¶</a></h3>
+<ul>
+<li>Lock-free single-producer/multi-producer to multi-subscriber fan-out ring buffer where every subscriber (<code>Subscriber[T]</code>) advances an independent 64-bit sequence cursor.</li>
+<li>Supports two overflow modes:</li>
+<li><code>omDropOldest</code>: Producers never block; lagging subscribers detect sequence overwrite (<code>lagged</code> count) and fast-forward to the oldest retained slot.</li>
+<li><code>omBackpressure</code>: Producers inspect the minimum cursor across registered subscribers and return <code>false</code> (<code>tryPublish</code>) when advancing would overwrite an unread slot.</li>
+</ul>
+<h3 id="53-tokenbucket-leakybucket-lockfreeratelimit">5.3 <code>TokenBucket</code> &amp; <code>LeakyBucket</code> (<code>lockfree/ratelimit</code>)<a class="headerlink" href="#53-tokenbucket-leakybucket-lockfreeratelimit" title="Permanent link">¶</a></h3>
+<ul>
+<li>Pack their entire mutable state (<code>(tokens_ns: int64, last_refill_ns: int64)</code> for <code>TokenBucket</code>; <code>(tat_ns: int64, acquired_count: uint64)</code> for <code>LeakyBucket</code> GCRA) into a single 16-byte aligned struct updated via <strong>128-bit DWCAS</strong>, eliminating floating-point drift and spinlocks.</li>
+</ul>
+<h3 id="54-rendezvouschannelt-lockfreerendezvous-channelt-lockfreechannel">5.4 <code>RendezvousChannel[T]</code> (<code>lockfree/rendezvous</code>) &amp; <code>Channel[T]</code> (<code>lockfree/channel</code>)<a class="headerlink" href="#54-rendezvouschannelt-lockfreerendezvous-channelt-lockfreechannel" title="Permanent link">¶</a></h3>
+<ul>
+<li><strong><code>RendezvousChannel[T]</code></strong>: Zero-buffer synchronous handoff built on a Michael-Scott dual queue (<code>NodeKind = {nkSender, nkReceiver}</code>) with intrusive reference counting (<code>refCount</code>) and OS futex parking (<code>ulock</code> on macOS, <code>SYS_futex</code> on Linux) after adaptive spin-backoff.</li>
+<li><strong><code>Channel[T]</code></strong>: High-level <code>Sender[T]</code> / <code>Receiver[T]</code> facade with split reference counting (<code>senderCount</code>, <code>receiverCount</code>), automatic thread-local SMR registration, and <code>select</code> / async bridge (<code>Chronos</code> and <code>std/asyncdispatch</code>) integration.</li>
+</ul>
+<hr>
+<h2 id="6-memory-model-runtime-matrix-safety-invariants">6. Memory Model, Runtime Matrix &amp; Safety Invariants<a class="headerlink" href="#6-memory-model-runtime-matrix-safety-invariants" title="Permanent link">¶</a></h2>
+<h3 id="61-nim-2x-memory-manager-matrix">6.1 Nim 2.x Memory Manager Matrix<a class="headerlink" href="#61-nim-2x-memory-manager-matrix" title="Permanent link">¶</a></h3>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Memory Manager</th>
+<th style="text-align: left;">Flag</th>
+<th style="text-align: left;">Characteristics &amp; <code>lockfree</code> Support</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>ORC</strong> <em>(Default)</em></td>
+<td style="text-align: left;"><code>--mm:orc</code></td>
+<td style="text-align: left;">Reference counting with cycle collector. Fully supported across all primitives.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>ARC</strong></td>
+<td style="text-align: left;"><code>--mm:arc</code></td>
+<td style="text-align: left;">Deterministic scope-based reference counting without cycle collector. Lowest latency overhead for non-cyclic payloads.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Atomic ARC</strong></td>
+<td style="text-align: left;"><code>--mm:atomicArc</code></td>
+<td style="text-align: left;">Uses atomic reference count adjustments on managed strings/seqs/refs. <strong>Required when running ThreadSanitizer (<code>-fsanitize=thread</code>)</strong> so compiler-generated refcount updates are atomic.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Refc</strong> <em>(Legacy)</em></td>
+<td style="text-align: left;"><code>--mm:refc</code></td>
+<td style="text-align: left;">Thread-local mark-and-sweep GC. Supported for primitive scalar/value types.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="62-path-c-payload-destructor-safety-rules">6.2 Path-C Payload &amp; Destructor Safety Rules<a class="headerlink" href="#62-path-c-payload-destructor-safety-rules" title="Permanent link">¶</a></h3>
 <ol>
-<li><strong>Phase 1: <code>lockfreequeues</code> Cleanup</strong>:</li>
-<li><code>git rm -r benchmarks/ stress-tests/ docs/assets/bench-results/ docs/plans/ docs/benchmarks.md</code></li>
-<li><code>git rm src/lockfreequeues/typestates.nim src/lockfreequeues/internal/aligned_alloc.nim</code></li>
-<li><code>git rm -r src/lockfreequeues/typestates/</code></li>
-<li><code>git rm .github/workflows/bench.yml .github/workflows/bench-comparison.yml</code></li>
-<li><code>git rm tests/t_bench_*.nim tests/t_topology_split.nim tests/t_*typestate*.nim tests/t_virtual_*.nim tests/t_storage_*.nim tests/t_slot_seq_*.nim tests/t_mpmc_cell.nim tests/t_cas.nim tests/t_atomic_loaders.nim tests/t_fullness_checks.nim tests/t_aligned_alloc.nim tests/test_bounded.nim tests/test_minimal.nim tests/fixtures/pre-split-slugs.json</code></li>
-<li>Prune unreferenced bounded/unbounded tests from <code>tests/</code>.</li>
-<li>Update <code>lockfreequeues.nimble</code> and <code>.github/workflows/build.yml</code>.</li>
-<li>
-<p>Run <code>nimble test &amp;&amp; nimble examples</code> to verify green.</p>
-</li>
-<li>
-<p><strong>Phase 2: <code>nim-debra</code> Cleanup</strong>:</p>
-</li>
-<li><code>git rm -r docs/ mkdocs.yml docs-requirements.txt .github/workflows/docs.yml</code></li>
-<li><code>git rm -r tests/bench/ tests/probes/ tests/audit_dwcas_pair_arc.sh</code></li>
-<li>Update <code>debra.nimble</code> and <code>.github/workflows/ci.yml</code>.</li>
-<li>
-<p>Run <code>nimble test &amp;&amp; nimble testExamples</code> to verify green.</p>
-</li>
-<li>
-<p><strong>Phase 3: Verify Downstream Compatibility</strong>:</p>
-</li>
-<li>Run <code>lockfree</code>'s <code>downstream-compat</code> checks locally or via CI to confirm seamless integration.</li>
+<li><strong>Immediate Slot Reset on Eviction</strong>: Every bounded and unbounded container in <code>lockfree</code> moves the payload out of its slot/node (<code>outVal = move(slot.data)</code>) and calls <code>reset(slot.data)</code> before releasing the slot or retiring the node. This guarantees that ARC/ORC destructors (<code>=destroy</code>) run deterministically on the consuming/clearing thread and prevents cross-thread double-free or memory leaks.</li>
+<li><strong>Shared Reference Payloads (<code>AtomicArc[T]</code> &amp; <code>ManagedRef[T]</code>)</strong>: Standard Nim <code>ref T</code> under <code>--mm:arc</code> uses non-atomic reference count increments when copied across threads. When multiple threads concurrently read or clone a shared heap object (e.g., via <code>Ctrie.get</code>, <code>SkipListMap.get</code>, or <code>BroadcastRing.tryRecv</code>), wrap the payload in <code>AtomicArc[T]</code> (<code>lockfree/atomic_arc</code>) or <code>ManagedRef[T]</code> to guarantee atomic reference counting.</li>
+<li><strong>128-Bit Alignment Invariant</strong>: All structures using 128-bit hardware DWCAS (<code>Queue</code> MPMC segments, <code>TreiberStack</code> top, <code>TokenBucket</code>, <code>LeakyBucket</code>, <code>DebraManager</code> descriptors) enforce 16-byte alignment (<code>{.align: 16.}</code> / <code>allocAligned</code>) so <code>cmpxchg16b</code> (x86_64) and <code>caspal</code> (ARM64 LSE) never fault or split cache lines.</li>
+<li><strong>Sanitizer &amp; Watchdog Verification</strong>: All concurrency primitives are verified under both <code>--mm:orc</code> and <code>--mm:atomicArc --passC:-fsanitize=thread --passL:-fsanitize=thread</code>, guarded by the per-test sentinel watchdog (<code>tests/test_watchdog.nim</code>) to catch both data races and livelocks.</li>
 </ol>
 
 
@@ -4797,6 +5220,38 @@
 
 
 
+  
+    
+  
+  
+    
+  
+
+
+  <aside class="md-source-file">
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Last update">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 17, 2026 20:24:11 UTC"><span class="timeago" datetime="2026-10-17T20:24:11+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 17, 2026 20:24:11 UTC">2026-10-17</span>
+  </span>
+
+    
+    
+      
+  <span class="md-source-file__fact">
+    <span class="md-icon" title="Created">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M14.47 15.08 11 13V7h1.5v5.25l3.08 1.83c-.41.28-.79.62-1.11 1m-1.39 4.84c-.36.05-.71.08-1.08.08-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8c0 .37-.03.72-.08 1.08.69.1 1.33.32 1.92.64.1-.56.16-1.13.16-1.72 0-5.5-4.5-10-10-10S2 6.5 2 12s4.47 10 10 10c.59 0 1.16-.06 1.72-.16-.32-.59-.54-1.23-.64-1.92M18 15v3h-3v2h3v3h2v-3h3v-2h-3v-3z"></path></svg>
+    </span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 17, 2026 20:20:45 UTC"><span class="timeago" datetime="2026-10-17T20:20:45+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 17, 2026 20:20:45 UTC">2026-10-17</span>
+  </span>
+
+    
+    
+    
+  </aside>
 
 
 

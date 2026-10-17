@@ -13,14 +13,6 @@
          <lastmod>2026-10-17</lastmod>
     </url>
     <url>
-         <loc>https://elijahr.github.io/lockfree/latest/smr_nebr_guide/</loc>
-         <lastmod>2026-10-17</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/transition_plan/</loc>
-         <lastmod>2026-10-17</lastmod>
-    </url>
-    <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/</loc>
          <lastmod>2026-10-17</lastmod>
     </url>
@@ -141,31 +133,31 @@
          <lastmod>2026-10-17</lastmod>
     </url>
     <url>
-         <loc>https://elijahr.github.io/lockfree/latest/designs/design_async_bridge/</loc>
+         <loc>https://elijahr.github.io/lockfree/latest/design/design_async_bridge/</loc>
          <lastmod>2026-10-17</lastmod>
     </url>
     <url>
-         <loc>https://elijahr.github.io/lockfree/latest/designs/design_atomic_associative/</loc>
+         <loc>https://elijahr.github.io/lockfree/latest/design/design_atomic_associative/</loc>
          <lastmod>2026-10-17</lastmod>
     </url>
     <url>
-         <loc>https://elijahr.github.io/lockfree/latest/designs/design_broadcast_ring/</loc>
+         <loc>https://elijahr.github.io/lockfree/latest/design/design_broadcast_ring/</loc>
          <lastmod>2026-10-17</lastmod>
     </url>
     <url>
-         <loc>https://elijahr.github.io/lockfree/latest/designs/design_ctrie/</loc>
+         <loc>https://elijahr.github.io/lockfree/latest/design/design_ctrie/</loc>
          <lastmod>2026-10-17</lastmod>
     </url>
     <url>
-         <loc>https://elijahr.github.io/lockfree/latest/designs/design_ratelimit/</loc>
+         <loc>https://elijahr.github.io/lockfree/latest/design/design_ratelimit/</loc>
          <lastmod>2026-10-17</lastmod>
     </url>
     <url>
-         <loc>https://elijahr.github.io/lockfree/latest/designs/design_rendezvous_channel/</loc>
+         <loc>https://elijahr.github.io/lockfree/latest/design/design_rendezvous_channel/</loc>
          <lastmod>2026-10-17</lastmod>
     </url>
     <url>
-         <loc>https://elijahr.github.io/lockfree/latest/designs/design_streambuffer/</loc>
+         <loc>https://elijahr.github.io/lockfree/latest/design/design_streambuffer/</loc>
          <lastmod>2026-10-17</lastmod>
     </url>
     <url>
@@ -174,6 +166,10 @@
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/</loc>
+         <lastmod>2026-10-17</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/architecture_taxonomy/</loc>
          <lastmod>2026-10-17</lastmod>
     </url>
     <url>
@@ -241,6 +237,10 @@
          <lastmod>2026-10-17</lastmod>
     </url>
     <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/smr_nebr_lifecycle/</loc>
+         <lastmod>2026-10-17</lastmod>
+    </url>
+    <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/stacks-deques/</loc>
          <lastmod>2026-10-17</lastmod>
     </url>
@@ -250,6 +250,10 @@
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/typestates/</loc>
+         <lastmod>2026-10-17</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/user_guide/</loc>
          <lastmod>2026-10-17</lastmod>
     </url>
     <url>
@@ -317,47 +321,11 @@
          <lastmod>2026-10-17</lastmod>
     </url>
     <url>
-         <loc>https://elijahr.github.io/lockfree/latest/guides/smr_nebr_lifecycle/</loc>
-         <lastmod>2026-10-17</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/guides/user_guide/</loc>
-         <lastmod>2026-10-17</lastmod>
-    </url>
-    <url>
          <loc>https://elijahr.github.io/lockfree/latest/migrations/from-lockfreequeues-v5/</loc>
          <lastmod>2026-10-17</lastmod>
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/migrations/from-nim-debra/</loc>
-         <lastmod>2026-10-17</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/reviews/audit_dead_code/</loc>
-         <lastmod>2026-10-17</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/reviews/audit_docs_accuracy_deslop_plain_english/</loc>
-         <lastmod>2026-10-17</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/reviews/audit_ruling_post_cleanup_facades/</loc>
-         <lastmod>2026-10-17</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/reviews/audit_slash_and_burn_compat_repos/</loc>
-         <lastmod>2026-10-17</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/reviews/audit_test_suite_green_mirage_and_efficiency/</loc>
-         <lastmod>2026-10-17</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/transitions/lockfreequeues_README/</loc>
-         <lastmod>2026-10-17</lastmod>
-    </url>
-    <url>
-         <loc>https://elijahr.github.io/lockfree/latest/transitions/nim_debra_README/</loc>
          <lastmod>2026-10-17</lastmod>
     </url>
 </urlset>
