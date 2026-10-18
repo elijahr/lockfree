@@ -1,5 +1,6 @@
 ## Benchmarks for Concurrent Associative Maps & Sets:
-##   - Maps: Ctrie, SkipListMap, LockedTable, DashMap (Rust), Flurry (Rust),
+##   - Maps: Ctrie, SkipListMap, BTable (Bounded Open-Addressing Table),
+##           LockedTable, DashMap (Rust), Flurry (Rust),
 ##           crossbeam::SkipMap (Rust), boost::concurrent_flat_map (C++)
 ##   - Sets: SkipListSet (Set[int]), LockedSet, crossbeam::SkipSet (Rust),
 ##           boost::concurrent_flat_set (C++)
@@ -11,7 +12,8 @@
 ##   - Set Mixed (`set_mixed`): 80% contains / 10% insert / 10% remove
 ##   - Set Algebra (`set_algebra`): concurrent intersect, union, difference
 ##   - Snapshot Iteration (`snapshot_iter`): Ctrie O(1) wait-free snapshot
-##     iteration vs DashMap shard-locked iteration vs LockedTable under contention
+##     iteration vs BTable lock-free slot-sequence snapshotPairs vs DashMap
+##     shard-locked iteration vs LockedTable under contention
 ##
 ## Concurrency topographies: 1, 2, 4, 8 threads.
 ## Emits BMF JSON format with `throughput_ops_ms` (and `latency_p99_ns` for snapshot_iter).
@@ -21,6 +23,7 @@ import ./bench_common
 import lockfree/atomics
 import lockfree/ctrie
 import lockfree/skiplist
+import lockfree/btable
 import lockfree/set as lfset
 
 const
@@ -29,6 +32,7 @@ const
   BenchMapOpsPerThread* {.intdefine.} = 100_000
   InitialKeyCount = 50_000
   KeyUniverse = 100_000
+  BTableBenchCap = 131_072
   SnapshotKeyCount = 4_000
   AlgebraSetSize = 1_000
 
@@ -196,6 +200,7 @@ type
   MapKind = enum
     mkCtrie
     mkSkipList
+    mkBTable
     mkLockedTable
     mkDashMap
     mkFlurry
@@ -212,6 +217,7 @@ type
     workload: WorkloadKind
     ctriePtr: ptr Ctrie[int, int]
     skipMapPtr: ptr SkipListMap[int, int]
+    btablePtr: ptr BTable[int, int, BTableBenchCap]
     lockedTab: LockedTable
     ffiPtr: pointer
     opsCount: int
@@ -240,6 +246,10 @@ proc workerBody(ctxPtr: ptr ThreadWorkerCtx) {.thread.} =
         let res = ctx.skipMapPtr[].get(key)
         if res.isSome:
           localSum += uint64(res.get)
+      of mkBTable:
+        var outVal = 0
+        if ctx.btablePtr[].tryGet(key, outVal):
+          localSum += uint64(outVal)
       of mkLockedTable:
         let (ok, v) = ctx.lockedTab.get(key)
         if ok:
@@ -271,6 +281,8 @@ proc workerBody(ctxPtr: ptr ThreadWorkerCtx) {.thread.} =
         discard ctx.ctriePtr[].put(key, val)
       of mkSkipList:
         discard ctx.skipMapPtr[].put(key, val)
+      of mkBTable:
+        discard ctx.btablePtr[].tryPut(key, val)
       of mkLockedTable:
         ctx.lockedTab.put(key, val)
       of mkDashMap:
@@ -295,6 +307,7 @@ proc runOneBenchmark(
 ): float =
   var cMap: Ctrie[int, int]
   var sMap: SkipListMap[int, int]
+  var bTab: BTable[int, int, BTableBenchCap]
   var lTab: LockedTable
   var ffiPtr: pointer = nil
 
@@ -308,6 +321,10 @@ proc runOneBenchmark(
     sMap = newSkipListMap[int, int]()
     for i in 0 ..< InitialKeyCount:
       discard sMap.put(i * 2, i * 2)
+  of mkBTable:
+    bTab = initBTable[int, int, BTableBenchCap]()
+    for i in 0 ..< InitialKeyCount:
+      discard bTab.tryPut(i * 2, i * 2)
   of mkLockedTable:
     lTab = newLockedTable()
     for i in 0 ..< InitialKeyCount:
@@ -361,6 +378,7 @@ proc runOneBenchmark(
       workload: workload,
       ctriePtr: addr cMap,
       skipMapPtr: addr sMap,
+      btablePtr: addr bTab,
       lockedTab: lTab,
       ffiPtr: ffiPtr,
       opsCount: opsPerThread,
@@ -641,11 +659,14 @@ proc runSetAlgebraBenchmark(setKind: SetKind, numThreads: int, itersPerThread: i
 # 3. Ctrie O(1) Wait-Free Snapshot Iteration under Contention (snapshot_iter)
 # ---------------------------------------------------------------------------
 
+const BTableSnapCap = 4_096
+
 type
   SnapshotWorkerCtx = object
     mapKind: MapKind
     ctriePtr: ptr Ctrie[int, int]
     snapPtr: ptr Snapshot[int, int]
+    btablePtr: ptr BTable[int, int, BTableSnapCap]
     lockedTab: LockedTable
     ffiPtr: pointer
     isIterator: bool
@@ -665,6 +686,9 @@ proc snapshotWorkerBody(ctxPtr: ptr SnapshotWorkerCtx) {.thread.} =
       of mkCtrie:
         for _, v in ctxPtr.snapPtr[].pairs:
           sum += uint64(v)
+      of mkBTable:
+        for kv in ctxPtr.btablePtr[].snapshotPairs:
+          sum += uint64(kv[1])
       of mkDashMap:
         when defined(adapter_rust_ffi_available):
           sum += dm_iter_sum(ctxPtr.ffiPtr)
@@ -683,6 +707,8 @@ proc snapshotWorkerBody(ctxPtr: ptr SnapshotWorkerCtx) {.thread.} =
       case ctxPtr.mapKind
       of mkCtrie:
         discard ctxPtr.ctriePtr[].putIfAbsent(k, v)
+      of mkBTable:
+        discard ctxPtr.btablePtr[].tryPut(k, v)
       of mkDashMap:
         when defined(adapter_rust_ffi_available):
           discard dm_put(ctxPtr.ffiPtr, uint64(k), uint64(v))
@@ -698,6 +724,7 @@ proc runSnapshotIterBenchmark(
 ): (float, float) =
   var cMap: Ctrie[int, int]
   var cSnap: Snapshot[int, int]
+  var bTab: BTable[int, int, BTableSnapCap]
   var lTab: LockedTable
   var ffiPtr: pointer = nil
 
@@ -707,6 +734,10 @@ proc runSnapshotIterBenchmark(
     for i in 0 ..< SnapshotKeyCount:
       discard cMap.put(i, i)
     cSnap = cMap.snapshot()
+  of mkBTable:
+    bTab = initBTable[int, int, BTableSnapCap]()
+    for i in 0 ..< SnapshotKeyCount:
+      discard bTab.tryPut(i, i)
   of mkDashMap:
     when defined(adapter_rust_ffi_available):
       ffiPtr = dm_init()
@@ -738,6 +769,7 @@ proc runSnapshotIterBenchmark(
       mapKind: mapKind,
       ctriePtr: addr cMap,
       snapPtr: addr cSnap,
+      btablePtr: addr bTab,
       lockedTab: lTab,
       ffiPtr: ffiPtr,
       isIterator: i < numReaders,
@@ -785,6 +817,7 @@ proc main() =
   var mapTargets = @[
     (mkCtrie, "ctrie"),
     (mkSkipList, "skiplist"),
+    (mkBTable, "btable"),
     (mkLockedTable, "locked_table")
   ]
   when defined(adapter_rust_ffi_available):
@@ -878,6 +911,7 @@ proc main() =
   let snapIters = max(10, BenchMapOpsPerThread div 1000)
   var snapTargets = @[
     (mkCtrie, "ctrie"),
+    (mkBTable, "btable"),
     (mkLockedTable, "locked_table")
   ]
   when defined(adapter_rust_ffi_available):

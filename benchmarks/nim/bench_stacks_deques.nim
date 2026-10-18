@@ -1,6 +1,7 @@
-## Benchmarks for Concurrent Stacks & Work-Stealing Deques:
+## Benchmarks for Concurrent Stacks, Work-Stealing Deques & Priority Queues:
 ##   1. MPMC Stacks (`stack_mpmc` across 1p1c, 2p2c, 4p4c, 8p8c):
 ##      - `treiber_stack` (Nim Lock-Free TreiberStack with elimination backoff)
+##      - `bstack` (Nim Preallocated Zero-SMR Bounded Stack with elimination backoff)
 ##      - `boost_lockfree_stack` (C++ boost::lockfree::stack)
 ##      - `locked_stack` (Nim seq + Lock baseline)
 ##   2. Work-Stealing Deques (`work_stealing` across 1w1t, 1w2t, 1w4t, 1w8t):
@@ -8,19 +9,29 @@
 ##      - `chase_lev_deque_batch` (Nim ChaseLevDeque bulk `stealBatch(32)`)
 ##      - `crossbeam_deque` (Rust crossbeam-deque single `steal()`)
 ##      - `crossbeam_deque_batch` (Rust crossbeam-deque bulk `steal_batch_with_limit(32)`)
+##   3. MPMC Priority Queues (`pqueue_mpmc` across 1p1c, 2p2c, 4p4c, 8p8c):
+##      - `bpriority_queue` (Nim Preallocated Zero-SMR Bounded Binary Min-Heap Priority Queue)
+##      - `skiplist_pq` (Nim Lock-Free Lindén-Jonsson SkipListPriorityQueue)
+##      - `locked_pq` (Nim HeapQueue + Lock baseline)
 ##
 ## Emits BMF JSON format with `throughput_ops_ms`.
 
-import std/[locks, monotimes, options, os, parseopt, strformat, times]
+import std/[heapqueue, locks, monotimes, options, os, parseopt, strformat, times]
 import ./bench_common
 import lockfree/stack
+import lockfree/bstack
 import lockfree/deque
+import lockfree/priority_queue
+import lockfree/bpriority_queue
 import lockfree/atomics
 
 const
   BenchStackRuns* {.intdefine.} = 3
   BenchStackWarmup* {.intdefine.} = 1
   BenchStackMsgCount* {.intdefine.} = 500_000
+  BenchPQueueMsgCount* {.intdefine.} = min(100_000, max(10_000, BenchStackMsgCount div 2))
+  BStackBenchCap = max(65536, BenchStackMsgCount)
+  BPQueueBenchCap = max(65536, BenchPQueueMsgCount)
   StealBatchLimit = 32
 
 when defined(adapter_rust_ffi_available):
@@ -94,17 +105,19 @@ proc pop[T](ls: LockedStack[T]): (bool, T) {.inline.} =
     return (false, default(T))
 
 # -----------------------------------------------------------------------------
-# 1. MPMC Stack Benchmark Harness (TreiberStack vs Boost vs LockedStack)
+# 1. MPMC Stack Benchmark Harness (TreiberStack vs BStack vs Boost vs Locked)
 # -----------------------------------------------------------------------------
 type
   StackKind = enum
     skTreiber
+    skBStack
     skBoost
     skLocked
 
   StackWorkerCtx = object
     stackKind: StackKind
     treiberPtr: ptr TreiberStack[int]
+    bstackPtr: ptr BStack[int, BStackBenchCap]
     boostPtr: pointer
     lockedPtr: LockedStack[int]
     isProducer: bool
@@ -118,6 +131,9 @@ proc stackWorkerBody(ctxPtr: ptr StackWorkerCtx) {.thread.} =
       case ctx.stackKind
       of skTreiber:
         ctx.treiberPtr[].push(i)
+      of skBStack:
+        while not ctx.bstackPtr[].tryPush(i):
+          benchBackoffOnPeerWait()
       of skBoost:
         when defined(adapter_boost_lockfree_available) and defined(cpp):
           while not bench_boost_stack_push(ctx.boostPtr, uint64(i)):
@@ -134,6 +150,12 @@ proc stackWorkerBody(ctxPtr: ptr StackWorkerCtx) {.thread.} =
           inc consumed
         else:
           benchBackoffOnPeerWait()
+      of skBStack:
+        var outVal = 0
+        if ctx.bstackPtr[].tryPop(outVal):
+          inc consumed
+        else:
+          benchBackoffOnPeerWait()
       of skBoost:
         when defined(adapter_boost_lockfree_available) and defined(cpp):
           var outVal = 0'u64
@@ -147,6 +169,9 @@ proc stackWorkerBody(ctxPtr: ptr StackWorkerCtx) {.thread.} =
           inc consumed
         else:
           benchBackoffOnPeerWait()
+  if ctx.stackKind == skTreiber:
+    {.cast(gcsafe).}:
+      ctx.treiberPtr[].unregisterThread()
 
 proc runStackBenchmark(
     stackKind: StackKind,
@@ -155,12 +180,15 @@ proc runStackBenchmark(
     messageCount: int
 ): float =
   var tStack: TreiberStack[int]
+  var bStackNim: BStack[int, BStackBenchCap]
   var lStack: LockedStack[int]
   var bStack: pointer = nil
 
   case stackKind
   of skTreiber:
     tStack = initTreiberStack[int]()
+  of skBStack:
+    bStackNim = initBStack[int, BStackBenchCap]()
   of skBoost:
     when defined(adapter_boost_lockfree_available) and defined(cpp):
       bStack = bench_boost_stack_init(csize_t(max(65536, messageCount)))
@@ -188,6 +216,7 @@ proc runStackBenchmark(
     ctxs[i] = StackWorkerCtx(
       stackKind: stackKind,
       treiberPtr: addr tStack,
+      bstackPtr: addr bStackNim,
       boostPtr: bStack,
       lockedPtr: lStack,
       isProducer: true,
@@ -201,6 +230,7 @@ proc runStackBenchmark(
     ctxs[idx] = StackWorkerCtx(
       stackKind: stackKind,
       treiberPtr: addr tStack,
+      bstackPtr: addr bStackNim,
       boostPtr: bStack,
       lockedPtr: lStack,
       isProducer: false,
@@ -369,6 +399,165 @@ proc runDequeBenchmark(dequeKind: DequeKind, numThieves: int, itemsCount: int): 
     return 0.0
   result = float(itemsCount) * 1_000_000.0 / elapsedNs
 
+# -----------------------------------------------------------------------------
+# 3. MPMC Priority Queue Benchmark Harness
+#    (BPriorityQueue vs SkipListPriorityQueue vs LockedPriorityQueue)
+# -----------------------------------------------------------------------------
+type
+  LockedPriorityQueue[T] = ref object
+    lock: Lock
+    heap: HeapQueue[T]
+
+proc newLockedPriorityQueue[T](): LockedPriorityQueue[T] =
+  new(result)
+  initLock(result.lock)
+  result.heap = initHeapQueue[T]()
+
+proc destroyLockedPriorityQueue[T](lpq: LockedPriorityQueue[T]) =
+  if lpq != nil:
+    deinitLock(lpq.lock)
+
+proc push[T](lpq: LockedPriorityQueue[T], val: T) {.inline.} =
+  withLock(lpq.lock):
+    lpq.heap.push(val)
+
+proc tryPopMin[T](lpq: LockedPriorityQueue[T], outVal: var T): bool {.inline.} =
+  withLock(lpq.lock):
+    if lpq.heap.len > 0:
+      outVal = lpq.heap.pop()
+      return true
+    return false
+
+type
+  PQueueKind = enum
+    pqkBounded
+    pqkSkipList
+    pqkLocked
+
+  PQueueWorkerCtx = object
+    pqKind: PQueueKind
+    bpqPtr: ptr BPriorityQueue[int, BPQueueBenchCap]
+    skipPqPtr: ptr SkipListPriorityQueue[int]
+    lockedPq: LockedPriorityQueue[int]
+    isProducer: bool
+    count: int
+    threadId: int
+    checksum: uint64
+
+proc pqueueWorkerBody(ctxPtr: ptr PQueueWorkerCtx) {.thread.} =
+  let ctx = ctxPtr[]
+  var localSum = 0'u64
+  if ctx.isProducer:
+    for i in 0 ..< ctx.count:
+      let prio = int(((uint32(i) xor uint32(ctx.threadId * 4099)) * 2654435761'u32) shr 16)
+      case ctx.pqKind
+      of pqkBounded:
+        while not ctx.bpqPtr[].tryPush(prio):
+          benchBackoffOnPeerWait()
+      of pqkSkipList:
+        ctx.skipPqPtr[].push(prio)
+      of pqkLocked:
+        ctx.lockedPq.push(prio)
+  else:
+    var consumed = 0
+    while consumed < ctx.count:
+      var outVal = 0
+      case ctx.pqKind
+      of pqkBounded:
+        if ctx.bpqPtr[].tryPopMin(outVal):
+          localSum += uint64(outVal)
+          inc consumed
+        else:
+          benchBackoffOnPeerWait()
+      of pqkSkipList:
+        if ctx.skipPqPtr[].tryPopMin(outVal):
+          localSum += uint64(outVal)
+          inc consumed
+        else:
+          benchBackoffOnPeerWait()
+      of pqkLocked:
+        if ctx.lockedPq.tryPopMin(outVal):
+          localSum += uint64(outVal)
+          inc consumed
+        else:
+          benchBackoffOnPeerWait()
+  if ctx.pqKind == pqkSkipList:
+    {.cast(gcsafe).}:
+      ctx.skipPqPtr[].unregisterThread()
+  ctxPtr.checksum = localSum
+
+proc runPQueueBenchmark(
+    pqKind: PQueueKind,
+    numProducers: int,
+    numConsumers: int,
+    messageCount: int
+): float =
+  var bPq: BPriorityQueue[int, BPQueueBenchCap]
+  var sPq: SkipListPriorityQueue[int]
+  var lPq: LockedPriorityQueue[int]
+
+  case pqKind
+  of pqkBounded:
+    bPq = initBPriorityQueue[int, BPQueueBenchCap]()
+  of pqkSkipList:
+    sPq = newSkipListPriorityQueue[int]()
+  of pqkLocked:
+    lPq = newLockedPriorityQueue[int]()
+
+  defer:
+    if pqKind == pqkLocked:
+      destroyLockedPriorityQueue(lPq)
+
+  let numThreads = numProducers + numConsumers
+  var threads = newSeq[Thread[ptr PQueueWorkerCtx]](numThreads)
+  var ctxs = newSeq[PQueueWorkerCtx](numThreads)
+
+  let baseP = messageCount div numProducers
+  let remP = messageCount mod numProducers
+  let baseC = messageCount div numConsumers
+  let remC = messageCount mod numConsumers
+
+  for i in 0 ..< numProducers:
+    let count = baseP + (if i < remP: 1 else: 0)
+    ctxs[i] = PQueueWorkerCtx(
+      pqKind: pqKind,
+      bpqPtr: addr bPq,
+      skipPqPtr: addr sPq,
+      lockedPq: lPq,
+      isProducer: true,
+      count: count,
+      threadId: i
+    )
+
+  for i in 0 ..< numConsumers:
+    let count = baseC + (if i < remC: 1 else: 0)
+    let idx = numProducers + i
+    ctxs[idx] = PQueueWorkerCtx(
+      pqKind: pqKind,
+      bpqPtr: addr bPq,
+      skipPqPtr: addr sPq,
+      lockedPq: lPq,
+      isProducer: false,
+      count: count,
+      threadId: idx
+    )
+
+  let t0 = getMonoTime()
+  for i in 0 ..< numThreads:
+    createThread(threads[i], pqueueWorkerBody, addr ctxs[i])
+  for i in 0 ..< numThreads:
+    joinThread(threads[i])
+  let elapsedNs = float(inNanoseconds(getMonoTime() - t0))
+
+  var totalChecksum = 0'u64
+  for i in 0 ..< numThreads:
+    totalChecksum = totalChecksum xor ctxs[i].checksum
+  gDequeSink = gDequeSink xor totalChecksum
+
+  if elapsedNs <= 0.0:
+    return 0.0
+  result = float(messageCount) * 1_000_000.0 / elapsedNs
+
 proc matchesFilter(libSlug: string, filters: seq[string]): bool {.inline.} =
   filters.len == 0 or libSlug in filters
 
@@ -388,10 +577,11 @@ proc main() =
 
   var stackTargets = @[
     (skTreiber, "treiber_stack"),
+    (skBStack, "bstack"),
     (skLocked, "locked_stack")
   ]
   when defined(adapter_boost_lockfree_available) and defined(cpp):
-    stackTargets.insert((skBoost, "boost_lockfree_stack"), 1)
+    stackTargets.insert((skBoost, "boost_lockfree_stack"), 2)
 
   var dequeTargets = @[
     (dkChaseLevSingle, "chase_lev_deque"),
@@ -401,17 +591,24 @@ proc main() =
     dequeTargets.insert((dkCrossbeamSingle, "crossbeam_deque"), 1)
     dequeTargets.add((dkCrossbeamBatch, "crossbeam_deque_batch"))
 
+  let pqTargets = @[
+    (pqkBounded, "bpriority_queue"),
+    (pqkSkipList, "skiplist_pq"),
+    (pqkLocked, "locked_pq")
+  ]
+
   if filters.len > 0:
     var supported: seq[string] = @[]
     for (_, slug) in stackTargets: supported.add(slug)
     for (_, slug) in dequeTargets: supported.add(slug)
+    for (_, slug) in pqTargets: supported.add(slug)
     for f in filters:
       if f notin supported:
         echo &"Unknown target: {f} (supported: {supported})"
         quit 1
 
-  echo "Stacks & Deques Benchmark (Nim vs Rust vs C++)"
-  echo "=============================================="
+  echo "Stacks, Deques & Priority Queues Benchmark (Nim vs Rust vs C++)"
+  echo "==============================================================="
 
   var emitter = initBMFEmitter()
 
@@ -448,6 +645,22 @@ proc main() =
       let m = mean(samples)
       let s = stddev(samples)
       let slug = &"{libSlug}/work_stealing/{shape}"
+      emitter.addMeasure(slug, "throughput_ops_ms", m, m - s, m + s)
+      echo &"{slug}: mean = {m:10.1f} ops/ms, stddev = {s:8.1f}"
+
+  # 3. MPMC Priority Queues Contention
+  echo "\n--- MPMC Priority Queues Contention ---"
+  for (np, nc, shape) in stackShapes:
+    for (pqKind, libSlug) in pqTargets:
+      if not matchesFilter(libSlug, filters): continue
+      for _ in 0 ..< BenchStackWarmup:
+        discard runPQueueBenchmark(pqKind, np, nc, BenchPQueueMsgCount)
+      var samples = newSeq[float](BenchStackRuns)
+      for r in 0 ..< BenchStackRuns:
+        samples[r] = runPQueueBenchmark(pqKind, np, nc, BenchPQueueMsgCount)
+      let m = mean(samples)
+      let s = stddev(samples)
+      let slug = &"{libSlug}/pqueue_mpmc/{shape}"
       emitter.addMeasure(slug, "throughput_ops_ms", m, m - s, m + s)
       echo &"{slug}: mean = {m:10.1f} ops/ms, stddev = {s:8.1f}"
 

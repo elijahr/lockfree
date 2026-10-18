@@ -1,6 +1,6 @@
-# Associative Maps & Sets Benchmarks: Ctrie, SkipListMap & ConcurrentSet
+# Associative Maps & Sets Benchmarks: Ctrie, BTable, SkipListMap & ConcurrentSet
 
-Performance benchmarks comparing `Ctrie` (lock-free concurrent hash trie), `SkipListMap` (lock-free concurrent sorted map), and `ConcurrentSet` (`SkipListSet`) against standard library mutex-guarded tables/sets (`locked_table`, `locked_set`), Rust (`dashmap`, `flurry`, `crossbeam_skipmap`, `crossbeam_skipset`), and C++ (`boost::concurrent_flat_map`, `boost::concurrent_flat_set`).
+Performance benchmarks comparing `Ctrie` (lock-free concurrent hash trie), `BTable` (preallocated zero-SMR bounded concurrent open-addressing hash table), `SkipListMap` (lock-free concurrent sorted map), and `ConcurrentSet` (`SkipListSet`) against standard library mutex-guarded tables/sets (`locked_table`, `locked_set`), Rust (`dashmap`, `flurry`, `crossbeam_skipmap`, `crossbeam_skipset`), and C++ (`boost::concurrent_flat_map`, `boost::concurrent_flat_set`).
 
 ## Workload Profiles
 
@@ -11,7 +11,7 @@ Associative benchmarks exercise the data structures under six concurrent workloa
 3. **Write-Heavy (`write_heavy`, 10% Reads / 90% Writes)**: Models high-frequency telemetry ingestion, metrics aggregation, and append-heavy workloads.
 4. **ConcurrentSet Mixed (`set_mixed`, 80% Contains / 10% Incl / 10% Excl)**: Evaluates lock-free sorted set membership and mutation throughput.
 5. **ConcurrentSet Algebra (`set_algebra`, Union / Intersection / Difference)**: Evaluates bulk lock-free set algebra operations (`+`, `*`, `-`) across concurrent readers and writers.
-6. **Wait-Free Snapshot Iteration (`snapshot_iter`)**: Evaluates `Ctrie.snapshot()` $O(1)$ generational root capture + traversal vs `SkipListMap` atomic iteration and locked table cloning.
+6. **Wait-Free Snapshot Iteration (`snapshot_iter`)**: Evaluates `Ctrie.snapshot()` $O(1)$ generational root capture + traversal and `BTable.snapshotPairs()` per-slot sequence iteration vs `DashMap` shard-locked iteration and `LockedTable` under concurrent writer contention.
 
 Each thread operates on a shared keyspace of 100,000 keys pre-populated with 50,000 entries.
 
@@ -22,6 +22,7 @@ Each thread operates on a shared keyspace of 100,000 keys pre-populated with 50,
 | Library Slug | Language | Ordering | Read Progress | Write Progress | Reclamation |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `ctrie` | Nim | Unordered (HAMT 32-way) | **Wait-Free** ($O(\log_{32} N)$) | **Lock-Free** (CAS on INodes) | NEBR |
+| `btable` | Nim | Unordered (Bounded Open-Addressing) | **Bounded Flat-Combining / Seqlock** | **Bounded Flat-Combining** (Tombstone-aware linear probe) | Preallocated (Zero SMR) |
 | `skiplist` / `skiplist_set` | Nim | Sorted (SkipList DAG) | **Lock-Free** (CAS traversal) | **Lock-Free** (multi-level CAS) | NEBR |
 | `locked_table` / `locked_set` | Nim | Unordered (Open Addressing) | **Blocking** (`std/locks.Lock`) | **Blocking** (`std/locks.Lock`) | GC / ARC |
 | `dashmap` | Rust | Unordered (Sharded RwLock) | **Blocking** (Shard read lock) | **Blocking** (Shard write lock) | RAII |

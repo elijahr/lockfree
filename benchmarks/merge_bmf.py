@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Merge multiple BMF JSON files into one for the docs chart snapshot.
+r"""Merge multiple BMF JSON files into one for the docs chart snapshot.
 
 Sibling CI jobs (bench-throughput / bench-latency / topology splits) each
 emit their own BMF JSON fragment. This utility unions the per-slug measure
@@ -12,7 +12,10 @@ Contract (design doc section 4.3):
 
 - N >= 1; zero inputs -> exit 1 with usage error.
 - Inputs MUST parse as ``dict[str, dict[str, dict]]``. Slug keys match
-  ``^[a-z][a-z0-9_]*/[a-z][a-z0-9_]*/\\d+p\\d+c$``. Measure keys match
+  ``^[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+/(\d+p\d+c|\d+t|\d+w\d+t|\d+[a-z]+)$``
+  (covering core queues, associative maps/sets including ``btable``,
+  stacks/deques/priority queues including ``bstack`` and ``bpriority_queue``,
+  broadcast, rate limiters, rendezvous, taskpool, and SMR). Measure keys match
   ``^[a-z][a-z0-9_]*$``. ``value`` fields MUST be finite, non-NaN floats.
   Bound fields ``lower_value`` / ``upper_value`` (when present) are
   validated the same way.
@@ -37,7 +40,9 @@ import sys
 from pathlib import Path
 from typing import Any, Mapping, Tuple
 
-SLUG_RE = re.compile(r"^[a-z][a-z0-9_]*/[a-z][a-z0-9_]*/(\d+p\d+c|\d+t|\d+w\d+t|\d+[a-z]+)$")
+SLUG_RE = re.compile(
+    r"^[a-z][a-z0-9_]*(?:/[a-z][a-z0-9_]*)+/(\d+p\d+c|\d+t|\d+w\d+t|\d+[a-z]+)$"
+)
 MEASURE_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 ALLOWED_FIELDS = frozenset({"value", "lower_value", "upper_value"})
 

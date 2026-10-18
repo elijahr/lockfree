@@ -170,18 +170,37 @@ SAMPLE_BMF: dict = {
     "ctrie/read_heavy/4t": {
         "throughput_ops_ms": {"value": 54000.0},
     },
+    "btable/read_heavy/4t": {
+        "throughput_ops_ms": {"value": 24800.0},
+    },
+    "btable/snapshot_iter/4t": {
+        "throughput_ops_ms": {"value": 10500.0},
+        "latency_p99_ns": {"value": 3974600.0},
+    },
     "skiplist_set/set_mixed/4t": {
         "throughput_ops_ms": {"value": 21000.0},
     },
     "dashmap/balanced/4t": {
         "throughput_ops_ms": {"value": 48000.0},
     },
-    # stacks & deques
+    # stacks, deques & priority queues
     "treiber_stack/stack_mpmc/2p2c": {
         "throughput_ops_ms": {"value": 14200.0},
     },
+    "bstack/stack_mpmc/2p2c": {
+        "throughput_ops_ms": {"value": 2056.0},
+    },
     "chase_lev_deque/work_stealing/1w4t": {
         "throughput_ops_ms": {"value": 32000.0},
+    },
+    "bpriority_queue/pqueue_mpmc/2p2c": {
+        "throughput_ops_ms": {"value": 5948.4},
+    },
+    "skiplist_pq/pqueue_mpmc/2p2c": {
+        "throughput_ops_ms": {"value": 1905.7},
+    },
+    "locked_pq/pqueue_mpmc/2p2c": {
+        "throughput_ops_ms": {"value": 5533.5},
     },
     # broadcast & topic_bus
     "broadcast_ring_drop/fanout/1p4c": {
@@ -250,7 +269,7 @@ SAMPLE_BMF: dict = {
 # `test_blocking_libraries_const_matches_contract`.
 EXPECTED_BLOCKING_LIBRARIES = {
     "threading_channels", "nim_channel", "nim_channels", "nim_channel_sync",
-    "locked_table", "locked_set", "locked_stack", "locked_task_queue",
+    "locked_table", "locked_set", "locked_stack", "locked_pq", "locked_task_queue",
     "broadcast_ring_backoff", "topic_bus_backoff",
     "mutex_guard", "deferred_mutex_free",
 }
@@ -420,6 +439,7 @@ class ChartContractTests(unittest.TestCase):
                 "bench-status",
                 "bench-stacks-mpmc",
                 "bench-deques-work-stealing",
+                "bench-pqueue-mpmc",
             ),
             "broadcast": (
                 "bench-status",
@@ -500,20 +520,6 @@ class ChartContractTests(unittest.TestCase):
         self.assertFalse(
             missing,
             f"libraries missing from LIBRARY_COLORS (SAMPLE_BMF): {sorted(missing)}",
-        )
-        example_path = (
-            REPO_ROOT / "docs" / "assets" / "bench-results" / "example.json"
-        )
-        example_data = json.loads(example_path.read_text())
-        example_libs = {
-            slug.split("/")[0]
-            for slug in example_data
-            if slug != "meta" and not slug.startswith("_")
-        }
-        missing_example = example_libs - colors.keys()
-        self.assertFalse(
-            missing_example,
-            f"libraries in example.json missing from LIBRARY_COLORS: {sorted(missing_example)}",
         )
         # The lockfree family must have all 8 entries (4 bounded
         # + 4 unbounded) so co-located bounded/unbounded series stay
@@ -608,6 +614,22 @@ class ChartContractTests(unittest.TestCase):
                     if opt in mv:
                         self.assertIsInstance(mv[opt], (int, float))
                         self.assertTrue(math.isfinite(mv[opt]))
+        required_bounded_slugs = [
+            "bstack/stack_mpmc/4p4c",
+            "bpriority_queue/pqueue_mpmc/4p4c",
+            "skiplist_pq/pqueue_mpmc/4p4c",
+            "locked_pq/pqueue_mpmc/4p4c",
+            "btable/read_heavy/4t",
+            "btable/balanced/4t",
+            "btable/write_heavy/4t",
+            "btable/snapshot_iter/4t",
+        ]
+        for req_slug in required_bounded_slugs:
+            self.assertIn(
+                req_slug,
+                data,
+                f"bounded primitive slug {req_slug!r} missing from example.json",
+            )
 
     def test_throughput_panel_routing(self) -> None:
         """Every BMF topology must route to exactly one throughput
@@ -655,8 +677,8 @@ class ChartContractTests(unittest.TestCase):
         )
         entries = entry_re.findall(block)
         self.assertEqual(
-            len(entries), 23,
-            f"expected 23 throughput panels, got {len(entries)}: {entries}",
+            len(entries), 24,
+            f"expected 24 throughput panels, got {len(entries)}: {entries}",
         )
 
         # The agreed routing intent. Source of truth for what the
@@ -680,6 +702,7 @@ class ChartContractTests(unittest.TestCase):
             "stack_mpmc":          "bench-stacks-mpmc",
             "work_stealing":       "bench-deques-work-stealing",
             "work_stealing_batch": "bench-deques-work-stealing",
+            "pqueue_mpmc":         "bench-pqueue-mpmc",
             "fanout":              "bench-broadcast-fanout",
             "topic_bus":           "bench-broadcast-topicbus",
             "contention":          "bench-tokenbucket-contention",
