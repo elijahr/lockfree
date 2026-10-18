@@ -226,7 +226,7 @@ jobs:
             sanitize-address: 'no'
             cache-tag: 'arc'
             continue-on-error: 'false'
-            timeout: 30
+            timeout: 45
 
           - cell: '1d'
             label: 'baseline refc/gcc/linux'
