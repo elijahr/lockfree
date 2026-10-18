@@ -1285,6 +1285,86 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check tracker.count == 5
     check tracker.sum == 150
 
+  test "Bounded Zero-SMR Primitives C ABI (BStack, BPriorityQueue, BTable)":
+    # 1. lfq_bstack_*
+    var bs: ptr lfq_bstack_t = nil
+    check lfq_bstack_create(0, nil, nil, addr bs) == LFQ_ERR_INVALID_ARG
+    check lfq_bstack_create(65537, nil, nil, addr bs) == LFQ_ERR_UNSUPPORTED
+    check lfq_bstack_create(4, nil, nil, addr bs) == LFQ_OK
+    check bs != nil
+    check lfq_bstack_capacity(bs) == 4
+    check lfq_bstack_is_empty(bs) == true
+    check lfq_bstack_is_full(bs) == false
+
+    for i in 1 .. 4:
+      check lfq_bstack_push(bs, cast[pointer](i * 100)) == LFQ_OK
+    check lfq_bstack_is_full(bs) == true
+    check lfq_bstack_push(bs, cast[pointer](500)) == LFQ_ERR_FULL
+
+    var outItem: pointer = nil
+    check lfq_bstack_peek(bs, addr outItem) == LFQ_OK
+    check cast[int](outItem) == 400
+    for expected in [400, 300, 200, 100]:
+      outItem = nil
+      check lfq_bstack_pop(bs, addr outItem) == LFQ_OK
+      check cast[int](outItem) == expected
+    check lfq_bstack_pop(bs, addr outItem) == LFQ_ERR_EMPTY
+    check lfq_bstack_destroy(bs) == LFQ_OK
+
+    # 2. lfq_bpqueue_*
+    var bpq: ptr lfq_bpqueue_t = nil
+    check lfq_bpqueue_create(0, nil, nil, addr bpq) == LFQ_ERR_INVALID_ARG
+    check lfq_bpqueue_create(65537, nil, nil, addr bpq) == LFQ_ERR_UNSUPPORTED
+    check lfq_bpqueue_create(4, nil, nil, addr bpq) == LFQ_OK
+    check bpq != nil
+    check lfq_bpqueue_capacity(bpq) == 4
+
+    check lfq_bpqueue_push(bpq, 30, cast[pointer](300)) == LFQ_OK
+    check lfq_bpqueue_push(bpq, 10, cast[pointer](100)) == LFQ_OK
+    check lfq_bpqueue_push(bpq, 20, cast[pointer](201)) == LFQ_OK
+    check lfq_bpqueue_push(bpq, 20, cast[pointer](202)) == LFQ_OK
+    check lfq_bpqueue_push(bpq, 5, cast[pointer](50)) == LFQ_ERR_FULL
+
+    var outPrio: int64 = 0
+    check lfq_bpqueue_peek_min(bpq, addr outPrio, addr outItem) == LFQ_OK
+    check outPrio == 10
+    check cast[int](outItem) == 100
+
+    for (ep, ev) in [(10'i64, 100), (20'i64, 201), (20'i64, 202), (30'i64, 300)]:
+      check lfq_bpqueue_pop_min(bpq, addr outPrio, addr outItem) == LFQ_OK
+      check outPrio == ep
+      check cast[int](outItem) == ev
+    check lfq_bpqueue_pop_min(bpq, addr outPrio, addr outItem) == LFQ_ERR_EMPTY
+    check lfq_bpqueue_destroy(bpq) == LFQ_OK
+
+    # 3. lfq_btable_*
+    var bt: ptr lfq_btable_t = nil
+    check lfq_btable_create(0, nil, nil, addr bt) == LFQ_ERR_INVALID_ARG
+    check lfq_btable_create(65537, nil, nil, addr bt) == LFQ_ERR_UNSUPPORTED
+    check lfq_btable_create(4, nil, nil, addr bt) == LFQ_OK
+    check bt != nil
+    check lfq_btable_capacity(bt) == 4
+
+    var inserted = false
+    for k in 1 .. 4:
+      check lfq_btable_put(bt, cast[pointer](k), cast[pointer](k * 10), addr inserted) == LFQ_OK
+      check inserted == true
+    check lfq_btable_is_full(bt) == true
+    check lfq_btable_put(bt, cast[pointer](5), cast[pointer](50), addr inserted) == LFQ_ERR_FULL
+    check inserted == false
+
+    # Update existing key at full capacity
+    check lfq_btable_put(bt, cast[pointer](2), cast[pointer](222), addr inserted) == LFQ_OK
+    check inserted == false
+    check lfq_btable_get(bt, cast[pointer](2), addr outItem) == LFQ_OK
+    check cast[int](outItem) == 222
+
+    var removed = false
+    check lfq_btable_remove(bt, cast[pointer](2), addr removed) == LFQ_OK
+    check removed == true
+    check lfq_btable_contains(bt, cast[pointer](2)) == false
+    check lfq_btable_destroy(bt) == LFQ_OK
+
   when not defined(windows):
     test "Direct C99 Header Interoperability":
       let code1 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree.h"))
@@ -1299,6 +1379,12 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
       check code5 == 0
       let code6 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_atomic_arc.h"))
       check code6 == 0
+      let code7 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_bstack.h"))
+      check code7 == 0
+      let code8 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_bpqueue.h"))
+      check code8 == 0
+      let code9 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_btable.h"))
+      check code9 == 0
 
     test "Compiled C99 test harness execution (clang + liblockfree.a)":
       let rootDir = currentSourcePath().parentDir() / ".."

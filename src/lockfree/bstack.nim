@@ -59,6 +59,7 @@ type
     freeHead* {.align: CacheLineBytes.}: Atomic[uint64]
     count* {.align: CacheLineBytes.}: Atomic[int]
     rc* {.align: CacheLineBytes.}: Atomic[int]
+    effCap*: int
     elimination*: array[BStackEliminationCapacity, BStackElimSlot[T]]
     slots*: array[Cap, BStackSlot[T]]
 
@@ -127,6 +128,7 @@ proc allocBStackCore[T; Cap: static int](): ptr BStackCore[T, Cap] =
   core.top.store(packTagIdx(0'u32, NilSlotIdx), moRelaxed)
   core.count.store(0, moRelaxed)
   core.rc.store(1, moRelaxed)
+  core.effCap = Cap
   for i in 0 ..< BStackEliminationCapacity:
     core.elimination[i].state.store(ElimEmpty, moRelaxed)
   for i in 0 ..< Cap:
@@ -487,6 +489,21 @@ proc peek*[
     cpuPause()
     oldTop = core.top.load(moAcquire)
 
+proc tryPeek*[
+  T;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](self: BStack[T, Cap, ccProd, ccCons], outItem: var T): bool {.inline, gcsafe.} =
+  ## Non-destructively copies the top item into `outItem` and returns `true`, or
+  ## returns `false` if the stack is empty.
+  let opt = self.peek()
+  if opt.isSome:
+    outItem = opt.get()
+    true
+  else:
+    false
+
 proc drainInto*[
   T;
   Cap: static int;
@@ -571,11 +588,11 @@ proc len*[
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
 ](self: BStack[T, Cap, ccProd, ccCons]): int {.inline.} =
-  ## Returns the current number of elements in the bounded stack (`0 .. Cap`).
+  ## Returns the current number of elements in the bounded stack (`0 .. capacity`).
   if self.core == nil:
     0
   else:
-    clamp(self.core.count.load(moAcquire), 0, Cap)
+    clamp(self.core.count.load(moAcquire), 0, self.core.effCap)
 
 proc capacity*[
   T;
@@ -583,8 +600,27 @@ proc capacity*[
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
 ](self: BStack[T, Cap, ccProd, ccCons]): int {.inline.} =
-  ## Returns the compile-time capacity `Cap` of the bounded stack.
-  Cap
+  ## Returns the effective capacity of the bounded stack (defaults to `Cap`).
+  if self.core == nil:
+    Cap
+  else:
+    self.core.effCap
+
+proc setEffectiveCapacity*[
+  T;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](self: BStack[T, Cap, ccProd, ccCons], effCap: int) =
+  ## Restricts the free-slot pool of an empty `BStack` to `effCap` slots (`1 .. Cap`).
+  if self.core == nil:
+    return
+  let c = clamp(effCap, 1, Cap)
+  self.core.effCap = c
+  for i in 0 ..< c:
+    let nextIdx = if i + 1 < c: int32(i + 1) else: NilSlotIdx
+    self.core.slots[i].next.store(nextIdx, moRelaxed)
+  self.core.freeHead.store(packTagIdx(0'u32, 0'i32), moRelease)
 
 proc isEmpty*[
   T;

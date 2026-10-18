@@ -74,6 +74,8 @@ type
     inVal: V
     outVal: V
     ok: bool
+    inserted: bool
+    full: bool
 
   BTableCore*[K, V; Cap: static int; ProbeSlots: static int] = object
     combinerLock* {.align: CacheLineBytes.}: Atomic[uint64]
@@ -81,6 +83,7 @@ type
     activePubSlots* {.align: CacheLineBytes.}: Atomic[int]
     rc* {.align: CacheLineBytes.}: Atomic[int]
     liveCount*: int
+    effCap*: int
     pubSlots*: array[BTableMaxCombinerSlots, BTablePubSlot[K, V]]
     slots*: array[ProbeSlots, BTableSlot[K, V]]
 
@@ -160,12 +163,18 @@ proc directTryPut[K, V; Cap: static int; ProbeSlots: static int](
     core: ptr BTableCore[K, V, Cap, ProbeSlots],
     key: sink K,
     val: sink V,
-    overwriteExisting: bool
+    overwriteExisting: bool,
+    outInserted: ptr bool = nil,
+    outFull: ptr bool = nil
 ): bool {.inline.} =
   ## Inserts or updates `(key, val)`.
   ## Preserves the Tombstone Probe Invariant: records `firstTombstone` and
   ## continues probing until `key` is found, an `Empty` slot is reached, or all
   ## `ProbeSlots` have been inspected.
+  if outInserted != nil:
+    outInserted[] = false
+  if outFull != nil:
+    outFull[] = false
   const mask = ProbeSlots - 1
   let hv = btableHash(key)
   let start = int(hv) and mask
@@ -194,7 +203,9 @@ proc directTryPut[K, V; Cap: static int; ProbeSlots: static int](
   if targetIdx < 0:
     targetIdx = firstTombstone
 
-  if core.liveCount >= Cap or targetIdx < 0:
+  if core.liveCount >= core.effCap or targetIdx < 0:
+    if outFull != nil:
+      outFull[] = true
     return false
 
   let s0 = core.slots[targetIdx].seq.load(moRelaxed)
@@ -206,6 +217,8 @@ proc directTryPut[K, V; Cap: static int; ProbeSlots: static int](
   core.slots[targetIdx].seq.store(s0 + 2'u64, moRelease)
   inc core.liveCount
   core.count.store(core.liveCount, moRelease)
+  if outInserted != nil:
+    outInserted[] = true
   return true
 
 proc directTryGet[K, V; Cap: static int; ProbeSlots: static int](
@@ -293,7 +306,9 @@ proc sweepBTablePubSlots[K, V; Cap: static int; ProbeSlots: static int](
             core,
             move(core.pubSlots[i].inKey),
             move(core.pubSlots[i].inVal),
-            overwriteExisting = true
+            overwriteExisting = true,
+            outInserted = addr core.pubSlots[i].inserted,
+            outFull = addr core.pubSlots[i].full
           )
           reset(core.pubSlots[i].inKey)
           reset(core.pubSlots[i].inVal)
@@ -302,7 +317,9 @@ proc sweepBTablePubSlots[K, V; Cap: static int; ProbeSlots: static int](
             core,
             move(core.pubSlots[i].inKey),
             move(core.pubSlots[i].inVal),
-            overwriteExisting = false
+            overwriteExisting = false,
+            outInserted = addr core.pubSlots[i].inserted,
+            outFull = addr core.pubSlots[i].full
           )
           reset(core.pubSlots[i].inKey)
           reset(core.pubSlots[i].inVal)
@@ -337,6 +354,7 @@ proc allocBTableCore[K, V; Cap: static int](): ptr BTableCore[K, V, Cap, calcBTa
   core.activePubSlots.store(0, moRelaxed)
   core.rc.store(1, moRelaxed)
   core.liveCount = 0
+  core.effCap = Cap
   for i in 0 ..< BTableMaxCombinerSlots:
     core.pubSlots[i].status.store(btPubFree, moRelaxed)
     core.pubSlots[i].ownerTid.store(0'u64, moRelaxed)
@@ -475,7 +493,9 @@ proc submitBTableOp[K, V; Cap: static int; ProbeSlots: static int](
     kind: BTableOpKind,
     key: sink K,
     val: sink V,
-    outVal: ptr V
+    outVal: ptr V,
+    outInserted: ptr bool = nil,
+    outFull: ptr bool = nil
 ): bool {.inline, gcsafe.} =
   if core.combinerLock.load(moRelaxed) == 0'u64:
     var expected = 0'u64
@@ -483,9 +503,9 @@ proc submitBTableOp[K, V; Cap: static int; ProbeSlots: static int](
       try:
         case kind
         of btOpTryPut:
-          result = directTryPut(core, move(key), move(val), overwriteExisting = true)
+          result = directTryPut(core, move(key), move(val), overwriteExisting = true, outInserted = outInserted, outFull = outFull)
         of btOpTryInsert:
-          result = directTryPut(core, move(key), move(val), overwriteExisting = false)
+          result = directTryPut(core, move(key), move(val), overwriteExisting = false, outInserted = outInserted, outFull = outFull)
         of btOpTryGet:
           result = directTryGet(core, key, outVal[])
         of btOpContains:
@@ -507,10 +527,16 @@ proc submitBTableOp[K, V; Cap: static int; ProbeSlots: static int](
     if kind in {btOpTryPut, btOpTryInsert}:
       slot.inVal = move(val)
     slot.ok = false
+    slot.inserted = false
+    slot.full = false
     slot.status.store(btPubPending, moRelease)
 
     while true:
       if slot.status.load(moAcquire) != btPubPending:
+        if outInserted != nil:
+          outInserted[] = slot.inserted
+        if outFull != nil:
+          outFull[] = slot.full
         if slot.ok and outVal != nil and kind in {btOpTryGet, btOpTake}:
           outVal[] = move(slot.outVal)
           reset(slot.outVal)
@@ -523,12 +549,20 @@ proc submitBTableOp[K, V; Cap: static int; ProbeSlots: static int](
           finally:
             core.combinerLock.store(0'u64, moRelease)
           if slot.status.load(moAcquire) != btPubPending:
+            if outInserted != nil:
+              outInserted[] = slot.inserted
+            if outFull != nil:
+              outFull[] = slot.full
             if slot.ok and outVal != nil and kind in {btOpTryGet, btOpTake}:
               outVal[] = move(slot.outVal)
               reset(slot.outVal)
             return slot.ok
       for _ in 0 ..< 128:
         if slot.status.load(moAcquire) != btPubPending:
+          if outInserted != nil:
+            outInserted[] = slot.inserted
+          if outFull != nil:
+            outFull[] = slot.full
           if slot.ok and outVal != nil and kind in {btOpTryGet, btOpTake}:
             outVal[] = move(slot.outVal)
             reset(slot.outVal)
@@ -542,9 +576,9 @@ proc submitBTableOp[K, V; Cap: static int; ProbeSlots: static int](
           try:
             case kind
             of btOpTryPut:
-              result = directTryPut(core, move(key), move(val), overwriteExisting = true)
+              result = directTryPut(core, move(key), move(val), overwriteExisting = true, outInserted = outInserted, outFull = outFull)
             of btOpTryInsert:
-              result = directTryPut(core, move(key), move(val), overwriteExisting = false)
+              result = directTryPut(core, move(key), move(val), overwriteExisting = false, outInserted = outInserted, outFull = outFull)
             of btOpTryGet:
               result = directTryGet(core, key, outVal[])
             of btOpContains:
@@ -569,6 +603,23 @@ proc tryPut*[
   ## Returns `true` on success, or `false` if `key` is new and the table is full (`len == Cap`).
   doAssert self.core != nil, "BTable is uninitialized; call initBTable[K, V, Cap]()"
   submitBTableOp(self.core, btOpTryPut, move(key), move(val), nil)
+
+proc tryPutEx*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: BTable[K, V, Cap, ccProd, ccCons],
+    key: sink K,
+    val: sink V,
+    outInserted: ptr bool,
+    outFull: ptr bool
+): bool {.gcsafe.} =
+  ## Inserts `(key, val)` or updates `key` if already present, recording whether
+  ## a new entry was inserted (`outInserted[]`) or whether the table was full (`outFull[]`).
+  doAssert self.core != nil, "BTable is uninitialized; call initBTable[K, V, Cap]()"
+  submitBTableOp(self.core, btOpTryPut, move(key), move(val), nil, outInserted, outFull)
 
 proc put*[
   K, V;
@@ -597,6 +648,23 @@ proc tryInsert*[
   ## Returns `true` if inserted, or `false` if `key` already exists or the table is full.
   doAssert self.core != nil, "BTable is uninitialized; call initBTable[K, V, Cap]()"
   submitBTableOp(self.core, btOpTryInsert, move(key), move(val), nil)
+
+proc tryInsertEx*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: BTable[K, V, Cap, ccProd, ccCons],
+    key: sink K,
+    val: sink V,
+    outInserted: ptr bool,
+    outFull: ptr bool
+): bool {.gcsafe.} =
+  ## Inserts `(key, val)` only if `key` is not already present and `len < capacity`,
+  ## recording whether `key` was inserted (`outInserted[]`) or whether the table was full (`outFull[]`).
+  doAssert self.core != nil, "BTable is uninitialized; call initBTable[K, V, Cap]()"
+  submitBTableOp(self.core, btOpTryInsert, move(key), move(val), nil, outInserted, outFull)
 
 proc insert*[
   K, V;
@@ -715,7 +783,7 @@ proc tryComputeIfAbsent*[
           var existing: V
           if directTryGet(core, key, existing):
             result = some(move(existing))
-          elif core.liveCount < Cap:
+          elif core.liveCount < core.effCap:
             var computed = factory(key)
             let copyComputed = computed
             if directTryPut(core, key, move(computed), overwriteExisting = false):
@@ -985,17 +1053,67 @@ proc clear*[
         return
     cpuPause()
 
+proc clearWith*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: BTable[K, V, Cap, ccProd, ccCons],
+    destructor: proc(key: K, val: V, userData: pointer) {.cdecl, gcsafe.},
+    userData: pointer
+) {.gcsafe.} =
+  ## Clears all entries in the bounded table, invoking `destructor(key, val, userData)`
+  ## (when non-nil) on each occupied slot before resetting all slots to `BTableSlotEmpty`.
+  if self.core == nil:
+    return
+  if destructor == nil:
+    self.clear()
+    return
+  const ProbeSlots = calcBTableProbeSlots(Cap)
+  let core = self.core
+  while true:
+    if core.combinerLock.load(moRelaxed) == 0'u64:
+      var expected = 0'u64
+      if core.combinerLock.compareExchange(expected, 1'u64, moAcquire, moRelaxed):
+        try:
+          for i in 0 ..< ProbeSlots:
+            let st = core.slots[i].state.load(moRelaxed)
+            if st != BTableSlotEmpty:
+              let k = core.slots[i].key
+              let v = core.slots[i].val
+              let s0 = core.slots[i].seq.load(moRelaxed)
+              core.slots[i].seq.store(s0 + 1'u64, moRelease)
+              reset(core.slots[i].key)
+              reset(core.slots[i].val)
+              core.slots[i].hashVal = 0'u32
+              core.slots[i].state.store(BTableSlotEmpty, moRelease)
+              core.slots[i].seq.store(s0 + 2'u64, moRelease)
+              if st == BTableSlotOccupied:
+                try:
+                  destructor(k, v, userData)
+                except:
+                  discard
+          core.liveCount = 0
+          core.count.store(0, moRelease)
+          sweepBTablePubSlots(core)
+        finally:
+          core.combinerLock.store(0'u64, moRelease)
+        return
+    cpuPause()
+
+
 proc len*[
   K, V;
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
 ](self: BTable[K, V, Cap, ccProd, ccCons]): int {.inline.} =
-  ## Returns the current number of active key-value entries in the table (`0 .. Cap`).
+  ## Returns the current number of active key-value entries in the table (`0 .. capacity`).
   if self.core == nil:
     0
   else:
-    clamp(self.core.count.load(moAcquire), 0, Cap)
+    clamp(self.core.count.load(moAcquire), 0, self.core.effCap)
 
 proc capacity*[
   K, V;
@@ -1003,8 +1121,21 @@ proc capacity*[
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
 ](self: BTable[K, V, Cap, ccProd, ccCons]): int {.inline.} =
-  ## Returns the compile-time maximum entry capacity `Cap` of the bounded table.
-  Cap
+  ## Returns the effective maximum entry capacity of the bounded table (defaults to `Cap`).
+  if self.core == nil:
+    Cap
+  else:
+    self.core.effCap
+
+proc setEffectiveCapacity*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](self: BTable[K, V, Cap, ccProd, ccCons], effCap: int) =
+  ## Sets the effective maximum entry count (`1 .. Cap`) on an empty `BTable`.
+  if self.core != nil:
+    self.core.effCap = clamp(effCap, 1, Cap)
 
 proc probeCapacity*[
   K, V;
@@ -1030,5 +1161,5 @@ proc isFull*[
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
 ](self: BTable[K, V, Cap, ccProd, ccCons]): bool {.inline.} =
-  ## Returns `true` if the table has reached capacity `Cap`.
-  self.len() >= Cap
+  ## Returns `true` if the table has reached its effective capacity.
+  self.len() >= self.capacity()

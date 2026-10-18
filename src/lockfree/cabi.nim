@@ -40,6 +40,12 @@ import lockfree/priority_queue
 export priority_queue
 import lockfree/flat_combiner
 export flat_combiner
+import lockfree/bstack
+export bstack
+import lockfree/bpriority_queue
+export bpriority_queue
+import lockfree/btable
+export btable
 import std/options
 
 # ------------------------------------------------------------------------------
@@ -3204,9 +3210,830 @@ proc lfq_flat_combiner_active_records*(
     return 0.csize_t
   csize_t(combiner.raw.activePublicationRecords())
 
+# ------------------------------------------------------------------------------
+# 16. Bounded Zero-SMR Lock-Free Stack (BStack)
+# ------------------------------------------------------------------------------
 
+type
+  lfq_bstack* {.exportc: "lfq_bstack_t".} = object
+    destructor*: lfq_item_destructor_fn
+    userData*: pointer
+    destroyFn*: proc(s: ptr lfq_bstack_t): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    pushFn*: proc(s: ptr lfq_bstack_t, item: pointer): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    popFn*: proc(s: ptr lfq_bstack_t, outItem: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    peekFn*: proc(s: ptr lfq_bstack_t, outItem: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    clearFn*: proc(s: ptr lfq_bstack_t): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    lenFn*: proc(s: ptr lfq_bstack_t): csize_t {.nimcall, gcsafe, raises: [].}
+    capFn*: proc(s: ptr lfq_bstack_t): csize_t {.nimcall, gcsafe, raises: [].}
+    isEmptyFn*: proc(s: ptr lfq_bstack_t): bool {.nimcall, gcsafe, raises: [].}
+    isFullFn*: proc(s: ptr lfq_bstack_t): bool {.nimcall, gcsafe, raises: [].}
 
+  lfq_bstack_t* = lfq_bstack
 
+  BStackImpl[N: static int] = object
+    base: lfq_bstack_t
+    raw: ptr BStack[pointer, N, ccMulti, ccMulti]
 
+proc bstackPushImpl[N: static int](s: ptr lfq_bstack_t, item: pointer): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BStackImpl[N]](s)
+  cAbiBoundary:
+    if impl.raw[].tryPush(item):
+      LFQ_OK
+    else:
+      LFQ_ERR_FULL
 
+proc bstackPopImpl[N: static int](s: ptr lfq_bstack_t, outItem: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BStackImpl[N]](s)
+  cAbiBoundary:
+    var item: pointer = nil
+    if impl.raw[].tryPop(item):
+      outItem[] = item
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc bstackPeekImpl[N: static int](s: ptr lfq_bstack_t, outItem: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BStackImpl[N]](s)
+  cAbiBoundary:
+    var item: pointer = nil
+    if impl.raw[].tryPeek(item):
+      outItem[] = item
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc bstackClearImpl[N: static int](s: ptr lfq_bstack_t): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BStackImpl[N]](s)
+  cAbiBoundary:
+    if s.destructor != nil:
+      var item: pointer = nil
+      while impl.raw[].tryPop(item):
+        try:
+          s.destructor(item, s.userData)
+        except:
+          discard
+    impl.raw[].clear()
+    LFQ_OK
+
+proc bstackDestroyImpl[N: static int](s: ptr lfq_bstack_t): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BStackImpl[N]](s)
+  cAbiBoundary:
+    if impl.raw != nil:
+      if s.destructor != nil:
+        var item: pointer = nil
+        while impl.raw[].tryPop(item):
+          try:
+            s.destructor(item, s.userData)
+          except:
+            discard
+      `=destroy`(impl.raw[])
+      deallocShared(impl.raw)
+      impl.raw = nil
+    deallocShared(impl)
+    LFQ_OK
+
+proc bstackLenImpl[N: static int](s: ptr lfq_bstack_t): csize_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BStackImpl[N]](s)
+  csize_t(impl.raw[].len())
+
+proc bstackCapImpl[N: static int](s: ptr lfq_bstack_t): csize_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BStackImpl[N]](s)
+  csize_t(impl.raw[].capacity())
+
+proc bstackIsEmptyImpl[N: static int](s: ptr lfq_bstack_t): bool {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BStackImpl[N]](s)
+  impl.raw[].isEmpty()
+
+proc bstackIsFullImpl[N: static int](s: ptr lfq_bstack_t): bool {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BStackImpl[N]](s)
+  impl.raw[].isFull()
+
+proc createBStackTier[N: static int](
+    effCap: int,
+    destructor: lfq_item_destructor_fn,
+    userData: pointer,
+    outStack: ptr ptr lfq_bstack_t
+): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  cAbiBoundary:
+    let impl = cast[ptr BStackImpl[N]](allocShared0(sizeof(BStackImpl[N])))
+    let raw = cast[ptr BStack[pointer, N, ccMulti, ccMulti]](allocShared0(sizeof(BStack[pointer, N, ccMulti, ccMulti])))
+    raw[] = initBStack[pointer, N]()
+    raw[].setEffectiveCapacity(effCap)
+    impl.raw = raw
+    impl.base.destructor = destructor
+    impl.base.userData = userData
+    impl.base.destroyFn = bstackDestroyImpl[N]
+    impl.base.pushFn = bstackPushImpl[N]
+    impl.base.popFn = bstackPopImpl[N]
+    impl.base.peekFn = bstackPeekImpl[N]
+    impl.base.clearFn = bstackClearImpl[N]
+    impl.base.lenFn = bstackLenImpl[N]
+    impl.base.capFn = bstackCapImpl[N]
+    impl.base.isEmptyFn = bstackIsEmptyImpl[N]
+    impl.base.isFullFn = bstackIsFullImpl[N]
+    outStack[] = cast[ptr lfq_bstack_t](impl)
+    LFQ_OK
+
+proc lfq_bstack_create*(
+    capacity: csize_t,
+    destructor: lfq_item_destructor_fn,
+    user_data: pointer,
+    out_stack: ptr ptr lfq_bstack_t
+): lfq_status_t {.exportc: "lfq_bstack_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(capacity == 0 or out_stack == nil):
+    return LFQ_ERR_INVALID_ARG
+  if unlikely(capacity > 65536):
+    return LFQ_ERR_UNSUPPORTED
+  let cap = int(capacity)
+  if cap <= 16:
+    createBStackTier[16](cap, destructor, user_data, out_stack)
+  elif cap <= 64:
+    createBStackTier[64](cap, destructor, user_data, out_stack)
+  elif cap <= 256:
+    createBStackTier[256](cap, destructor, user_data, out_stack)
+  elif cap <= 1024:
+    createBStackTier[1024](cap, destructor, user_data, out_stack)
+  elif cap <= 4096:
+    createBStackTier[4096](cap, destructor, user_data, out_stack)
+  elif cap <= 16384:
+    createBStackTier[16384](cap, destructor, user_data, out_stack)
+  else:
+    createBStackTier[65536](cap, destructor, user_data, out_stack)
+
+proc lfq_bstack_destroy*(
+    stack: ptr lfq_bstack_t
+): lfq_status_t {.exportc: "lfq_bstack_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.destroyFn == nil):
+    return LFQ_ERR_INVALID_ARG
+  stack.destroyFn(stack)
+
+proc lfq_bstack_push*(
+    stack: ptr lfq_bstack_t,
+    item: pointer
+): lfq_status_t {.exportc: "lfq_bstack_push", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.pushFn == nil):
+    return LFQ_ERR_INVALID_ARG
+  stack.pushFn(stack, item)
+
+proc lfq_bstack_pop*(
+    stack: ptr lfq_bstack_t,
+    out_item: ptr pointer
+): lfq_status_t {.exportc: "lfq_bstack_pop", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.popFn == nil or out_item == nil):
+    return LFQ_ERR_INVALID_ARG
+  stack.popFn(stack, out_item)
+
+proc lfq_bstack_peek*(
+    stack: ptr lfq_bstack_t,
+    out_item: ptr pointer
+): lfq_status_t {.exportc: "lfq_bstack_peek", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.peekFn == nil or out_item == nil):
+    return LFQ_ERR_INVALID_ARG
+  stack.peekFn(stack, out_item)
+
+proc lfq_bstack_clear*(
+    stack: ptr lfq_bstack_t
+): lfq_status_t {.exportc: "lfq_bstack_clear", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.clearFn == nil):
+    return LFQ_ERR_INVALID_ARG
+  stack.clearFn(stack)
+
+proc lfq_bstack_len*(
+    stack: ptr lfq_bstack_t
+): csize_t {.exportc: "lfq_bstack_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.lenFn == nil):
+    return 0.csize_t
+  stack.lenFn(stack)
+
+proc lfq_bstack_capacity*(
+    stack: ptr lfq_bstack_t
+): csize_t {.exportc: "lfq_bstack_capacity", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.capFn == nil):
+    return 0.csize_t
+  stack.capFn(stack)
+
+proc lfq_bstack_is_empty*(
+    stack: ptr lfq_bstack_t
+): bool {.exportc: "lfq_bstack_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.isEmptyFn == nil):
+    return true
+  stack.isEmptyFn(stack)
+
+proc lfq_bstack_is_full*(
+    stack: ptr lfq_bstack_t
+): bool {.exportc: "lfq_bstack_is_full", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.isFullFn == nil):
+    return false
+  stack.isFullFn(stack)
+
+# ------------------------------------------------------------------------------
+# 17. Bounded Zero-SMR Binary Min-Heap Priority Queue (BPriorityQueue)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_bpqueue* {.exportc: "lfq_bpqueue_t".} = object
+    destructor*: lfq_item_destructor_fn
+    userData*: pointer
+    destroyFn*: proc(pq: ptr lfq_bpqueue_t): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    pushFn*: proc(pq: ptr lfq_bpqueue_t, priority: int64, item: pointer): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    popMinFn*: proc(pq: ptr lfq_bpqueue_t, outPriority: ptr int64, outItem: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    peekMinFn*: proc(pq: ptr lfq_bpqueue_t, outPriority: ptr int64, outItem: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    clearFn*: proc(pq: ptr lfq_bpqueue_t): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    lenFn*: proc(pq: ptr lfq_bpqueue_t): csize_t {.nimcall, gcsafe, raises: [].}
+    capFn*: proc(pq: ptr lfq_bpqueue_t): csize_t {.nimcall, gcsafe, raises: [].}
+    isEmptyFn*: proc(pq: ptr lfq_bpqueue_t): bool {.nimcall, gcsafe, raises: [].}
+    isFullFn*: proc(pq: ptr lfq_bpqueue_t): bool {.nimcall, gcsafe, raises: [].}
+
+  lfq_bpqueue_t* = lfq_bpqueue
+
+  BPQueueImpl[N: static int] = object
+    base: lfq_bpqueue_t
+    raw: ptr BPriorityQueue[Prioritized[int64, pointer], N, ccMulti, ccMulti]
+
+proc bpqueuePushImpl[N: static int](pq: ptr lfq_bpqueue_t, priority: int64, item: pointer): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BPQueueImpl[N]](pq)
+  cAbiBoundary:
+    if impl.raw[].tryPush(Prioritized[int64, pointer](priority: priority, value: item)):
+      LFQ_OK
+    else:
+      LFQ_ERR_FULL
+
+proc bpqueuePopMinImpl[N: static int](pq: ptr lfq_bpqueue_t, outPriority: ptr int64, outItem: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BPQueueImpl[N]](pq)
+  cAbiBoundary:
+    var entry: Prioritized[int64, pointer]
+    if impl.raw[].tryPopMin(entry):
+      if outPriority != nil:
+        outPriority[] = entry.priority
+      outItem[] = entry.value
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc bpqueuePeekMinImpl[N: static int](pq: ptr lfq_bpqueue_t, outPriority: ptr int64, outItem: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BPQueueImpl[N]](pq)
+  cAbiBoundary:
+    let opt = impl.raw[].peekMin()
+    if opt.isSome:
+      let entry = opt.get()
+      if outPriority != nil:
+        outPriority[] = entry.priority
+      outItem[] = entry.value
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc bpqueueClearImpl[N: static int](pq: ptr lfq_bpqueue_t): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BPQueueImpl[N]](pq)
+  cAbiBoundary:
+    if pq.destructor != nil:
+      var entry: Prioritized[int64, pointer]
+      while impl.raw[].tryPopMin(entry):
+        try:
+          pq.destructor(entry.value, pq.userData)
+        except:
+          discard
+    impl.raw[].clear()
+    LFQ_OK
+
+proc bpqueueDestroyImpl[N: static int](pq: ptr lfq_bpqueue_t): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BPQueueImpl[N]](pq)
+  cAbiBoundary:
+    if impl.raw != nil:
+      if pq.destructor != nil:
+        var entry: Prioritized[int64, pointer]
+        while impl.raw[].tryPopMin(entry):
+          try:
+            pq.destructor(entry.value, pq.userData)
+          except:
+            discard
+      `=destroy`(impl.raw[])
+      deallocShared(impl.raw)
+      impl.raw = nil
+    deallocShared(impl)
+    LFQ_OK
+
+proc bpqueueLenImpl[N: static int](pq: ptr lfq_bpqueue_t): csize_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BPQueueImpl[N]](pq)
+  csize_t(impl.raw[].len())
+
+proc bpqueueCapImpl[N: static int](pq: ptr lfq_bpqueue_t): csize_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BPQueueImpl[N]](pq)
+  csize_t(impl.raw[].capacity())
+
+proc bpqueueIsEmptyImpl[N: static int](pq: ptr lfq_bpqueue_t): bool {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BPQueueImpl[N]](pq)
+  impl.raw[].isEmpty()
+
+proc bpqueueIsFullImpl[N: static int](pq: ptr lfq_bpqueue_t): bool {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BPQueueImpl[N]](pq)
+  impl.raw[].isFull()
+
+proc createBPQueueTier[N: static int](
+    effCap: int,
+    destructor: lfq_item_destructor_fn,
+    userData: pointer,
+    outPQueue: ptr ptr lfq_bpqueue_t
+): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  cAbiBoundary:
+    let impl = cast[ptr BPQueueImpl[N]](allocShared0(sizeof(BPQueueImpl[N])))
+    let raw = cast[ptr BPriorityQueue[Prioritized[int64, pointer], N, ccMulti, ccMulti]](allocShared0(sizeof(BPriorityQueue[Prioritized[int64, pointer], N, ccMulti, ccMulti])))
+    raw[] = initBPriorityQueue[Prioritized[int64, pointer], N]()
+    raw[].setEffectiveCapacity(effCap)
+    impl.raw = raw
+    impl.base.destructor = destructor
+    impl.base.userData = userData
+    impl.base.destroyFn = bpqueueDestroyImpl[N]
+    impl.base.pushFn = bpqueuePushImpl[N]
+    impl.base.popMinFn = bpqueuePopMinImpl[N]
+    impl.base.peekMinFn = bpqueuePeekMinImpl[N]
+    impl.base.clearFn = bpqueueClearImpl[N]
+    impl.base.lenFn = bpqueueLenImpl[N]
+    impl.base.capFn = bpqueueCapImpl[N]
+    impl.base.isEmptyFn = bpqueueIsEmptyImpl[N]
+    impl.base.isFullFn = bpqueueIsFullImpl[N]
+    outPQueue[] = cast[ptr lfq_bpqueue_t](impl)
+    LFQ_OK
+
+proc lfq_bpqueue_create*(
+    capacity: csize_t,
+    destructor: lfq_item_destructor_fn,
+    user_data: pointer,
+    out_pqueue: ptr ptr lfq_bpqueue_t
+): lfq_status_t {.exportc: "lfq_bpqueue_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(capacity == 0 or out_pqueue == nil):
+    return LFQ_ERR_INVALID_ARG
+  if unlikely(capacity > 65536):
+    return LFQ_ERR_UNSUPPORTED
+  let cap = int(capacity)
+  if cap <= 16:
+    createBPQueueTier[16](cap, destructor, user_data, out_pqueue)
+  elif cap <= 64:
+    createBPQueueTier[64](cap, destructor, user_data, out_pqueue)
+  elif cap <= 256:
+    createBPQueueTier[256](cap, destructor, user_data, out_pqueue)
+  elif cap <= 1024:
+    createBPQueueTier[1024](cap, destructor, user_data, out_pqueue)
+  elif cap <= 4096:
+    createBPQueueTier[4096](cap, destructor, user_data, out_pqueue)
+  elif cap <= 16384:
+    createBPQueueTier[16384](cap, destructor, user_data, out_pqueue)
+  else:
+    createBPQueueTier[65536](cap, destructor, user_data, out_pqueue)
+
+proc lfq_bpqueue_destroy*(
+    pqueue: ptr lfq_bpqueue_t
+): lfq_status_t {.exportc: "lfq_bpqueue_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(pqueue == nil or pqueue.destroyFn == nil):
+    return LFQ_ERR_INVALID_ARG
+  pqueue.destroyFn(pqueue)
+
+proc lfq_bpqueue_push*(
+    pqueue: ptr lfq_bpqueue_t,
+    priority: int64,
+    item: pointer
+): lfq_status_t {.exportc: "lfq_bpqueue_push", cdecl, gcsafe, raises: [].} =
+  if unlikely(pqueue == nil or pqueue.pushFn == nil):
+    return LFQ_ERR_INVALID_ARG
+  pqueue.pushFn(pqueue, priority, item)
+
+proc lfq_bpqueue_pop_min*(
+    pqueue: ptr lfq_bpqueue_t,
+    out_priority: ptr int64,
+    out_item: ptr pointer
+): lfq_status_t {.exportc: "lfq_bpqueue_pop_min", cdecl, gcsafe, raises: [].} =
+  if unlikely(pqueue == nil or pqueue.popMinFn == nil or out_item == nil):
+    return LFQ_ERR_INVALID_ARG
+  pqueue.popMinFn(pqueue, out_priority, out_item)
+
+proc lfq_bpqueue_peek_min*(
+    pqueue: ptr lfq_bpqueue_t,
+    out_priority: ptr int64,
+    out_item: ptr pointer
+): lfq_status_t {.exportc: "lfq_bpqueue_peek_min", cdecl, gcsafe, raises: [].} =
+  if unlikely(pqueue == nil or pqueue.peekMinFn == nil or out_item == nil):
+    return LFQ_ERR_INVALID_ARG
+  pqueue.peekMinFn(pqueue, out_priority, out_item)
+
+proc lfq_bpqueue_clear*(
+    pqueue: ptr lfq_bpqueue_t
+): lfq_status_t {.exportc: "lfq_bpqueue_clear", cdecl, gcsafe, raises: [].} =
+  if unlikely(pqueue == nil or pqueue.clearFn == nil):
+    return LFQ_ERR_INVALID_ARG
+  pqueue.clearFn(pqueue)
+
+proc lfq_bpqueue_len*(
+    pqueue: ptr lfq_bpqueue_t
+): csize_t {.exportc: "lfq_bpqueue_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(pqueue == nil or pqueue.lenFn == nil):
+    return 0.csize_t
+  pqueue.lenFn(pqueue)
+
+proc lfq_bpqueue_capacity*(
+    pqueue: ptr lfq_bpqueue_t
+): csize_t {.exportc: "lfq_bpqueue_capacity", cdecl, gcsafe, raises: [].} =
+  if unlikely(pqueue == nil or pqueue.capFn == nil):
+    return 0.csize_t
+  pqueue.capFn(pqueue)
+
+proc lfq_bpqueue_is_empty*(
+    pqueue: ptr lfq_bpqueue_t
+): bool {.exportc: "lfq_bpqueue_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(pqueue == nil or pqueue.isEmptyFn == nil):
+    return true
+  pqueue.isEmptyFn(pqueue)
+
+proc lfq_bpqueue_is_full*(
+    pqueue: ptr lfq_bpqueue_t
+): bool {.exportc: "lfq_bpqueue_is_full", cdecl, gcsafe, raises: [].} =
+  if unlikely(pqueue == nil or pqueue.isFullFn == nil):
+    return false
+  pqueue.isFullFn(pqueue)
+
+# ------------------------------------------------------------------------------
+# 18. Bounded Zero-SMR Robin Hood Open-Addressing Hash Table (BTable)
+# ------------------------------------------------------------------------------
+
+type
+  lfq_btable_destructor_fn* = proc(key: pointer, val: pointer, userData: pointer) {.cdecl, gcsafe.}
+  lfq_btable_mapping_fn* = proc(key: pointer, userData: pointer): pointer {.cdecl, gcsafe.}
+  lfq_btable_update_fn* = proc(key: pointer, oldVal: pointer, userData: pointer): pointer {.cdecl, gcsafe.}
+
+  lfq_btable* {.exportc: "lfq_btable_t".} = object
+    destructor*: lfq_btable_destructor_fn
+    userData*: pointer
+    destroyFn*: proc(t: ptr lfq_btable_t): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    putFn*: proc(t: ptr lfq_btable_t, key: pointer, val: pointer, outInserted: ptr bool): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    insertFn*: proc(t: ptr lfq_btable_t, key: pointer, val: pointer, outInserted: ptr bool): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    getFn*: proc(t: ptr lfq_btable_t, key: pointer, outVal: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    deleteFn*: proc(t: ptr lfq_btable_t, key: pointer, outDeleted: ptr bool): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    takeFn*: proc(t: ptr lfq_btable_t, key: pointer, outVal: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    containsFn*: proc(t: ptr lfq_btable_t, key: pointer): bool {.nimcall, gcsafe, raises: [].}
+    computeIfAbsentFn*: proc(t: ptr lfq_btable_t, key: pointer, mappingFn: lfq_btable_mapping_fn, userData: pointer, outVal: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    atomicUpdateFn*: proc(t: ptr lfq_btable_t, key: pointer, updateFn: lfq_btable_update_fn, userData: pointer, outVal: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    upsertFn*: proc(t: ptr lfq_btable_t, key: pointer, initialVal: pointer, updateFn: lfq_btable_update_fn, userData: pointer, outVal: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    clearFn*: proc(t: ptr lfq_btable_t): lfq_status_t {.nimcall, gcsafe, raises: [].}
+    lenFn*: proc(t: ptr lfq_btable_t): csize_t {.nimcall, gcsafe, raises: [].}
+    capFn*: proc(t: ptr lfq_btable_t): csize_t {.nimcall, gcsafe, raises: [].}
+    isEmptyFn*: proc(t: ptr lfq_btable_t): bool {.nimcall, gcsafe, raises: [].}
+    isFullFn*: proc(t: ptr lfq_btable_t): bool {.nimcall, gcsafe, raises: [].}
+
+  lfq_btable_t* = lfq_btable
+
+  BTableImpl[N: static int] = object
+    base: lfq_btable_t
+    raw: ptr BTable[pointer, pointer, N, ccMulti, ccMulti]
+
+proc btablePutImpl[N: static int](t: ptr lfq_btable_t, key: pointer, val: pointer, outInserted: ptr bool): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BTableImpl[N]](t)
+  cAbiBoundary:
+    var ins = false
+    var full = false
+    let ok = impl.raw[].tryPutEx(key, val, addr ins, addr full)
+    if outInserted != nil:
+      outInserted[] = ins
+    if ok:
+      LFQ_OK
+    elif full:
+      LFQ_ERR_FULL
+    else:
+      LFQ_ERR_FAILURE
+
+proc btableInsertImpl[N: static int](t: ptr lfq_btable_t, key: pointer, val: pointer, outInserted: ptr bool): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BTableImpl[N]](t)
+  cAbiBoundary:
+    var ins = false
+    var full = false
+    discard impl.raw[].tryInsertEx(key, val, addr ins, addr full)
+    if outInserted != nil:
+      outInserted[] = ins
+    if full:
+      LFQ_ERR_FULL
+    else:
+      LFQ_OK
+
+proc btableGetImpl[N: static int](t: ptr lfq_btable_t, key: pointer, outVal: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BTableImpl[N]](t)
+  cAbiBoundary:
+    var val: pointer = nil
+    if impl.raw[].tryGet(key, val):
+      outVal[] = val
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc btableDeleteImpl[N: static int](t: ptr lfq_btable_t, key: pointer, outDeleted: ptr bool): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BTableImpl[N]](t)
+  cAbiBoundary:
+    let deleted = impl.raw[].remove(key)
+    if outDeleted != nil:
+      outDeleted[] = deleted
+    if deleted:
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc btableTakeImpl[N: static int](t: ptr lfq_btable_t, key: pointer, outVal: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BTableImpl[N]](t)
+  cAbiBoundary:
+    let opt = impl.raw[].take(key)
+    if opt.isSome:
+      outVal[] = opt.get()
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc btableContainsImpl[N: static int](t: ptr lfq_btable_t, key: pointer): bool {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BTableImpl[N]](t)
+  try:
+    impl.raw[].contains(key)
+  except:
+    false
+
+proc btableComputeIfAbsentImpl[N: static int](
+    t: ptr lfq_btable_t,
+    key: pointer,
+    mappingFn: lfq_btable_mapping_fn,
+    userData: pointer,
+    outVal: ptr pointer
+): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BTableImpl[N]](t)
+  cAbiBoundary:
+    let opt = impl.raw[].tryComputeIfAbsent(key, proc(k: pointer): pointer {.gcsafe.} =
+      mappingFn(k, userData)
+    )
+    if opt.isSome:
+      if outVal != nil:
+        outVal[] = opt.get()
+      LFQ_OK
+    else:
+      LFQ_ERR_FULL
+
+proc btableAtomicUpdateImpl[N: static int](
+    t: ptr lfq_btable_t,
+    key: pointer,
+    updateFn: lfq_btable_update_fn,
+    userData: pointer,
+    outVal: ptr pointer
+): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BTableImpl[N]](t)
+  cAbiBoundary:
+    let opt = impl.raw[].atomicUpdate(key, proc(k: pointer, oldVal: pointer): pointer {.gcsafe.} =
+      updateFn(k, oldVal, userData)
+    )
+    if opt.isSome:
+      if outVal != nil:
+        outVal[] = opt.get()
+      LFQ_OK
+    else:
+      LFQ_ERR_EMPTY
+
+proc btableUpsertImpl[N: static int](
+    t: ptr lfq_btable_t,
+    key: pointer,
+    initialVal: pointer,
+    updateFn: lfq_btable_update_fn,
+    userData: pointer,
+    outVal: ptr pointer
+): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BTableImpl[N]](t)
+  cAbiBoundary:
+    let opt = impl.raw[].tryUpsert(key, initialVal, proc(k: pointer, oldVal: pointer): pointer {.gcsafe.} =
+      updateFn(k, oldVal, userData)
+    )
+    if opt.isSome:
+      if outVal != nil:
+        outVal[] = opt.get()
+      LFQ_OK
+    else:
+      LFQ_ERR_FULL
+
+proc btableClearImpl[N: static int](t: ptr lfq_btable_t): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BTableImpl[N]](t)
+  cAbiBoundary:
+    impl.raw[].clearWith(t.destructor, t.userData)
+    LFQ_OK
+
+proc btableDestroyImpl[N: static int](t: ptr lfq_btable_t): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BTableImpl[N]](t)
+  cAbiBoundary:
+    if impl.raw != nil:
+      impl.raw[].clearWith(t.destructor, t.userData)
+      `=destroy`(impl.raw[])
+      deallocShared(impl.raw)
+      impl.raw = nil
+    deallocShared(impl)
+    LFQ_OK
+
+proc btableLenImpl[N: static int](t: ptr lfq_btable_t): csize_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BTableImpl[N]](t)
+  csize_t(impl.raw[].len())
+
+proc btableCapImpl[N: static int](t: ptr lfq_btable_t): csize_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BTableImpl[N]](t)
+  csize_t(impl.raw[].capacity())
+
+proc btableIsEmptyImpl[N: static int](t: ptr lfq_btable_t): bool {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BTableImpl[N]](t)
+  impl.raw[].isEmpty()
+
+proc btableIsFullImpl[N: static int](t: ptr lfq_btable_t): bool {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BTableImpl[N]](t)
+  impl.raw[].isFull()
+
+proc createBTableTier[N: static int](
+    effCap: int,
+    destructor: lfq_btable_destructor_fn,
+    userData: pointer,
+    outTable: ptr ptr lfq_btable_t
+): lfq_status_t {.nimcall, gcsafe, raises: [].} =
+  cAbiBoundary:
+    let impl = cast[ptr BTableImpl[N]](allocShared0(sizeof(BTableImpl[N])))
+    let raw = cast[ptr BTable[pointer, pointer, N, ccMulti, ccMulti]](allocShared0(sizeof(BTable[pointer, pointer, N, ccMulti, ccMulti])))
+    raw[] = initBTable[pointer, pointer, N]()
+    raw[].setEffectiveCapacity(effCap)
+    impl.raw = raw
+    impl.base.destructor = destructor
+    impl.base.userData = userData
+    impl.base.destroyFn = btableDestroyImpl[N]
+    impl.base.putFn = btablePutImpl[N]
+    impl.base.insertFn = btableInsertImpl[N]
+    impl.base.getFn = btableGetImpl[N]
+    impl.base.deleteFn = btableDeleteImpl[N]
+    impl.base.takeFn = btableTakeImpl[N]
+    impl.base.containsFn = btableContainsImpl[N]
+    impl.base.computeIfAbsentFn = btableComputeIfAbsentImpl[N]
+    impl.base.atomicUpdateFn = btableAtomicUpdateImpl[N]
+    impl.base.upsertFn = btableUpsertImpl[N]
+    impl.base.clearFn = btableClearImpl[N]
+    impl.base.lenFn = btableLenImpl[N]
+    impl.base.capFn = btableCapImpl[N]
+    impl.base.isEmptyFn = btableIsEmptyImpl[N]
+    impl.base.isFullFn = btableIsFullImpl[N]
+    outTable[] = cast[ptr lfq_btable_t](impl)
+    LFQ_OK
+
+proc lfq_btable_create*(
+    capacity: csize_t,
+    destructor: lfq_btable_destructor_fn,
+    user_data: pointer,
+    out_table: ptr ptr lfq_btable_t
+): lfq_status_t {.exportc: "lfq_btable_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(capacity == 0 or out_table == nil):
+    return LFQ_ERR_INVALID_ARG
+  if unlikely(capacity > 65536):
+    return LFQ_ERR_UNSUPPORTED
+  let cap = int(capacity)
+  if cap <= 16:
+    createBTableTier[16](cap, destructor, user_data, out_table)
+  elif cap <= 64:
+    createBTableTier[64](cap, destructor, user_data, out_table)
+  elif cap <= 256:
+    createBTableTier[256](cap, destructor, user_data, out_table)
+  elif cap <= 1024:
+    createBTableTier[1024](cap, destructor, user_data, out_table)
+  elif cap <= 4096:
+    createBTableTier[4096](cap, destructor, user_data, out_table)
+  elif cap <= 16384:
+    createBTableTier[16384](cap, destructor, user_data, out_table)
+  else:
+    createBTableTier[65536](cap, destructor, user_data, out_table)
+
+proc lfq_btable_destroy*(
+    table: ptr lfq_btable_t
+): lfq_status_t {.exportc: "lfq_btable_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.destroyFn == nil):
+    return LFQ_ERR_INVALID_ARG
+  table.destroyFn(table)
+
+proc lfq_btable_put*(
+    table: ptr lfq_btable_t,
+    key: pointer,
+    val: pointer,
+    out_inserted: ptr bool
+): lfq_status_t {.exportc: "lfq_btable_put", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.putFn == nil):
+    return LFQ_ERR_INVALID_ARG
+  table.putFn(table, key, val, out_inserted)
+
+proc lfq_btable_insert*(
+    table: ptr lfq_btable_t,
+    key: pointer,
+    val: pointer,
+    out_inserted: ptr bool
+): lfq_status_t {.exportc: "lfq_btable_insert", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.insertFn == nil):
+    return LFQ_ERR_INVALID_ARG
+  table.insertFn(table, key, val, out_inserted)
+
+proc lfq_btable_get*(
+    table: ptr lfq_btable_t,
+    key: pointer,
+    out_val: ptr pointer
+): lfq_status_t {.exportc: "lfq_btable_get", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.getFn == nil or out_val == nil):
+    return LFQ_ERR_INVALID_ARG
+  table.getFn(table, key, out_val)
+
+proc lfq_btable_delete*(
+    table: ptr lfq_btable_t,
+    key: pointer,
+    out_deleted: ptr bool
+): lfq_status_t {.exportc: "lfq_btable_delete", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.deleteFn == nil):
+    return LFQ_ERR_INVALID_ARG
+  table.deleteFn(table, key, out_deleted)
+
+proc lfq_btable_remove*(
+    table: ptr lfq_btable_t,
+    key: pointer,
+    out_removed: ptr bool
+): lfq_status_t {.exportc: "lfq_btable_remove", cdecl, gcsafe, raises: [].} =
+  lfq_btable_delete(table, key, out_removed)
+
+proc lfq_btable_take*(
+    table: ptr lfq_btable_t,
+    key: pointer,
+    out_val: ptr pointer
+): lfq_status_t {.exportc: "lfq_btable_take", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.takeFn == nil or out_val == nil):
+    return LFQ_ERR_INVALID_ARG
+  table.takeFn(table, key, out_val)
+
+proc lfq_btable_contains*(
+    table: ptr lfq_btable_t,
+    key: pointer
+): bool {.exportc: "lfq_btable_contains", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.containsFn == nil):
+    return false
+  table.containsFn(table, key)
+
+proc lfq_btable_compute_if_absent*(
+    table: ptr lfq_btable_t,
+    key: pointer,
+    mapping_fn: lfq_btable_mapping_fn,
+    user_data: pointer,
+    out_val: ptr pointer
+): lfq_status_t {.exportc: "lfq_btable_compute_if_absent", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.computeIfAbsentFn == nil or mapping_fn == nil):
+    return LFQ_ERR_INVALID_ARG
+  table.computeIfAbsentFn(table, key, mapping_fn, user_data, out_val)
+
+proc lfq_btable_atomic_update*(
+    table: ptr lfq_btable_t,
+    key: pointer,
+    update_fn: lfq_btable_update_fn,
+    user_data: pointer,
+    out_val: ptr pointer
+): lfq_status_t {.exportc: "lfq_btable_atomic_update", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.atomicUpdateFn == nil or update_fn == nil):
+    return LFQ_ERR_INVALID_ARG
+  table.atomicUpdateFn(table, key, update_fn, user_data, out_val)
+
+proc lfq_btable_upsert*(
+    table: ptr lfq_btable_t,
+    key: pointer,
+    initial_val: pointer,
+    update_fn: lfq_btable_update_fn,
+    user_data: pointer,
+    out_val: ptr pointer
+): lfq_status_t {.exportc: "lfq_btable_upsert", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.upsertFn == nil or update_fn == nil):
+    return LFQ_ERR_INVALID_ARG
+  table.upsertFn(table, key, initial_val, update_fn, user_data, out_val)
+
+proc lfq_btable_clear*(
+    table: ptr lfq_btable_t
+): lfq_status_t {.exportc: "lfq_btable_clear", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.clearFn == nil):
+    return LFQ_ERR_INVALID_ARG
+  table.clearFn(table)
+
+proc lfq_btable_len*(
+    table: ptr lfq_btable_t
+): csize_t {.exportc: "lfq_btable_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.lenFn == nil):
+    return 0.csize_t
+  table.lenFn(table)
+
+proc lfq_btable_capacity*(
+    table: ptr lfq_btable_t
+): csize_t {.exportc: "lfq_btable_capacity", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.capFn == nil):
+    return 0.csize_t
+  table.capFn(table)
+
+proc lfq_btable_is_empty*(
+    table: ptr lfq_btable_t
+): bool {.exportc: "lfq_btable_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.isEmptyFn == nil):
+    return true
+  table.isEmptyFn(table)
+
+proc lfq_btable_is_full*(
+    table: ptr lfq_btable_t
+): bool {.exportc: "lfq_btable_is_full", cdecl, gcsafe, raises: [].} =
+  if unlikely(table == nil or table.isFullFn == nil):
+    return false
+  table.isFullFn(table)
 

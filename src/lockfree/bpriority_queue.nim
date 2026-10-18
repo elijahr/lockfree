@@ -87,6 +87,7 @@ type
     rc* {.align: CacheLineBytes.}: Atomic[int]
     nextSeqId*: uint64
     heapSize*: int
+    effCap*: int
     pubSlots*: array[BPQMaxCombinerSlots, BPQPubSlot[T]]
     heap*: array[Cap, BHeapEntry[T]]
 
@@ -182,7 +183,7 @@ proc heapPushDirect[T; Cap: static int](
     core: ptr BPriorityQueueCore[T, Cap], item: sink T
 ): bool {.inline.} =
   let n = core.heapSize
-  if n >= Cap:
+  if n >= core.effCap:
     return false
   inc core.nextSeqId
   core.heap[n] = BHeapEntry[T](key: move(item), seqId: core.nextSeqId)
@@ -276,6 +277,7 @@ proc allocBPQCore[T; Cap: static int](): ptr BPriorityQueueCore[T, Cap] =
   core.rc.store(1, moRelaxed)
   core.nextSeqId = 0'u64
   core.heapSize = 0
+  core.effCap = Cap
   for i in 0 ..< BPQMaxCombinerSlots:
     core.pubSlots[i].status.store(bpqSlotFree, moRelaxed)
     core.pubSlots[i].ownerTid.store(0'u64, moRelaxed)
@@ -653,11 +655,11 @@ proc len*[
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
 ](self: BPriorityQueue[T, Cap, ccProd, ccCons]): int {.inline.} =
-  ## Returns the current number of active elements in the priority queue (`0 .. Cap`).
+  ## Returns the current number of active elements in the priority queue (`0 .. capacity`).
   if self.core == nil:
     0
   else:
-    clamp(self.core.count.load(moAcquire), 0, Cap)
+    clamp(self.core.count.load(moAcquire), 0, self.core.effCap)
 
 proc capacity*[
   T;
@@ -665,8 +667,21 @@ proc capacity*[
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
 ](self: BPriorityQueue[T, Cap, ccProd, ccCons]): int {.inline.} =
-  ## Returns the compile-time capacity `Cap` of the bounded priority queue.
-  Cap
+  ## Returns the effective capacity of the bounded priority queue (defaults to `Cap`).
+  if self.core == nil:
+    Cap
+  else:
+    self.core.effCap
+
+proc setEffectiveCapacity*[
+  T;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](self: BPriorityQueue[T, Cap, ccProd, ccCons], effCap: int) =
+  ## Sets the effective maximum entry count (`1 .. Cap`) on an empty `BPriorityQueue`.
+  if self.core != nil:
+    self.core.effCap = clamp(effCap, 1, Cap)
 
 proc isEmpty*[
   T;
@@ -683,5 +698,5 @@ proc isFull*[
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
 ](self: BPriorityQueue[T, Cap, ccProd, ccCons]): bool {.inline.} =
-  ## Returns `true` if the priority queue has reached capacity `Cap`.
-  self.len() >= Cap
+  ## Returns `true` if the priority queue has reached its effective capacity.
+  self.len() >= self.capacity()

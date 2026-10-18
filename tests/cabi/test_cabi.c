@@ -1622,6 +1622,411 @@ static void test_cabi_flat_combiner(void) {
 }
 
 /* -------------------------------------------------------------------------
+ * Test 16: Bounded Stack (lfq_bstack_*) Lifecycle, Bounds, LIFO & MPMC
+ * ------------------------------------------------------------------------- */
+typedef struct {
+    lfq_bstack_t* stack;
+    size_t items_per_thread;
+    size_t thread_idx;
+    test_atomic_uint64_t* pop_sum;
+    test_atomic_size_t* pop_count;
+} bstack_worker_arg_t;
+
+static void* bstack_mpmc_worker(void* raw_arg) {
+    bstack_worker_arg_t* arg = (bstack_worker_arg_t*)raw_arg;
+    size_t pushed = 0;
+    size_t popped = 0;
+    while (pushed < arg->items_per_thread || popped < arg->items_per_thread) {
+        if (pushed < arg->items_per_thread) {
+            uintptr_t val = (arg->thread_idx * 10000ULL) + pushed + 1ULL;
+            if (lfq_bstack_push(arg->stack, (void*)val) == LFQ_OK) {
+                pushed++;
+            }
+        }
+        if (popped < arg->items_per_thread) {
+            void* item = NULL;
+            if (lfq_bstack_pop(arg->stack, &item) == LFQ_OK) {
+                ATOMIC_ADD(arg->pop_sum, (uint64_t)(uintptr_t)item);
+                ATOMIC_INC(arg->pop_count);
+                popped++;
+            }
+        }
+    }
+    return NULL;
+}
+
+static void test_cabi_bstack(void) {
+    printf("Running test_cabi_bstack...\n");
+
+    lfq_bstack_t* bs = NULL;
+    TEST_ASSERT(lfq_bstack_create(0, NULL, NULL, &bs) == LFQ_ERR_INVALID_ARG, "bstack capacity 0 must fail");
+    TEST_ASSERT(lfq_bstack_create(8, NULL, NULL, NULL) == LFQ_ERR_INVALID_ARG, "bstack NULL out_stack must fail");
+    TEST_ASSERT(lfq_bstack_create(65537, NULL, NULL, &bs) == LFQ_ERR_UNSUPPORTED, "bstack capacity > 65536 must return UNSUPPORTED");
+    TEST_ASSERT(lfq_bstack_destroy(NULL) == LFQ_ERR_INVALID_ARG, "bstack destroy NULL must fail");
+    TEST_ASSERT(lfq_bstack_push(NULL, (void*)1) == LFQ_ERR_INVALID_ARG, "bstack push NULL must fail");
+    TEST_ASSERT(lfq_bstack_pop(NULL, NULL) == LFQ_ERR_INVALID_ARG, "bstack pop NULL must fail");
+    TEST_ASSERT(lfq_bstack_peek(NULL, NULL) == LFQ_ERR_INVALID_ARG, "bstack peek NULL must fail");
+    TEST_ASSERT(lfq_bstack_clear(NULL) == LFQ_ERR_INVALID_ARG, "bstack clear NULL must fail");
+    TEST_ASSERT(lfq_bstack_len(NULL) == 0, "bstack len NULL must be 0");
+    TEST_ASSERT(lfq_bstack_capacity(NULL) == 0, "bstack capacity NULL must be 0");
+    TEST_ASSERT(lfq_bstack_is_empty(NULL) == true, "bstack is_empty NULL must be true");
+    TEST_ASSERT(lfq_bstack_is_full(NULL) == false, "bstack is_full NULL must be false");
+
+    arc_c_tracker_t tracker = { 0, 0 };
+    lfq_status_t st = lfq_bstack_create(7, arc_c_destructor, &tracker, &bs);
+    TEST_ASSERT(st == LFQ_OK && bs != NULL, "lfq_bstack_create(7) failed");
+    TEST_ASSERT(lfq_bstack_capacity(bs) == 7, "bstack capacity should be 7");
+    TEST_ASSERT(lfq_bstack_len(bs) == 0 && lfq_bstack_is_empty(bs) && !lfq_bstack_is_full(bs), "initial bstack state mismatch");
+
+    void* out_item = NULL;
+    TEST_ASSERT(lfq_bstack_pop(bs, &out_item) == LFQ_ERR_EMPTY, "pop on empty bstack must return LFQ_ERR_EMPTY");
+    TEST_ASSERT(lfq_bstack_peek(bs, &out_item) == LFQ_ERR_EMPTY, "peek on empty bstack must return LFQ_ERR_EMPTY");
+
+    for (size_t i = 1; i <= 7; i++) {
+        TEST_ASSERT(lfq_bstack_push(bs, (void*)(uintptr_t)(i * 10)) == LFQ_OK, "bstack push within capacity failed");
+    }
+    TEST_ASSERT(lfq_bstack_len(bs) == 7 && lfq_bstack_is_full(bs) && !lfq_bstack_is_empty(bs), "full bstack state mismatch");
+    TEST_ASSERT(lfq_bstack_push(bs, (void*)(uintptr_t)80) == LFQ_ERR_FULL, "bstack push beyond capacity must return LFQ_ERR_FULL");
+
+    TEST_ASSERT(lfq_bstack_peek(bs, &out_item) == LFQ_OK && (uintptr_t)out_item == 70, "bstack peek LIFO top mismatch");
+    TEST_ASSERT(lfq_bstack_len(bs) == 7, "bstack peek must not remove item");
+
+    /* Pop top 5 in LIFO order: 70, 60, 50, 40, 30 */
+    for (size_t expected = 70; expected >= 30; expected -= 10) {
+        out_item = NULL;
+        TEST_ASSERT(lfq_bstack_pop(bs, &out_item) == LFQ_OK && (uintptr_t)out_item == expected, "bstack LIFO pop order mismatch");
+    }
+    TEST_ASSERT(lfq_bstack_len(bs) == 2, "bstack len after 5 pops should be 2");
+
+    /* Clear remaining 2 items (20, 10) -> destructor called for both */
+    TEST_ASSERT(lfq_bstack_clear(bs) == LFQ_OK, "lfq_bstack_clear failed");
+    TEST_ASSERT(lfq_bstack_is_empty(bs) && lfq_bstack_len(bs) == 0, "bstack should be empty after clear");
+    TEST_ASSERT(ATOMIC_LOAD(&tracker.destroyed_count) == 2 && ATOMIC_LOAD(&tracker.destroyed_sum) == 30, "bstack clear destructor mismatch");
+
+    /* Push 1 item (99) and destroy -> destructor called on destroy */
+    TEST_ASSERT(lfq_bstack_push(bs, (void*)(uintptr_t)99) == LFQ_OK, "bstack push after clear failed");
+    TEST_ASSERT(lfq_bstack_destroy(bs) == LFQ_OK, "lfq_bstack_destroy failed");
+    TEST_ASSERT(ATOMIC_LOAD(&tracker.destroyed_count) == 3 && ATOMIC_LOAD(&tracker.destroyed_sum) == 129, "bstack destroy destructor mismatch");
+
+    /* Multithreaded MPMC stress test */
+    lfq_bstack_t* mpmc_bs = NULL;
+    TEST_ASSERT(lfq_bstack_create(128, NULL, NULL, &mpmc_bs) == LFQ_OK, "bstack create 128 failed");
+    const size_t NTHREADS = 4;
+    const size_t NITEMS = 1000;
+    pthread_t ths[4];
+    bstack_worker_arg_t args[4];
+    test_atomic_uint64_t pop_sum = 0;
+    test_atomic_size_t pop_count = 0;
+    uint64_t expected_sum = 0;
+    for (size_t t = 0; t < NTHREADS; t++) {
+        for (size_t j = 0; j < NITEMS; j++) {
+            expected_sum += (uint64_t)((t * 10000ULL) + j + 1ULL);
+        }
+        args[t].stack = mpmc_bs;
+        args[t].items_per_thread = NITEMS;
+        args[t].thread_idx = t;
+        args[t].pop_sum = &pop_sum;
+        args[t].pop_count = &pop_count;
+        pthread_create(&ths[t], NULL, bstack_mpmc_worker, &args[t]);
+    }
+    for (size_t t = 0; t < NTHREADS; t++) {
+        pthread_join(ths[t], NULL);
+    }
+    TEST_ASSERT(ATOMIC_LOAD(&pop_count) == NTHREADS * NITEMS, "bstack MPMC pop_count mismatch");
+    TEST_ASSERT(ATOMIC_LOAD(&pop_sum) == expected_sum, "bstack MPMC pop_sum conservation mismatch");
+    TEST_ASSERT(lfq_bstack_destroy(mpmc_bs) == LFQ_OK, "bstack MPMC destroy failed");
+
+    printf("test_cabi_bstack PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
+ * Test 17: Bounded Priority Queue (lfq_bpqueue_*) Ordering, FIFO & MPMC
+ * ------------------------------------------------------------------------- */
+typedef struct {
+    lfq_bpqueue_t* pq;
+    size_t items_per_thread;
+    size_t thread_idx;
+    test_atomic_uint64_t* pop_sum;
+    test_atomic_size_t* pop_count;
+} bpqueue_worker_arg_t;
+
+static void* bpqueue_mpmc_worker(void* raw_arg) {
+    bpqueue_worker_arg_t* arg = (bpqueue_worker_arg_t*)raw_arg;
+    size_t pushed = 0;
+    size_t popped = 0;
+    while (pushed < arg->items_per_thread || popped < arg->items_per_thread) {
+        if (pushed < arg->items_per_thread) {
+            uintptr_t val = (arg->thread_idx * 10000ULL) + pushed + 1ULL;
+            int64_t prio = (int64_t)((pushed * 17 + arg->thread_idx) % 64);
+            if (lfq_bpqueue_push(arg->pq, prio, (void*)val) == LFQ_OK) {
+                pushed++;
+            }
+        }
+        if (popped < arg->items_per_thread) {
+            int64_t out_prio = 0;
+            void* item = NULL;
+            if (lfq_bpqueue_pop_min(arg->pq, &out_prio, &item) == LFQ_OK) {
+                ATOMIC_ADD(arg->pop_sum, (uint64_t)(uintptr_t)item);
+                ATOMIC_INC(arg->pop_count);
+                popped++;
+            }
+        }
+    }
+    return NULL;
+}
+
+static void test_cabi_bpqueue(void) {
+    printf("Running test_cabi_bpqueue...\n");
+
+    lfq_bpqueue_t* pq = NULL;
+    TEST_ASSERT(lfq_bpqueue_create(0, NULL, NULL, &pq) == LFQ_ERR_INVALID_ARG, "bpqueue capacity 0 must fail");
+    TEST_ASSERT(lfq_bpqueue_create(8, NULL, NULL, NULL) == LFQ_ERR_INVALID_ARG, "bpqueue NULL out_pqueue must fail");
+    TEST_ASSERT(lfq_bpqueue_create(65537, NULL, NULL, &pq) == LFQ_ERR_UNSUPPORTED, "bpqueue capacity > 65536 must return UNSUPPORTED");
+    TEST_ASSERT(lfq_bpqueue_destroy(NULL) == LFQ_ERR_INVALID_ARG, "bpqueue destroy NULL must fail");
+    TEST_ASSERT(lfq_bpqueue_push(NULL, 1, (void*)1) == LFQ_ERR_INVALID_ARG, "bpqueue push NULL must fail");
+    TEST_ASSERT(lfq_bpqueue_pop_min(NULL, NULL, NULL) == LFQ_ERR_INVALID_ARG, "bpqueue pop_min NULL must fail");
+    TEST_ASSERT(lfq_bpqueue_peek_min(NULL, NULL, NULL) == LFQ_ERR_INVALID_ARG, "bpqueue peek_min NULL must fail");
+    TEST_ASSERT(lfq_bpqueue_clear(NULL) == LFQ_ERR_INVALID_ARG, "bpqueue clear NULL must fail");
+    TEST_ASSERT(lfq_bpqueue_len(NULL) == 0, "bpqueue len NULL must be 0");
+    TEST_ASSERT(lfq_bpqueue_capacity(NULL) == 0, "bpqueue capacity NULL must be 0");
+    TEST_ASSERT(lfq_bpqueue_is_empty(NULL) == true, "bpqueue is_empty NULL must be true");
+    TEST_ASSERT(lfq_bpqueue_is_full(NULL) == false, "bpqueue is_full NULL must be false");
+
+    arc_c_tracker_t tracker = { 0, 0 };
+    lfq_status_t st = lfq_bpqueue_create(6, arc_c_destructor, &tracker, &pq);
+    TEST_ASSERT(st == LFQ_OK && pq != NULL, "lfq_bpqueue_create(6) failed");
+    TEST_ASSERT(lfq_bpqueue_capacity(pq) == 6, "bpqueue capacity should be 6");
+    TEST_ASSERT(lfq_bpqueue_len(pq) == 0 && lfq_bpqueue_is_empty(pq) && !lfq_bpqueue_is_full(pq), "initial bpqueue state mismatch");
+
+    int64_t out_prio = 0;
+    void* out_item = NULL;
+    TEST_ASSERT(lfq_bpqueue_pop_min(pq, &out_prio, &out_item) == LFQ_ERR_EMPTY, "pop_min on empty bpqueue must return LFQ_ERR_EMPTY");
+    TEST_ASSERT(lfq_bpqueue_peek_min(pq, &out_prio, &out_item) == LFQ_ERR_EMPTY, "peek_min on empty bpqueue must return LFQ_ERR_EMPTY");
+
+    /* Push 6 items including duplicate priorities (20) to verify FIFO tie-breaking */
+    TEST_ASSERT(lfq_bpqueue_push(pq, 30, (void*)(uintptr_t)300) == LFQ_OK, "bpqueue push 1 failed");
+    TEST_ASSERT(lfq_bpqueue_push(pq, 10, (void*)(uintptr_t)100) == LFQ_OK, "bpqueue push 2 failed");
+    TEST_ASSERT(lfq_bpqueue_push(pq, 20, (void*)(uintptr_t)201) == LFQ_OK, "bpqueue push 3 failed");
+    TEST_ASSERT(lfq_bpqueue_push(pq, 20, (void*)(uintptr_t)202) == LFQ_OK, "bpqueue push 4 failed");
+    TEST_ASSERT(lfq_bpqueue_push(pq, 50, (void*)(uintptr_t)500) == LFQ_OK, "bpqueue push 5 failed");
+    TEST_ASSERT(lfq_bpqueue_push(pq, 40, (void*)(uintptr_t)400) == LFQ_OK, "bpqueue push 6 failed");
+    TEST_ASSERT(lfq_bpqueue_is_full(pq) && lfq_bpqueue_len(pq) == 6, "bpqueue should be full at 6");
+    TEST_ASSERT(lfq_bpqueue_push(pq, 5, (void*)(uintptr_t)50) == LFQ_ERR_FULL, "bpqueue 7th push must return LFQ_ERR_FULL");
+
+    /* Peek min: priority 10, value 100 */
+    TEST_ASSERT(lfq_bpqueue_peek_min(pq, &out_prio, &out_item) == LFQ_OK && out_prio == 10 && (uintptr_t)out_item == 100, "bpqueue peek_min mismatch");
+
+    /* Pop first 4 items: (10,100), (20,201), (20,202), (30,300) */
+    const int64_t exp_prios[4] = { 10, 20, 20, 30 };
+    const uintptr_t exp_vals[4] = { 100, 201, 202, 300 };
+    for (size_t i = 0; i < 4; i++) {
+        out_prio = -1;
+        out_item = NULL;
+        TEST_ASSERT(lfq_bpqueue_pop_min(pq, &out_prio, &out_item) == LFQ_OK, "bpqueue pop_min failed");
+        TEST_ASSERT(out_prio == exp_prios[i] && (uintptr_t)out_item == exp_vals[i], "bpqueue priority/FIFO order mismatch");
+    }
+    TEST_ASSERT(lfq_bpqueue_len(pq) == 2, "bpqueue len should be 2");
+
+    /* Clear remaining 2 items (400, 500) -> destructor invoked */
+    TEST_ASSERT(lfq_bpqueue_clear(pq) == LFQ_OK, "lfq_bpqueue_clear failed");
+    TEST_ASSERT(ATOMIC_LOAD(&tracker.destroyed_count) == 2 && ATOMIC_LOAD(&tracker.destroyed_sum) == 900, "bpqueue clear destructor mismatch");
+
+    TEST_ASSERT(lfq_bpqueue_push(pq, 1, (void*)(uintptr_t)77) == LFQ_OK, "bpqueue push after clear failed");
+    TEST_ASSERT(lfq_bpqueue_destroy(pq) == LFQ_OK, "lfq_bpqueue_destroy failed");
+    TEST_ASSERT(ATOMIC_LOAD(&tracker.destroyed_count) == 3 && ATOMIC_LOAD(&tracker.destroyed_sum) == 977, "bpqueue destroy destructor mismatch");
+
+    /* Multithreaded MPMC stress test */
+    lfq_bpqueue_t* mpmc_pq = NULL;
+    TEST_ASSERT(lfq_bpqueue_create(128, NULL, NULL, &mpmc_pq) == LFQ_OK, "bpqueue create 128 failed");
+    const size_t NTHREADS = 4;
+    const size_t NITEMS = 800;
+    pthread_t ths[4];
+    bpqueue_worker_arg_t args[4];
+    test_atomic_uint64_t pop_sum = 0;
+    test_atomic_size_t pop_count = 0;
+    uint64_t expected_sum = 0;
+    for (size_t t = 0; t < NTHREADS; t++) {
+        for (size_t j = 0; j < NITEMS; j++) {
+            expected_sum += (uint64_t)((t * 10000ULL) + j + 1ULL);
+        }
+        args[t].pq = mpmc_pq;
+        args[t].items_per_thread = NITEMS;
+        args[t].thread_idx = t;
+        args[t].pop_sum = &pop_sum;
+        args[t].pop_count = &pop_count;
+        pthread_create(&ths[t], NULL, bpqueue_mpmc_worker, &args[t]);
+    }
+    for (size_t t = 0; t < NTHREADS; t++) {
+        pthread_join(ths[t], NULL);
+    }
+    TEST_ASSERT(ATOMIC_LOAD(&pop_count) == NTHREADS * NITEMS, "bpqueue MPMC pop_count mismatch");
+    TEST_ASSERT(ATOMIC_LOAD(&pop_sum) == expected_sum, "bpqueue MPMC pop_sum conservation mismatch");
+    TEST_ASSERT(lfq_bpqueue_destroy(mpmc_pq) == LFQ_OK, "bpqueue MPMC destroy failed");
+
+    printf("test_cabi_bpqueue PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
+ * Test 18: Bounded Hash Table (lfq_btable_*) CRUD, Tombstones, Associative & MPMC
+ * ------------------------------------------------------------------------- */
+typedef struct {
+    test_atomic_size_t count;
+    test_atomic_uint64_t key_sum;
+    test_atomic_uint64_t val_sum;
+} btable_c_tracker_t;
+
+static void btable_c_destructor(void* key, void* val, void* user_data) {
+    btable_c_tracker_t* tr = (btable_c_tracker_t*)user_data;
+    if (tr != NULL) {
+        ATOMIC_INC(&tr->count);
+        ATOMIC_ADD(&tr->key_sum, (uint64_t)(uintptr_t)key);
+        ATOMIC_ADD(&tr->val_sum, (uint64_t)(uintptr_t)val);
+    }
+}
+
+static void* btable_c_mapping_fn(const void* key, void* user_data) {
+    uintptr_t mult = user_data != NULL ? (uintptr_t)user_data : 10;
+    return (void*)((uintptr_t)key * mult);
+}
+
+static void* btable_c_update_fn(const void* key, void* old_val, void* user_data) {
+    (void)key;
+    uintptr_t delta = user_data != NULL ? (uintptr_t)user_data : 1;
+    return (void*)((uintptr_t)old_val + delta);
+}
+
+typedef struct {
+    lfq_btable_t* table;
+    size_t increments;
+    void* key;
+} btable_worker_arg_t;
+
+static void* btable_upsert_worker(void* raw_arg) {
+    btable_worker_arg_t* arg = (btable_worker_arg_t*)raw_arg;
+    for (size_t i = 0; i < arg->increments; i++) {
+        void* out_val = NULL;
+        lfq_status_t st = lfq_btable_upsert(
+            arg->table,
+            arg->key,
+            (void*)(uintptr_t)1,
+            btable_c_update_fn,
+            (void*)(uintptr_t)1,
+            &out_val
+        );
+        TEST_ASSERT(st == LFQ_OK, "lfq_btable_upsert in worker failed");
+    }
+    return NULL;
+}
+
+static void test_cabi_btable(void) {
+    printf("Running test_cabi_btable...\n");
+
+    lfq_btable_t* bt = NULL;
+    TEST_ASSERT(lfq_btable_create(0, NULL, NULL, &bt) == LFQ_ERR_INVALID_ARG, "btable capacity 0 must fail");
+    TEST_ASSERT(lfq_btable_create(8, NULL, NULL, NULL) == LFQ_ERR_INVALID_ARG, "btable NULL out_table must fail");
+    TEST_ASSERT(lfq_btable_create(65537, NULL, NULL, &bt) == LFQ_ERR_UNSUPPORTED, "btable capacity > 65536 must return UNSUPPORTED");
+    TEST_ASSERT(lfq_btable_destroy(NULL) == LFQ_ERR_INVALID_ARG, "btable destroy NULL must fail");
+    TEST_ASSERT(lfq_btable_put(NULL, (void*)1, (void*)1, NULL) == LFQ_ERR_INVALID_ARG, "btable put NULL must fail");
+    TEST_ASSERT(lfq_btable_insert(NULL, (void*)1, (void*)1, NULL) == LFQ_ERR_INVALID_ARG, "btable insert NULL must fail");
+    TEST_ASSERT(lfq_btable_get(NULL, (void*)1, NULL) == LFQ_ERR_INVALID_ARG, "btable get NULL must fail");
+    TEST_ASSERT(lfq_btable_delete(NULL, (void*)1, NULL) == LFQ_ERR_INVALID_ARG, "btable delete NULL must fail");
+    TEST_ASSERT(lfq_btable_take(NULL, (void*)1, NULL) == LFQ_ERR_INVALID_ARG, "btable take NULL must fail");
+    TEST_ASSERT(lfq_btable_contains(NULL, (void*)1) == false, "btable contains NULL must be false");
+    TEST_ASSERT(lfq_btable_len(NULL) == 0 && lfq_btable_capacity(NULL) == 0, "btable len/capacity NULL must be 0");
+    TEST_ASSERT(lfq_btable_is_empty(NULL) == true && lfq_btable_is_full(NULL) == false, "btable empty/full NULL mismatch");
+
+    btable_c_tracker_t tracker = { 0, 0, 0 };
+    lfq_status_t st = lfq_btable_create(8, btable_c_destructor, &tracker, &bt);
+    TEST_ASSERT(st == LFQ_OK && bt != NULL, "lfq_btable_create(8) failed");
+    TEST_ASSERT(lfq_btable_capacity(bt) == 8 && lfq_btable_len(bt) == 0 && lfq_btable_is_empty(bt), "btable initial state mismatch");
+
+    /* Fill 8 entries (keys 1..8) */
+    for (uintptr_t k = 1; k <= 8; k++) {
+        bool inserted = false;
+        st = lfq_btable_put(bt, (void*)k, (void*)(k * 100), &inserted);
+        TEST_ASSERT(st == LFQ_OK && inserted == true, "lfq_btable_put new key failed");
+    }
+    TEST_ASSERT(lfq_btable_len(bt) == 8 && lfq_btable_is_full(bt), "btable should be full at 8");
+
+    /* 9th distinct key must return LFQ_ERR_FULL */
+    bool inserted = true;
+    TEST_ASSERT(lfq_btable_put(bt, (void*)(uintptr_t)9, (void*)(uintptr_t)900, &inserted) == LFQ_ERR_FULL && inserted == false,
+                "lfq_btable_put 9th key must return LFQ_ERR_FULL");
+    TEST_ASSERT(lfq_btable_insert(bt, (void*)(uintptr_t)9, (void*)(uintptr_t)900, &inserted) == LFQ_ERR_FULL && inserted == false,
+                "lfq_btable_insert 9th key must return LFQ_ERR_FULL");
+
+    /* Updating an existing key (key 3) at full capacity via put succeeds */
+    inserted = true;
+    TEST_ASSERT(lfq_btable_put(bt, (void*)(uintptr_t)3, (void*)(uintptr_t)333, &inserted) == LFQ_OK && inserted == false,
+                "lfq_btable_put update at full capacity must succeed");
+    void* val = NULL;
+    TEST_ASSERT(lfq_btable_get(bt, (void*)(uintptr_t)3, &val) == LFQ_OK && (uintptr_t)val == 333, "updated value mismatch");
+
+    /* insert on existing key 3 at full capacity leaves value unchanged and returns LFQ_OK with inserted=false */
+    inserted = true;
+    TEST_ASSERT(lfq_btable_insert(bt, (void*)(uintptr_t)3, (void*)(uintptr_t)999, &inserted) == LFQ_OK && inserted == false,
+                "lfq_btable_insert existing key must return LFQ_OK with inserted=false");
+    TEST_ASSERT(lfq_btable_get(bt, (void*)(uintptr_t)3, &val) == LFQ_OK && (uintptr_t)val == 333, "insert must not overwrite existing key");
+
+    /* Tombstone cycling: delete and insert 64 times at capacity boundary */
+    for (uintptr_t cycle = 0; cycle < 64; cycle++) {
+        bool deleted = false;
+        uintptr_t victim = (cycle % 8) + 1;
+        TEST_ASSERT(lfq_btable_delete(bt, (void*)victim, &deleted) == LFQ_OK && deleted == true, "tombstone cycle delete failed");
+        TEST_ASSERT(lfq_btable_put(bt, (void*)victim, (void*)(victim * 100), &inserted) == LFQ_OK && inserted == true, "tombstone cycle re-insert failed");
+    }
+
+    /* Take key 8 and verify associative operations */
+    val = NULL;
+    TEST_ASSERT(lfq_btable_take(bt, (void*)(uintptr_t)8, &val) == LFQ_OK && (uintptr_t)val == 800, "lfq_btable_take failed");
+    TEST_ASSERT(!lfq_btable_contains(bt, (void*)(uintptr_t)8) && lfq_btable_len(bt) == 7, "key 8 should be removed");
+
+    /* compute_if_absent on absent key 8 */
+    val = NULL;
+    TEST_ASSERT(lfq_btable_compute_if_absent(bt, (void*)(uintptr_t)8, btable_c_mapping_fn, (void*)(uintptr_t)100, &val) == LFQ_OK && (uintptr_t)val == 800,
+                "lfq_btable_compute_if_absent absent key failed");
+    /* compute_if_absent on absent key 9 when full -> LFQ_ERR_FULL */
+    TEST_ASSERT(lfq_btable_compute_if_absent(bt, (void*)(uintptr_t)9, btable_c_mapping_fn, (void*)(uintptr_t)100, &val) == LFQ_ERR_FULL,
+                "lfq_btable_compute_if_absent when full must return LFQ_ERR_FULL");
+
+    /* atomic_update on existing key 8 (800 -> 805) and absent key 99 (-> LFQ_ERR_EMPTY) */
+    TEST_ASSERT(lfq_btable_atomic_update(bt, (void*)(uintptr_t)8, btable_c_update_fn, (void*)(uintptr_t)5, &val) == LFQ_OK && (uintptr_t)val == 805,
+                "lfq_btable_atomic_update existing key failed");
+    TEST_ASSERT(lfq_btable_atomic_update(bt, (void*)(uintptr_t)99, btable_c_update_fn, (void*)(uintptr_t)5, &val) == LFQ_ERR_EMPTY,
+                "lfq_btable_atomic_update absent key must return LFQ_ERR_EMPTY");
+
+    /* Clear all 8 entries -> destructor called 8 times */
+    TEST_ASSERT(lfq_btable_clear(bt) == LFQ_OK, "lfq_btable_clear failed");
+    TEST_ASSERT(lfq_btable_is_empty(bt) && lfq_btable_len(bt) == 0, "btable should be empty after clear");
+    TEST_ASSERT(ATOMIC_LOAD(&tracker.count) == 8, "btable clear destructor count should be 8");
+    TEST_ASSERT(ATOMIC_LOAD(&tracker.key_sum) == 36, "btable clear destructor key_sum should be 1+..+8 = 36");
+
+    /* Multithreaded atomic counter stress via lfq_btable_upsert */
+    const size_t NTHREADS = 4;
+    const size_t INCS = 1000;
+    pthread_t ths[4];
+    btable_worker_arg_t wargs[4];
+    void* shared_key = (void*)(uintptr_t)42;
+    for (size_t t = 0; t < NTHREADS; t++) {
+        wargs[t].table = bt;
+        wargs[t].increments = INCS;
+        wargs[t].key = shared_key;
+        pthread_create(&ths[t], NULL, btable_upsert_worker, &wargs[t]);
+    }
+    for (size_t t = 0; t < NTHREADS; t++) {
+        pthread_join(ths[t], NULL);
+    }
+    val = NULL;
+    TEST_ASSERT(lfq_btable_get(bt, shared_key, &val) == LFQ_OK && (uintptr_t)val == NTHREADS * INCS,
+                "btable concurrent upsert lost updates");
+
+    TEST_ASSERT(lfq_btable_destroy(bt) == LFQ_OK, "lfq_btable_destroy failed");
+    TEST_ASSERT(ATOMIC_LOAD(&tracker.count) == 9, "btable destroy should invoke destructor on remaining key 42");
+
+    printf("test_cabi_btable PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
  * Main Entry Point
  * ------------------------------------------------------------------------- */
 int main(void) {
@@ -1643,6 +2048,9 @@ int main(void) {
     test_cabi_associative();
     test_cabi_atomic_arc();
     test_cabi_flat_combiner();
+    test_cabi_bstack();
+    test_cabi_bpqueue();
+    test_cabi_btable();
     test_cabi_concurrency();
 
     /* TaskPool C ABI */

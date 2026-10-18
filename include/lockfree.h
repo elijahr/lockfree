@@ -444,10 +444,26 @@ bool lfq_topic_bus_has_topic(const lfq_topic_bus_t* bus, const char* topic);
 
 #include "lockfree_flat_combiner.h"
 
+/* -------------------------------------------------------------------------
+ * 16. Bounded Zero-SMR Lock-Free Stack (BStack)
+ * ------------------------------------------------------------------------- */
+
+#include "lockfree_bstack.h"
+
+/* -------------------------------------------------------------------------
+ * 17. Bounded Zero-SMR Binary Min-Heap Priority Queue (BPriorityQueue)
+ * ------------------------------------------------------------------------- */
+
+#include "lockfree_bpqueue.h"
+
+/* -------------------------------------------------------------------------
+ * 18. Bounded Zero-SMR Robin Hood Open-Addressing Hash Table (BTable)
+ * ------------------------------------------------------------------------- */
+
+#include "lockfree_btable.h"
+
 #ifdef __cplusplus
 }
 #endif
 
 #endif /* LOCKFREE_H */
-
-
