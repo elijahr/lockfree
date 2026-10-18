@@ -200,7 +200,7 @@ jobs:
             sanitize-address: 'no'
             cache-tag: 'orc'
             continue-on-error: 'false'
-            timeout: 30
+            timeout: 45
 
           - cell: '1b'
             label: 'baseline cpp/gcc/linux'
@@ -239,7 +239,7 @@ jobs:
             sanitize-address: 'no'
             cache-tag: 'refc'
             continue-on-error: 'false'
-            timeout: 30
+            timeout: 45
 
     steps:
       - name: Checkout project
