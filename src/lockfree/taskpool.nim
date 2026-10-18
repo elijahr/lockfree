@@ -395,6 +395,8 @@ proc initTaskPool*(numWorkers: int = 0): TaskPool =
     core.workers[i].deque = initChaseLevDeque[Task](128)
     initParker(core.workers[i].parker)
     core.workers[i].isParked.store(false, moRelaxed)
+
+  for i in 0 ..< nw:
     createThread(core.threads[i], workerThreadEntry, addr core.workers[i])
 
   result.core = core

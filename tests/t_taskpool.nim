@@ -316,3 +316,16 @@ suite "TaskPool - Adversarial HIGH-02 Closure Lifetime":
     check fjSum.load(moAcquire) == 600
     pool.shutdown(wait = true)
 
+  test "Rapid multi-worker pool initialization and immediate work-stealing race regression":
+    for cycle in 0 ..< 16:
+      var pool = initTaskPool(8)
+      check pool.numWorkers == 8
+      var acc: Atomic[int]
+      acc.store(0, moRelaxed)
+      pool.parallelFor(0 ..< 32, proc(i: int) {.gcsafe.} =
+        discard acc.fetchAdd(i + 1, moRelaxed)
+      )
+      check acc.load(moAcquire) == (32 * 33) div 2
+      pool.shutdown(wait = true)
+
+
