@@ -1871,10 +1871,60 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-compilation-linking" class="md-nav__link">
+  <a href="#4-bounded-zero-smr-primitives-v050" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Compilation &amp; Linking
+        4. Bounded Zero-SMR Primitives (v0.5.0+)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Bounded Zero-SMR Primitives (v0.5.0+)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-bounded-stack-bstack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. Bounded Stack (BStack)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-bounded-priority-queue-bpriorityqueue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. Bounded Priority Queue (BPriorityQueue)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-bounded-table-btable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. Bounded Table (BTable)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-compilation-linking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Compilation &amp; Linking
       
     </span>
   </a>
@@ -4314,10 +4364,60 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-compilation-linking" class="md-nav__link">
+  <a href="#4-bounded-zero-smr-primitives-v050" class="md-nav__link">
     <span class="md-ellipsis">
       
-        4. Compilation &amp; Linking
+        4. Bounded Zero-SMR Primitives (v0.5.0+)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4. Bounded Zero-SMR Primitives (v0.5.0+)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#a-bounded-stack-bstack" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        A. Bounded Stack (BStack)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#b-bounded-priority-queue-bpriorityqueue" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        B. Bounded Priority Queue (BPriorityQueue)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#c-bounded-table-btable" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        C. Bounded Table (BTable)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-compilation-linking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Compilation &amp; Linking
       
     </span>
   </a>
@@ -4441,11 +4541,63 @@ primitives.</p>
 <a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a><span class="p">}</span>
 </code></pre></div>
 <hr>
-<h2 id="4-compilation-linking">4. Compilation &amp; Linking<a class="headerlink" href="#4-compilation-linking" title="Permanent link">¶</a></h2>
-<p>Compile the C code linking against the shared library <code>liblockfree.so</code> / <code>liblockfree.dylib</code> (or static archive):</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>gcc<span class="w"> </span>-O3<span class="w"> </span>-Iinclude<span class="w"> </span>-L.<span class="w"> </span>-llockfree<span class="w"> </span>-o<span class="w"> </span>example<span class="w"> </span>example.c
+<h2 id="4-bounded-zero-smr-primitives-v050">4. Bounded Zero-SMR Primitives (v0.5.0+)<a class="headerlink" href="#4-bounded-zero-smr-primitives-v050" title="Permanent link">¶</a></h2>
+<p>For systems where dynamic node allocation or epoch-based safe memory reclamation (SMR) is undesirable, <code>lockfree</code> provides bounded zero-SMR primitives:</p>
+<h3 id="a-bounded-stack-bstack">A. Bounded Stack (<code>BStack</code>)<a class="headerlink" href="#a-bounded-stack-bstack" title="Permanent link">¶</a></h3>
+<p>LIFO stack with bounded capacity and wait-free fast paths:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="n">lfq_bstack_t</span><span class="o">*</span><span class="w"> </span><span class="n">stack</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">assert</span><span class="p">(</span><span class="n">lfq_bstack_create</span><span class="p">(</span><span class="mi">128</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">stack</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LFQ_OK</span><span class="p">);</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="kt">uintptr_t</span><span class="w"> </span><span class="n">val</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">42</span><span class="p">;</span>
+<a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">assert</span><span class="p">(</span><span class="n">lfq_bstack_push</span><span class="p">(</span><span class="n">stack</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="p">)</span><span class="n">val</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LFQ_OK</span><span class="p">);</span>
+<a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+<a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">popped</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">assert</span><span class="p">(</span><span class="n">lfq_bstack_pop</span><span class="p">(</span><span class="n">stack</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">popped</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LFQ_OK</span><span class="p">);</span>
+<a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="n">assert</span><span class="p">((</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">popped</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">42</span><span class="p">);</span>
+<a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+<a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="n">lfq_bstack_destroy</span><span class="p">(</span><span class="n">stack</span><span class="p">);</span>
 </code></pre></div>
-<p>See the <a href="../../api/cabi/">C ABI API Reference</a> for full function declarations across all collections.</p>
+<h3 id="b-bounded-priority-queue-bpriorityqueue">B. Bounded Priority Queue (<code>BPriorityQueue</code>)<a class="headerlink" href="#b-bounded-priority-queue-bpriorityqueue" title="Permanent link">¶</a></h3>
+<p>Bounded min/max priority queue with flat-combined linearization:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">lfq_bpqueue_t</span><span class="o">*</span><span class="w"> </span><span class="n">pq</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">assert</span><span class="p">(</span><span class="n">lfq_bpqueue_create</span><span class="p">(</span><span class="mi">128</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">pq</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LFQ_OK</span><span class="p">);</span>
+<a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+<a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1">// Push priority items (priority int64, payload void*)</span>
+<a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">assert</span><span class="p">(</span><span class="n">lfq_bpqueue_push</span><span class="p">(</span><span class="n">pq</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="p">)</span><span class="mi">100</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LFQ_OK</span><span class="p">);</span>
+<a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">assert</span><span class="p">(</span><span class="n">lfq_bpqueue_push</span><span class="p">(</span><span class="n">pq</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="p">)</span><span class="mi">200</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LFQ_OK</span><span class="p">);</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="c1">// Pop extracts lowest priority number first</span>
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="kt">int64_t</span><span class="w"> </span><span class="n">prio</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">item</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="n">assert</span><span class="p">(</span><span class="n">lfq_bpqueue_pop</span><span class="p">(</span><span class="n">pq</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">prio</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">item</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LFQ_OK</span><span class="p">);</span>
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="n">assert</span><span class="p">(</span><span class="n">prio</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">5</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="p">(</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">item</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">200</span><span class="p">);</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="n">lfq_bpqueue_destroy</span><span class="p">(</span><span class="n">pq</span><span class="p">);</span>
+</code></pre></div>
+<h3 id="c-bounded-table-btable">C. Bounded Table (<code>BTable</code>)<a class="headerlink" href="#c-bounded-table-btable" title="Permanent link">¶</a></h3>
+<p>Bounded Robin Hood open-addressed concurrent hash table:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="n">lfq_btable_t</span><span class="o">*</span><span class="w"> </span><span class="n">table</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="n">assert</span><span class="p">(</span><span class="n">lfq_btable_create</span><span class="p">(</span><span class="mi">256</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">table</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LFQ_OK</span><span class="p">);</span>
+<a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>
+<a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="c1">// Put key-value pair</span>
+<a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">assert</span><span class="p">(</span><span class="n">lfq_btable_put</span><span class="p">(</span><span class="n">table</span><span class="p">,</span><span class="w"> </span><span class="mi">1234</span><span class="p">,</span><span class="w"> </span><span class="p">(</span><span class="kt">void</span><span class="o">*</span><span class="p">)</span><span class="mi">5678</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LFQ_OK</span><span class="p">);</span>
+<a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+<a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1">// Get value</span>
+<a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="kt">void</span><span class="o">*</span><span class="w"> </span><span class="n">out</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="nb">NULL</span><span class="p">;</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">assert</span><span class="p">(</span><span class="n">lfq_btable_get</span><span class="p">(</span><span class="n">table</span><span class="p">,</span><span class="w"> </span><span class="mi">1234</span><span class="p">,</span><span class="w"> </span><span class="o">&amp;</span><span class="n">out</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LFQ_OK</span><span class="p">);</span>
+<a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">assert</span><span class="p">((</span><span class="kt">uintptr_t</span><span class="p">)</span><span class="n">out</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">5678</span><span class="p">);</span>
+<a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>
+<a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="c1">// Delete key</span>
+<a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="n">assert</span><span class="p">(</span><span class="n">lfq_btable_del</span><span class="p">(</span><span class="n">table</span><span class="p">,</span><span class="w"> </span><span class="mi">1234</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="n">LFQ_OK</span><span class="p">);</span>
+<a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>
+<a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="n">lfq_btable_destroy</span><span class="p">(</span><span class="n">table</span><span class="p">);</span>
+</code></pre></div>
+<hr>
+<h2 id="5-compilation-linking">5. Compilation &amp; Linking<a class="headerlink" href="#5-compilation-linking" title="Permanent link">¶</a></h2>
+<p>Compile the C code linking against the shared library <code>liblockfree.so</code> / <code>liblockfree.dylib</code> (or static archive):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>gcc<span class="w"> </span>-O3<span class="w"> </span>-Iinclude<span class="w"> </span>-L.<span class="w"> </span>-llockfree<span class="w"> </span>-o<span class="w"> </span>example<span class="w"> </span>example.c
+</code></pre></div>
+<p>See the <a href="../../api/cabi/">C ABI API Reference</a> and <a href="../../include/lockfree.h"><code>include/lockfree.h</code></a> for full function declarations across all collections.</p>
 
 
 
@@ -4468,7 +4620,7 @@ primitives.</p>
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 11, 2026 10:21:35 UTC"><span class="timeago" datetime="2026-10-11T10:21:35+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 11, 2026 10:21:35 UTC">2026-10-11</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 18, 2026 11:53:55 UTC"><span class="timeago" datetime="2026-10-18T11:53:55+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 18, 2026 11:53:55 UTC">2026-10-18</span>
   </span>
 
     
