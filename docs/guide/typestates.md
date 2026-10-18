@@ -148,7 +148,46 @@ The chronos dependency is **soft** — it is not in `lockfree.nimble`'s
 present in the resolved import path, or explicitly via
 `-d:lockfreeChronos`. Code that does not need async pays nothing.
 
+## Universal Typestates Coverage (v0.5.0+)
+
+Starting in `v0.5.0`, `lockfree` enforces formal compile-time typestate contracts across **all** data structures and subsystem domains using [`typestates`](https://github.com/elijahr/nim-typestates):
+
+### 1. Primitive Lifecycle Typestates (`Init` → `Destroyed`)
+
+Every collection in `lockfree` declares a Middle-axis Lifecycle typestate:
+
+| Primitive | Initial State | Terminal State | Transition Point |
+| :--- | :--- | :--- | :--- |
+| `BStack[T]` | `BStackInit[T]` | `BStackDestroyed[T]` | `=destroy` |
+| `BPriorityQueue[T]` | `BPriorityQueueInit[T]` | `BPriorityQueueDestroyed[T]` | `=destroy` |
+| `BTable[K, V]` | `BTableInit[K, V]` | `BTableDestroyed[K, V]` | `=destroy` |
+| `TreiberStack[T]` | `TreiberStackInit[T]` | `TreiberStackDestroyed[T]` | `=destroy` |
+| `ChaseLevDeque[T]` | `ChaseLevDequeInit[T]` | `ChaseLevDequeDestroyed[T]` | `=destroy` |
+| `TaskPool` | `TaskPoolInit` | `TaskPoolDestroyed` | `shutdown` / `=destroy` |
+| `Ctrie[K, V]` | `CtrieInit[K, V]` | `CtrieDestroyed[K, V]` | `=destroy` |
+| `BroadcastRing[T]` | `BroadcastRingInit[T]` | `BroadcastRingDestroyed[T]` | `=destroy` |
+| `StreamBuffer` | `StreamBufferInit` | `StreamBufferDestroyed` | `=destroy` |
+| `TokenBucket` | `TokenBucketInit` | `TokenBucketDestroyed` | `=destroy` |
+| `LeakyBucket` | `LeakyBucketInit` | `LeakyBucketDestroyed` | `=destroy` |
+
+Attempting to invoke methods on a destroyed instance or transition an already destroyed instance produces an immediate compile-time diagnostic.
+
+### 2. SMR NEBR Domain Typestates
+
+In addition to object lifecycle, the safe memory reclamation engine (`lockfree/smr/nebr`) employs domain typestates that govern critical memory safety phases:
+- **`Registration`**: Enforces strict `Unregistered` → `Active` → `Deregistered` thread-local slot ownership.
+- **`Guard`**: Enforces that shared pointer loads occur strictly within a pinned epoch scope (`Guarded`).
+- **`Retire` & `Reclaim`**: Tracks retired blocks and guarantees epochs have advanced before memory blocks are safely recycled.
+
+### 3. CI Typestate Verification
+
+All 86 source files and 208 state transitions are continuously checked in CI via:
+```bash
+typestates verify -W --format=github src/
+```
+
 ## Further reading
 
 - [`api/typestates`](../api/typestates.md) — endpoint claim state (`Unbound → Bound → Closed`) and the `with_bound` scope macro reference.
 - [nebr](smr/nebr.md) — what the `Unbound → Bound` transition registers with.
+

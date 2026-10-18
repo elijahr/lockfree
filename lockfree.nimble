@@ -1,9 +1,9 @@
 import os
 
 # Package
-version        = "0.4.0"
+version        = "0.5.0"
 author         = "Elijah Shaw-Rutschman"
-description    = "Industrial-strength lock-free concurrency toolkit for Nim & C99: MPMC Queues, SkipLists, Ctries, Broadcast Rings, Flat Combining, Work-Stealing TaskPools, 128-bit DWCAS Atomics, and NEBR SMR."
+description    = "Lock-free concurrency toolkit for Nim & C99: MPMC Queues, SkipLists, Ctries, Broadcast Rings, Flat Combining, Work-Stealing TaskPools, 128-bit DWCAS Atomics, and NEBR SMR."
 license        = "MIT"
 srcDir         = "src"
 entryPoints    = @["tests/test.nim"]

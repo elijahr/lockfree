@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-18
+
+### Added
+
+- **Bounded Zero-SMR C ABI Export Surface (`include/lockfree.h` & `src/lockfree/cabi.nim`)**:
+  - `lfq_bstack_*`: C ABI exports for bounded lock-free stacks (`lfq_bstack_create`, `lfq_bstack_push`, `lfq_bstack_pop`, `lfq_bstack_len`, `lfq_bstack_is_empty`, `lfq_bstack_is_full`, `lfq_bstack_destroy`).
+  - `lfq_bpqueue_*`: C ABI exports for bounded lock-free priority queues (`lfq_bpqueue_create`, `lfq_bpqueue_push`, `lfq_bpqueue_pop`, `lfq_bpqueue_len`, `lfq_bpqueue_is_empty`, `lfq_bpqueue_is_full`, `lfq_bpqueue_destroy`).
+  - `lfq_btable_*`: C ABI exports for bounded Robin Hood concurrent hash tables (`lfq_btable_create`, `lfq_btable_put`, `lfq_btable_get`, `lfq_btable_del`, `lfq_btable_len`, `lfq_btable_is_empty`, `lfq_btable_destroy`).
+  - Comprehensive unit test coverage with 35/35 passing verification cases in `tests/t_cabi_bounded.nim`.
+- **Universal Typestates & Domain Extension Constructs (`src/lockfree/typestates/*`)**:
+  - 100% typestate coverage across all `lockfree` primitives: `BStackLifecycle`, `BPriorityQueueLifecycle`, `BTableLifecycle`, `TaskPoolLifecycle`, `CtrieLifecycle`, `TreiberStackLifecycle`, `ChaseLevDequeLifecycle`, `BroadcastRingLifecycle`, `StreamBufferLifecycle`, `TokenBucketLifecycle`, and `LeakyBucketLifecycle`.
+  - Compile-time lifecycle state transitions (`Init` -> `Destroyed`) preventing use-after-free, double-destruction, or invalid cross-thread invocation at compile time.
+  - SMR NEBR domain typestates (`Registration`, `Guard`, `Retire`, `PinnedScope`, `Reclaim`) ensuring rigorous formal protocol tracking.
+  - Passed `typestates verify -W --format=github src/` across 86 files and 208 transitions, 24 runtime tests, and 29 negative compile-fail assertions.
+- **Bounded Zero-SMR Benchmark Suites & Interactive Portal**:
+  - Added dedicated throughput and latency benchmarks for `BStack`, `BPriorityQueue`, and `BTable` in `bench_stacks_deques.nim` and `bench_maps.nim`.
+  - Updated Bencher Metric Format merger (`benchmarks/merge_bmf.py`) and interactive Chart.js visualization engine (`docs/assets/bench-charts.js`).
+  - Verified 39/39 passing regression contract tests in `test_bench_charts_contract.py`.
+
+### Fixed
+
+- **`TaskPool` Worker Thread Initialization Data Race (`src/lockfree/taskpool.nim`)**:
+  - Split `initTaskPool` into two distinct phases: fully pre-allocating and initializing all `WorkerContext` slots and work-stealing deques before spawning any OS worker threads.
+  - Eliminates data race where worker thread 0 started stealing from adjacent uninitialized worker slots during startup under ThreadSanitizer (`-fsanitize=thread`).
+  - Added 16-cycle 8-worker rapid pool startup regression test in `tests/t_taskpool.nim`.
+
 ## [0.4.0] - 2026-10-17
 
 ### Added
