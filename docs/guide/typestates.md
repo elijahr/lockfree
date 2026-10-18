@@ -148,40 +148,53 @@ The chronos dependency is **soft** — it is not in `lockfree.nimble`'s
 present in the resolved import path, or explicitly via
 `-d:lockfreeChronos`. Code that does not need async pays nothing.
 
-## Universal Typestates Coverage (v0.5.0+)
+## Universal Typestate Coverage & Domain Extension Constructs (v0.5.0+)
 
-Starting in `v0.5.0`, `lockfree` enforces formal compile-time typestate contracts across **all** data structures and subsystem domains using [`typestates`](https://github.com/elijahr/nim-typestates):
+Starting in `v0.5.0`, `lockfree` generalizes the formal `Unbound → Bound → Closed` typestate model across **all** major concurrent collections and introduces first-class typestate domain extension constructs:
 
-### 1. Primitive Lifecycle Typestates (`Init` → `Destroyed`)
+### 1. Universal Endpoint Lifecycle & Role Tags
 
-Every collection in `lockfree` declares a Middle-axis Lifecycle typestate:
+The endpoint typestate (`Unbound[T, Tag, QueueT] → Bound[T, Tag, QueueT] → EndpointClosed[T, Tag, QueueT]`) is extended beyond basic queues to stacks, work-stealing deques, and concurrent hash tables using dedicated role tags:
 
-| Primitive | Initial State | Terminal State | Transition Point |
-| :--- | :--- | :--- | :--- |
-| `BStack[T]` | `BStackInit[T]` | `BStackDestroyed[T]` | `=destroy` |
-| `BPriorityQueue[T]` | `BPriorityQueueInit[T]` | `BPriorityQueueDestroyed[T]` | `=destroy` |
-| `BTable[K, V]` | `BTableInit[K, V]` | `BTableDestroyed[K, V]` | `=destroy` |
-| `TreiberStack[T]` | `TreiberStackInit[T]` | `TreiberStackDestroyed[T]` | `=destroy` |
-| `ChaseLevDeque[T]` | `ChaseLevDequeInit[T]` | `ChaseLevDequeDestroyed[T]` | `=destroy` |
-| `TaskPool` | `TaskPoolInit` | `TaskPoolDestroyed` | `shutdown` / `=destroy` |
-| `Ctrie[K, V]` | `CtrieInit[K, V]` | `CtrieDestroyed[K, V]` | `=destroy` |
-| `BroadcastRing[T]` | `BroadcastRingInit[T]` | `BroadcastRingDestroyed[T]` | `=destroy` |
-| `StreamBuffer` | `StreamBufferInit` | `StreamBufferDestroyed` | `=destroy` |
-| `TokenBucket` | `TokenBucketInit` | `TokenBucketDestroyed` | `=destroy` |
-| `LeakyBucket` | `LeakyBucketInit` | `LeakyBucketDestroyed` | `=destroy` |
+| Primitive | Supported Role Tags | Acquisition Sugar | RAII Scope Template | Generic Concept |
+| :--- | :--- | :--- | :--- | :--- |
+| `BQueue` / `Queue` | `ProducerTag`, `ConsumerTag` | `getProducer`, `getConsumer` | `withBoundProducer`, `withBoundConsumer` | `Queueable[T]` |
+| `BStack` / `TreiberStack` | `ProducerTag`, `ConsumerTag` | `getProducer`, `getConsumer` | `withBoundProducer`, `withBoundConsumer` | `Stackable[T]` |
+| `ChaseLevDeque` | `DequeOwnerTag`, `DequeThiefTag` | `acquireOwner`, `acquireThief` | `withBoundOwner`, `withBoundThief` | `Stealable[T]` |
+| `BTable` | `TableWriterTag`, `TableReaderTag` | `acquireWriter`, `acquireReader` | `withBoundWriter`, `withBoundReader` | `TableWritable`, `TableReadable` |
 
-Attempting to invoke methods on a destroyed instance or transition an already destroyed instance produces an immediate compile-time diagnostic.
+#### Compile-Time Role Safety
 
-### 2. SMR NEBR Domain Typestates
+Role tags prevent invalid operations at compile time:
+- A thief holding `Bound[T, DequeThiefTag, ...]` cannot call `pushBottom` or `popBottom`.
+- A reader holding `Bound[K, TableReaderTag, ...]` cannot call `put` or `del`.
+- Any attempt to invoke operations on un-bound or closed endpoints is rejected by 22 compile-time `{.error: ..., notATransition.}` guards in `src/lockfree/endpoint.nim`.
+- Safety is validated by 24 negative compile-fail test cases in `tests/should_fail/runner.nim`.
 
-In addition to object lifecycle, the safe memory reclamation engine (`lockfree/smr/nebr`) employs domain typestates that govern critical memory safety phases:
-- **`Registration`**: Enforces strict `Unregistered` → `Active` → `Deregistered` thread-local slot ownership.
-- **`Guard`**: Enforces that shared pointer loads occur strictly within a pinned epoch scope (`Guarded`).
-- **`Retire` & `Reclaim`**: Tracks retired blocks and guarantees epochs have advanced before memory blocks are safely recycled.
+### 2. First-Class Domain Typestate Constructs (`typestate_constructs.nim`)
 
-### 3. CI Typestate Verification
+`lockfree` exports high-level constructs for coordinating stateful workflows across concurrent channels:
 
-All 86 source files and 208 state transitions are continuously checked in CI via:
+- **`TypestateGate[Base, InState, OutState, Transport]`**: Enforces that values entering a channel or stack undergo a compile-time state transition when transferred across threads (`sendState`, `trySendState`, `recvState`, `tryRecvState`, `stealState`).
+- **`TypestatePipelineStage[Base, InState, MidState, OutState, InTransport, OutTransport]`**: Chains multi-stage actor and pipelined transformations where state transitions are guaranteed by the type system (`stepStage`).
+
+### 3. SMR NEBR Domain Typestate State Machines
+
+The safe memory reclamation engine (`lockfree/smr/nebr`) uses 9 specialized compile-time typestates to verify critical concurrency protocols:
+
+- **`RegistrationContext`**: Governs thread registration lifecycle (`Unpinned → Pinned`).
+- **`EpochGuardContext`**: Enforces balanced epoch pinning (`Unpinned ↔ Pinned`).
+- **`RetireContext`**: Tracks retired memory blocks (`Pinned → RetireReady → BagFull → Flushed`).
+- **`ReclaimContext`**: Verifies epoch advancement before freeing blocks (`ReclaimIdle → EpochChecked → BagScanned → ReclaimComplete`).
+- **`NeutralizeContext`**: Tracks OS thread preemption recovery (`Running → Neutralized → Recovered`).
+- **`AdvanceContext`**: Enforces global epoch progression (`CanAdvance → Advanced | Blocked`).
+- **`ManagerContext`**: SMR manager lifecycle (`ManagerUninitialized → ManagerActive → ManagerShutdown`).
+- **`SignalHandlerContext`**: Signal registration (`HandlerUninstalled → HandlerInstalled → HandlerRemoved`).
+- **`SlotContext`**: Thread slot pool states (`SlotFree → SlotReserved → SlotActive → SlotDraining → SlotFree`).
+
+### 4. CI Typestate Verification
+
+All 86 source files and 208 state transitions are continuously checked in CI:
 ```bash
 typestates verify -W --format=github src/
 ```

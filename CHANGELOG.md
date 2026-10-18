@@ -12,18 +12,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Bounded Zero-SMR C ABI Export Surface (`include/lockfree.h` & `src/lockfree/cabi.nim`)**:
-  - `lfq_bstack_*`: C ABI exports for bounded lock-free stacks (`lfq_bstack_create`, `lfq_bstack_push`, `lfq_bstack_pop`, `lfq_bstack_len`, `lfq_bstack_is_empty`, `lfq_bstack_is_full`, `lfq_bstack_destroy`).
-  - `lfq_bpqueue_*`: C ABI exports for bounded lock-free priority queues (`lfq_bpqueue_create`, `lfq_bpqueue_push`, `lfq_bpqueue_pop`, `lfq_bpqueue_len`, `lfq_bpqueue_is_empty`, `lfq_bpqueue_is_full`, `lfq_bpqueue_destroy`).
-  - `lfq_btable_*`: C ABI exports for bounded Robin Hood concurrent hash tables (`lfq_btable_create`, `lfq_btable_put`, `lfq_btable_get`, `lfq_btable_del`, `lfq_btable_len`, `lfq_btable_is_empty`, `lfq_btable_destroy`).
+  - `lfq_bstack_*`: C ABI exports for bounded lock-free stacks (`lfq_bstack_create`, `lfq_bstack_destroy`, `lfq_bstack_push`, `lfq_bstack_pop`, `lfq_bstack_peek`, `lfq_bstack_clear`, `lfq_bstack_len`, `lfq_bstack_capacity`, `lfq_bstack_is_empty`, `lfq_bstack_is_full`).
+  - `lfq_bpqueue_*`: C ABI exports for bounded lock-free min-priority queues (`lfq_bpqueue_create`, `lfq_bpqueue_destroy`, `lfq_bpqueue_push`, `lfq_bpqueue_pop_min`, `lfq_bpqueue_peek_min`, `lfq_bpqueue_clear`, `lfq_bpqueue_len`, `lfq_bpqueue_capacity`, `lfq_bpqueue_is_empty`, `lfq_bpqueue_is_full`).
+  - `lfq_btable_*`: C ABI exports for bounded linear-probing open-addressing concurrent hash tables with per-slot seqlocks and flat combining (`lfq_btable_create`, `lfq_btable_destroy`, `lfq_btable_put`, `lfq_btable_insert`, `lfq_btable_get`, `lfq_btable_delete`, `lfq_btable_remove`, `lfq_btable_contains`, `lfq_btable_clear`, `lfq_btable_len`, `lfq_btable_capacity`, `lfq_btable_is_empty`, `lfq_btable_is_full`).
   - Comprehensive unit test coverage with 35/35 passing verification cases in `tests/t_cabi_bounded.nim`.
-- **Universal Typestates & Domain Extension Constructs (`src/lockfree/typestates/*`)**:
-  - 100% typestate coverage across all `lockfree` primitives: `BStackLifecycle`, `BPriorityQueueLifecycle`, `BTableLifecycle`, `TaskPoolLifecycle`, `CtrieLifecycle`, `TreiberStackLifecycle`, `ChaseLevDequeLifecycle`, `BroadcastRingLifecycle`, `StreamBufferLifecycle`, `TokenBucketLifecycle`, and `LeakyBucketLifecycle`.
-  - Compile-time lifecycle state transitions (`Init` -> `Destroyed`) preventing use-after-free, double-destruction, or invalid cross-thread invocation at compile time.
-  - SMR NEBR domain typestates (`Registration`, `Guard`, `Retire`, `PinnedScope`, `Reclaim`) ensuring rigorous formal protocol tracking.
-  - Passed `typestates verify -W --format=github src/` across 86 files and 208 transitions, 24 runtime tests, and 29 negative compile-fail assertions.
+- **Universal Typestates & Domain Extension Constructs (`src/lockfree/typestates/*` & `src/lockfree/endpoint.nim`)**:
+  - Universal `Endpoint` role-tag typestates (`ProducerTag`, `ConsumerTag`, `DequeOwnerTag`, `DequeThiefTag`, `TableWriterTag`, `TableReaderTag`) across queues, stacks, work-stealing deques, and tables with RAII scope templates (`withBoundOwner`, `withBoundThief`, `withBoundWriter`, `withBoundReader`) and generic concepts (`Stackable`, `Stealable`, `TableReadable`, `TableWritable`).
+  - First-class domain typestate extension constructs (`TypestateGate` and `TypestatePipelineStage`) in `src/lockfree/typestate_constructs.nim` for compile-time verified state machine transitions over concurrent channels.
+  - Formal SMR NEBR typestate machines (`RegistrationContext`, `EpochGuardContext`, `RetireContext`, `ReclaimContext`, `NeutralizeContext`, `AdvanceContext`, `ManagerContext`, `SignalHandlerContext`, `SlotContext`) in `src/lockfree/smr/nebr/typestates/*.nim`.
+  - Enforced by 22 compile-time `{.error: ..., notATransition.}` guards in `src/lockfree/endpoint.nim`, 24 negative compile-fail test cases in `tests/should_fail/runner.nim`, and 86 files / 208 transitions passing `typestates verify -W --format=github src/`.
 - **Bounded Zero-SMR Benchmark Suites & Interactive Portal**:
   - Added dedicated throughput and latency benchmarks for `BStack`, `BPriorityQueue`, and `BTable` in `bench_stacks_deques.nim` and `bench_maps.nim`.
-  - Updated Bencher Metric Format merger (`benchmarks/merge_bmf.py`) and interactive Chart.js visualization engine (`docs/assets/bench-charts.js`).
+  - Updated Bencher Metric Format merger (`benchmarks/merge_bmf.py`) and interactive Apache ECharts 5.x visualization engine (`docs/assets/bench-charts.js`).
   - Verified 39/39 passing regression contract tests in `test_bench_charts_contract.py`.
 
 ### Fixed
