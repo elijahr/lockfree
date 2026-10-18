@@ -744,6 +744,19 @@ proc del*[
   ## Alias for `remove`.
   self.remove(key)
 
+proc tryTake*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](self: BTable[K, V, Cap, ccProd, ccCons], key: K, outVal: var V): bool {.gcsafe.} =
+  ## Atomically removes `key`, copies its removed value into `outVal`, and returns `true`,
+  ## or returns `false` if `key` is absent. Safe for `pointer`/`nil` values.
+  if self.core == nil or self.core.count.load(moAcquire) <= 0:
+    return false
+  var dummyVal: V
+  submitBTableOp(self.core, btOpTake, key, move(dummyVal), addr outVal)
+
 proc take*[
   K, V;
   Cap: static int;
@@ -751,14 +764,52 @@ proc take*[
   ccCons: static PinScopeCardinality
 ](self: BTable[K, V, Cap, ccProd, ccCons], key: K): Option[V] {.gcsafe.} =
   ## Atomically removes `key` and returns `some(removedVal)`, or `none(V)` if absent.
-  if self.core == nil or self.core.count.load(moAcquire) <= 0:
-    return none(V)
-  var dummyVal: V
   var outVal: V
-  if submitBTableOp(self.core, btOpTake, key, move(dummyVal), addr outVal):
+  if self.tryTake(key, outVal):
     some(move(outVal))
   else:
     none(V)
+
+proc tryComputeIfAbsent*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: BTable[K, V, Cap, ccProd, ccCons],
+    key: K,
+    factory: proc(k: K): V {.gcsafe.},
+    outVal: var V
+): bool {.gcsafe.} =
+  ## Atomically looks up `key`; if absent and `len < Cap`, computes `factory(key)`,
+  ## inserts it, stores the value in `outVal`, and returns `true`. Returns `false`
+  ## only if `key` is absent and the table is full (`len == Cap`). Safe for `pointer`/`nil` values.
+  doAssert self.core != nil, "BTable is uninitialized; call initBTable[K, V, Cap]()"
+  let core = self.core
+  while true:
+    if core.combinerLock.load(moRelaxed) == 0'u64:
+      var expected = 0'u64
+      if core.combinerLock.compareExchange(expected, 1'u64, moAcquire, moRelaxed):
+        try:
+          var existing: V
+          if directTryGet(core, key, existing):
+            outVal = move(existing)
+            result = true
+          elif core.liveCount < core.effCap:
+            var computed = factory(key)
+            let copyComputed = computed
+            if directTryPut(core, key, move(computed), overwriteExisting = false):
+              outVal = copyComputed
+              result = true
+            else:
+              result = false
+          else:
+            result = false
+          sweepBTablePubSlots(core)
+        finally:
+          core.combinerLock.store(0'u64, moRelease)
+        return result
+    cpuPause()
 
 proc tryComputeIfAbsent*[
   K, V;
@@ -773,30 +824,11 @@ proc tryComputeIfAbsent*[
   ## Atomically looks up `key`; if absent and `len < Cap`, computes `factory(key)`,
   ## inserts it, and returns `some(val)`. Returns `none(V)` only if `key` is absent
   ## and the table is full (`len == Cap`).
-  doAssert self.core != nil, "BTable is uninitialized; call initBTable[K, V, Cap]()"
-  let core = self.core
-  while true:
-    if core.combinerLock.load(moRelaxed) == 0'u64:
-      var expected = 0'u64
-      if core.combinerLock.compareExchange(expected, 1'u64, moAcquire, moRelaxed):
-        try:
-          var existing: V
-          if directTryGet(core, key, existing):
-            result = some(move(existing))
-          elif core.liveCount < core.effCap:
-            var computed = factory(key)
-            let copyComputed = computed
-            if directTryPut(core, key, move(computed), overwriteExisting = false):
-              result = some(copyComputed)
-            else:
-              result = none(V)
-          else:
-            result = none(V)
-          sweepBTablePubSlots(core)
-        finally:
-          core.combinerLock.store(0'u64, moRelease)
-        return result
-    cpuPause()
+  var val: V
+  if self.tryComputeIfAbsent(key, factory, val):
+    some(move(val))
+  else:
+    none(V)
 
 proc tryComputeIfAbsent*[
   K, V;
@@ -821,9 +853,10 @@ proc computeIfAbsent*[
     factory: proc(k: K): V {.gcsafe.}
 ): V {.inline, gcsafe.} =
   ## Atomically returns existing value for `key` or computes and inserts `factory(key)`.
-  let opt = self.tryComputeIfAbsent(key, factory)
-  doAssert opt.isSome, "BTable.computeIfAbsent: table is at capacity Cap"
-  opt.get()
+  var val: V
+  let ok = self.tryComputeIfAbsent(key, factory, val)
+  doAssert ok, "BTable.computeIfAbsent: table is at capacity Cap"
+  val
 
 proc computeIfAbsent*[
   K, V;
@@ -835,11 +868,9 @@ proc computeIfAbsent*[
     key: K,
     factory: proc(): V {.gcsafe.}
 ): V {.inline, gcsafe.} =
-  let opt = self.tryComputeIfAbsent(key, factory)
-  doAssert opt.isSome, "BTable.computeIfAbsent: table is at capacity Cap"
-  opt.get()
+  self.computeIfAbsent(key, proc(k: K): V {.gcsafe.} = factory())
 
-proc atomicUpdate*[
+proc tryAtomicUpdate*[
   K, V;
   Cap: static int;
   ccProd: static PinScopeCardinality;
@@ -847,12 +878,14 @@ proc atomicUpdate*[
 ](
     self: BTable[K, V, Cap, ccProd, ccCons],
     key: K,
-    updater: proc(k: K, oldVal: V): V {.gcsafe.}
-): Option[V] {.gcsafe.} =
-  ## Atomically updates the value for `key` in-place via `updater(key, oldVal)`.
-  ## Returns `some(newVal)` if `key` existed, or `none(V)` if `key` was absent.
+    updater: proc(k: K, oldVal: V): V {.gcsafe.},
+    outVal: var V
+): bool {.gcsafe.} =
+  ## Atomically updates the value for `key` in-place via `updater(key, oldVal)`,
+  ## stores the new value in `outVal`, and returns `true` if `key` existed, or
+  ## `false` if `key` was absent. Safe for `pointer`/`nil` values.
   if self.core == nil:
-    return none(V)
+    return false
   let core = self.core
   while true:
     if core.combinerLock.load(moRelaxed) == 0'u64:
@@ -867,14 +900,33 @@ proc atomicUpdate*[
             core.slots[idx].seq.store(s0 + 1'u64, moRelease)
             core.slots[idx].val = newVal
             core.slots[idx].seq.store(s0 + 2'u64, moRelease)
-            result = some(newVal)
+            outVal = newVal
+            result = true
           else:
-            result = none(V)
+            result = false
           sweepBTablePubSlots(core)
         finally:
           core.combinerLock.store(0'u64, moRelease)
         return result
     cpuPause()
+
+proc atomicUpdate*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: BTable[K, V, Cap, ccProd, ccCons],
+    key: K,
+    updater: proc(k: K, oldVal: V): V {.gcsafe.}
+): Option[V] {.gcsafe.} =
+  ## Atomically updates the value for `key` in-place via `updater(key, oldVal)`.
+  ## Returns `some(newVal)` if `key` existed, or `none(V)` if `key` was absent.
+  var val: V
+  if self.tryAtomicUpdate(key, updater, val):
+    some(move(val))
+  else:
+    none(V)
 
 proc atomicUpdate*[
   K, V;
@@ -897,11 +949,13 @@ proc tryUpsert*[
     self: BTable[K, V, Cap, ccProd, ccCons],
     key: K,
     initialVal: V,
-    updater: proc(k: K, oldVal: V): V {.gcsafe.}
-): Option[V] {.gcsafe.} =
+    updater: proc(k: K, oldVal: V): V {.gcsafe.},
+    outVal: var V
+): bool {.gcsafe.} =
   ## Atomically inserts `(key, initialVal)` if absent (when `len < Cap`), or
-  ## updates the existing entry via `updater(key, oldVal)`.
-  ## Returns `some(finalVal)`, or `none(V)` if `key` was absent and `len == Cap`.
+  ## updates the existing entry via `updater(key, oldVal)`, storing the resulting
+  ## value in `outVal` and returning `true`, or `false` if `key` was absent and
+  ## `len == Cap`. Safe for `pointer`/`nil` values.
   doAssert self.core != nil, "BTable is uninitialized; call initBTable[K, V, Cap]()"
   let core = self.core
   while true:
@@ -917,18 +971,40 @@ proc tryUpsert*[
             core.slots[idx].seq.store(s0 + 1'u64, moRelease)
             core.slots[idx].val = newVal
             core.slots[idx].seq.store(s0 + 2'u64, moRelease)
-            result = some(newVal)
+            outVal = newVal
+            result = true
           else:
             var copyInit = initialVal
             if directTryPut(core, key, move(copyInit), overwriteExisting = false):
-              result = some(initialVal)
+              outVal = initialVal
+              result = true
             else:
-              result = none(V)
+              result = false
           sweepBTablePubSlots(core)
         finally:
           core.combinerLock.store(0'u64, moRelease)
         return result
     cpuPause()
+
+proc tryUpsert*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: BTable[K, V, Cap, ccProd, ccCons],
+    key: K,
+    initialVal: V,
+    updater: proc(k: K, oldVal: V): V {.gcsafe.}
+): Option[V] {.gcsafe.} =
+  ## Atomically inserts `(key, initialVal)` if absent (when `len < Cap`), or
+  ## updates the existing entry via `updater(key, oldVal)`.
+  ## Returns `some(finalVal)`, or `none(V)` if `key` was absent and `len == Cap`.
+  var val: V
+  if self.tryUpsert(key, initialVal, updater, val):
+    some(move(val))
+  else:
+    none(V)
 
 proc tryUpsert*[
   K, V;
@@ -954,9 +1030,10 @@ proc upsert*[
     initialVal: V,
     updater: proc(k: K, oldVal: V): V {.gcsafe.}
 ): V {.inline, gcsafe.} =
-  let opt = self.tryUpsert(key, initialVal, updater)
-  doAssert opt.isSome, "BTable.upsert: table is at capacity Cap"
-  opt.get()
+  var val: V
+  let ok = self.tryUpsert(key, initialVal, updater, val)
+  doAssert ok, "BTable.upsert: table is at capacity Cap"
+  val
 
 proc upsert*[
   K, V;

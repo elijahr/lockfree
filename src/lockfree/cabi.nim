@@ -3391,6 +3391,24 @@ proc lfq_bstack_peek*(
     return LFQ_ERR_INVALID_ARG
   stack.peekFn(stack, out_item)
 
+proc lfq_bstack_drain*(
+    stack: ptr lfq_bstack_t,
+    out_items: ptr pointer,
+    max_count: csize_t
+): csize_t {.exportc: "lfq_bstack_drain", cdecl, gcsafe, raises: [].} =
+  if unlikely(stack == nil or stack.popFn == nil or out_items == nil or max_count == 0):
+    return 0.csize_t
+  let arr = cast[ptr UncheckedArray[pointer]](out_items)
+  var count: csize_t = 0
+  while count < max_count:
+    var item: pointer = nil
+    if stack.popFn(stack, addr item) == LFQ_OK:
+      arr[count] = item
+      inc count
+    else:
+      break
+  count
+
 proc lfq_bstack_clear*(
     stack: ptr lfq_bstack_t
 ): lfq_status_t {.exportc: "lfq_bstack_clear", cdecl, gcsafe, raises: [].} =
@@ -3736,9 +3754,9 @@ proc btableDeleteImpl[N: static int](t: ptr lfq_btable_t, key: pointer, outDelet
 proc btableTakeImpl[N: static int](t: ptr lfq_btable_t, key: pointer, outVal: ptr pointer): lfq_status_t {.nimcall, gcsafe, raises: [].} =
   let impl = cast[ptr BTableImpl[N]](t)
   cAbiBoundary:
-    let opt = impl.raw[].take(key)
-    if opt.isSome:
-      outVal[] = opt.get()
+    var val: pointer = nil
+    if impl.raw[].tryTake(key, val):
+      outVal[] = val
       LFQ_OK
     else:
       LFQ_ERR_EMPTY
@@ -3759,12 +3777,13 @@ proc btableComputeIfAbsentImpl[N: static int](
 ): lfq_status_t {.nimcall, gcsafe, raises: [].} =
   let impl = cast[ptr BTableImpl[N]](t)
   cAbiBoundary:
-    let opt = impl.raw[].tryComputeIfAbsent(key, proc(k: pointer): pointer {.gcsafe.} =
+    var val: pointer = nil
+    let ok = impl.raw[].tryComputeIfAbsent(key, proc(k: pointer): pointer {.gcsafe.} =
       mappingFn(k, userData)
-    )
-    if opt.isSome:
+    , val)
+    if ok:
       if outVal != nil:
-        outVal[] = opt.get()
+        outVal[] = val
       LFQ_OK
     else:
       LFQ_ERR_FULL
@@ -3778,12 +3797,13 @@ proc btableAtomicUpdateImpl[N: static int](
 ): lfq_status_t {.nimcall, gcsafe, raises: [].} =
   let impl = cast[ptr BTableImpl[N]](t)
   cAbiBoundary:
-    let opt = impl.raw[].atomicUpdate(key, proc(k: pointer, oldVal: pointer): pointer {.gcsafe.} =
+    var val: pointer = nil
+    let ok = impl.raw[].tryAtomicUpdate(key, proc(k: pointer, oldVal: pointer): pointer {.gcsafe.} =
       updateFn(k, oldVal, userData)
-    )
-    if opt.isSome:
+    , val)
+    if ok:
       if outVal != nil:
-        outVal[] = opt.get()
+        outVal[] = val
       LFQ_OK
     else:
       LFQ_ERR_EMPTY
@@ -3798,12 +3818,13 @@ proc btableUpsertImpl[N: static int](
 ): lfq_status_t {.nimcall, gcsafe, raises: [].} =
   let impl = cast[ptr BTableImpl[N]](t)
   cAbiBoundary:
-    let opt = impl.raw[].tryUpsert(key, initialVal, proc(k: pointer, oldVal: pointer): pointer {.gcsafe.} =
+    var val: pointer = nil
+    let ok = impl.raw[].tryUpsert(key, initialVal, proc(k: pointer, oldVal: pointer): pointer {.gcsafe.} =
       updateFn(k, oldVal, userData)
-    )
-    if opt.isSome:
+    , val)
+    if ok:
       if outVal != nil:
-        outVal[] = opt.get()
+        outVal[] = val
       LFQ_OK
     else:
       LFQ_ERR_FULL

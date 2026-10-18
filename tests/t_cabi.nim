@@ -1304,11 +1304,30 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     var outItem: pointer = nil
     check lfq_bstack_peek(bs, addr outItem) == LFQ_OK
     check cast[int](outItem) == 400
-    for expected in [400, 300, 200, 100]:
+
+    # Drain top 2 items (400, 300) via lfq_bstack_drain (CRIT-01)
+    var drained: array[4, pointer]
+    check lfq_bstack_drain(nil, addr drained[0], 2) == 0
+    check lfq_bstack_drain(bs, nil, 2) == 0
+    check lfq_bstack_drain(bs, addr drained[0], 0) == 0
+    check lfq_bstack_drain(bs, addr drained[0], 2) == 2
+    check cast[int](drained[0]) == 400
+    check cast[int](drained[1]) == 300
+
+    for expected in [200, 100]:
       outItem = nil
       check lfq_bstack_pop(bs, addr outItem) == LFQ_OK
       check cast[int](outItem) == expected
     check lfq_bstack_pop(bs, addr outItem) == LFQ_ERR_EMPTY
+
+    # Verify nil / (void*)0 payload push, peek, pop (CRIT-02)
+    check lfq_bstack_push(bs, nil) == LFQ_OK
+    outItem = cast[pointer](123)
+    check lfq_bstack_peek(bs, addr outItem) == LFQ_OK
+    check outItem == nil
+    outItem = cast[pointer](123)
+    check lfq_bstack_pop(bs, addr outItem) == LFQ_OK
+    check outItem == nil
     check lfq_bstack_destroy(bs) == LFQ_OK
 
     # 2. lfq_bpqueue_*
@@ -1344,6 +1363,24 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check lfq_btable_create(4, nil, nil, addr bt) == LFQ_OK
     check bt != nil
     check lfq_btable_capacity(bt) == 4
+
+    # Verify nil / (void*)0 values in compute_if_absent, atomic_update, upsert, and take (CRIT-02)
+    let zeroMapCb: lfq_btable_mapping_fn = proc(k: pointer, ud: pointer): pointer {.cdecl, gcsafe.} = nil
+    let zeroUpdCb: lfq_btable_update_fn = proc(k: pointer, oldVal: pointer, ud: pointer): pointer {.cdecl, gcsafe.} = nil
+    outItem = cast[pointer](999)
+    check lfq_btable_compute_if_absent(bt, nil, zeroMapCb, nil, addr outItem) == LFQ_OK
+    check outItem == nil
+    outItem = cast[pointer](999)
+    check lfq_btable_atomic_update(bt, nil, zeroUpdCb, nil, addr outItem) == LFQ_OK
+    check outItem == nil
+    outItem = cast[pointer](999)
+    check lfq_btable_take(bt, nil, addr outItem) == LFQ_OK
+    check outItem == nil
+    outItem = cast[pointer](999)
+    check lfq_btable_upsert(bt, nil, nil, zeroUpdCb, nil, addr outItem) == LFQ_OK
+    check outItem == nil
+    check lfq_btable_take(bt, nil, addr outItem) == LFQ_OK
+    check outItem == nil
 
     var inserted = false
     for k in 1 .. 4:

@@ -464,45 +464,44 @@ proc pop*[
   else:
     none(T)
 
-proc peek*[
+proc tryPeek*[
   T;
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BStack[T, Cap, ccProd, ccCons]): Option[T] {.gcsafe.} =
-  ## Returns `some(topItem)` without removing it, or `none(T)` if empty.
+](self: BStack[T, Cap, ccProd, ccCons], outItem: var T): bool {.gcsafe.} =
+  ## Non-destructively copies the top item into `outItem` and returns `true`, or
+  ## returns `false` if the stack is empty. Safe for `pointer`/`nil` payloads.
   if self.core == nil:
-    return none(T)
+    return false
   let core = self.core
 
   var oldTop = core.top.load(moAcquire)
   while true:
     let idx = unpackIdx(oldTop)
     if idx < 0:
-      return none(T)
+      return false
     lockSlot(core, idx)
     if core.slots[idx].inTop.load(moAcquire) and core.top.load(moAcquire) == oldTop:
-      let copyVal = core.slots[idx].data
+      outItem = core.slots[idx].data
       unlockSlot(core, idx)
-      return some(copyVal)
+      return true
     unlockSlot(core, idx)
     cpuPause()
     oldTop = core.top.load(moAcquire)
 
-proc tryPeek*[
+proc peek*[
   T;
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BStack[T, Cap, ccProd, ccCons], outItem: var T): bool {.inline, gcsafe.} =
-  ## Non-destructively copies the top item into `outItem` and returns `true`, or
-  ## returns `false` if the stack is empty.
-  let opt = self.peek()
-  if opt.isSome:
-    outItem = opt.get()
-    true
+](self: BStack[T, Cap, ccProd, ccCons]): Option[T] {.inline, gcsafe.} =
+  ## Returns `some(topItem)` without removing it, or `none(T)` if empty.
+  var val: T
+  if self.tryPeek(val):
+    some(move(val))
   else:
-    false
+    none(T)
 
 proc drainInto*[
   T;

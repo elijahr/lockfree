@@ -1666,6 +1666,7 @@ static void test_cabi_bstack(void) {
     TEST_ASSERT(lfq_bstack_push(NULL, (void*)1) == LFQ_ERR_INVALID_ARG, "bstack push NULL must fail");
     TEST_ASSERT(lfq_bstack_pop(NULL, NULL) == LFQ_ERR_INVALID_ARG, "bstack pop NULL must fail");
     TEST_ASSERT(lfq_bstack_peek(NULL, NULL) == LFQ_ERR_INVALID_ARG, "bstack peek NULL must fail");
+    TEST_ASSERT(lfq_bstack_drain(NULL, NULL, 4) == 0, "bstack drain NULL must return 0");
     TEST_ASSERT(lfq_bstack_clear(NULL) == LFQ_ERR_INVALID_ARG, "bstack clear NULL must fail");
     TEST_ASSERT(lfq_bstack_len(NULL) == 0, "bstack len NULL must be 0");
     TEST_ASSERT(lfq_bstack_capacity(NULL) == 0, "bstack capacity NULL must be 0");
@@ -1682,6 +1683,13 @@ static void test_cabi_bstack(void) {
     TEST_ASSERT(lfq_bstack_pop(bs, &out_item) == LFQ_ERR_EMPTY, "pop on empty bstack must return LFQ_ERR_EMPTY");
     TEST_ASSERT(lfq_bstack_peek(bs, &out_item) == LFQ_ERR_EMPTY, "peek on empty bstack must return LFQ_ERR_EMPTY");
 
+    /* Verify (void*)0 payload push, peek, and pop (CRIT-02) */
+    TEST_ASSERT(lfq_bstack_push(bs, (void*)0) == LFQ_OK, "bstack push (void*)0 failed");
+    out_item = (void*)(uintptr_t)0xDEADBEEF;
+    TEST_ASSERT(lfq_bstack_peek(bs, &out_item) == LFQ_OK && out_item == NULL, "bstack peek (void*)0 failed");
+    out_item = (void*)(uintptr_t)0xDEADBEEF;
+    TEST_ASSERT(lfq_bstack_pop(bs, &out_item) == LFQ_OK && out_item == NULL, "bstack pop (void*)0 failed");
+
     for (size_t i = 1; i <= 7; i++) {
         TEST_ASSERT(lfq_bstack_push(bs, (void*)(uintptr_t)(i * 10)) == LFQ_OK, "bstack push within capacity failed");
     }
@@ -1691,8 +1699,17 @@ static void test_cabi_bstack(void) {
     TEST_ASSERT(lfq_bstack_peek(bs, &out_item) == LFQ_OK && (uintptr_t)out_item == 70, "bstack peek LIFO top mismatch");
     TEST_ASSERT(lfq_bstack_len(bs) == 7, "bstack peek must not remove item");
 
-    /* Pop top 5 in LIFO order: 70, 60, 50, 40, 30 */
-    for (size_t expected = 70; expected >= 30; expected -= 10) {
+    /* Drain top 3 items via lfq_bstack_drain (CRIT-01): 70, 60, 50 */
+    void* drained[4] = { NULL, NULL, NULL, NULL };
+    TEST_ASSERT(lfq_bstack_drain(bs, NULL, 3) == 0, "bstack drain NULL out_items must return 0");
+    TEST_ASSERT(lfq_bstack_drain(bs, drained, 0) == 0, "bstack drain max_count 0 must return 0");
+    size_t dcount = lfq_bstack_drain(bs, drained, 3);
+    TEST_ASSERT(dcount == 3, "bstack drain should drain 3 items");
+    TEST_ASSERT((uintptr_t)drained[0] == 70 && (uintptr_t)drained[1] == 60 && (uintptr_t)drained[2] == 50,
+                "bstack drain LIFO order mismatch");
+
+    /* Pop next 2 in LIFO order: 40, 30 */
+    for (size_t expected = 40; expected >= 30; expected -= 10) {
         out_item = NULL;
         TEST_ASSERT(lfq_bstack_pop(bs, &out_item) == LFQ_OK && (uintptr_t)out_item == expected, "bstack LIFO pop order mismatch");
     }
@@ -1895,6 +1912,13 @@ static void* btable_c_update_fn(const void* key, void* old_val, void* user_data)
     return (void*)((uintptr_t)old_val + delta);
 }
 
+static void* btable_c_zero_update_fn(const void* key, void* old_val, void* user_data) {
+    (void)key;
+    (void)old_val;
+    (void)user_data;
+    return (void*)0;
+}
+
 typedef struct {
     lfq_btable_t* table;
     size_t increments;
@@ -1939,6 +1963,22 @@ static void test_cabi_btable(void) {
     lfq_status_t st = lfq_btable_create(8, btable_c_destructor, &tracker, &bt);
     TEST_ASSERT(st == LFQ_OK && bt != NULL, "lfq_btable_create(8) failed");
     TEST_ASSERT(lfq_btable_capacity(bt) == 8 && lfq_btable_len(bt) == 0 && lfq_btable_is_empty(bt), "btable initial state mismatch");
+
+    /* Verify (void*)0 key & value operations in compute_if_absent, upsert, atomic_update, take (CRIT-02) */
+    void* zval = (void*)(uintptr_t)0xDEADBEEF;
+    TEST_ASSERT(lfq_btable_compute_if_absent(bt, (void*)0, btable_c_mapping_fn, (void*)(uintptr_t)10, &zval) == LFQ_OK && zval == NULL,
+                "btable compute_if_absent returning (void*)0 failed");
+    zval = (void*)(uintptr_t)0xDEADBEEF;
+    TEST_ASSERT(lfq_btable_atomic_update(bt, (void*)0, btable_c_zero_update_fn, NULL, &zval) == LFQ_OK && zval == NULL,
+                "btable atomic_update returning (void*)0 failed");
+    zval = (void*)(uintptr_t)0xDEADBEEF;
+    TEST_ASSERT(lfq_btable_take(bt, (void*)0, &zval) == LFQ_OK && zval == NULL,
+                "btable take returning (void*)0 failed");
+    zval = (void*)(uintptr_t)0xDEADBEEF;
+    TEST_ASSERT(lfq_btable_upsert(bt, (void*)0, (void*)0, btable_c_zero_update_fn, NULL, &zval) == LFQ_OK && zval == NULL,
+                "btable upsert inserting (void*)0 failed");
+    TEST_ASSERT(lfq_btable_take(bt, (void*)0, &zval) == LFQ_OK && zval == NULL,
+                "btable take after upsert (void*)0 failed");
 
     /* Fill 8 entries (keys 1..8) */
     for (uintptr_t k = 1; k <= 8; k++) {
