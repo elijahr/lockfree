@@ -24,6 +24,7 @@ import ./typestates/spmc_push
 import ./typestates/spmc_pop
 import ./typestates/mpmc_push
 import ./typestates/mpmc_pop
+import ./typestates/constructs
 
 export virtual_values_n
 export storage_n
@@ -42,3 +43,6 @@ export spmc_push
 export spmc_pop
 export mpmc_push
 export mpmc_pop
+export constructs
+
+

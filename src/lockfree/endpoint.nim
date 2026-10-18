@@ -42,6 +42,10 @@ import ./endpoint_types
 export endpoint_types
 import ./bqueue
 import ./queue
+import ./stack
+import ./bstack
+import ./deque
+import ./btable
 import ./role_tags
 export role_tags
 import ./exceptions
@@ -62,10 +66,32 @@ type
     ## debra-integrated backend overloads (Queue endpoints call `registerThread`
     ## / `unregisterThread`).
 
+  TreiberStackType* = concept x
+    x is TreiberStack
+    ## Type class matching any `TreiberStack[T]` instantiation. Dispatches to
+    ## `stack.registerThread` / `stack.unregisterThread` to maintain TLS NEBR
+    ## handle coherence.
+
+  BStackType* = concept x
+    x is BStack
+    ## Type class matching any `BStack[...]` instantiation (zero-SMR preallocated).
+
+  ChaseLevDequeType* = concept x
+    x is ChaseLevDeque
+    ## Type class matching any `ChaseLevDeque[T]` instantiation.
+
+  BTableType* = concept x
+    x is BTable
+    ## Type class matching any `BTable[...]` instantiation (zero-SMR preallocated).
+
 typestate Endpoint[T, Tag, queueT]:
   consumeOnTransition = false
   strictTransitions = true
   states Unbound[T, Tag, queueT], Bound[T, Tag, queueT], EndpointClosed[T, Tag, queueT]
+  initial:
+    Unbound[T, Tag, queueT]
+  terminal:
+    EndpointClosed[T, Tag, queueT]
   transitions:
     Unbound[T, Tag, queueT] -> Bound[T, Tag, queueT]
     Bound[T, Tag, queueT] -> EndpointClosed[T, Tag, queueT]
@@ -105,6 +131,35 @@ proc onBind[T; Tag; queueT: QueueType](
   else:
     discard b
 
+proc onBind[T; Tag; queueT: TreiberStackType](
+    b: var Bound[T, Tag, queueT]
+) {.gcsafe, raises: [], notATransition.} =
+  ## TreiberStack endpoints register the calling thread via `stack.registerThread()`
+  ## so `gTlsStackHandles` in `stack.nim` remains coherent with the stack's NEBR manager.
+  when compileOption("threads"):
+    if b.queue != nil:
+      try:
+        b.queue[].registerThread()
+      except Exception as e:
+        raiseAssert "endpoint.bindToThread(TreiberStack): " & e.msg
+  else:
+    discard b
+
+proc onBind[T; Tag; queueT: BStackType](
+    b: var Bound[T, Tag, queueT]
+) {.gcsafe, raises: [], notATransition.} =
+  discard b
+
+proc onBind[T; Tag; queueT: ChaseLevDequeType](
+    b: var Bound[T, Tag, queueT]
+) {.gcsafe, raises: [], notATransition.} =
+  discard b
+
+proc onBind[T; Tag; queueT: BTableType](
+    b: var Bound[T, Tag, queueT]
+) {.gcsafe, raises: [], notATransition.} =
+  discard b
+
 proc onClose[T; Tag; queueT: BQueueType](
     c: var EndpointClosed[T, Tag, queueT]
 ) {.gcsafe, raises: [], notATransition.} =
@@ -129,6 +184,35 @@ proc onClose[T; Tag; queueT: QueueType](
     unregisterThread(mgr[], h)
   else:
     discard c
+
+proc onClose[T; Tag; queueT: TreiberStackType](
+    c: var EndpointClosed[T, Tag, queueT]
+) {.gcsafe, raises: [], notATransition.} =
+  ## TreiberStack endpoints unregister the calling thread via `stack.unregisterThread()`
+  ## so `gTlsStackHandles` in `stack.nim` remains coherent with the stack's NEBR manager.
+  when compileOption("threads"):
+    if c.queue != nil:
+      try:
+        c.queue[].unregisterThread()
+      except Exception as e:
+        raiseAssert "endpoint.close(TreiberStack): " & e.msg
+  else:
+    discard c
+
+proc onClose[T; Tag; queueT: BStackType](
+    c: var EndpointClosed[T, Tag, queueT]
+) {.gcsafe, raises: [], notATransition.} =
+  discard c
+
+proc onClose[T; Tag; queueT: ChaseLevDequeType](
+    c: var EndpointClosed[T, Tag, queueT]
+) {.gcsafe, raises: [], notATransition.} =
+  discard c
+
+proc onClose[T; Tag; queueT: BTableType](
+    c: var EndpointClosed[T, Tag, queueT]
+) {.gcsafe, raises: [], notATransition.} =
+  discard c
 
 # ---------------------------------------------------------------------------
 # Lifecycle transitions.
@@ -295,6 +379,108 @@ proc getConsumer*[
   else:
     result.idx = -1
 
+proc getProducer*[T](
+    self: var TreiberStack[T]
+): Unbound[T, MpmcProducerTag, TreiberStack[T]] {.raises: [], notATransition.} =
+  ## TreiberStack producer factory. Returns an `Unbound` producer endpoint that
+  ## registers the calling thread with the stack's NEBR manager on `bindToThread()`.
+  result.queue = addr(self)
+  result.idx = 0
+
+proc getConsumer*[T](
+    self: var TreiberStack[T]
+): Unbound[T, MpmcConsumerTag, TreiberStack[T]] {.raises: [], notATransition.} =
+  ## TreiberStack consumer factory. Returns an `Unbound` consumer endpoint that
+  ## registers the calling thread with the stack's NEBR manager on `bindToThread()`.
+  result.queue = addr(self)
+  result.idx = 0
+
+proc getProducer*[
+    T;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    self: var BStack[T, Cap, ccProd, ccCons]
+): Unbound[T, MpmcProducerTag, BStack[T, Cap, ccProd, ccCons]] {.raises: [], notATransition.} =
+  ## BStack producer factory.
+  result.queue = addr(self)
+  result.idx = 0
+
+proc getConsumer*[
+    T;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    self: var BStack[T, Cap, ccProd, ccCons]
+): Unbound[T, MpmcConsumerTag, BStack[T, Cap, ccProd, ccCons]] {.raises: [], notATransition.} =
+  ## BStack consumer factory.
+  result.queue = addr(self)
+  result.idx = 0
+
+proc getOwner*[T](
+    self: var ChaseLevDeque[T]
+): Unbound[T, DequeOwnerTag, ChaseLevDeque[T]] {.raises: [], notATransition.} =
+  ## ChaseLevDeque owner-worker factory (`pushBottom`, `popBottom`, `tryPopBottom`).
+  result.queue = addr(self)
+  result.idx = 0
+
+proc getThief*[T](
+    self: var ChaseLevDeque[T]
+): Unbound[T, DequeThiefTag, ChaseLevDeque[T]] {.raises: [], notATransition.} =
+  ## ChaseLevDeque thief factory (`steal`, `trySteal`, `stealBatch`).
+  result.queue = addr(self)
+  result.idx = 0
+
+proc getProducer*[T](
+    self: var ChaseLevDeque[T]
+): Unbound[T, DequeOwnerTag, ChaseLevDeque[T]] {.inline, raises: [], notATransition.} =
+  self.getOwner()
+
+proc getConsumer*[T](
+    self: var ChaseLevDeque[T]
+): Unbound[T, DequeThiefTag, ChaseLevDeque[T]] {.inline, raises: [], notATransition.} =
+  self.getThief()
+
+proc getWriter*[
+    K, V;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    self: var BTable[K, V, Cap, ccProd, ccCons]
+): Unbound[(K, V), TableWriterTag, BTable[K, V, Cap, ccProd, ccCons]] {.raises: [], notATransition.} =
+  ## BTable writer endpoint factory (permits both mutations and lookups).
+  result.queue = addr(self)
+  result.idx = 0
+
+proc getReader*[
+    K, V;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    self: var BTable[K, V, Cap, ccProd, ccCons]
+): Unbound[(K, V), TableReaderTag, BTable[K, V, Cap, ccProd, ccCons]] {.raises: [], notATransition.} =
+  ## BTable reader endpoint factory (permits read-only lookups; rejects mutations at compile time).
+  result.queue = addr(self)
+  result.idx = 0
+
+proc getProducer*[
+    K, V;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    self: var BTable[K, V, Cap, ccProd, ccCons]
+): Unbound[(K, V), TableWriterTag, BTable[K, V, Cap, ccProd, ccCons]] {.inline, raises: [], notATransition.} =
+  self.getWriter()
+
+proc getConsumer*[
+    K, V;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    self: var BTable[K, V, Cap, ccProd, ccCons]
+): Unbound[(K, V), TableReaderTag, BTable[K, V, Cap, ccProd, ccCons]] {.inline, raises: [], notATransition.} =
+  self.getReader()
+
 ## ----------------------------------------------------------------------
 ## Same-thread shortcut helpers + bindConsumer one-shot wrapper.
 ##
@@ -342,6 +528,98 @@ template getConsumerHere*[
   var u = self.getConsumer()
   u.bindToThread()
 
+template getProducerHere*[T](
+    self: var TreiberStack[T]
+): Bound[T, MpmcProducerTag, TreiberStack[T]] =
+  var u = self.getProducer()
+  u.bindToThread()
+
+template getConsumerHere*[T](
+    self: var TreiberStack[T]
+): Bound[T, MpmcConsumerTag, TreiberStack[T]] =
+  var u = self.getConsumer()
+  u.bindToThread()
+
+template getProducerHere*[
+    T;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    self: var BStack[T, Cap, ccProd, ccCons]
+): Bound[T, MpmcProducerTag, BStack[T, Cap, ccProd, ccCons]] =
+  var u = self.getProducer()
+  u.bindToThread()
+
+template getConsumerHere*[
+    T;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    self: var BStack[T, Cap, ccProd, ccCons]
+): Bound[T, MpmcConsumerTag, BStack[T, Cap, ccProd, ccCons]] =
+  var u = self.getConsumer()
+  u.bindToThread()
+
+template getOwnerHere*[T](
+    self: var ChaseLevDeque[T]
+): Bound[T, DequeOwnerTag, ChaseLevDeque[T]] =
+  var u = self.getOwner()
+  u.bindToThread()
+
+template getThiefHere*[T](
+    self: var ChaseLevDeque[T]
+): Bound[T, DequeThiefTag, ChaseLevDeque[T]] =
+  var u = self.getThief()
+  u.bindToThread()
+
+template getProducerHere*[T](
+    self: var ChaseLevDeque[T]
+): Bound[T, DequeOwnerTag, ChaseLevDeque[T]] =
+  self.getOwnerHere()
+
+template getConsumerHere*[T](
+    self: var ChaseLevDeque[T]
+): Bound[T, DequeThiefTag, ChaseLevDeque[T]] =
+  self.getThiefHere()
+
+template getWriterHere*[
+    K, V;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    self: var BTable[K, V, Cap, ccProd, ccCons]
+): Bound[(K, V), TableWriterTag, BTable[K, V, Cap, ccProd, ccCons]] =
+  var u = self.getWriter()
+  u.bindToThread()
+
+template getReaderHere*[
+    K, V;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    self: var BTable[K, V, Cap, ccProd, ccCons]
+): Bound[(K, V), TableReaderTag, BTable[K, V, Cap, ccProd, ccCons]] =
+  var u = self.getReader()
+  u.bindToThread()
+
+template getProducerHere*[
+    K, V;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    self: var BTable[K, V, Cap, ccProd, ccCons]
+): Bound[(K, V), TableWriterTag, BTable[K, V, Cap, ccProd, ccCons]] =
+  self.getWriterHere()
+
+template getConsumerHere*[
+    K, V;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    self: var BTable[K, V, Cap, ccProd, ccCons]
+): Bound[(K, V), TableReaderTag, BTable[K, V, Cap, ccProd, ccCons]] =
+  self.getReaderHere()
+
 proc bindConsumer*[
     T;
     ccProd: static PinScopeCardinality,
@@ -378,5 +656,22 @@ static:
   ),
     "Unbound[..., Queue[...]] must not contain a ref subgraph; " &
       "see design R3 + Nim Issue #19013"
+  doAssert supportsCopyMem(
+    Unbound[int, MpmcProducerTag, TreiberStack[int]]
+  ),
+    "Unbound[..., TreiberStack[...]] must not contain a ref subgraph"
+  doAssert supportsCopyMem(
+    Unbound[int, MpmcProducerTag, BStack[int, 16, ccMulti, ccMulti]]
+  ),
+    "Unbound[..., BStack[...]] must not contain a ref subgraph"
+  doAssert supportsCopyMem(
+    Unbound[int, DequeOwnerTag, ChaseLevDeque[int]]
+  ),
+    "Unbound[..., ChaseLevDeque[...]] must not contain a ref subgraph"
+  doAssert supportsCopyMem(
+    Unbound[(string, seq[int]), TableWriterTag, BTable[string, seq[int], 16, ccMulti, ccMulti]]
+  ),
+    "Unbound[..., BTable[...]] must not contain a ref subgraph"
 
 verifyTypestates()
+

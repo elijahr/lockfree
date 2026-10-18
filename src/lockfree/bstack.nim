@@ -22,12 +22,15 @@
 
 import std/options
 export options
+import ./internal/typestates_dsl
 import ./atomics
 import ./atomics/backoff
 import ./backoff
 import ./cardinality
 export cardinality
 import ./internal/aligned_alloc
+import ./endpoint_types
+import ./role_tags
 
 const
   BStackEliminationCapacity* = 8
@@ -42,6 +45,50 @@ const
   ElimDone = 4'i32
 
   NilSlotIdx = -1'i32
+
+type
+  BStackLifecycleCtx*[
+    T;
+    Cap: static int;
+    ccProd: static PinScopeCardinality;
+    ccCons: static PinScopeCardinality
+  ] = object of RootObj
+    ## Phantom context type for the `BStack` Middle-axis Lifecycle typestate.
+
+  BStackInit*[
+    T;
+    Cap: static int;
+    ccProd: static PinScopeCardinality;
+    ccCons: static PinScopeCardinality
+  ] = distinct BStackLifecycleCtx[T, Cap, ccProd, ccCons]
+    ## Initial Lifecycle state for a `BStack`.
+
+  BStackDestroyed*[
+    T;
+    Cap: static int;
+    ccProd: static PinScopeCardinality;
+    ccCons: static PinScopeCardinality
+  ] = distinct BStackLifecycleCtx[T, Cap, ccProd, ccCons]
+    ## Terminal Lifecycle state for a `BStack`, reached via `=destroy`.
+
+typestate BStackLifecycle[
+  T,
+  Cap: static int,
+  ccProd: static PinScopeCardinality,
+  ccCons: static PinScopeCardinality
+]:
+  inheritsFromRootObj = true
+  consumeOnTransition = false
+  strictTransitions = false
+  states:
+    BStackInit[T, Cap, ccProd, ccCons]
+    BStackDestroyed[T, Cap, ccProd, ccCons]
+  initial:
+    BStackInit[T, Cap, ccProd, ccCons]
+  terminal:
+    BStackDestroyed[T, Cap, ccProd, ccCons]
+  transitions:
+    BStackInit[T, Cap, ccProd, ccCons] -> BStackDestroyed[T, Cap, ccProd, ccCons]
 
 type
   BStackSlot[T] = object
@@ -68,7 +115,7 @@ type
     Cap: static int;
     ccProd: static PinScopeCardinality = ccMulti;
     ccCons: static PinScopeCardinality = ccMulti
-  ] = object
+  ] {.BStackLifecycle: BStackInit.} = object
     core*: ptr BStackCore[T, Cap]
 
   BoundedStack*[
@@ -161,10 +208,16 @@ proc `=destroy`*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: var BStack[T, Cap, ccProd, ccCons]) =
+](self: var BStack[T, Cap, ccProd, ccCons]) {.
+    destructorTransition: BStackInit -> BStackDestroyed,
+    transitionError:
+      "BStack used after =destroy (lifecycle: BStackInit -> BStackDestroyed).",
+    raises: []
+.} =
   if self.core != nil:
     if self.core.rc.fetchSub(1, moAcquireRelease) == 1:
       destroyBStackCore(self.core)
+
 
 proc `=copy`*[
   T;
@@ -644,3 +697,162 @@ proc isFull*[
     false
   else:
     unpackIdx(self.core.freeHead.load(moAcquire)) < 0
+
+# ---------------------------------------------------------------------------
+# Bound Endpoint Overloads & Compile-Time Role Guards (`BStack`)
+# ---------------------------------------------------------------------------
+
+proc tryPush*[
+  T;
+  Tag: SpscProducerTag | MpmcProducerTag | AnyThreadTag;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]], item: sink T
+): bool {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  self.queue[].tryPush(item)
+
+proc push*[
+  T;
+  Tag: SpscProducerTag | MpmcProducerTag | AnyThreadTag;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]], item: sink T
+): bool {.discardable, tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  self.queue[].tryPush(item)
+
+proc tryPush*[
+  T;
+  Tag: SpscConsumerTag | MpmcConsumerTag;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]], item: sink T
+): bool {.
+    error:
+      "tryPush on a consumer-tagged BStack endpoint (SpscConsumerTag / MpmcConsumerTag) is forbidden; bind a producer endpoint via getProducer()."
+.}
+
+proc push*[
+  T;
+  Tag: SpscConsumerTag | MpmcConsumerTag;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]], item: sink T
+): bool {.
+    error:
+      "push on a consumer-tagged BStack endpoint (SpscConsumerTag / MpmcConsumerTag) is forbidden; bind a producer endpoint via getProducer()."
+.}
+
+proc tryPop*[
+  T;
+  Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]], outItem: var T
+): bool {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  self.queue[].tryPop(outItem)
+
+proc pop*[
+  T;
+  Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]]
+): Option[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  self.queue[].pop()
+
+proc peek*[
+  T;
+  Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]]
+): Option[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  self.queue[].peek()
+
+proc tryPop*[
+  T;
+  Tag: SpscProducerTag | MpmcProducerTag;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]], outItem: var T
+): bool {.
+    error:
+      "tryPop on a producer-tagged BStack endpoint (SpscProducerTag / MpmcProducerTag) is forbidden; bind a consumer endpoint via getConsumer()."
+.}
+
+proc pop*[
+  T;
+  Tag: SpscProducerTag | MpmcProducerTag;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]]
+): Option[T] {.
+    error:
+      "pop on a producer-tagged BStack endpoint (SpscProducerTag / MpmcProducerTag) is forbidden; bind a consumer endpoint via getConsumer()."
+.}
+
+proc len*[
+  T;
+  Tag;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]]
+): int {.inline, notATransition.} =
+  self.queue[].len
+
+proc capacity*[
+  T;
+  Tag;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]]
+): int {.inline, notATransition.} =
+  self.queue[].capacity
+
+proc isEmpty*[
+  T;
+  Tag;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]]
+): bool {.inline, notATransition.} =
+  self.queue[].isEmpty
+
+proc isFull*[
+  T;
+  Tag;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]]
+): bool {.inline, notATransition.} =
+  self.queue[].isFull
+
+verifyTypestates()
+
+

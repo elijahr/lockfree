@@ -65,6 +65,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
   import ./endpoint_types
   import ./role_tags
   import ./exceptions
+  import ./internal/typestates_dsl
 
   export exceptions
 
@@ -1220,7 +1221,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
   proc newAsyncDeque*[T](initialCapacity: int = 64): AsyncDeque[T] {.inline.} =
     newAsyncChaseLevDeque[T](initialCapacity)
 
-  proc toAsync*[T](d: sink ChaseLevDeque[T]): AsyncChaseLevDeque[T] =
+  proc toAsync*[T](d: sink ChaseLevDeque[T]): AsyncChaseLevDeque[T] {.notATransition.} =
     new result
     result.deque = d
     result.waitingThieves.store(0, moRelaxed)
@@ -1299,7 +1300,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
   proc tryPopAsync*[T](self: AsyncChaseLevDeque[T]): Future[Option[T]] {.inline.} =
     self.tryStealAsync()
 
-  proc tryStealAsync*[T](self: var ChaseLevDeque[T]): Future[Option[T]] =
+  proc tryStealAsync*[T](self: var ChaseLevDeque[T]): Future[Option[T]] {.notATransition.} =
     let v = self.steal()
     var fut = newFuture[Option[T]]("tryStealAsync")
     fut.complete(v)

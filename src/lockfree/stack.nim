@@ -22,14 +22,16 @@
 
 import std/options
 export options
+import ./internal/typestates_dsl
 import ./atomics
 import ./atomics/backoff
 import ./backoff
 import ./internal/aligned_alloc
+import ./endpoint_types
+import ./role_tags
 
 when compileOption("threads"):
   import ./smr/nebr
-  import pkg/typestates
 
 const
   EliminationCapacity* = 8
@@ -52,6 +54,30 @@ const
   NodeClaimPopped = -1'i32
 
 type
+  TreiberStackLifecycleCtx*[T] = object of RootObj
+    ## Phantom context type for the `TreiberStack` Middle-axis Lifecycle typestate.
+
+  TreiberStackInit*[T] = distinct TreiberStackLifecycleCtx[T]
+    ## Initial Lifecycle state for a `TreiberStack[T]`.
+
+  TreiberStackDestroyed*[T] = distinct TreiberStackLifecycleCtx[T]
+    ## Terminal Lifecycle state for a `TreiberStack[T]`, reached via `=destroy`.
+
+typestate TreiberStackLifecycle[T]:
+  inheritsFromRootObj = true
+  consumeOnTransition = false
+  strictTransitions = false
+  states:
+    TreiberStackInit[T]
+    TreiberStackDestroyed[T]
+  initial:
+    TreiberStackInit[T]
+  terminal:
+    TreiberStackDestroyed[T]
+  transitions:
+    TreiberStackInit[T] -> TreiberStackDestroyed[T]
+
+type
   StackNode[T] = object
     data: T
     next: Atomic[ptr StackNode[T]]
@@ -61,7 +87,7 @@ type
     state {.align: CacheLineBytes.}: Atomic[int]
     value: T
 
-  TreiberStack*[T] = object
+  TreiberStack*[T] {.TreiberStackLifecycle: TreiberStackInit.} = object
     top {.align: CacheLineBytes.}: Atomic[Pair[uint64, uint64]]
     count {.align: CacheLineBytes.}: Atomic[int]
     smr {.align: CacheLineBytes.}: Atomic[pointer]
@@ -69,6 +95,7 @@ type
 
   Stack*[T] = TreiberStack[T]
   ConcurrentStack*[T] = TreiberStack[T]
+
 
 when compileOption("threads"):
   type
@@ -151,7 +178,7 @@ when compileOption("threads"):
     ## Explicitly registers the calling thread with the stack's NEBR SMR manager.
     discard self.getOrRegisterHandle()
 
-  proc unregisterThread*[T](self: var TreiberStack[T]) =
+  proc unregisterThread*[T](self: var TreiberStack[T]) {.gcsafe.} =
     ## Drains any pending retired nodes in the calling thread's limbo bags and
     ## unregisters the thread from the stack's NEBR SMR manager.
     let smr = cast[ptr StackSmr](self.smr.load(moAcquire))
@@ -178,7 +205,8 @@ when compileOption("threads"):
       while manager.threads[foundIdx].limboBagTail != nil or
           manager.threads[foundIdx].currentBag != nil:
         discard manager.globalEpoch.fetchAdd(1'u64, moRelease)
-        discard reclaimNow(h)
+        {.cast(gcsafe).}:
+          discard reclaimNow(h)
         if manager.threads[foundIdx].limboBagTail != nil or
             manager.threads[foundIdx].currentBag != nil:
           backoffOnRetry(spins)
@@ -543,7 +571,12 @@ proc newConcurrentStack*[T](): ref ConcurrentStack[T] =
   when compileOption("threads"):
     discard result[].ensureSmr()
 
-proc `=destroy`*[T](self: var TreiberStack[T]) =
+proc `=destroy`*[T](self: var TreiberStack[T]) {.
+    destructorTransition: TreiberStackInit -> TreiberStackDestroyed,
+    transitionError:
+      "TreiberStack used after =destroy (lifecycle: TreiberStackInit -> TreiberStackDestroyed).",
+    raises: []
+.} =
   ## Cleans up all resources, freeing active and retired nodes.
   var curTop = cast[ptr StackNode[T]](self.top.load(moSequentiallyConsistent).first)
   while curTop != nil:
@@ -578,4 +611,71 @@ proc `=destroy`*[T](self: var TreiberStack[T]) =
       deallocShared(smrPtr)
 
 proc `=copy`*[T](dest: var TreiberStack[T], src: TreiberStack[T]) {.error: "Copying a ConcurrentStack is disallowed; share via reference or pointer across threads.".}
+
+# ---------------------------------------------------------------------------
+# Bound Endpoint Overloads & Compile-Time Role Guards (`TreiberStack`)
+# ---------------------------------------------------------------------------
+
+proc push*[T; Tag: SpscProducerTag | MpmcProducerTag | AnyThreadTag](
+    self: Bound[T, Tag, TreiberStack[T]], item: sink T
+): bool {.discardable, tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Pushes `item` onto a `Bound` producer endpoint for `TreiberStack[T]`.
+  self.queue[].push(item)
+  true
+
+proc push*[T; Tag: SpscConsumerTag | MpmcConsumerTag](
+    self: Bound[T, Tag, TreiberStack[T]], item: sink T
+): bool {.
+    error:
+      "push on a consumer-tagged TreiberStack endpoint (SpscConsumerTag / MpmcConsumerTag) is forbidden; bind a producer endpoint via getProducer()."
+.}
+
+proc pop*[T; Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag](
+    self: Bound[T, Tag, TreiberStack[T]]
+): Option[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Pops an item from a `Bound` consumer endpoint for `TreiberStack[T]`.
+  try:
+    self.queue[].pop()
+  except Exception as e:
+    raiseAssert "Bound.pop(TreiberStack): " & e.msg
+
+proc pop*[T; Tag: SpscProducerTag | MpmcProducerTag](
+    self: Bound[T, Tag, TreiberStack[T]]
+): Option[T] {.
+    error:
+      "pop on a producer-tagged TreiberStack endpoint (SpscProducerTag / MpmcProducerTag) is forbidden; bind a consumer endpoint via getConsumer()."
+.}
+
+proc peek*[T; Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag](
+    self: Bound[T, Tag, TreiberStack[T]]
+): Option[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Peeks at the top item through a `Bound` consumer endpoint for `TreiberStack[T]`.
+  try:
+    self.queue[].peek()
+  except Exception as e:
+    raiseAssert "Bound.peek(TreiberStack): " & e.msg
+
+proc len*[T; Tag](
+    self: Bound[T, Tag, TreiberStack[T]]
+): int {.inline, notATransition.} =
+  self.queue[].len
+
+proc isEmpty*[T; Tag](
+    self: Bound[T, Tag, TreiberStack[T]]
+): bool {.inline, notATransition.} =
+  self.queue[].isEmpty
+
+when compileOption("threads"):
+  import std/bitops
+
+  proc activeThreadCount*[T](self: var TreiberStack[T]): int {.inline, notATransition.} =
+    ## Returns the number of threads currently registered with the stack's NEBR manager.
+    let smr = cast[ptr StackSmr](self.smr.load(moAcquire))
+    if smr == nil or smr.manager == nil:
+      return 0
+    countSetBits(smr.manager.activeThreadMask.load(moAcquire))
+
+verifyTypestates()
+
+
 

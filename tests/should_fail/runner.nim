@@ -240,12 +240,50 @@ const cases = @[
     outcome: eoCompileFails,
     substring: "nested ref",
   ),
-  # design §2.5 rows 18-19 have no compile-fail cases: they are ACCEPT,
-  # and the box-pattern transport handles inner-element lifecycle correctly
-  # via Nim's compiler-emitted seq =destroy. Positive coverage
-  # lives in tests/composition/t_path_c_matrix.nim (rows 18, 19, and
-  # the refcount-balanced lifecycle test).
+  Case(
+    name:
+      "deque role guard — DequeOwnerTag endpoint cannot call steal()",
+    file: "tests/should_fail/deque_owner_cannot_steal.nim",
+    outcome: eoCompileFails,
+    substring: "steal on a DequeOwnerTag endpoint is forbidden",
+  ),
+  Case(
+    name:
+      "deque role guard — DequeThiefTag endpoint cannot call pushBottom()",
+    file: "tests/should_fail/deque_thief_cannot_push_bottom.nim",
+    outcome: eoCompileFails,
+    substring: "pushBottom on a DequeThiefTag endpoint is forbidden",
+  ),
+  Case(
+    name:
+      "btable role guard — TableReaderTag endpoint cannot call put()",
+    file: "tests/should_fail/btable_reader_cannot_put.nim",
+    outcome: eoCompileFails,
+    substring: "Cannot call 'put' on a read-only BTable endpoint",
+  ),
+  Case(
+    name:
+      "stack role guard — MpmcConsumerTag TreiberStack endpoint cannot call push()",
+    file: "tests/should_fail/stack_consumer_cannot_push.nim",
+    outcome: eoCompileFails,
+    substring: "push on a consumer-tagged TreiberStack endpoint",
+  ),
+  Case(
+    name:
+      "bstack role guard — MpmcProducerTag BStack endpoint cannot call pop()",
+    file: "tests/should_fail/bstack_producer_cannot_pop.nim",
+    outcome: eoCompileFails,
+    substring: "pop on a producer-tagged BStack endpoint",
+  ),
+  Case(
+    name:
+      "typestate construct — TypestateGate rejects wrong domain state on sendState()",
+    file: "tests/should_fail/typestate_gate_wrong_state_rejected.nim",
+    outcome: eoCompileFails,
+    substring: "TypestateGate domain state mismatch: sendState requires InState payload transition",
+  ),
 ]
+
 
 proc runCase(c: Case): bool =
   # Child nim invocation uses the worktree's nimble.paths (regenerated

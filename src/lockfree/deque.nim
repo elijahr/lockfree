@@ -38,15 +38,42 @@
 ##      and Path-C transfer-ownership contracts without memory leaks.
 
 import std/options
+import ./internal/typestates_dsl
 import lockfree/atomics
 import ./backoff
 import ./internal/aligned_alloc
 import ./internal/path_c_admit
 import ./internal/slot_encoding
 import ./internal/path_c_wrap
+import ./endpoint_types
+import ./role_tags
 
 const moSeqCst* = moSequentiallyConsistent
   ## Ergonomic alias for `moSequentiallyConsistent`.
+
+type
+  ChaseLevDequeLifecycleCtx*[T] = object of RootObj
+    ## Phantom context type for the `ChaseLevDeque` Middle-axis Lifecycle typestate.
+
+  ChaseLevDequeInit*[T] = distinct ChaseLevDequeLifecycleCtx[T]
+    ## Initial Lifecycle state for a `ChaseLevDeque[T]`.
+
+  ChaseLevDequeDestroyed*[T] = distinct ChaseLevDequeLifecycleCtx[T]
+    ## Terminal Lifecycle state for a `ChaseLevDeque[T]`, reached via `=destroy`.
+
+typestate ChaseLevDequeLifecycle[T]:
+  inheritsFromRootObj = true
+  consumeOnTransition = false
+  strictTransitions = false
+  states:
+    ChaseLevDequeInit[T]
+    ChaseLevDequeDestroyed[T]
+  initial:
+    ChaseLevDequeInit[T]
+  terminal:
+    ChaseLevDequeDestroyed[T]
+  transitions:
+    ChaseLevDequeInit[T] -> ChaseLevDequeDestroyed[T]
 
 type
   DequeBuffer[E] = object
@@ -62,7 +89,7 @@ type
     oldBuffersHead: ptr DequeBuffer[SlotEncoding(T)]
     rc: Atomic[int]
 
-  ChaseLevDeque*[T] = object
+  ChaseLevDeque*[T] {.ChaseLevDequeLifecycle: ChaseLevDequeInit.} = object
     ## Lock-free Single-Worker / Multi-Thief work-stealing deque.
     core*: ptr ChaseLevDequeCore[T]
 
@@ -105,7 +132,12 @@ proc growBuffer[T](core: ptr ChaseLevDequeCore[T], b, t: int64): ptr DequeBuffer
   core.buffer.store(newBuf, moRelease)
   return newBuf
 
-proc `=destroy`*[T](self: var ChaseLevDeque[T]) =
+proc `=destroy`*[T](self: var ChaseLevDeque[T]) {.
+    destructorTransition: ChaseLevDequeInit -> ChaseLevDequeDestroyed,
+    transitionError:
+      "ChaseLevDeque used after =destroy (lifecycle: ChaseLevDequeInit -> ChaseLevDequeDestroyed).",
+    raises: []
+.} =
   if self.core != nil:
     if self.core.rc.fetchSub(1, moRelease) == 1:
       threadFence(moAcquire)
@@ -133,6 +165,7 @@ proc `=destroy`*[T](self: var ChaseLevDeque[T]) =
 
       freeAligned(core)
     self.core = nil
+
 
 proc `=copy`*[T](dest: var ChaseLevDeque[T], src: ChaseLevDeque[T]) =
   if dest.core != src.core:
@@ -364,3 +397,110 @@ proc `$`*[T](self: ChaseLevDeque[T]): string =
     "ChaseLevDeque(uninitialized)"
   else:
     "ChaseLevDeque[len=" & $self.len & ", cap=" & $self.capacity & "]"
+
+# ---------------------------------------------------------------------------
+# Bound Endpoint Overloads & Compile-Time Role Guards (`ChaseLevDeque`)
+# ---------------------------------------------------------------------------
+
+proc pushBottom*[T; Tag: DequeOwnerTag | AnyThreadTag](
+    self: Bound[T, Tag, ChaseLevDeque[T]], item: sink T
+) {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Pushes an item to the bottom of the deque via a `Bound` owner endpoint.
+  self.queue[].pushBottom(item)
+
+proc popBottom*[T; Tag: DequeOwnerTag | AnyThreadTag](
+    self: Bound[T, Tag, ChaseLevDeque[T]]
+): Option[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Pops an item from the bottom of the deque via a `Bound` owner endpoint.
+  self.queue[].popBottom()
+
+proc tryPopBottom*[T; Tag: DequeOwnerTag | AnyThreadTag](
+    self: Bound[T, Tag, ChaseLevDeque[T]], item: var T
+): bool {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Attempts to pop an item from the bottom via a `Bound` owner endpoint.
+  self.queue[].tryPopBottom(item)
+
+proc pushBottom*[T](
+    self: Bound[T, DequeThiefTag, ChaseLevDeque[T]], item: sink T
+) {.
+    error:
+      "pushBottom on a DequeThiefTag endpoint is forbidden; only the single DequeOwnerTag endpoint may operate at the bottom of ChaseLevDeque."
+.}
+
+proc popBottom*[T](
+    self: Bound[T, DequeThiefTag, ChaseLevDeque[T]]
+): Option[T] {.
+    error:
+      "popBottom on a DequeThiefTag endpoint is forbidden; only the single DequeOwnerTag endpoint may operate at the bottom of ChaseLevDeque."
+.}
+
+proc tryPopBottom*[T](
+    self: Bound[T, DequeThiefTag, ChaseLevDeque[T]], item: var T
+): bool {.
+    error:
+      "tryPopBottom on a DequeThiefTag endpoint is forbidden; only the single DequeOwnerTag endpoint may operate at the bottom of ChaseLevDeque."
+.}
+
+proc steal*[T; Tag: DequeThiefTag | AnyThreadTag](
+    self: Bound[T, Tag, ChaseLevDeque[T]]
+): Option[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Steals an item from the top of the deque via a `Bound` thief endpoint.
+  self.queue[].steal()
+
+proc trySteal*[T; Tag: DequeThiefTag | AnyThreadTag](
+    self: Bound[T, Tag, ChaseLevDeque[T]], item: var T
+): bool {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Attempts to steal an item from the top via a `Bound` thief endpoint.
+  self.queue[].trySteal(item)
+
+proc stealBatch*[T; Tag: DequeThiefTag | AnyThreadTag](
+    self: Bound[T, Tag, ChaseLevDeque[T]], dest: var openArray[T], maxItems: int = -1
+): int {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Steals a batch of items from the top via a `Bound` thief endpoint.
+  self.queue[].stealBatch(dest, maxItems)
+
+proc stealBatch*[T; Tag: DequeThiefTag | AnyThreadTag](
+    self: Bound[T, Tag, ChaseLevDeque[T]], maxItems: int = -1
+): seq[T] {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Steals a batch of items into a new `seq[T]` via a `Bound` thief endpoint.
+  self.queue[].stealBatch(maxItems)
+
+proc steal*[T](
+    self: Bound[T, DequeOwnerTag, ChaseLevDeque[T]]
+): Option[T] {.
+    error:
+      "steal on a DequeOwnerTag endpoint is forbidden; use popBottom on the owner endpoint or bind a DequeThiefTag endpoint via getThief()."
+.}
+
+proc trySteal*[T](
+    self: Bound[T, DequeOwnerTag, ChaseLevDeque[T]], item: var T
+): bool {.
+    error:
+      "trySteal on a DequeOwnerTag endpoint is forbidden; use tryPopBottom on the owner endpoint or bind a DequeThiefTag endpoint via getThief()."
+.}
+
+proc stealBatch*[T](
+    self: Bound[T, DequeOwnerTag, ChaseLevDeque[T]], maxItems: int = -1
+): seq[T] {.
+    error:
+      "stealBatch on a DequeOwnerTag endpoint is forbidden; bind a DequeThiefTag endpoint via getThief()."
+.}
+
+proc len*[T; Tag](
+    self: Bound[T, Tag, ChaseLevDeque[T]]
+): int {.inline, notATransition.} =
+  self.queue[].len
+
+proc capacity*[T; Tag](
+    self: Bound[T, Tag, ChaseLevDeque[T]]
+): int {.inline, notATransition.} =
+  self.queue[].capacity
+
+proc isEmpty*[T; Tag](
+    self: Bound[T, Tag, ChaseLevDeque[T]]
+): bool {.inline, notATransition.} =
+  self.queue[].isEmpty
+
+verifyTypestates()
+
+

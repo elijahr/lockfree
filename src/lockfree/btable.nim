@@ -30,6 +30,10 @@ import ./atomics/backoff
 import ./cardinality
 export cardinality
 import ./internal/aligned_alloc
+import ./internal/typestates_dsl
+import ./role_tags
+import ./endpoint_types
+export role_tags, endpoint_types
 
 const
   BTableSlotEmpty* = 0'u32
@@ -87,12 +91,54 @@ type
     pubSlots*: array[BTableMaxCombinerSlots, BTablePubSlot[K, V]]
     slots*: array[ProbeSlots, BTableSlot[K, V]]
 
+  BTableLifecycleCtx*[
+    K, V;
+    Cap: static int;
+    ccProd: static PinScopeCardinality = ccMulti;
+    ccCons: static PinScopeCardinality = ccMulti
+  ] = object of RootObj
+
+  BTableInit*[
+    K, V;
+    Cap: static int;
+    ccProd: static PinScopeCardinality = ccMulti;
+    ccCons: static PinScopeCardinality = ccMulti
+  ] = distinct BTableLifecycleCtx[K, V, Cap, ccProd, ccCons]
+
+  BTableDestroyed*[
+    K, V;
+    Cap: static int;
+    ccProd: static PinScopeCardinality = ccMulti;
+    ccCons: static PinScopeCardinality = ccMulti
+  ] = distinct BTableLifecycleCtx[K, V, Cap, ccProd, ccCons]
+
+typestate BTableLifecycle[
+  K,
+  V,
+  Cap: static int,
+  ccProd: static PinScopeCardinality,
+  ccCons: static PinScopeCardinality
+]:
+  inheritsFromRootObj = true
+  consumeOnTransition = false
+  strictTransitions = false
+  states:
+    BTableInit[K, V, Cap, ccProd, ccCons]
+    BTableDestroyed[K, V, Cap, ccProd, ccCons]
+  initial:
+    BTableInit[K, V, Cap, ccProd, ccCons]
+  terminal:
+    BTableDestroyed[K, V, Cap, ccProd, ccCons]
+  transitions:
+    BTableInit[K, V, Cap, ccProd, ccCons] -> BTableDestroyed[K, V, Cap, ccProd, ccCons]
+
+type
   BTable*[
     K, V;
     Cap: static int;
     ccProd: static PinScopeCardinality = ccMulti;
     ccCons: static PinScopeCardinality = ccMulti
-  ] = object
+  ] {.BTableLifecycle: BTableInit.} = object
     core*: ptr BTableCore[K, V, Cap, calcBTableProbeSlots(Cap)]
 
   BoundedTable*[
@@ -111,6 +157,8 @@ type
   MpscBTable*[K, V; Cap: static int] = BTable[K, V, Cap, ccMulti, ccSingle]
   SpmcBTable*[K, V; Cap: static int] = BTable[K, V, Cap, ccSingle, ccMulti]
   MpmcBTable*[K, V; Cap: static int] = BTable[K, V, Cap, ccMulti, ccMulti]
+
+
 
 # ---------------------------------------------------------------------------
 # Hash Finalizer & Thread ID
@@ -384,7 +432,9 @@ proc `=destroy`*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: var BTable[K, V, Cap, ccProd, ccCons]) =
+](
+    self: var BTable[K, V, Cap, ccProd, ccCons]
+) {.destructorTransition: BTableInit[K, V, Cap, ccProd, ccCons] -> BTableDestroyed[K, V, Cap, ccProd, ccCons].} =
   if self.core != nil:
     if self.core.rc.fetchSub(1, moAcquireRelease) == 1:
       destroyBTableCore(self.core)
@@ -397,7 +447,7 @@ proc `=copy`*[
 ](
     dest: var BTable[K, V, Cap, ccProd, ccCons],
     src: BTable[K, V, Cap, ccProd, ccCons]
-) =
+) {.notATransition.} =
   if dest.core == src.core:
     return
   if src.core != nil:
@@ -415,7 +465,7 @@ proc `=sink`*[
 ](
     dest: var BTable[K, V, Cap, ccProd, ccCons],
     src: BTable[K, V, Cap, ccProd, ccCons]
-) =
+) {.notATransition.} =
   if dest.core != nil and dest.core != src.core:
     if dest.core.rc.fetchSub(1, moAcquireRelease) == 1:
       destroyBTableCore(dest.core)
@@ -598,7 +648,7 @@ proc tryPut*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons], key: sink K, val: sink V): bool {.gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons], key: sink K, val: sink V): bool {.gcsafe, notATransition.} =
   ## Inserts `(key, val)` or updates `key` if already present.
   ## Returns `true` on success, or `false` if `key` is new and the table is full (`len == Cap`).
   doAssert self.core != nil, "BTable is uninitialized; call initBTable[K, V, Cap]()"
@@ -615,7 +665,7 @@ proc tryPutEx*[
     val: sink V,
     outInserted: ptr bool,
     outFull: ptr bool
-): bool {.gcsafe.} =
+): bool {.gcsafe, notATransition.} =
   ## Inserts `(key, val)` or updates `key` if already present, recording whether
   ## a new entry was inserted (`outInserted[]`) or whether the table was full (`outFull[]`).
   doAssert self.core != nil, "BTable is uninitialized; call initBTable[K, V, Cap]()"
@@ -626,7 +676,7 @@ proc put*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons], key: sink K, val: sink V): bool {.discardable, inline, gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons], key: sink K, val: sink V): bool {.discardable, inline, gcsafe, notATransition.} =
   ## Inserts or updates `(key, val)`. Returns `false` if `key` is absent and `len == Cap`.
   self.tryPut(move(key), move(val))
 
@@ -635,7 +685,7 @@ proc `[]=`*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons], key: sink K, val: sink V) {.inline, gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons], key: sink K, val: sink V) {.inline, gcsafe, notATransition.} =
   discard self.tryPut(move(key), move(val))
 
 proc tryInsert*[
@@ -643,7 +693,7 @@ proc tryInsert*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons], key: sink K, val: sink V): bool {.gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons], key: sink K, val: sink V): bool {.gcsafe, notATransition.} =
   ## Inserts `(key, val)` only if `key` is not already present and `len < Cap`.
   ## Returns `true` if inserted, or `false` if `key` already exists or the table is full.
   doAssert self.core != nil, "BTable is uninitialized; call initBTable[K, V, Cap]()"
@@ -660,7 +710,7 @@ proc tryInsertEx*[
     val: sink V,
     outInserted: ptr bool,
     outFull: ptr bool
-): bool {.gcsafe.} =
+): bool {.gcsafe, notATransition.} =
   ## Inserts `(key, val)` only if `key` is not already present and `len < capacity`,
   ## recording whether `key` was inserted (`outInserted[]`) or whether the table was full (`outFull[]`).
   doAssert self.core != nil, "BTable is uninitialized; call initBTable[K, V, Cap]()"
@@ -671,7 +721,7 @@ proc insert*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons], key: sink K, val: sink V): bool {.discardable, inline, gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons], key: sink K, val: sink V): bool {.discardable, inline, gcsafe, notATransition.} =
   ## Alias for `tryInsert`.
   self.tryInsert(move(key), move(val))
 
@@ -680,7 +730,7 @@ proc tryGet*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons], key: K, outVal: var V): bool {.gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons], key: K, outVal: var V): bool {.gcsafe, notATransition.} =
   ## Looks up `key` and copies its value into `outVal`.
   ## Returns `true` if found, or `false` if absent.
   if self.core == nil or self.core.count.load(moAcquire) <= 0:
@@ -693,7 +743,7 @@ proc get*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons], key: K): Option[V] {.inline, gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons], key: K): Option[V] {.inline, gcsafe, notATransition.} =
   ## Returns `some(val)` if `key` is present, or `none(V)` if absent.
   var val: V
   if self.tryGet(key, val):
@@ -706,7 +756,7 @@ proc lookup*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons], key: K): Option[V] {.inline, gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons], key: K): Option[V] {.inline, gcsafe, notATransition.} =
   ## Alias for `get`.
   self.get(key)
 
@@ -715,7 +765,7 @@ proc contains*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons], key: K): bool {.gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons], key: K): bool {.gcsafe, notATransition.} =
   ## Returns `true` if `key` is present in the bounded table.
   if self.core == nil or self.core.count.load(moAcquire) <= 0:
     return false
@@ -727,7 +777,7 @@ proc remove*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons], key: K): bool {.discardable, gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons], key: K): bool {.discardable, gcsafe, notATransition.} =
   ## Removes `key` from the bounded table if present.
   ## Returns `true` if `key` was found and removed, or `false` if absent.
   if self.core == nil or self.core.count.load(moAcquire) <= 0:
@@ -740,7 +790,7 @@ proc del*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons], key: K): bool {.discardable, inline, gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons], key: K): bool {.discardable, inline, gcsafe, notATransition.} =
   ## Alias for `remove`.
   self.remove(key)
 
@@ -749,7 +799,7 @@ proc tryTake*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons], key: K, outVal: var V): bool {.gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons], key: K, outVal: var V): bool {.gcsafe, notATransition.} =
   ## Atomically removes `key`, copies its removed value into `outVal`, and returns `true`,
   ## or returns `false` if `key` is absent. Safe for `pointer`/`nil` values.
   if self.core == nil or self.core.count.load(moAcquire) <= 0:
@@ -762,7 +812,7 @@ proc take*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons], key: K): Option[V] {.gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons], key: K): Option[V] {.gcsafe, notATransition.} =
   ## Atomically removes `key` and returns `some(removedVal)`, or `none(V)` if absent.
   var outVal: V
   if self.tryTake(key, outVal):
@@ -780,7 +830,7 @@ proc tryComputeIfAbsent*[
     key: K,
     factory: proc(k: K): V {.gcsafe.},
     outVal: var V
-): bool {.gcsafe.} =
+): bool {.gcsafe, notATransition.} =
   ## Atomically looks up `key`; if absent and `len < Cap`, computes `factory(key)`,
   ## inserts it, stores the value in `outVal`, and returns `true`. Returns `false`
   ## only if `key` is absent and the table is full (`len == Cap`). Safe for `pointer`/`nil` values.
@@ -820,7 +870,7 @@ proc tryComputeIfAbsent*[
     self: BTable[K, V, Cap, ccProd, ccCons],
     key: K,
     factory: proc(k: K): V {.gcsafe.}
-): Option[V] {.gcsafe.} =
+): Option[V] {.gcsafe, notATransition.} =
   ## Atomically looks up `key`; if absent and `len < Cap`, computes `factory(key)`,
   ## inserts it, and returns `some(val)`. Returns `none(V)` only if `key` is absent
   ## and the table is full (`len == Cap`).
@@ -839,7 +889,7 @@ proc tryComputeIfAbsent*[
     self: BTable[K, V, Cap, ccProd, ccCons],
     key: K,
     factory: proc(): V {.gcsafe.}
-): Option[V] {.inline, gcsafe.} =
+): Option[V] {.inline, gcsafe, notATransition.} =
   self.tryComputeIfAbsent(key, proc(k: K): V {.gcsafe.} = factory())
 
 proc computeIfAbsent*[
@@ -851,7 +901,7 @@ proc computeIfAbsent*[
     self: BTable[K, V, Cap, ccProd, ccCons],
     key: K,
     factory: proc(k: K): V {.gcsafe.}
-): V {.inline, gcsafe.} =
+): V {.inline, gcsafe, notATransition.} =
   ## Atomically returns existing value for `key` or computes and inserts `factory(key)`.
   var val: V
   let ok = self.tryComputeIfAbsent(key, factory, val)
@@ -867,7 +917,7 @@ proc computeIfAbsent*[
     self: BTable[K, V, Cap, ccProd, ccCons],
     key: K,
     factory: proc(): V {.gcsafe.}
-): V {.inline, gcsafe.} =
+): V {.inline, gcsafe, notATransition.} =
   self.computeIfAbsent(key, proc(k: K): V {.gcsafe.} = factory())
 
 proc tryAtomicUpdate*[
@@ -880,7 +930,7 @@ proc tryAtomicUpdate*[
     key: K,
     updater: proc(k: K, oldVal: V): V {.gcsafe.},
     outVal: var V
-): bool {.gcsafe.} =
+): bool {.gcsafe, notATransition.} =
   ## Atomically updates the value for `key` in-place via `updater(key, oldVal)`,
   ## stores the new value in `outVal`, and returns `true` if `key` existed, or
   ## `false` if `key` was absent. Safe for `pointer`/`nil` values.
@@ -919,7 +969,7 @@ proc atomicUpdate*[
     self: BTable[K, V, Cap, ccProd, ccCons],
     key: K,
     updater: proc(k: K, oldVal: V): V {.gcsafe.}
-): Option[V] {.gcsafe.} =
+): Option[V] {.gcsafe, notATransition.} =
   ## Atomically updates the value for `key` in-place via `updater(key, oldVal)`.
   ## Returns `some(newVal)` if `key` existed, or `none(V)` if `key` was absent.
   var val: V
@@ -937,7 +987,7 @@ proc atomicUpdate*[
     self: BTable[K, V, Cap, ccProd, ccCons],
     key: K,
     updater: proc(oldVal: V): V {.gcsafe.}
-): Option[V] {.inline, gcsafe.} =
+): Option[V] {.inline, gcsafe, notATransition.} =
   self.atomicUpdate(key, proc(k: K, oldVal: V): V {.gcsafe.} = updater(oldVal))
 
 proc tryUpsert*[
@@ -951,7 +1001,7 @@ proc tryUpsert*[
     initialVal: V,
     updater: proc(k: K, oldVal: V): V {.gcsafe.},
     outVal: var V
-): bool {.gcsafe.} =
+): bool {.gcsafe, notATransition.} =
   ## Atomically inserts `(key, initialVal)` if absent (when `len < Cap`), or
   ## updates the existing entry via `updater(key, oldVal)`, storing the resulting
   ## value in `outVal` and returning `true`, or `false` if `key` was absent and
@@ -996,7 +1046,7 @@ proc tryUpsert*[
     key: K,
     initialVal: V,
     updater: proc(k: K, oldVal: V): V {.gcsafe.}
-): Option[V] {.gcsafe.} =
+): Option[V] {.gcsafe, notATransition.} =
   ## Atomically inserts `(key, initialVal)` if absent (when `len < Cap`), or
   ## updates the existing entry via `updater(key, oldVal)`.
   ## Returns `some(finalVal)`, or `none(V)` if `key` was absent and `len == Cap`.
@@ -1016,7 +1066,7 @@ proc tryUpsert*[
     key: K,
     initialVal: V,
     updater: proc(oldVal: V): V {.gcsafe.}
-): Option[V] {.inline, gcsafe.} =
+): Option[V] {.inline, gcsafe, notATransition.} =
   self.tryUpsert(key, initialVal, proc(k: K, oldVal: V): V {.gcsafe.} = updater(oldVal))
 
 proc upsert*[
@@ -1029,7 +1079,7 @@ proc upsert*[
     key: K,
     initialVal: V,
     updater: proc(k: K, oldVal: V): V {.gcsafe.}
-): V {.inline, gcsafe.} =
+): V {.inline, gcsafe, notATransition.} =
   var val: V
   let ok = self.tryUpsert(key, initialVal, updater, val)
   doAssert ok, "BTable.upsert: table is at capacity Cap"
@@ -1045,7 +1095,7 @@ proc upsert*[
     key: K,
     initialVal: V,
     updater: proc(oldVal: V): V {.gcsafe.}
-): V {.inline, gcsafe.} =
+): V {.inline, gcsafe, notATransition.} =
   let opt = self.tryUpsert(key, initialVal, updater)
   doAssert opt.isSome, "BTable.upsert: table is at capacity Cap"
   opt.get()
@@ -1055,7 +1105,7 @@ proc snapshotPairs*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons]): seq[(K, V)] {.gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons]): seq[(K, V)] {.gcsafe, notATransition.} =
   ## Returns a point-in-time snapshot of all `(key, val)` pairs currently in the table.
   result = @[]
   if self.core == nil:
@@ -1081,7 +1131,7 @@ proc snapshotKeys*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons]): seq[K] {.gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons]): seq[K] {.gcsafe, notATransition.} =
   result = @[]
   for pair in self.snapshotPairs():
     result.add(pair[0])
@@ -1091,7 +1141,7 @@ proc snapshotValues*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons]): seq[V] {.gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons]): seq[V] {.gcsafe, notATransition.} =
   result = @[]
   for pair in self.snapshotPairs():
     result.add(pair[1])
@@ -1101,7 +1151,7 @@ proc clear*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons]) {.gcsafe.} =
+](self: BTable[K, V, Cap, ccProd, ccCons]) {.gcsafe, notATransition.} =
   ## Removes and destroys all entries in the bounded table, resetting all slots
   ## to `BTableSlotEmpty`.
   if self.core == nil:
@@ -1139,7 +1189,7 @@ proc clearWith*[
     self: BTable[K, V, Cap, ccProd, ccCons],
     destructor: proc(key: K, val: V, userData: pointer) {.cdecl, gcsafe.},
     userData: pointer
-) {.gcsafe.} =
+) {.gcsafe, notATransition.} =
   ## Clears all entries in the bounded table, invoking `destructor(key, val, userData)`
   ## (when non-nil) on each occupied slot before resetting all slots to `BTableSlotEmpty`.
   if self.core == nil:
@@ -1185,7 +1235,7 @@ proc len*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons]): int {.inline.} =
+](self: BTable[K, V, Cap, ccProd, ccCons]): int {.inline, notATransition.} =
   ## Returns the current number of active key-value entries in the table (`0 .. capacity`).
   if self.core == nil:
     0
@@ -1197,7 +1247,7 @@ proc capacity*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons]): int {.inline.} =
+](self: BTable[K, V, Cap, ccProd, ccCons]): int {.inline, notATransition.} =
   ## Returns the effective maximum entry capacity of the bounded table (defaults to `Cap`).
   if self.core == nil:
     Cap
@@ -1209,7 +1259,7 @@ proc setEffectiveCapacity*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons], effCap: int) =
+](self: BTable[K, V, Cap, ccProd, ccCons], effCap: int) {.notATransition.} =
   ## Sets the effective maximum entry count (`1 .. Cap`) on an empty `BTable`.
   if self.core != nil:
     self.core.effCap = clamp(effCap, 1, Cap)
@@ -1219,7 +1269,7 @@ proc probeCapacity*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons]): int {.inline.} =
+](self: BTable[K, V, Cap, ccProd, ccCons]): int {.inline, notATransition.} =
   ## Returns the underlying preallocated open-addressing probe table size (`2 * nextPowerOfTwo(Cap)`).
   calcBTableProbeSlots(Cap)
 
@@ -1228,7 +1278,7 @@ proc isEmpty*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons]): bool {.inline.} =
+](self: BTable[K, V, Cap, ccProd, ccCons]): bool {.inline, notATransition.} =
   ## Returns `true` if the table currently contains no entries.
   self.len() == 0
 
@@ -1237,6 +1287,358 @@ proc isFull*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BTable[K, V, Cap, ccProd, ccCons]): bool {.inline.} =
+](self: BTable[K, V, Cap, ccProd, ccCons]): bool {.inline, notATransition.} =
   ## Returns `true` if the table has reached its effective capacity.
   self.len() >= self.capacity()
+
+# ---------------------------------------------------------------------------
+# Bound Endpoint Operations (`TableWriterTag` / `TableReaderTag`)
+# ---------------------------------------------------------------------------
+
+proc tryPut*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableWriterTag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: sink K,
+    val: sink V
+): bool {.inline, gcsafe, notATransition.} =
+  ep.queue[].tryPut(move(key), move(val))
+
+proc put*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableWriterTag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: sink K,
+    val: sink V
+): bool {.discardable, inline, gcsafe, notATransition.} =
+  ep.queue[].put(move(key), move(val))
+
+proc `[]=`*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableWriterTag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: sink K,
+    val: sink V
+) {.inline, gcsafe, notATransition.} =
+  ep.queue[][move(key)] = move(val)
+
+proc tryInsert*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableWriterTag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: sink K,
+    val: sink V
+): bool {.inline, gcsafe, notATransition.} =
+  ep.queue[].tryInsert(move(key), move(val))
+
+proc insert*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableWriterTag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: sink K,
+    val: sink V
+): bool {.discardable, inline, gcsafe, notATransition.} =
+  ep.queue[].insert(move(key), move(val))
+
+proc remove*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableWriterTag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: K
+): bool {.discardable, inline, gcsafe, notATransition.} =
+  ep.queue[].remove(key)
+
+proc del*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableWriterTag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: K
+): bool {.discardable, inline, gcsafe, notATransition.} =
+  ep.queue[].del(key)
+
+proc take*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableWriterTag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: K
+): Option[V] {.inline, gcsafe, notATransition.} =
+  ep.queue[].take(key)
+
+proc clear*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableWriterTag, BTable[K, V, Cap, ccProd, ccCons]]
+) {.inline, gcsafe, notATransition.} =
+  ep.queue[].clear()
+
+proc tryGet*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality;
+  Tag: TableWriterTag | TableReaderTag
+](
+    ep: Bound[(K, V), Tag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: K,
+    outVal: var V
+): bool {.inline, gcsafe, notATransition.} =
+  ep.queue[].tryGet(key, outVal)
+
+proc get*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality;
+  Tag: TableWriterTag | TableReaderTag
+](
+    ep: Bound[(K, V), Tag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: K
+): Option[V] {.inline, gcsafe, notATransition.} =
+  ep.queue[].get(key)
+
+proc lookup*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality;
+  Tag: TableWriterTag | TableReaderTag
+](
+    ep: Bound[(K, V), Tag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: K
+): Option[V] {.inline, gcsafe, notATransition.} =
+  ep.queue[].lookup(key)
+
+proc contains*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality;
+  Tag: TableWriterTag | TableReaderTag
+](
+    ep: Bound[(K, V), Tag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: K
+): bool {.inline, gcsafe, notATransition.} =
+  ep.queue[].contains(key)
+
+proc len*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality;
+  Tag: TableWriterTag | TableReaderTag
+](
+    ep: Bound[(K, V), Tag, BTable[K, V, Cap, ccProd, ccCons]]
+): int {.inline, notATransition.} =
+  ep.queue[].len
+
+proc capacity*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality;
+  Tag: TableWriterTag | TableReaderTag
+](
+    ep: Bound[(K, V), Tag, BTable[K, V, Cap, ccProd, ccCons]]
+): int {.inline, notATransition.} =
+  ep.queue[].capacity
+
+proc isEmpty*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality;
+  Tag: TableWriterTag | TableReaderTag
+](
+    ep: Bound[(K, V), Tag, BTable[K, V, Cap, ccProd, ccCons]]
+): bool {.inline, notATransition.} =
+  ep.queue[].isEmpty
+
+proc isFull*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality;
+  Tag: TableWriterTag | TableReaderTag
+](
+    ep: Bound[(K, V), Tag, BTable[K, V, Cap, ccProd, ccCons]]
+): bool {.inline, notATransition.} =
+  ep.queue[].isFull
+
+# ---------------------------------------------------------------------------
+# Role-Violation & Lifecycle-Violation Compile-Time Guards (`BTable`)
+# ---------------------------------------------------------------------------
+
+proc tryPut*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableReaderTag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: sink K,
+    val: sink V
+): bool {.
+  error:
+    "Cannot call 'tryPut' on a read-only BTable endpoint (Bound[(K, V), TableReaderTag, BTable[...]]). " &
+    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries."
+.}
+
+proc put*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableReaderTag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: sink K,
+    val: sink V
+): bool {.
+  error:
+    "Cannot call 'put' on a read-only BTable endpoint (Bound[(K, V), TableReaderTag, BTable[...]]). " &
+    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries."
+.}
+
+proc tryInsert*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableReaderTag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: sink K,
+    val: sink V
+): bool {.
+  error:
+    "Cannot call 'tryInsert' on a read-only BTable endpoint (Bound[(K, V), TableReaderTag, BTable[...]]). " &
+    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries."
+.}
+
+proc insert*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableReaderTag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: sink K,
+    val: sink V
+): bool {.
+  error:
+    "Cannot call 'insert' on a read-only BTable endpoint (Bound[(K, V), TableReaderTag, BTable[...]]). " &
+    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries."
+.}
+
+proc remove*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableReaderTag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: K
+): bool {.
+  error:
+    "Cannot call 'remove' on a read-only BTable endpoint (Bound[(K, V), TableReaderTag, BTable[...]]). " &
+    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries."
+.}
+
+proc del*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableReaderTag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: K
+): bool {.
+  error:
+    "Cannot call 'del' on a read-only BTable endpoint (Bound[(K, V), TableReaderTag, BTable[...]]). " &
+    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries."
+.}
+
+proc take*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableReaderTag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: K
+): Option[V] {.
+  error:
+    "Cannot call 'take' on a read-only BTable endpoint (Bound[(K, V), TableReaderTag, BTable[...]]). " &
+    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries."
+.}
+
+proc clear*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](
+    ep: Bound[(K, V), TableReaderTag, BTable[K, V, Cap, ccProd, ccCons]]
+) {.
+  error:
+    "Cannot call 'clear' on a read-only BTable endpoint (Bound[(K, V), TableReaderTag, BTable[...]]). " &
+    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries."
+.}
+
+proc put*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality;
+  Tag
+](
+    ep: Unbound[(K, V), Tag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: sink K,
+    val: sink V
+): bool {.
+  error:
+    "Cannot call 'put' on an Unbound BTable endpoint. " &
+    "Bind the endpoint to the current thread first via `bindToThread(ep)` or `withBoundWriter`."
+.}
+
+proc get*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality;
+  Tag
+](
+    ep: Unbound[(K, V), Tag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: K
+): Option[V] {.
+  error:
+    "Cannot call 'get' on an Unbound BTable endpoint. " &
+    "Bind the endpoint to the current thread first via `bindToThread(ep)` or `withBoundReader`."
+.}
+
+verifyTypestates()

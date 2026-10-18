@@ -18,3 +18,14 @@ type
 
   MpmcProducerTag* = object of RootEffect
   MpmcConsumerTag* = object of RootEffect
+
+  DequeOwnerTag* = object of RootEffect
+    ## Single owner-worker role tag for `ChaseLevDeque[T]` (`pushBottom` / `popBottom`).
+  DequeThiefTag* = object of RootEffect
+    ## Concurrent thief role tag for `ChaseLevDeque[T]` (`steal` / `stealBatch`).
+
+  TableWriterTag* = object of RootEffect
+    ## Read-write mutator role tag for `BTable[K, V, Cap, ccProd, ccCons]`.
+  TableReaderTag* = object of RootEffect
+    ## Read-only observer role tag for `BTable[K, V, Cap, ccProd, ccCons]`.
+

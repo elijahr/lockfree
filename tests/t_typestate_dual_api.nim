@@ -265,11 +265,189 @@ suite "Queueable[T] concept":
       doAssert (BQueue[ref Foo, ccSingle, ccSingle, 16, 0, 0]) is Queueable[ref Foo]
 
   test "Queue unbounded SPSC — does NOT satisfy Queueable (no direct push)":
-    # Unbounded Queue routes ALL push/pop through Bound endpoints (no
-    # direct push on bare Queue, even for SPSC). Per §5.5.5, Queueable
-    # matches bare types that have direct push/pop — that's bare BQueue
-    # SPSC only. For unbounded queues, the typestate-guarded API
-    # (getProducer + bindToThread) or the RAII surface is required.
-    # This test pins the contract: the bare Queue type does NOT match.
     static:
       doAssert not ((Queue[int, ccSingle, ccSingle, stEager, 16, 4]) is Queueable[int])
+
+# ---------------------------------------------------------------------------
+# Universal Typestate & RAII Coverage: TreiberStack, BStack, ChaseLevDeque, BTable
+# ---------------------------------------------------------------------------
+
+type
+  OrderObj = object of RootObj
+    orderId: int
+    symbol: string
+    fills: seq[int]
+
+  OrderRecord = ref OrderObj
+
+  OrderDraft = distinct OrderRecord
+  OrderValidated = distinct OrderRecord
+  OrderSettled = distinct OrderRecord
+
+proc newOrderRecord(orderId: int, symbol: string, fills: seq[int]): OrderRecord =
+  OrderRecord(orderId: orderId, symbol: symbol, fills: fills)
+
+proc `==`(a, b: OrderRecord): bool =
+  if a.isNil and b.isNil:
+    return true
+  if a.isNil or b.isNil:
+    return false
+  a.orderId == b.orderId and a.symbol == b.symbol and a.fills == b.fills
+
+typestate OrderDomainMachine:
+  consumeOnTransition = false
+  strictTransitions = true
+  inheritsFromRootObj = true
+  states:
+    OrderDraft
+    OrderValidated
+    OrderSettled
+  initial:
+    OrderDraft
+  terminal:
+    OrderSettled
+  transitions:
+    OrderDraft -> OrderValidated
+    OrderValidated -> OrderSettled
+
+proc validateOrder(d: sink OrderDraft): OrderValidated {.transition, gcsafe.} =
+  OrderRecord(d).fills.add(100)
+  result = OrderValidated(OrderRecord(move(d)))
+
+proc settleOrder(v: sink OrderValidated): OrderSettled {.transition, gcsafe.} =
+  OrderRecord(v).fills.add(200)
+  result = OrderSettled(OrderRecord(move(v)))
+
+suite "Universal Typestates — TreiberStack, BStack, ChaseLevDeque, BTable":
+  test "TreiberStack — withBoundProducer / withBoundConsumer & NEBR active thread release":
+    var s = initTreiberStack[string]()
+    let baseCount = s.activeThreadCount()
+    withBoundProducer(s, prod):
+      check s.activeThreadCount() == baseCount + 1
+      prod.push("alpha")
+      prod.push("beta")
+      check prod.len == 2
+    check s.activeThreadCount() == baseCount
+
+    withBoundConsumer(s, cons):
+      check s.activeThreadCount() == baseCount + 1
+      check cons.peek() == some("beta")
+      check cons.pop() == some("beta")
+      check cons.pop() == some("alpha")
+      check cons.pop() == none(string)
+    check s.activeThreadCount() == baseCount
+
+  test "BStack — withBoundProducer / withBoundConsumer & Stackable[T] concept":
+    var bs = initBStack[seq[int], 8]()
+    withBoundProducer(bs, prod):
+      check prod.tryPush(@[10, 20])
+      check prod.push(@[30, 40])
+      check prod.len == 2
+      check prod.capacity == 8
+
+    withBoundConsumer(bs, cons):
+      check cons.peek() == some(@[30, 40])
+      var outSeq: seq[int]
+      check cons.tryPop(outSeq)
+      check outSeq == @[30, 40]
+      check cons.pop() == some(@[10, 20])
+      check cons.pop() == none(seq[int])
+
+    proc stackRoundTrip[S: Stackable[int]](st: var S, v: int): Option[int] =
+      discard st.push(v)
+      st.pop()
+
+    var bsInt = initBStack[int, 8]()
+    check stackRoundTrip(bsInt, 77) == some(77)
+
+  test "ChaseLevDeque — withBoundOwner / withBoundThief & Stealable[T] concept":
+    var d = initChaseLevDeque[string](16)
+    withBoundOwner(d, owner):
+      owner.pushBottom("task-1")
+      owner.pushBottom("task-2")
+      owner.pushBottom("task-3")
+      check owner.len == 3
+      # Owner pops LIFO from bottom:
+      check owner.popBottom() == some("task-3")
+
+    withBoundThief(d, thief):
+      # Thief steals FIFO from top:
+      check thief.steal() == some("task-1")
+      var stolen = ""
+      check thief.trySteal(stolen)
+      check stolen == "task-2"
+      check thief.steal() == none(string)
+
+  test "BTable — withBoundWriter / withBoundReader & TableReadable/TableWritable concepts":
+    var tbl = initBTable[string, seq[int], 16]()
+    withBoundWriter(tbl, writer):
+      check writer.put("k1", @[1, 2])
+      check writer.tryInsert("k2", @[3, 4])
+      check not writer.tryInsert("k1", @[9, 9])
+      check writer.len == 2
+      check writer.get("k1") == some(@[1, 2])
+
+    withBoundReader(tbl, reader):
+      check reader.contains("k1")
+      check reader.contains("k2")
+      check not reader.contains("k3")
+      check reader.get("k2") == some(@[3, 4])
+      var v: seq[int]
+      check reader.tryGet("k1", v)
+      check v == @[1, 2]
+
+    withBoundWriter(tbl, writer):
+      check writer.take("k1") == some(@[1, 2])
+      check writer.remove("k2")
+      check writer.isEmpty
+
+suite "Domain Typestate Constructs — TypestateGate & TypestatePipelineStage":
+  test "TypestateGate transitions OrderDraft -> OrderValidated across SPSC BQueue with ARC/ORC payloads":
+    var q = newBQueue[OrderRecord, ccSingle, ccSingle, 16, 0, 0]()
+    var gate = initTypestateGate[OrderRecord, OrderDraft, OrderValidated, typeof(q)](q)
+
+    var draft = OrderDraft(OrderRecord(orderId: 501, symbol: "NVDA", fills: @[10, 20]))
+    check gate.trySendState(move(draft))
+
+    let validatedOpt = gate.recvState()
+    check validatedOpt.isSome
+    let settled = settleOrder(validatedOpt.get())
+    let finalRec = OrderRecord(settled)
+    check finalRec == OrderRecord(orderId: 501, symbol: "NVDA", fills: @[10, 20, 200])
+
+  test "TypestateGate works over ChaseLevDeque owner pushBottom and thief stealState":
+    var d = initChaseLevDeque[OrderRecord](16)
+    var gate = initTypestateGate[OrderRecord, OrderDraft, OrderValidated, typeof(d)](d)
+
+    check gate.sendState(OrderDraft(OrderRecord(orderId: 901, symbol: "AAPL", fills: @[5])))
+    let stolenOpt = gate.stealState()
+    check stolenOpt.isSome
+    let settled = settleOrder(stolenOpt.get())
+    check OrderRecord(settled) == OrderRecord(orderId: 901, symbol: "AAPL", fills: @[5, 200])
+
+  test "TypestatePipelineStage chains OrderDraft -> OrderValidated -> OrderSettled across two queues":
+    var qIn = newBQueue[OrderRecord, ccSingle, ccSingle, 16, 0, 0]()
+    var qOut = newBQueue[OrderRecord, ccSingle, ccSingle, 16, 0, 0]()
+
+    var ingressGate = initTypestateGate[OrderRecord, OrderDraft, OrderDraft, typeof(qIn)](qIn)
+    var stage = initTypestatePipelineStage[
+      OrderRecord,
+      OrderDraft,
+      OrderValidated,
+      OrderSettled,
+      typeof(qIn),
+      typeof(qOut)
+    ](qIn, qOut)
+    var egressGate = initTypestateGate[OrderRecord, OrderSettled, OrderSettled, typeof(qOut)](qOut)
+
+    check ingressGate.trySendState(OrderDraft(OrderRecord(orderId: 777, symbol: "MSFT", fills: @[1])))
+    check stage.stepStage(validateOrder)
+
+    let outOpt = egressGate.recvState()
+    check outOpt.isSome
+    check OrderRecord(outOpt.get()) == OrderRecord(orderId: 777, symbol: "MSFT", fills: @[1, 100])
+    # Empty inbound returns false cleanly:
+    check not stage.stepStage(validateOrder)
+
+verifyTypestates()
+

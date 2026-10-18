@@ -38,6 +38,10 @@ import std/options
 
 import ../bqueue
 import ../queue
+import ../stack
+import ../bstack
+import ../deque
+import ../btable
 import ../endpoint
 import ../strategy
 
@@ -122,6 +126,164 @@ template withBoundConsumer*[
       discard endpoint.close()
     body
 
+template withBoundProducer*[T](
+    stack: var TreiberStack[T],
+    endpoint: untyped,
+    body: untyped,
+): untyped =
+  ## TreiberStack producer RAII wrapper. Registers the calling thread with the
+  ## stack's NEBR manager on entry and unregisters on scope exit.
+  block:
+    var u = stack.getProducer()
+    var endpoint = u.bindToThread()
+    defer:
+      discard endpoint.close()
+    body
+
+template withBoundConsumer*[T](
+    stack: var TreiberStack[T],
+    endpoint: untyped,
+    body: untyped,
+): untyped =
+  ## TreiberStack consumer RAII wrapper. Registers the calling thread with the
+  ## stack's NEBR manager on entry and unregisters on scope exit.
+  block:
+    var u = stack.getConsumer()
+    var endpoint = u.bindToThread()
+    defer:
+      discard endpoint.close()
+    body
+
+template withBoundProducer*[
+    T;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    stack: var BStack[T, Cap, ccProd, ccCons],
+    endpoint: untyped,
+    body: untyped,
+): untyped =
+  ## BStack producer RAII wrapper.
+  block:
+    var u = stack.getProducer()
+    var endpoint = u.bindToThread()
+    defer:
+      discard endpoint.close()
+    body
+
+template withBoundConsumer*[
+    T;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    stack: var BStack[T, Cap, ccProd, ccCons],
+    endpoint: untyped,
+    body: untyped,
+): untyped =
+  ## BStack consumer RAII wrapper.
+  block:
+    var u = stack.getConsumer()
+    var endpoint = u.bindToThread()
+    defer:
+      discard endpoint.close()
+    body
+
+template withBoundOwner*[T](
+    deque: var ChaseLevDeque[T],
+    endpoint: untyped,
+    body: untyped,
+): untyped =
+  ## ChaseLevDeque owner-worker RAII wrapper (`pushBottom` / `popBottom` / `tryPopBottom`).
+  block:
+    var u = deque.getOwner()
+    var endpoint = u.bindToThread()
+    defer:
+      discard endpoint.close()
+    body
+
+template withBoundThief*[T](
+    deque: var ChaseLevDeque[T],
+    endpoint: untyped,
+    body: untyped,
+): untyped =
+  ## ChaseLevDeque thief RAII wrapper (`steal` / `trySteal` / `stealBatch`).
+  block:
+    var u = deque.getThief()
+    var endpoint = u.bindToThread()
+    defer:
+      discard endpoint.close()
+    body
+
+template withBoundProducer*[T](
+    deque: var ChaseLevDeque[T],
+    endpoint: untyped,
+    body: untyped,
+): untyped =
+  withBoundOwner(deque, endpoint, body)
+
+template withBoundConsumer*[T](
+    deque: var ChaseLevDeque[T],
+    endpoint: untyped,
+    body: untyped,
+): untyped =
+  withBoundThief(deque, endpoint, body)
+
+template withBoundWriter*[
+    K, V;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    table: var BTable[K, V, Cap, ccProd, ccCons],
+    endpoint: untyped,
+    body: untyped,
+): untyped =
+  ## BTable writer RAII wrapper (permits both mutations and lookups).
+  block:
+    var u = table.getWriter()
+    var endpoint = u.bindToThread()
+    defer:
+      discard endpoint.close()
+    body
+
+template withBoundReader*[
+    K, V;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    table: var BTable[K, V, Cap, ccProd, ccCons],
+    endpoint: untyped,
+    body: untyped,
+): untyped =
+  ## BTable reader RAII wrapper (permits read-only lookups; rejects mutations at compile time).
+  block:
+    var u = table.getReader()
+    var endpoint = u.bindToThread()
+    defer:
+      discard endpoint.close()
+    body
+
+template withBoundProducer*[
+    K, V;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    table: var BTable[K, V, Cap, ccProd, ccCons],
+    endpoint: untyped,
+    body: untyped,
+): untyped =
+  withBoundWriter(table, endpoint, body)
+
+template withBoundConsumer*[
+    K, V;
+    Cap: static int;
+    ccProd, ccCons: static PinScopeCardinality
+](
+    table: var BTable[K, V, Cap, ccProd, ccCons],
+    endpoint: untyped,
+    body: untyped,
+): untyped =
+  withBoundReader(table, endpoint, body)
+
 # ---------------------------------------------------------------------------
 # `withBoundEndpoint` umbrella alias.
 #
@@ -142,58 +304,45 @@ template withBoundEndpoint*(queue, endpoint, body: untyped): untyped =
   withBoundProducer(queue, endpoint, body)
 
 # ---------------------------------------------------------------------------
-# Queueable[T] concept (§5.5.5).
-#
-# A type-class matching anything with `push(x, T): bool` and `pop(x):
-# Option[T]`. Resolves uniformly across:
-#   * bare BQueue[T, ccSingle, ccSingle, ...] (SPSC direct push/pop)
-#   * bare BQueue[T, ccMulti, ccSingle, ...] (MPSC direct pop side; push goes
-#     through Bound)
-#   * bare Queue[T, ccSingle, ccSingle, ...] (unbounded SPSC direct)
-#   * Bound[T, Tag, Queue[...]] / Bound[T, Tag, BQueue[...]]
-#
-# The concept must resolve under generic instantiation. Nim 2.x concepts use the
-# `concept x` form with `var x` for procs that take `var T` arguments. The body
-# uses real concept expressions evaluated against `x` (no compiles() needed for
-# the straightforward push/pop case).
-#
-# Path-C encoding is TRANSPARENT to the concept: `Queueable[ref Foo]` matches
-# `BQueue[ref Foo, ...]` because push/pop on the bare queue accept `ref Foo` and
-# return `Option[ref Foo]` at the public surface (the ManagedRef[X] encoding is
-# internal). Same for `string` / `seq[U]`.
+# Queueable[T], Stackable[T], Stealable[T], TableReadable[K, V], TableWritable[K, V]
 # ---------------------------------------------------------------------------
 
 type Queueable*[T] = concept x
   ## Type-class for "anything queue-like accepting / yielding `T`".
-  ##
-  ## Resolution: Nim's concept machinery instantiates the body with `x` bound to
-  ## a candidate type and checks each expression compiles and has the stated
-  ## type. The `var x` form admits both `var Queue` and `var BQueue` direct-push
-  ## variants and `Bound` endpoint variants alike — push/pop on `Bound` take
-  ## `self: Bound[...]` (not var), but Nim's overload resolution falls through
-  ## to those from the `var x` candidate.
   var qref: typeof(x)
   push(qref, default(T)) is bool
   pop(qref) is Option[T]
 
+type Stackable*[T] = concept x
+  ## Type-class for LIFO stacks (`TreiberStack`, `BStack`) supporting `push`, `pop`, and `peek`.
+  var sref: typeof(x)
+  compiles(sref.push(default(T)))
+  pop(sref) is Option[T]
+  peek(sref) is Option[T]
+
+type Stealable*[T] = concept x
+  ## Type-class for work-stealing deques (`ChaseLevDeque`, `Bound[..., DequeThiefTag, ChaseLevDeque[T]]`)
+  ## supporting `steal`.
+  var dref: typeof(x)
+  steal(dref) is Option[T]
+
+type TableReadable*[K, V] = concept x
+  ## Type-class for concurrent hash tables and bound reader/writer endpoints
+  ## supporting `get` and `contains`.
+  var tref: typeof(x)
+  get(tref, default(K)) is Option[V]
+  contains(tref, default(K)) is bool
+
+type TableWritable*[K, V] = concept x
+  ## Type-class for concurrent hash tables and bound writer endpoints
+  ## supporting `put`, `get`, and `remove`.
+  var tref: typeof(x)
+  put(tref, default(K), default(V)) is bool
+  get(tref, default(K)) is Option[V]
+  remove(tref, default(K)) is bool
+
 # ---------------------------------------------------------------------------
 # Concept-hookup verification.
-#
-# `Queueable[T]` must resolve under generic instantiation across the full
-# Path-C-encoded payload set (ref / string / seq / POD). The static doAsserts
-# below pin the conformance contract: bare `BQueue[T, ccSingle, ccSingle, ...]`
-# satisfies `Queueable[T]` for each Path-C payload arm.
-#
-# This pin lives in `with_bound.nim` rather than `queue.nim` / `bqueue.nim`
-# because adding `import ./typestates/with_bound` from either of those would
-# close the dependency cycle (with_bound imports both). The conformance check
-# sits at the layer that owns the concept, importing the queue modules from the
-# outside.
-#
-# Per design §5.5.5: the unbounded Queue does NOT satisfy Queueable (push/pop
-# are only defined on `Bound[T, Tag, Queue[...]]`, not on bare `Queue`). Users
-# wanting an unbounded queue with the Queueable surface must wrap an endpoint
-# via the typestate API or the RAII template above.
 # ---------------------------------------------------------------------------
 
 type QueueableHookupDummy = object ## nominal ref target for the Path-C ref-arm Queueable conformance pin (static
@@ -205,6 +354,23 @@ static:
   doAssert (BQueue[string, ccSingle, ccSingle, 16, 0, 0]) is Queueable[string],
     "BQueue SPSC[string] must satisfy Queueable[string] (Path-C string arm)"
   doAssert (BQueue[seq[int], ccSingle, ccSingle, 16, 0, 0]) is Queueable[seq[int]],
-    "BQueue SPSC[seq[int]] must satisfy Queueable[seq[int]] (Path-C seq arm)"
+    "BQueue SPSC[seq[int] must satisfy Queueable[seq[int]] (Path-C seq arm)"
   doAssert (BQueue[ref QueueableHookupDummy, ccSingle, ccSingle, 16, 0, 0]) is Queueable[ref QueueableHookupDummy],
     "BQueue SPSC[ref T] must satisfy Queueable[ref T] (Path-C ref arm)"
+  doAssert (TreiberStack[int]) is Stackable[int],
+    "TreiberStack[int] must satisfy Stackable[int]"
+  doAssert (BStack[int, 16, ccMulti, ccMulti]) is Stackable[int],
+    "BStack[int, 16] must satisfy Stackable[int]"
+  doAssert (ChaseLevDeque[int]) is Stealable[int],
+    "ChaseLevDeque[int] must satisfy Stealable[int]"
+  doAssert (Bound[int, DequeThiefTag, ChaseLevDeque[int]]) is Stealable[int],
+    "Bound[..., DequeThiefTag, ChaseLevDeque[int]] must satisfy Stealable[int]"
+  doAssert (BTable[int, string, 16, ccMulti, ccMulti]) is TableReadable[int, string],
+    "BTable[int, string, 16] must satisfy TableReadable[int, string]"
+  doAssert (BTable[int, string, 16, ccMulti, ccMulti]) is TableWritable[int, string],
+    "BTable[int, string, 16] must satisfy TableWritable[int, string]"
+  doAssert (Bound[(int, string), TableReaderTag, BTable[int, string, 16, ccMulti, ccMulti]]) is TableReadable[int, string],
+    "Bound[..., TableReaderTag, BTable] must satisfy TableReadable[int, string]"
+  doAssert (Bound[(int, string), TableWriterTag, BTable[int, string, 16, ccMulti, ccMulti]]) is TableWritable[int, string],
+    "Bound[..., TableWriterTag, BTable] must satisfy TableWritable[int, string]"
+
