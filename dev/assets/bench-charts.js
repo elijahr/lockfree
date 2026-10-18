@@ -57,6 +57,7 @@
     lockfree_unbounded_mpmc: '#5c6bc0',
     // associative maps & sets
     ctrie:                      '#3f51b5',
+    btable:                     '#283593',
     skiplist:                   '#00897b',
     skiplist_set:               '#00695c',
     locked_table:               '#78909c',
@@ -67,14 +68,18 @@
     crossbeam_skipset:          '#e64a19',
     boost_concurrent_flat_map:  '#0288d1',
     boost_concurrent_flat_set:  '#039be5',
-    // stacks & deques
+    // stacks, deques & priority queues
     treiber_stack:              '#3f51b5',
+    bstack:                     '#1e88e5',
     locked_stack:               '#78909c',
     boost_lockfree_stack:       '#00897b',
     chase_lev_deque:            '#8e24aa',
     chase_lev_deque_batch:      '#6a1b9a',
     crossbeam_deque:            '#f4511e',
     crossbeam_deque_batch:      '#d84315',
+    bpriority_queue:            '#3f51b5',
+    skiplist_pq:                '#00897b',
+    locked_pq:                  '#78909c',
     // broadcast ring & topic bus
     broadcast_ring_drop:        '#3f51b5',
     broadcast_ring_backoff:     '#0277bd',
@@ -129,7 +134,7 @@
   // CONTRACT-TEST-PARSED-START BLOCKING_LIBRARIES
   const BLOCKING_LIBRARIES = [
     'threading_channels', 'nim_channel', 'nim_channels', 'nim_channel_sync',
-    'locked_table', 'locked_set', 'locked_stack', 'locked_task_queue',
+    'locked_table', 'locked_set', 'locked_stack', 'locked_pq', 'locked_task_queue',
     'broadcast_ring_backoff', 'topic_bus_backoff',
     'mutex_guard', 'deferred_mutex_free',
   ];
@@ -141,8 +146,9 @@
     'lockfree_mpsc', 'lockfree_mpmc',
     'lockfree_unbounded_spsc', 'lockfree_unbounded_spmc',
     'lockfree_unbounded_mpsc', 'lockfree_unbounded_mpmc',
-    'ctrie', 'skiplist', 'skiplist_set',
-    'treiber_stack', 'chase_lev_deque', 'chase_lev_deque_batch',
+    'ctrie', 'btable', 'skiplist', 'skiplist_set',
+    'treiber_stack', 'bstack', 'chase_lev_deque', 'chase_lev_deque_batch',
+    'bpriority_queue', 'skiplist_pq',
     'broadcast_ring_drop', 'broadcast_ring_backoff',
     'topic_bus_drop', 'topic_bus_backoff',
     'token_bucket', 'leaky_bucket', 'stream_ring',
@@ -157,10 +163,11 @@
     lockfree_unbounded_mpsc: 'nim', lockfree_unbounded_mpmc: 'nim',
     nim_channel: 'nim', nim_channels: 'nim', nim_channel_sync: 'nim',
     threading_channels: 'nim', loony: 'nim',
-    ctrie: 'nim', skiplist: 'nim', skiplist_set: 'nim',
+    ctrie: 'nim', btable: 'nim', skiplist: 'nim', skiplist_set: 'nim',
     locked_table: 'nim', locked_set: 'nim',
-    treiber_stack: 'nim', locked_stack: 'nim',
+    treiber_stack: 'nim', bstack: 'nim', locked_stack: 'nim',
     chase_lev_deque: 'nim', chase_lev_deque_batch: 'nim',
+    bpriority_queue: 'nim', skiplist_pq: 'nim', locked_pq: 'nim',
     broadcast_ring_drop: 'nim', broadcast_ring_backoff: 'nim',
     topic_bus_drop: 'nim', topic_bus_backoff: 'nim',
     token_bucket: 'nim', leaky_bucket: 'nim', stream_ring: 'nim',
@@ -214,6 +221,7 @@
     mpsc_unbounded: 'MPSC (unbounded)',
     mpmc_unbounded: 'MPMC (unbounded)',
     stack_mpmc: 'MPMC Stack',
+    pqueue_mpmc: 'MPMC Priority Queue',
     read_heavy: 'Read-Heavy (90/10)',
     balanced: 'Balanced (50/50)',
     write_heavy: 'Write-Heavy (10/90)',
@@ -274,12 +282,14 @@
       includes: (topology) => topology === 'set_algebra' },
     { id: 'bench-maps-snapshot',             label: 'Wait-Free Snapshot Iteration',
       includes: (topology) => topology === 'snapshot_iter' },
-    // Stacks & Deques
+    // Stacks, Deques & Priority Queues
     { id: 'bench-stacks-mpmc',               label: 'MPMC Stack Contention',
       includes: (topology) => topology === 'stack_mpmc' },
     { id: 'bench-deques-work-stealing',      label: 'Work-Stealing Deque',
       includes: (topology) => topology === 'work_stealing'
                               || topology === 'work_stealing_batch' },
+    { id: 'bench-pqueue-mpmc',               label: 'MPMC Priority Queue Contention',
+      includes: (topology) => topology === 'pqueue_mpmc' },
     // Broadcast Ring & TopicBus
     { id: 'bench-broadcast-fanout',          label: '1-to-N Multicast Fan-Out',
       includes: (topology) => topology === 'fanout' },
@@ -345,6 +355,8 @@
     'bench-stacks-mpmc':
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_stacks_deques.nim',
     'bench-deques-work-stealing':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_stacks_deques.nim',
+    'bench-pqueue-mpmc':
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_stacks_deques.nim',
     'bench-broadcast-fanout':
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_broadcast.nim',

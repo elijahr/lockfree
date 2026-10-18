@@ -93,7 +93,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#associative-maps-sets-benchmarks-ctrie-skiplistmap-concurrentset" class="md-skip">
+        <a href="#associative-maps-sets-benchmarks-ctrie-btable-skiplistmap-concurrentset" class="md-skip">
           Skip to content
         </a>
       
@@ -4510,8 +4510,8 @@
   
 
 
-<h1 id="associative-maps-sets-benchmarks-ctrie-skiplistmap-concurrentset">Associative Maps &amp; Sets Benchmarks: Ctrie, SkipListMap &amp; ConcurrentSet<a class="headerlink" href="#associative-maps-sets-benchmarks-ctrie-skiplistmap-concurrentset" title="Permanent link">¶</a></h1>
-<p>Performance benchmarks comparing <code>Ctrie</code> (lock-free concurrent hash trie), <code>SkipListMap</code> (lock-free concurrent sorted map), and <code>ConcurrentSet</code> (<code>SkipListSet</code>) against standard library mutex-guarded tables/sets (<code>locked_table</code>, <code>locked_set</code>), Rust (<code>dashmap</code>, <code>flurry</code>, <code>crossbeam_skipmap</code>, <code>crossbeam_skipset</code>), and C++ (<code>boost::concurrent_flat_map</code>, <code>boost::concurrent_flat_set</code>).</p>
+<h1 id="associative-maps-sets-benchmarks-ctrie-btable-skiplistmap-concurrentset">Associative Maps &amp; Sets Benchmarks: Ctrie, BTable, SkipListMap &amp; ConcurrentSet<a class="headerlink" href="#associative-maps-sets-benchmarks-ctrie-btable-skiplistmap-concurrentset" title="Permanent link">¶</a></h1>
+<p>Performance benchmarks comparing <code>Ctrie</code> (lock-free concurrent hash trie), <code>BTable</code> (preallocated zero-SMR bounded concurrent open-addressing hash table), <code>SkipListMap</code> (lock-free concurrent sorted map), and <code>ConcurrentSet</code> (<code>SkipListSet</code>) against standard library mutex-guarded tables/sets (<code>locked_table</code>, <code>locked_set</code>), Rust (<code>dashmap</code>, <code>flurry</code>, <code>crossbeam_skipmap</code>, <code>crossbeam_skipset</code>), and C++ (<code>boost::concurrent_flat_map</code>, <code>boost::concurrent_flat_set</code>).</p>
 <h2 id="workload-profiles">Workload Profiles<a class="headerlink" href="#workload-profiles" title="Permanent link">¶</a></h2>
 <p>Associative benchmarks exercise the data structures under six concurrent workload profiles across <strong>1, 2, 4, and 8 threads</strong>:</p>
 <ol>
@@ -4520,7 +4520,7 @@
 <li><strong>Write-Heavy (<code>write_heavy</code>, 10% Reads / 90% Writes)</strong>: Models high-frequency telemetry ingestion, metrics aggregation, and append-heavy workloads.</li>
 <li><strong>ConcurrentSet Mixed (<code>set_mixed</code>, 80% Contains / 10% Incl / 10% Excl)</strong>: Evaluates lock-free sorted set membership and mutation throughput.</li>
 <li><strong>ConcurrentSet Algebra (<code>set_algebra</code>, Union / Intersection / Difference)</strong>: Evaluates bulk lock-free set algebra operations (<code>+</code>, <code>*</code>, <code>-</code>) across concurrent readers and writers.</li>
-<li><strong>Wait-Free Snapshot Iteration (<code>snapshot_iter</code>)</strong>: Evaluates <code>Ctrie.snapshot()</code> $O(1)$ generational root capture + traversal vs <code>SkipListMap</code> atomic iteration and locked table cloning.</li>
+<li><strong>Wait-Free Snapshot Iteration (<code>snapshot_iter</code>)</strong>: Evaluates <code>Ctrie.snapshot()</code> $O(1)$ generational root capture + traversal and <code>BTable.snapshotPairs()</code> per-slot sequence iteration vs <code>DashMap</code> shard-locked iteration and <code>LockedTable</code> under concurrent writer contention.</li>
 </ol>
 <p>Each thread operates on a shared keyspace of 100,000 keys pre-populated with 50,000 entries.</p>
 <hr>
@@ -4544,6 +4544,14 @@
 <td style="text-align: left;"><strong>Wait-Free</strong> ($O(\log_{32} N)$)</td>
 <td style="text-align: left;"><strong>Lock-Free</strong> (CAS on INodes)</td>
 <td style="text-align: left;">NEBR</td>
+</tr>
+<tr>
+<td style="text-align: left;"><code>btable</code></td>
+<td style="text-align: left;">Nim</td>
+<td style="text-align: left;">Unordered (Bounded Open-Addressing)</td>
+<td style="text-align: left;"><strong>Bounded Flat-Combining / Seqlock</strong></td>
+<td style="text-align: left;"><strong>Bounded Flat-Combining</strong> (Tombstone-aware linear probe)</td>
+<td style="text-align: left;">Preallocated (Zero SMR)</td>
 </tr>
 <tr>
 <td style="text-align: left;"><code>skiplist</code> / <code>skiplist_set</code></td>
@@ -4678,7 +4686,7 @@ The <code>locked_table</code> and <code>locked_set</code> baselines wrap Nim's s
     <span class="md-icon" title="Last update">
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M21 13.1c-.1 0-.3.1-.4.2l-1 1 2.1 2.1 1-1c.2-.2.2-.6 0-.8l-1.3-1.3c-.1-.1-.2-.2-.4-.2m-1.9 1.8-6.1 6V23h2.1l6.1-6.1zM12.5 7v5.2l4 2.4-1 1L11 13V7zM11 21.9c-5.1-.5-9-4.8-9-9.9C2 6.5 6.5 2 12 2c5.3 0 9.6 4.1 10 9.3-.3-.1-.6-.2-1-.2s-.7.1-1 .2C19.6 7.2 16.2 4 12 4c-4.4 0-8 3.6-8 8 0 4.1 3.1 7.5 7.1 7.9l-.1.2z"></path></svg>
     </span>
-    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 13, 2026 21:23:48 UTC"><span class="timeago" datetime="2026-10-13T21:23:48+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 13, 2026 21:23:48 UTC">2026-10-13</span>
+    <span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-timeago" title="October 18, 2026 09:45:32 UTC"><span class="timeago" datetime="2026-10-18T09:45:32+00:00" locale="en"></span></span><span class="git-revision-date-localized-plugin git-revision-date-localized-plugin-iso_date" title="October 18, 2026 09:45:32 UTC">2026-10-18</span>
   </span>
 
     
