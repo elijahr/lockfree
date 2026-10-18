@@ -354,7 +354,7 @@ static:
   doAssert (BQueue[string, ccSingle, ccSingle, 16, 0, 0]) is Queueable[string],
     "BQueue SPSC[string] must satisfy Queueable[string] (Path-C string arm)"
   doAssert (BQueue[seq[int], ccSingle, ccSingle, 16, 0, 0]) is Queueable[seq[int]],
-    "BQueue SPSC[seq[int] must satisfy Queueable[seq[int]] (Path-C seq arm)"
+    "BQueue SPSC[seq[int]] must satisfy Queueable[seq[int]] (Path-C seq arm)"
   doAssert (BQueue[ref QueueableHookupDummy, ccSingle, ccSingle, 16, 0, 0]) is Queueable[ref QueueableHookupDummy],
     "BQueue SPSC[ref T] must satisfy Queueable[ref T] (Path-C ref arm)"
   doAssert (TreiberStack[int]) is Stackable[int],

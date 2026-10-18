@@ -424,21 +424,24 @@ proc pushBottom*[T](
     self: Bound[T, DequeThiefTag, ChaseLevDeque[T]], item: sink T
 ) {.
     error:
-      "pushBottom on a DequeThiefTag endpoint is forbidden; only the single DequeOwnerTag endpoint may operate at the bottom of ChaseLevDeque."
+      "pushBottom on a DequeThiefTag endpoint is forbidden; only the single DequeOwnerTag endpoint may operate at the bottom of ChaseLevDeque.",
+    notATransition
 .}
 
 proc popBottom*[T](
     self: Bound[T, DequeThiefTag, ChaseLevDeque[T]]
 ): Option[T] {.
     error:
-      "popBottom on a DequeThiefTag endpoint is forbidden; only the single DequeOwnerTag endpoint may operate at the bottom of ChaseLevDeque."
+      "popBottom on a DequeThiefTag endpoint is forbidden; only the single DequeOwnerTag endpoint may operate at the bottom of ChaseLevDeque.",
+    notATransition
 .}
 
 proc tryPopBottom*[T](
     self: Bound[T, DequeThiefTag, ChaseLevDeque[T]], item: var T
 ): bool {.
     error:
-      "tryPopBottom on a DequeThiefTag endpoint is forbidden; only the single DequeOwnerTag endpoint may operate at the bottom of ChaseLevDeque."
+      "tryPopBottom on a DequeThiefTag endpoint is forbidden; only the single DequeOwnerTag endpoint may operate at the bottom of ChaseLevDeque.",
+    notATransition
 .}
 
 proc steal*[T; Tag: DequeThiefTag | AnyThreadTag](
@@ -469,21 +472,24 @@ proc steal*[T](
     self: Bound[T, DequeOwnerTag, ChaseLevDeque[T]]
 ): Option[T] {.
     error:
-      "steal on a DequeOwnerTag endpoint is forbidden; use popBottom on the owner endpoint or bind a DequeThiefTag endpoint via getThief()."
+      "steal on a DequeOwnerTag endpoint is forbidden; use popBottom on the owner endpoint or bind a DequeThiefTag endpoint via getThief().",
+    notATransition
 .}
 
 proc trySteal*[T](
     self: Bound[T, DequeOwnerTag, ChaseLevDeque[T]], item: var T
 ): bool {.
     error:
-      "trySteal on a DequeOwnerTag endpoint is forbidden; use tryPopBottom on the owner endpoint or bind a DequeThiefTag endpoint via getThief()."
+      "trySteal on a DequeOwnerTag endpoint is forbidden; use tryPopBottom on the owner endpoint or bind a DequeThiefTag endpoint via getThief().",
+    notATransition
 .}
 
 proc stealBatch*[T](
     self: Bound[T, DequeOwnerTag, ChaseLevDeque[T]], maxItems: int = -1
 ): seq[T] {.
     error:
-      "stealBatch on a DequeOwnerTag endpoint is forbidden; bind a DequeThiefTag endpoint via getThief()."
+      "stealBatch on a DequeOwnerTag endpoint is forbidden; bind a DequeThiefTag endpoint via getThief().",
+    notATransition
 .}
 
 proc len*[T; Tag](

@@ -734,7 +734,8 @@ proc tryPush*[
     self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]], item: sink T
 ): bool {.
     error:
-      "tryPush on a consumer-tagged BStack endpoint (SpscConsumerTag / MpmcConsumerTag) is forbidden; bind a producer endpoint via getProducer()."
+      "tryPush on a consumer-tagged BStack endpoint (SpscConsumerTag / MpmcConsumerTag) is forbidden; bind a producer endpoint via getProducer().",
+    notATransition
 .}
 
 proc push*[
@@ -747,7 +748,8 @@ proc push*[
     self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]], item: sink T
 ): bool {.
     error:
-      "push on a consumer-tagged BStack endpoint (SpscConsumerTag / MpmcConsumerTag) is forbidden; bind a producer endpoint via getProducer()."
+      "push on a consumer-tagged BStack endpoint (SpscConsumerTag / MpmcConsumerTag) is forbidden; bind a producer endpoint via getProducer().",
+    notATransition
 .}
 
 proc tryPop*[
@@ -793,7 +795,8 @@ proc tryPop*[
     self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]], outItem: var T
 ): bool {.
     error:
-      "tryPop on a producer-tagged BStack endpoint (SpscProducerTag / MpmcProducerTag) is forbidden; bind a consumer endpoint via getConsumer()."
+      "tryPop on a producer-tagged BStack endpoint (SpscProducerTag / MpmcProducerTag) is forbidden; bind a consumer endpoint via getConsumer().",
+    notATransition
 .}
 
 proc pop*[
@@ -806,7 +809,8 @@ proc pop*[
     self: Bound[T, Tag, BStack[T, Cap, ccProd, ccCons]]
 ): Option[T] {.
     error:
-      "pop on a producer-tagged BStack endpoint (SpscProducerTag / MpmcProducerTag) is forbidden; bind a consumer endpoint via getConsumer()."
+      "pop on a producer-tagged BStack endpoint (SpscProducerTag / MpmcProducerTag) is forbidden; bind a consumer endpoint via getConsumer().",
+    notATransition
 .}
 
 proc len*[

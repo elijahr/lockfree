@@ -1507,7 +1507,8 @@ proc tryPut*[
 ): bool {.
   error:
     "Cannot call 'tryPut' on a read-only BTable endpoint (Bound[(K, V), TableReaderTag, BTable[...]]). " &
-    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries."
+    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries.",
+  notATransition
 .}
 
 proc put*[
@@ -1522,7 +1523,8 @@ proc put*[
 ): bool {.
   error:
     "Cannot call 'put' on a read-only BTable endpoint (Bound[(K, V), TableReaderTag, BTable[...]]). " &
-    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries."
+    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries.",
+  notATransition
 .}
 
 proc tryInsert*[
@@ -1537,7 +1539,8 @@ proc tryInsert*[
 ): bool {.
   error:
     "Cannot call 'tryInsert' on a read-only BTable endpoint (Bound[(K, V), TableReaderTag, BTable[...]]). " &
-    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries."
+    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries.",
+  notATransition
 .}
 
 proc insert*[
@@ -1552,7 +1555,8 @@ proc insert*[
 ): bool {.
   error:
     "Cannot call 'insert' on a read-only BTable endpoint (Bound[(K, V), TableReaderTag, BTable[...]]). " &
-    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries."
+    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries.",
+  notATransition
 .}
 
 proc remove*[
@@ -1566,7 +1570,8 @@ proc remove*[
 ): bool {.
   error:
     "Cannot call 'remove' on a read-only BTable endpoint (Bound[(K, V), TableReaderTag, BTable[...]]). " &
-    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries."
+    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries.",
+  notATransition
 .}
 
 proc del*[
@@ -1580,7 +1585,8 @@ proc del*[
 ): bool {.
   error:
     "Cannot call 'del' on a read-only BTable endpoint (Bound[(K, V), TableReaderTag, BTable[...]]). " &
-    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries."
+    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries.",
+  notATransition
 .}
 
 proc take*[
@@ -1594,7 +1600,8 @@ proc take*[
 ): Option[V] {.
   error:
     "Cannot call 'take' on a read-only BTable endpoint (Bound[(K, V), TableReaderTag, BTable[...]]). " &
-    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries."
+    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries.",
+  notATransition
 .}
 
 proc clear*[
@@ -1607,7 +1614,8 @@ proc clear*[
 ) {.
   error:
     "Cannot call 'clear' on a read-only BTable endpoint (Bound[(K, V), TableReaderTag, BTable[...]]). " &
-    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries."
+    "Use a writer endpoint (getWriter / withBoundWriter) to mutate entries.",
+  notATransition
 .}
 
 proc put*[
@@ -1623,7 +1631,8 @@ proc put*[
 ): bool {.
   error:
     "Cannot call 'put' on an Unbound BTable endpoint. " &
-    "Bind the endpoint to the current thread first via `bindToThread(ep)` or `withBoundWriter`."
+    "Bind the endpoint to the current thread first via `bindToThread(ep)` or `withBoundWriter`.",
+  notATransition
 .}
 
 proc get*[
@@ -1638,7 +1647,8 @@ proc get*[
 ): Option[V] {.
   error:
     "Cannot call 'get' on an Unbound BTable endpoint. " &
-    "Bind the endpoint to the current thread first via `bindToThread(ep)` or `withBoundReader`."
+    "Bind the endpoint to the current thread first via `bindToThread(ep)` or `withBoundReader`.",
+  notATransition
 .}
 
 verifyTypestates()

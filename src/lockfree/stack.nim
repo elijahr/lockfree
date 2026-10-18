@@ -627,7 +627,8 @@ proc push*[T; Tag: SpscConsumerTag | MpmcConsumerTag](
     self: Bound[T, Tag, TreiberStack[T]], item: sink T
 ): bool {.
     error:
-      "push on a consumer-tagged TreiberStack endpoint (SpscConsumerTag / MpmcConsumerTag) is forbidden; bind a producer endpoint via getProducer()."
+      "push on a consumer-tagged TreiberStack endpoint (SpscConsumerTag / MpmcConsumerTag) is forbidden; bind a producer endpoint via getProducer().",
+    notATransition
 .}
 
 proc pop*[T; Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag](
@@ -643,7 +644,8 @@ proc pop*[T; Tag: SpscProducerTag | MpmcProducerTag](
     self: Bound[T, Tag, TreiberStack[T]]
 ): Option[T] {.
     error:
-      "pop on a producer-tagged TreiberStack endpoint (SpscProducerTag / MpmcProducerTag) is forbidden; bind a consumer endpoint via getConsumer()."
+      "pop on a producer-tagged TreiberStack endpoint (SpscProducerTag / MpmcProducerTag) is forbidden; bind a consumer endpoint via getConsumer().",
+    notATransition
 .}
 
 proc peek*[T; Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag](
