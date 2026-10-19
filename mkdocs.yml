@@ -1,6 +1,8 @@
 site_name: lockfree
 site_description: Lock-free concurrency primitives, data structures, and safe memory reclamation for Nim and C
 site_url: https://elijahr.github.io/lockfree/
+exclude_docs: |
+  internal/**
 
 repo_name: elijahr/lockfree
 repo_url: https://github.com/elijahr/lockfree
