@@ -45,19 +45,19 @@
 
   // CONTRACT-TEST-PARSED-START LIBRARY_COLORS
   const LIBRARY_COLORS = Object.freeze({
-    // lockfree queue family (bounded) — Material indigo 500
-    lockfree_spsc:           '#3f51b5',
-    lockfree_spmc:           '#3f51b5',
-    lockfree_mpsc:           '#3f51b5',
-    lockfree_mpmc:           '#3f51b5',
-    // lockfree queue family (unbounded) — Material indigo 400
-    lockfree_unbounded_spsc: '#5c6bc0',
-    lockfree_unbounded_spmc: '#5c6bc0',
-    lockfree_unbounded_mpsc: '#5c6bc0',
-    lockfree_unbounded_mpmc: '#5c6bc0',
+    // lockfree queue family (bounded) — high-contrast brand indigo
+    lockfree_spsc:           '#6366f1',
+    lockfree_spmc:           '#6366f1',
+    lockfree_mpsc:           '#6366f1',
+    lockfree_mpmc:           '#6366f1',
+    // lockfree queue family (unbounded) — lighter brand indigo
+    lockfree_unbounded_spsc: '#818cf8',
+    lockfree_unbounded_spmc: '#818cf8',
+    lockfree_unbounded_mpsc: '#818cf8',
+    lockfree_unbounded_mpmc: '#818cf8',
     // associative maps & sets
-    ctrie:                      '#3f51b5',
-    btable:                     '#283593',
+    ctrie:                      '#6366f1',
+    btable:                     '#4f46e5',
     skiplist:                   '#00897b',
     skiplist_set:               '#00695c',
     locked_table:               '#78909c',
@@ -69,44 +69,44 @@
     boost_concurrent_flat_map:  '#0288d1',
     boost_concurrent_flat_set:  '#039be5',
     // stacks, deques & priority queues
-    treiber_stack:              '#3f51b5',
-    bstack:                     '#1e88e5',
+    treiber_stack:              '#6366f1',
+    bstack:                     '#4f46e5',
     locked_stack:               '#78909c',
     boost_lockfree_stack:       '#00897b',
-    chase_lev_deque:            '#8e24aa',
-    chase_lev_deque_batch:      '#6a1b9a',
+    chase_lev_deque:            '#6366f1',
+    chase_lev_deque_batch:      '#4f46e5',
     crossbeam_deque:            '#f4511e',
     crossbeam_deque_batch:      '#d84315',
-    bpriority_queue:            '#3f51b5',
+    bpriority_queue:            '#6366f1',
     skiplist_pq:                '#00897b',
     locked_pq:                  '#78909c',
     // broadcast ring & topic bus
-    broadcast_ring_drop:        '#3f51b5',
+    broadcast_ring_drop:        '#6366f1',
     broadcast_ring_backoff:     '#0277bd',
-    topic_bus_drop:             '#3949ab',
+    topic_bus_drop:             '#4f46e5',
     topic_bus_backoff:          '#01579b',
     tokio_broadcast:            '#f4511e',
     rust_bus:                   '#fb8c00',
     // rate limiting & streaming
-    token_bucket:               '#e65100',
-    leaky_bucket:               '#ef6c00',
+    token_bucket:               '#6366f1',
+    leaky_bucket:               '#4f46e5',
     governor_gcra:              '#f4511e',
-    stream_ring:                '#2e7d32',
+    stream_ring:                '#6366f1',
     rtrb_stream:                '#d84315',
     boost_spsc_stream:          '#00897b',
     // synchronous rendezvous (0-buffer channel)
-    rendezvous_channel:         '#3f51b5',
+    rendezvous_channel:         '#6366f1',
     nim_channel_sync:           '#546e7a',
     crossbeam_rendezvous:       '#f4511e',
     flume_rendezvous:           '#d84315',
     kanal_rendezvous:           '#c2185b',
     // work-stealing taskpool
-    taskpool:                   '#3f51b5',
+    taskpool:                   '#6366f1',
     locked_task_queue:          '#78909c',
     rayon_pool:                 '#f4511e',
     // safe memory reclamation (NEBR / epoch)
-    nebr:                       '#3f51b5',
-    arc_atomic_rc:              '#5c6bc0',
+    nebr:                       '#6366f1',
+    arc_atomic_rc:              '#818cf8',
     mutex_guard:                '#78909c',
     deferred_mutex_free:        '#546e7a',
     crossbeam_epoch:            '#f4511e',
@@ -767,6 +767,19 @@
     return best;
   }
 
+  // ── module: directionality badge helper ────────────────────────────
+
+  const THROUGHPUT_BADGE_TEXT = 'Throughput: Higher is better ↑';
+  const LATENCY_BADGE_TEXT    = 'Latency: Lower is better ↓';
+
+  function buildDirectionBadge(kind) {
+    const isLatency = kind === 'latency';
+    return el('span', {
+      class: 'bench-direction-badge ' +
+        (isLatency ? 'bench-direction-lower' : 'bench-direction-higher'),
+    }, isLatency ? LATENCY_BADGE_TEXT : THROUGHPUT_BADGE_TEXT);
+  }
+
   // ── module: hero panel (ECharts horizontal bar) ─────────────────────
 
   function renderHero(host, byTopology) {
@@ -816,7 +829,11 @@
     const modeDesc = baselineVal ? ' — speedup vs stdlib' : '';
     const headingText = topologyLabel(pick.topology) + ' ' + pick.shape +
       (hasAlt ? ' — lockfree vs alternatives' : ' — lockfree throughput') + modeDesc;
-    host.appendChild(el('h3', { class: 'bench-hero-heading' }, headingText));
+    const headerRow = el('div', { class: 'bench-panel-header-row' },
+      el('h3', { class: 'bench-hero-heading' }, headingText),
+      buildDirectionBadge('throughput')
+    );
+    host.appendChild(headerRow);
 
     if (typeof window.echarts !== 'object' || !window.echarts.init) {
       // Fallback: hand-rendered DOM bars so the headline still reads.
@@ -838,24 +855,30 @@
         mount, isLightScheme() ? null : 'dark',
         { renderer: 'canvas' }
       );
+      const pal = readPalette();
       const categories = rows.map((r) => r.library);
       const values = rows.map((r) => {
+        const isLfq = isLockfreequeues(r.library);
         const displayVal = baselineVal ? (r.value / baselineVal) : r.value;
         return {
           value: displayVal,
           itemStyle: {
             color: getColor(r.library),
-            borderColor: getColor(r.library),
+            borderColor: isLfq ? '#6366f1' : getColor(r.library),
             borderType: isBlocking(r.library) ? 'dashed' : 'solid',
-            borderWidth: isBlocking(r.library) ? 2 : 0,
+            borderWidth: isLfq ? 3 : (isBlocking(r.library) ? 2 : 0),
             opacity: isBlocking(r.library) ? 0.55 : 1,
+          },
+          label: {
+            fontWeight: isLfq ? 'bold' : 'normal',
+            color: isLfq ? '#6366f1' : pal.fg,
           },
           _row: r,
           _displayVal: displayVal,
         };
       });
       const opt = Object.assign({}, buildPaletteOpt(), {
-        grid: { left: 160, right: 80, top: 16, bottom: 36, containLabel: true },
+        grid: { left: 170, right: 90, top: 20, bottom: 44, containLabel: true },
         tooltip: Object.assign({}, buildPaletteOpt().tooltip, {
           trigger: 'axis',
           axisPointer: { type: 'shadow' },
@@ -875,21 +898,31 @@
               line += ' (±' + stddev.toFixed(1) + ')';
             }
             line += '<br>' + escapeHtml(topologyLabel(pick.topology)) +
-              ' ' + escapeHtml(pick.shape);
+              ' ' + escapeHtml(pick.shape) + ' — ' + THROUGHPUT_BADGE_TEXT;
             if (isBlocking(r.library)) line += ' (blocking)';
             return line;
           },
         }),
         xAxis: Object.assign({}, buildPaletteOpt().xAxis, {
           type: 'value',
-          name: baselineVal ? 'relative speedup (x vs stdlib Channel)' : 'throughput (ops/ms)',
+          name: (baselineVal ? 'Relative speedup (x vs stdlib Channel)' : 'Throughput (ops/ms)') +
+            ' — ' + THROUGHPUT_BADGE_TEXT,
           nameLocation: 'middle',
-          nameGap: 28,
+          nameGap: 30,
         }),
         yAxis: Object.assign({}, buildPaletteOpt().yAxis, {
           type: 'category',
           data: categories,
           inverse: true,
+          axisLabel: Object.assign({}, buildPaletteOpt().yAxis.axisLabel, {
+            formatter: (val) => isLockfreequeues(val) ? '{lfq|' + val + '}' : val,
+            rich: {
+              lfq: {
+                fontWeight: 'bold',
+                color: '#6366f1',
+              },
+            },
+          }),
         }),
         series: [{
           type: 'bar',
@@ -897,8 +930,9 @@
           barCategoryGap: '30%',
           label: {
             show: true, position: 'right',
+            fontWeight: 'bold',
             formatter: (p) => baselineVal ? p.value.toFixed(1) + 'x' : p.value.toFixed(1),
-            color: readPalette().fg,
+            color: pal.fg,
           },
         }],
       });
@@ -934,7 +968,10 @@
         'data-library': r.library,
         'data-slug': r.slug,
       },
-        el('span', { class: 'bench-hero-label' }, r.library),
+        el('span', {
+          class: 'bench-hero-label',
+          style: isLockfreequeues(r.library) ? 'font-weight: bold;' : '',
+        }, r.library),
         el('span', { class: barClass, style: barStyle }),
         el('span', { class: 'bench-hero-value' },
           r.value.toFixed(1) + ' ops/ms')
@@ -942,13 +979,15 @@
     }
     host.appendChild(list);
     host.appendChild(el('p', { class: 'bench-hero-axis-caption' },
-      'throughput (ops/ms) — ' + topologyLabel(pick.topology) + ' ' + pick.shape));
+      'throughput (ops/ms) — ' + topologyLabel(pick.topology) + ' ' + pick.shape +
+      ' (' + THROUGHPUT_BADGE_TEXT + ')'));
   }
 
   // ── module: throughput / latency shared controls ────────────────────
 
   function buildControls(panelId, initialLogScale, onLogToggle) {
     const wrap = el('div', { class: 'bench-chart-controls' });
+    wrap.appendChild(buildDirectionBadge('throughput'));
     const id = 'bench-log-scale-' + panelId;
     const cb = el('input', { type: 'checkbox', id });
     cb.checked = initialLogScale;
@@ -958,9 +997,136 @@
     return wrap;
   }
 
+  // Ranked Bar Chart builder for SPSC / single-point topologies (`type: 'bar'`).
+  // Replaces disconnected single-point line dots with a clear ranked bar chart
+  // comparing contenders side-by-side in descending throughput order.
+  function buildRankedBarThroughputOption(series, xLabels, logScale, panelLabel, baselineByShape) {
+    const pal = readPalette();
+    const shape = xLabels[0] || '1p1c';
+    const isRel = _activeDisplayMode === 'relative' && baselineByShape && baselineByShape.size > 0;
+    const baseVal = baselineByShape && baselineByShape.get(shape);
+
+    const ranked = series
+      .map((lib) => {
+        const pt = lib._shapeMap.get(shape) || lib.points[0] || null;
+        const rawVal = pt ? pt.value : 0;
+        const displayVal = (isRel && baseVal && baseVal > 0) ? (rawVal / baseVal) : rawVal;
+        return {
+          library: lib.library,
+          point: pt,
+          rawVal,
+          displayVal,
+        };
+      })
+      .filter((r) => r.displayVal > 0)
+      .sort((a, b) => b.displayVal - a.displayVal);
+
+    const categories = ranked.map((r) => displayLabel(r.library));
+    const barData = ranked.map((r) => {
+      const isLfq = isLockfreequeues(r.library);
+      return {
+        value: r.displayVal,
+        itemStyle: {
+          color: getColor(r.library),
+          borderColor: isLfq ? '#6366f1' : getColor(r.library),
+          borderType: isBlocking(r.library) ? 'dashed' : 'solid',
+          borderWidth: isLfq ? 3 : (isBlocking(r.library) ? 2 : 0),
+          opacity: isBlocking(r.library) ? 0.65 : 1,
+        },
+        label: {
+          show: true,
+          position: 'top',
+          fontWeight: isLfq ? 'bold' : 'normal',
+          color: isLfq ? '#6366f1' : pal.fg,
+          formatter: () => isRel ? r.displayVal.toFixed(1) + 'x' : r.rawVal.toFixed(0),
+        },
+        _entry: r,
+      };
+    });
+
+    return Object.assign({}, buildPaletteOpt(), {
+      title: {
+        subtext: THROUGHPUT_BADGE_TEXT,
+        right: 16,
+        top: 0,
+        subtextStyle: {
+          color: pal.fgLight,
+          fontSize: 12,
+          fontWeight: 'bold',
+        },
+      },
+      grid: { left: 68, right: 28, top: 44, bottom: 78, containLabel: true },
+      tooltip: Object.assign({}, buildPaletteOpt().tooltip, {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        formatter: (params) => {
+          if (!params || !params.length) return '';
+          const p = params[0];
+          const entry = p.data && p.data._entry;
+          if (!entry) return '';
+          const pt = entry.point;
+          let line = '<strong>' + escapeHtml(entry.library) + '</strong> (' +
+            escapeHtml(panelLabel || 'SPSC') + ' ' + escapeHtml(shape) + ')<br>' +
+            entry.rawVal.toFixed(1) + ' ops/ms';
+          if (baseVal && baseVal > 0) {
+            line += ' <strong>(' + (entry.rawVal / baseVal).toFixed(1) + 'x vs stdlib)</strong>';
+          }
+          if (pt && pt.lower != null && pt.upper != null) {
+            const stddev = (pt.upper - pt.lower) / 2;
+            line += ' (±' + stddev.toFixed(1) + ')';
+          }
+          if (isBlocking(entry.library)) line += ' (blocking)';
+          line += '<br><span style="opacity:0.8;">' + THROUGHPUT_BADGE_TEXT + '</span>';
+          return line;
+        },
+      }),
+      xAxis: Object.assign({}, buildPaletteOpt().xAxis, {
+        type: 'category',
+        data: categories,
+        name: 'Contender library (' + shape + ', ranked by throughput)',
+        nameLocation: 'middle',
+        nameGap: 48,
+        axisLabel: Object.assign({}, buildPaletteOpt().xAxis.axisLabel, {
+          interval: 0,
+          rotate: categories.length > 5 ? 20 : 0,
+          formatter: (val) => {
+            const rawLib = String(val).replace(/ \*$/, '');
+            return isLockfreequeues(rawLib) ? '{lfq|' + val + '}' : val;
+          },
+          rich: {
+            lfq: {
+              fontWeight: 'bold',
+              color: '#6366f1',
+            },
+          },
+        }),
+      }),
+      yAxis: Object.assign({}, buildPaletteOpt().yAxis, {
+        type: logScale ? 'log' : 'value',
+        name: (isRel
+          ? 'Relative speedup (x vs stdlib Channel)'
+          : 'Throughput (ops/ms)') + (logScale ? ' [log]' : '') + ' — Higher is better ↑',
+        nameLocation: 'middle',
+        nameGap: 52,
+        logBase: 10,
+      }),
+      series: [{
+        name: panelLabel || 'SPSC',
+        type: 'bar',
+        barMaxWidth: 48,
+        data: barData,
+      }],
+    });
+  }
+
   // Common throughput option builder. `series` is a list of
   // `{ library, points: [{ shape, value, lower, upper }], _shapeMap }`.
-  function buildThroughputOption(series, xLabels, logScale, panelLabel, baselineByShape) {
+  function buildThroughputOption(series, xLabels, logScale, panelLabel, baselineByShape, panelId) {
+    if (panelId === 'bench-throughput-spsc' || xLabels.length === 1) {
+      return buildRankedBarThroughputOption(series, xLabels, logScale, panelLabel, baselineByShape);
+    }
+
+    const pal = readPalette();
     const isRel = _activeDisplayMode === 'relative' && baselineByShape && baselineByShape.size > 0;
     const echartsSeries = series.map((lib) => {
       const isLfq = isLockfreequeues(lib.library);
@@ -979,11 +1145,15 @@
         data:   data,
         connectNulls: false,
         showSymbol: true,
-        symbolSize: isLfq ? 8 : 6,
+        symbolSize: isLfq ? 9 : 6,
+        z: isLfq ? 4 : 2,
         emphasis: { focus: 'series' },
         lineStyle: {
           width: isLfq ? 3 : 2,
           type: isBlocking(lib.library) ? 'dashed' : 'solid',
+        },
+        label: {
+          fontWeight: isLfq ? 'bold' : 'normal',
         },
         itemStyle: { color: getColor(lib.library) },
         _library: lib.library,
@@ -991,8 +1161,23 @@
       };
     });
 
+    // Dynamically reserve enough bottom margin so the X-axis title and
+    // multi-row MPMC legend never collide.
+    const legendRows = Math.max(1, Math.ceil(series.length / 4));
+    const bottomPx = Math.max(98, 58 + legendRows * 26);
+
     return Object.assign({}, buildPaletteOpt(), {
-      grid: { left: 50, right: 24, top: 16, bottom: '22%', containLabel: false },
+      title: {
+        subtext: THROUGHPUT_BADGE_TEXT,
+        right: 16,
+        top: 0,
+        subtextStyle: {
+          color: pal.fgLight,
+          fontSize: 12,
+          fontWeight: 'bold',
+        },
+      },
+      grid: { left: 68, right: 28, top: 36, bottom: bottomPx, containLabel: true },
       tooltip: Object.assign({}, buildPaletteOpt().tooltip, {
         trigger: 'axis',
         axisPointer: { type: 'cross' },
@@ -1002,19 +1187,23 @@
           const header = panelLabel
             ? escapeHtml(panelLabel) + ' ' + escapeHtml(shape)
             : escapeHtml(shape);
-          const lines = ['<strong>' + header + '</strong>'];
+          const lines = ['<strong>' + header + '</strong> <span style="opacity:0.8;">(' + THROUGHPUT_BADGE_TEXT + ')</span>'];
           const baseVal = baselineByShape && baselineByShape.get(shape);
           for (const p of params) {
             if (p.value == null) continue;
             const lib = (p.seriesName || '').replace(/ \*$/, '');
+            const isLfq = isLockfreequeues(lib);
             // Find the matching point for stddev.
             const sObj = echartsSeries[p.seriesIndex];
             const point = sObj && sObj._points
               && sObj._points.find((q) => q.shape === shape);
+            const libHtml = isLfq
+              ? '<strong>' + escapeHtml(lib) + '</strong>'
+              : escapeHtml(lib);
             let line = '<span style="display:inline-block;width:8px;height:8px;'
               + 'border-radius:50%;background:' + p.color
               + ';margin-right:6px;"></span>'
-              + escapeHtml(lib) + ': ';
+              + libHtml + ': ';
             if (isRel) {
               line += p.value.toFixed(1) + 'x vs stdlib';
               if (point) line += ' (' + point.value.toFixed(1) + ' ops/ms)';
@@ -1037,9 +1226,23 @@
       }),
       legend: Object.assign({}, buildPaletteOpt().legend, {
         type: 'plain',
-        bottom: 0,
+        bottom: 4,
         left: 'center',
-        width: '100%',
+        width: '96%',
+        itemGap: 14,
+        padding: [8, 8, 4, 8],
+        formatter: (name) => {
+          const rawLib = String(name).replace(/ \*$/, '');
+          return isLockfreequeues(rawLib) ? '{lfq|' + name + '}' : name;
+        },
+        textStyle: Object.assign({}, buildPaletteOpt().legend.textStyle, {
+          rich: {
+            lfq: {
+              fontWeight: 'bold',
+              color: pal.fg,
+            },
+          },
+        }),
         data: series.map((lib) => displayLabel(lib.library)),
       }),
       xAxis: Object.assign({}, buildPaletteOpt().xAxis, {
@@ -1047,15 +1250,15 @@
         data: xLabels,
         name: 'producer/consumer shape (P×C)',
         nameLocation: 'middle',
-        nameGap: 32,
+        nameGap: 28,
       }),
       yAxis: Object.assign({}, buildPaletteOpt().yAxis, {
         type: logScale ? 'log' : 'value',
-        name: isRel
-          ? 'relative speedup (x vs stdlib Channel)' + (logScale ? ' [log]' : '')
-          : 'throughput (ops/ms)' + (logScale ? ' [log]' : ''),
+        name: (isRel
+          ? 'Relative speedup (x vs stdlib Channel)'
+          : 'Throughput (ops/ms)') + (logScale ? ' [log]' : '') + ' — Higher is better ↑',
         nameLocation: 'middle',
-        nameGap: 44,
+        nameGap: 52,
         logBase: 10,
       }),
       series: echartsSeries,
@@ -1116,7 +1319,12 @@
         _shapeMap: new Map(points.map((p) => [p.shape, p])),
       });
     }
-    series.sort((a, b) => a.library.localeCompare(b.library));
+    series.sort((a, b) => {
+      const aLfq = isLockfreequeues(a.library) ? 0 : 1;
+      const bLfq = isLockfreequeues(b.library) ? 0 : 1;
+      if (aLfq !== bLfq) return aLfq - bLfq;
+      return a.library.localeCompare(b.library);
+    });
 
     if (series.length === 0) {
       host.appendChild(el('p', { class: 'bench-chart-empty' },
@@ -1129,7 +1337,7 @@
 
     const controls = buildControls(panel.id, logScale, (next) => {
       logScale = next;
-      inst.setOption(buildThroughputOption(series, xLabels, logScale, panel.label, baselineByShape),
+      inst.setOption(buildThroughputOption(series, xLabels, logScale, panel.label, baselineByShape, panel.id),
         { notMerge: true });
     });
     const mount = el('div', { class: 'bench-chart-plot' });
@@ -1139,13 +1347,13 @@
     let inst = window.echarts.init(
       mount, isLightScheme() ? null : 'dark', { renderer: 'canvas' }
     );
-    inst.setOption(buildThroughputOption(series, xLabels, logScale, panel.label, baselineByShape));
+    inst.setOption(buildThroughputOption(series, xLabels, logScale, panel.label, baselineByShape, panel.id));
     registerChart(inst, () => {
       inst.dispose();
       inst = window.echarts.init(
         mount, isLightScheme() ? null : 'dark', { renderer: 'canvas' }
       );
-      inst.setOption(buildThroughputOption(series, xLabels, logScale, panel.label, baselineByShape));
+      inst.setOption(buildThroughputOption(series, xLabels, logScale, panel.label, baselineByShape, panel.id));
       const idx = _charts.findIndex((c) => c.instance && c.instance.isDisposed
         && c.instance.isDisposed());
       if (idx >= 0) _charts[idx].instance = inst;
@@ -1155,11 +1363,11 @@
   // ── module: latency panel ──────────────────────────────────────────
 
   const LATENCY_PERCENTILES = Object.freeze([
-    { key: 'latency_p50_ns',  label: 'p50'  },
-    { key: 'latency_p95_ns',  label: 'p95'  },
-    { key: 'latency_p99_ns',  label: 'p99'  },
-    { key: 'latency_p999_ns', label: 'p999' },
-    { key: 'latency_max_ns',  label: 'max'  },
+    { key: 'latency_p50_ns',  label: 'p50 (ns)'  },
+    { key: 'latency_p95_ns',  label: 'p95 (ns)'  },
+    { key: 'latency_p99_ns',  label: 'p99 (ns)'  },
+    { key: 'latency_p999_ns', label: 'p999 (ns)' },
+    { key: 'latency_max_ns',  label: 'max (ns)'  },
   ]);
 
   function collectLatencySeries(bmf, topologyFilter) {
@@ -1191,7 +1399,12 @@
       byLibrary.set(parsed.library, { library: parsed.library, slug, values });
     }
     const libraries = Array.from(byLibrary.values())
-      .sort((a, b) => a.library.localeCompare(b.library));
+      .sort((a, b) => {
+        const aLfq = isLockfreequeues(a.library) ? 0 : 1;
+        const bLfq = isLockfreequeues(b.library) ? 0 : 1;
+        if (aLfq !== bLfq) return aLfq - bLfq;
+        return a.library.localeCompare(b.library);
+      });
     return { libraries, hadAny };
   }
 
@@ -1206,9 +1419,78 @@
     "Some libraries don't yet have latency measurements — adapter " +
     'coverage is in progress.';
 
-  function buildLatencyOption(libraries, xLabels) {
+  function buildLatencyControls(panelId, initialMode, initialLogScale, onChange) {
+    const wrap = el('div', { class: 'bench-chart-controls' });
+    wrap.appendChild(buildDirectionBadge('latency'));
+
+    let mode = initialMode || 'ladder';
+    let logScale = initialLogScale !== false;
+
+    const modeGroup = el('div', { class: 'bench-chip-group' });
+    const ladderBtn = el('button', {
+      class: 'bench-chip' + (mode === 'ladder' ? ' active' : ''),
+      type: 'button',
+    }, 'Percentile Ladder');
+    const barBtn = el('button', {
+      class: 'bench-chip' + (mode === 'bar' ? ' active' : ''),
+      type: 'button',
+    }, 'Grouped Bars');
+
+    ladderBtn.addEventListener('click', () => {
+      if (mode === 'ladder') return;
+      mode = 'ladder';
+      ladderBtn.classList.add('active');
+      barBtn.classList.remove('active');
+      onChange(mode, logScale);
+    });
+    barBtn.addEventListener('click', () => {
+      if (mode === 'bar') return;
+      mode = 'bar';
+      barBtn.classList.add('active');
+      ladderBtn.classList.remove('active');
+      onChange(mode, logScale);
+    });
+    modeGroup.appendChild(ladderBtn);
+    modeGroup.appendChild(barBtn);
+    wrap.appendChild(modeGroup);
+
+    const id = 'bench-lat-log-scale-' + panelId;
+    const cb = el('input', { type: 'checkbox', id });
+    cb.checked = logScale;
+    cb.addEventListener('change', () => {
+      logScale = cb.checked;
+      onChange(mode, logScale);
+    });
+    const lbl = el('label', { for: id }, 'Log-scale Y axis');
+    wrap.appendChild(el('span', { class: 'bench-control-item' }, cb, lbl));
+    return wrap;
+  }
+
+  function buildLatencyOption(libraries, xLabels, chartMode, logScale) {
+    const pal = readPalette();
+    const useBar = chartMode === 'bar';
+    const useLog = logScale !== false;
+
     const echartsSeries = libraries.map((lib) => {
       const isLfq = isLockfreequeues(lib.library);
+      if (useBar) {
+        return {
+          name: displayLabel(lib.library),
+          type: 'bar',
+          barMaxWidth: 28,
+          data: lib.values.slice(),
+          emphasis: { focus: 'series' },
+          label: {
+            fontWeight: isLfq ? 'bold' : 'normal',
+          },
+          itemStyle: {
+            color: getColor(lib.library),
+            borderColor: isLfq ? '#6366f1' : getColor(lib.library),
+            borderType: isBlocking(lib.library) ? 'dashed' : 'solid',
+            borderWidth: isLfq ? 2 : (isBlocking(lib.library) ? 1.5 : 0),
+          },
+        };
+      }
       return {
         name: displayLabel(lib.library),
         type: 'line',
@@ -1216,8 +1498,12 @@
         data: lib.values.slice(),
         connectNulls: false,
         showSymbol: true,
-        symbolSize: isLfq ? 8 : 6,
+        symbolSize: isLfq ? 9 : 6,
+        z: isLfq ? 4 : 2,
         emphasis: { focus: 'series' },
+        label: {
+          fontWeight: isLfq ? 'bold' : 'normal',
+        },
         lineStyle: {
           width: isLfq ? 3 : 2,
           type: isBlocking(lib.library) ? 'dashed' : 'solid',
@@ -1226,22 +1512,39 @@
       };
     });
 
+    const legendRows = Math.max(1, Math.ceil(libraries.length / 4));
+    const bottomPx = Math.max(98, 58 + legendRows * 26);
+
     return Object.assign({}, buildPaletteOpt(), {
-      grid: { left: 50, right: 24, top: 16, bottom: '25%', containLabel: false },
+      title: {
+        subtext: LATENCY_BADGE_TEXT,
+        right: 16,
+        top: 0,
+        subtextStyle: {
+          color: pal.fgLight,
+          fontSize: 12,
+          fontWeight: 'bold',
+        },
+      },
+      grid: { left: 68, right: 28, top: 36, bottom: bottomPx, containLabel: true },
       tooltip: Object.assign({}, buildPaletteOpt().tooltip, {
         trigger: 'axis',
-        axisPointer: { type: 'cross' },
+        axisPointer: { type: useBar ? 'shadow' : 'cross' },
         formatter: (params) => {
           if (!params || !params.length) return '';
           const label = params[0].axisValueLabel || params[0].name;
-          const lines = ['<strong>' + escapeHtml(label) + '</strong>'];
+          const lines = ['<strong>' + escapeHtml(label) + '</strong> <span style="opacity:0.8;">(' + LATENCY_BADGE_TEXT + ')</span>'];
           for (const p of params) {
             if (p.value == null) continue;
             const lib = (p.seriesName || '').replace(/ \*$/, '');
+            const isLfq = isLockfreequeues(lib);
+            const libHtml = isLfq
+              ? '<strong>' + escapeHtml(lib) + '</strong>'
+              : escapeHtml(lib);
             let line = '<span style="display:inline-block;width:8px;height:8px;'
               + 'border-radius:50%;background:' + p.color
               + ';margin-right:6px;"></span>'
-              + escapeHtml(lib) + ': ' + p.value.toFixed(0) + ' ns';
+              + libHtml + ': ' + p.value.toFixed(0) + ' ns';
             if (isBlocking(lib)) line += ' (blocking)';
             lines.push(line);
           }
@@ -1250,32 +1553,42 @@
       }),
       legend: Object.assign({}, buildPaletteOpt().legend, {
         type: 'plain',
-        bottom: 0,
+        bottom: 4,
         left: 'center',
-        width: '100%',
+        width: '96%',
+        itemGap: 14,
+        padding: [8, 8, 4, 8],
+        formatter: (name) => {
+          const rawLib = String(name).replace(/ \*$/, '');
+          return isLockfreequeues(rawLib) ? '{lfq|' + name + '}' : name;
+        },
+        textStyle: Object.assign({}, buildPaletteOpt().legend.textStyle, {
+          rich: {
+            lfq: {
+              fontWeight: 'bold',
+              color: pal.fg,
+            },
+          },
+        }),
         data: libraries.map((lib) => displayLabel(lib.library)),
       }),
       xAxis: Object.assign({}, buildPaletteOpt().xAxis, {
         type: 'category',
         data: xLabels,
-        name: 'percentile',
+        name: 'Latency percentile (ns)',
         nameLocation: 'middle',
         nameGap: 28,
       }),
       yAxis: Object.assign({}, buildPaletteOpt().yAxis, {
-        type: 'log',
+        type: useLog ? 'log' : 'value',
         logBase: 10,
-        name: 'latency (ns) [log]',
+        name: 'Latency (ns)' + (useLog ? ' [log]' : '') + ' — Lower is better ↓',
         nameLocation: 'middle',
-        nameGap: 52,
+        nameGap: 56,
         axisLabel: Object.assign({}, buildPaletteOpt().yAxis.axisLabel, {
-          // Compact scientific notation for large values keeps the
-          // y-axis label band narrow on a log scale (e.g. "1e7" instead
-          // of "10,000,000"), so grid.left: 50 doesn't clip. Small
-          // values pass through unchanged for readability.
           formatter: (value) => {
-            if (value >= 10000) return value.toExponential(0).replace('e+', 'e');
-            return value.toString();
+            if (value >= 10000) return value.toExponential(0).replace('e+', 'e') + ' ns';
+            return value.toString() + ' ns';
           },
         }),
       }),
@@ -1313,19 +1626,28 @@
     }
 
     const xLabels = LATENCY_PERCENTILES.map((p) => p.label);
+    let chartMode = 'ladder';
+    let logScale = true;
+
+    const controls = buildLatencyControls(effectivePanelId, chartMode, logScale, (nextMode, nextLog) => {
+      chartMode = nextMode;
+      logScale = nextLog;
+      inst.setOption(buildLatencyOption(libraries, xLabels, chartMode, logScale), { notMerge: true });
+    });
     const mount = el('div', { class: 'bench-chart-plot' });
+    host.appendChild(controls);
     host.appendChild(mount);
 
     let inst = window.echarts.init(
       mount, isLightScheme() ? null : 'dark', { renderer: 'canvas' }
     );
-    inst.setOption(buildLatencyOption(libraries, xLabels));
+    inst.setOption(buildLatencyOption(libraries, xLabels, chartMode, logScale));
     registerChart(inst, () => {
       inst.dispose();
       inst = window.echarts.init(
         mount, isLightScheme() ? null : 'dark', { renderer: 'canvas' }
       );
-      inst.setOption(buildLatencyOption(libraries, xLabels));
+      inst.setOption(buildLatencyOption(libraries, xLabels, chartMode, logScale));
       const idx = _charts.findIndex((c) => c.instance && c.instance.isDisposed
         && c.instance.isDisposed());
       if (idx >= 0) _charts[idx].instance = inst;
@@ -1454,7 +1776,7 @@
     renderLatencyPanel(document.getElementById('bench-smr-latency'), null, 'bench-smr-latency');
   }
 
-  // ── module: interactive toolbar & recommender ─────────────────────────
+  // ── module: interactive toolbar ─────────────────────────────────────
 
   function renderToolbar(host) {
     if (!host) return;
@@ -1538,202 +1860,6 @@
     host.appendChild(shapeGroup);
   }
 
-  function renderRecommender(host) {
-    if (!host) return;
-    host.innerHTML = '';
-    const heading = el('h4', { class: 'bench-panel-title' },
-      'Interactive Workload Estimator & Queue Recommender');
-    host.appendChild(heading);
-
-    const desc = el('p', { class: 'bench-rec-desc', style: 'margin-bottom: 1em;' },
-      'Select your concurrent workload parameters below to find the optimal lockfree queue primitive, progress guarantees, and memory layout.');
-    host.appendChild(desc);
-
-    const grid = el('div', { class: 'bench-recommender-grid' });
-    const inputsCol = el('div', { class: 'bench-recommender-inputs' });
-    const resultCol = el('div', { class: 'bench-recommender-result' });
-
-    let pCount = 4;
-    let cCount = 4;
-    let isBounded = true;
-
-    // Producer slider
-    const pRow = el('div', { class: 'bench-slider-row' });
-    const pHeader = el('div', { class: 'bench-slider-header' },
-      el('label', null, 'Producer Threads:'),
-      el('span', { class: 'bench-slider-val' }, pCount + ' Producers')
-    );
-    const pInput = el('input', { type: 'range', min: '1', max: '32', value: pCount });
-    pRow.appendChild(pHeader);
-    pRow.appendChild(pInput);
-
-    // Consumer slider
-    const cRow = el('div', { class: 'bench-slider-row' });
-    const cHeader = el('div', { class: 'bench-slider-header' },
-      el('label', null, 'Consumer Threads:'),
-      el('span', { class: 'bench-slider-val' }, cCount + ' Consumers')
-    );
-    const cInput = el('input', { type: 'range', min: '1', max: '32', value: cCount });
-    cRow.appendChild(cHeader);
-    cRow.appendChild(cInput);
-
-    // Bound mode toggle
-    const bRow = el('div', { class: 'bench-slider-row' });
-    const bHeader = el('div', { class: 'bench-slider-header' },
-      el('label', null, 'Memory & Capacity Mode:'),
-      el('span', { class: 'bench-slider-val' }, 'Bounded (Ring Buffer)')
-    );
-    const bGroup = el('div', { class: 'bench-chip-group', style: 'margin-top: 4px;' });
-    const bBoundedChip = el('button', { class: 'bench-chip active', type: 'button' }, 'Bounded (Ring Buffer)');
-    const bUnboundedChip = el('button', { class: 'bench-chip', type: 'button' }, 'Unbounded (Segments)');
-    bGroup.appendChild(bBoundedChip);
-    bGroup.appendChild(bUnboundedChip);
-    bRow.appendChild(bHeader);
-    bRow.appendChild(bGroup);
-
-    inputsCol.appendChild(pRow);
-    inputsCol.appendChild(cRow);
-    inputsCol.appendChild(bRow);
-
-    function updateRec() {
-      pHeader.querySelector('.bench-slider-val').textContent = pCount + (pCount === 1 ? ' Producer' : ' Producers');
-      cHeader.querySelector('.bench-slider-val').textContent = cCount + (cCount === 1 ? ' Consumer' : ' Consumers');
-      bHeader.querySelector('.bench-slider-val').textContent = isBounded ? 'Bounded (Ring Buffer)' : 'Unbounded (Segments)';
-
-      if (isBounded) {
-        bBoundedChip.classList.add('active');
-        bUnboundedChip.classList.remove('active');
-      } else {
-        bBoundedChip.classList.remove('active');
-        bUnboundedChip.classList.add('active');
-      }
-
-      resultCol.innerHTML = '';
-      const card = el('div', { class: 'bench-recommendation-card' });
-
-      let recTitle = '';
-      const recBadge = 'Recommended Primitive';
-      let recDesc = '';
-      let progress = '';
-      let memory = '';
-      let speedup = '';
-      let contention = '';
-
-      if (pCount === 1 && cCount === 1) {
-        if (isBounded) {
-          recTitle = 'newSpscQueue[T](capacity)';
-          recDesc = 'Optimal for single producer to single consumer (e.g. audio callbacks, GPU commands, network ingest). Zero atomic RMW overhead on fast path.';
-          progress = 'Wait-Free (Push & Pop)';
-          memory = 'Fixed ring buffer, 64-byte cache-line padded head/tail';
-          speedup = '~4x–5x vs channel';
-          contention = 'Zero contention (1P:1C)';
-        } else {
-          recTitle = 'newUnboundedSpscQueue[T]()';
-          recDesc = 'Wait-free single-producer single-consumer with dynamically linked segments. Never blocks on full.';
-          progress = 'Wait-Free Push / Pop';
-          memory = 'Segmented linked lists';
-          speedup = '~3x–4x vs channel';
-          contention = 'Zero contention (1P:1C)';
-        }
-      } else if (pCount > 1 && cCount === 1) {
-        if (isBounded) {
-          recTitle = 'newMpscQueue[T](capacity)';
-          recDesc = 'Multi-producer single-consumer funnel (e.g. logging aggregator, event collector). Lock-free CAS for producers, wait-free consumer.';
-          progress = 'Lock-Free Push / Wait-Free Pop';
-          memory = 'Fixed ring buffer with sequence counters';
-          speedup = '1.8x–3.7x vs system/Channel';
-          contention = pCount + 'P competing on head index';
-        } else {
-          recTitle = 'newUnboundedMpscQueue[T]()';
-          recDesc = 'Dynamic multi-producer single-consumer queue. Reclaims retired segment nodes safely via NEBR.';
-          progress = 'Lock-Free Push / Pop';
-          memory = 'Segmented linked chunks (NEBR)';
-          speedup = '1.5x–2.5x vs channel';
-          contention = pCount + 'P competing on head';
-        }
-      } else if (pCount === 1 && cCount > 1) {
-        if (isBounded) {
-          recTitle = 'newSpmcQueue[T](capacity)';
-          recDesc = 'Single-producer worker pool dispatcher. Wait-free producer avoids stalls when feeding worker threads.';
-          progress = 'Wait-Free Push / Lock-Free Pop';
-          memory = 'Fixed ring buffer with sequence counters';
-          speedup = 'Wait-free producer (stdlib has no SPMC)';
-          contention = cCount + 'C competing on tail index';
-        } else {
-          recTitle = 'newUnboundedSpmcQueue[T]()';
-          recDesc = 'Single-producer multi-consumer worker pool with unbounded capacity.';
-          progress = 'Wait-Free Push / Lock-Free Pop';
-          memory = 'Segmented linked chunks';
-          speedup = 'stdlib has no SPMC';
-          contention = cCount + 'C competing on tail';
-        }
-      } else {
-        if (isBounded) {
-          recTitle = 'newMpmcQueue[T](capacity)';
-          recDesc = 'General multi-producer multi-consumer work stealing & job processing. Bounded ring buffer with Vyukov turn counters.';
-          progress = 'Lock-Free (Push & Pop)';
-          memory = 'Cache-line aligned slots, power-of-2 capacity';
-          speedup = '9.0x–10.6x vs system/Channel (at 4p4c)';
-          contention = pCount + 'P / ' + cCount + 'C full concurrent contention';
-        } else {
-          recTitle = 'newUnboundedMpmcQueue[T]()';
-          recDesc = 'Strict LCRQ (Linked Concurrent Ring Queue) with NEBR epoch reclamation. High-throughput unbounded MPMC that never blocks on full.';
-          progress = 'Lock-Free (Strict LCRQ)';
-          memory = 'Ring buffer segments in linked list + NEBR manager';
-          speedup = '5.0x–6.5x vs system/Channel';
-          contention = pCount + 'P / ' + cCount + 'C double-word CAS contention';
-        }
-      }
-
-      card.appendChild(el('span', { class: 'bench-rec-badge' }, recBadge));
-      card.appendChild(el('div', { class: 'bench-rec-title' }, el('code', null, recTitle)));
-      card.appendChild(el('p', { class: 'bench-rec-desc' }, recDesc));
-
-      const specs = el('div', { class: 'bench-rec-specs' },
-        el('div', { class: 'bench-rec-spec-item' },
-          el('strong', null, 'Progress Guarantee'),
-          el('span', null, progress)
-        ),
-        el('div', { class: 'bench-rec-spec-item' },
-          el('strong', null, 'Contention Profile'),
-          el('span', null, contention)
-        ),
-        el('div', { class: 'bench-rec-spec-item' },
-          el('strong', null, 'Speedup vs stdlib'),
-          el('span', null, speedup)
-        ),
-        el('div', { class: 'bench-rec-spec-item' },
-          el('strong', null, 'Memory Layout'),
-          el('span', null, memory)
-        )
-      );
-      card.appendChild(specs);
-      resultCol.appendChild(card);
-    }
-
-    pInput.addEventListener('input', (e) => {
-      pCount = parseInt(e.target.value, 10);
-      updateRec();
-    });
-    cInput.addEventListener('input', (e) => {
-      cCount = parseInt(e.target.value, 10);
-      updateRec();
-    });
-    bBoundedChip.addEventListener('click', () => {
-      isBounded = true;
-      updateRec();
-    });
-    bUnboundedChip.addEventListener('click', () => {
-      isBounded = false;
-      updateRec();
-    });
-
-    grid.appendChild(inputsCol);
-    grid.appendChild(resultCol);
-    host.appendChild(grid);
-    updateRec();
-  }
-
   function rerenderCharts() {
     if (!_currentBmfResult || !_currentBmfResult.data) return;
     clearRegisteredCharts();
@@ -1786,8 +1912,7 @@
     const heroHost = document.getElementById('bench-hero');
     const statusHost = document.getElementById('bench-status');
     const toolbarHost = document.getElementById('bench-toolbar');
-    const recommenderHost = document.getElementById('bench-recommender');
-    const hasAnyHost = heroHost || toolbarHost || recommenderHost ||
+    const hasAnyHost = heroHost || toolbarHost ||
       THROUGHPUT_PANELS.some((p) => document.getElementById(p.id)) ||
       document.getElementById('bench-latency') ||
       document.getElementById('bench-rendezvous-latency') ||
@@ -1795,7 +1920,6 @@
     if (!hasAnyHost) return;
 
     if (toolbarHost) renderToolbar(toolbarHost);
-    if (recommenderHost) renderRecommender(recommenderHost);
 
     renderLatencyPanel(document.getElementById('bench-latency'), null, 'bench-latency');
     renderLatencyPanel(document.getElementById('bench-rendezvous-latency'), null, 'bench-rendezvous-latency');

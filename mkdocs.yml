@@ -104,6 +104,7 @@ nav:
       - Channels & Rendezvous: guide/channels.md
       - Rendezvous Dual-Queue: design/design_rendezvous_channel.md
       - Async Bridge: design/design_async_bridge.md
+      - Benchmarks: guide/channels/benchmarks.md
     - Maps & Sets:
       - Overview: guide/maps-sets.md
       - Concurrent Hash Trie (Ctrie): design/design_ctrie.md
@@ -115,7 +116,6 @@ nav:
     - Broadcast & Rendezvous:
       - Broadcast Ring & TopicBus: guide/broadcast.md
       - Broadcast Architecture: design/design_broadcast_ring.md
-      - Rendezvous Dual-Queue: design/design_rendezvous_channel.md
       - Broadcast Benchmarks: guide/broadcast/benchmarks.md
       - Rendezvous Benchmarks: guide/rendezvous/benchmarks.md
     - TaskPool:

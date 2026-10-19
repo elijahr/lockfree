@@ -451,6 +451,15 @@ class ChartContractTests(unittest.TestCase):
                 "bench-tokenbucket-contention",
                 "bench-streambuffer-throughput",
             ),
+            "channels": (
+                "bench-status",
+                "bench-throughput-mpmc-bounded",
+                "bench-throughput-mpmc-unbounded",
+                "bench-throughput-mpsc",
+                "bench-rendezvous-handoff",
+                "bench-rendezvous-rpc",
+                "bench-rendezvous-latency",
+            ),
             "rendezvous": (
                 "bench-status",
                 "bench-rendezvous-handoff",
@@ -854,6 +863,70 @@ class ChartContractTests(unittest.TestCase):
         self.assertFalse(
             uncovered_panels,
             f"declared THROUGHPUT_PANELS with zero matching topologies in example.json: {sorted(uncovered_panels)}",
+        )
+
+    def test_visual_overhaul_and_channels_portal_invariants(self) -> None:
+        """Verifies Task B visual and portal overhaul invariants:
+        - SPSC ranked bar chart (`buildRankedBarThroughputOption`)
+        - Explicit directionality badges (`Throughput: Higher is better ↑`
+          and `Latency: Lower is better ↓`)
+        - Latency units (`(ns)`) and mode toggle (ladder + grouped bars)
+        - Visual distinction for lockfree (`#6366f1`, `fontWeight: 'bold'`, `3` px line width)
+        - Complete removal of `renderRecommender` / `bench-recommender`
+        - Plain-English `docs/guide/queues/benchmarks.md` without soft-skip jargon
+        - `mkdocs.yml` includes `guide/channels/benchmarks.md` and has no duplicate
+          `design/design_rendezvous_channel.md` entry.
+        """
+        js_src = (REPO_ROOT / "docs" / "assets" / "bench-charts.js").read_text()
+        css_src = (REPO_ROOT / "docs" / "assets" / "bench-charts.css").read_text()
+        queues_md = (REPO_ROOT / "docs" / "guide" / "queues" / "benchmarks.md").read_text()
+        channels_md = (REPO_ROOT / "docs" / "guide" / "channels" / "benchmarks.md").read_text()
+        mkdocs_yml = (REPO_ROOT / "mkdocs.yml").read_text()
+
+        # (a) SPSC Ranked Bar Chart
+        self.assertIn("function buildRankedBarThroughputOption(", js_src)
+        self.assertIn("panelId === 'bench-throughput-spsc'", js_src)
+
+        # (b) Dynamic legend/axis bottom spacing
+        self.assertIn("Math.max(98, 58 + legendRows * 26)", js_src)
+
+        # (c) Directionality badges
+        self.assertIn("Throughput: Higher is better ↑", js_src)
+        self.assertIn("Latency: Lower is better ↓", js_src)
+        self.assertIn(".bench-direction-badge", css_src)
+
+        # (d) Latency units and percentile ladder / grouped bars toggle
+        self.assertIn("Latency percentile (ns)", js_src)
+        self.assertIn("' — Lower is better ↓'", js_src)
+        self.assertIn("Percentile Ladder", js_src)
+        self.assertIn("Grouped Bars", js_src)
+
+        # (e) Visual distinction for lockfree
+        self.assertIn("lockfree_spsc:           '#6366f1'", js_src)
+        self.assertIn("fontWeight: isLfq ? 'bold' : 'normal'", js_src)
+        self.assertIn("width: isLfq ? 3 : 2", js_src)
+
+        # (f) Complete removal of Estimator Tool (`renderRecommender` / `bench-recommender`)
+        self.assertNotIn("renderRecommender", js_src)
+        self.assertNotIn("bench-recommender", js_src)
+        self.assertNotIn("bench-recommender", css_src)
+        self.assertNotIn("bench-panel-recommender", css_src)
+        self.assertNotIn("bench-recommender", queues_md)
+
+        # Plain English & no soft-skip jargon in queues/benchmarks.md
+        self.assertNotIn("soft-skip", queues_md.lower())
+        self.assertIn("pthread_mutex_t", queues_md)
+
+        # Channels benchmarks content coverage
+        for contender in ("Channel[T]", "RendezvousChannel[T]", "crossbeam", "flume", "kanal", "system.Channel", "threading/channels"):
+            self.assertIn(contender, channels_md)
+
+        # mkdocs.yml navigation invariants
+        self.assertIn("guide/channels/benchmarks.md", mkdocs_yml)
+        self.assertEqual(
+            mkdocs_yml.count("design/design_rendezvous_channel.md"),
+            1,
+            "expected design/design_rendezvous_channel.md to appear once in mkdocs.yml",
         )
 
 

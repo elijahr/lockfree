@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Channels Benchmark Portal (`docs/guide/channels/benchmarks.md` & `mkdocs.yml`)**:
+  - Added dedicated interactive benchmark documentation comparing `Channel[T]` (bounded `ckBounded` and unbounded `ckUnbounded`) and `RendezvousChannel[T]` (0-buffer synchronous SSM dual-queue) against `crossbeam`, `flume`, `kanal`, `system.Channel`, and `threading/channels`.
+  - Updated `mkdocs.yml` navigation to include `Channels -> Benchmarks` and removed duplicate `Rendezvous Dual-Queue` entry.
+
+### Changed
+
+- **Interactive Benchmark Charts Overhaul (`docs/assets/bench-charts.js`, `docs/assets/bench-charts.css`, `docs/guide/queues/benchmarks.md`)**:
+  - Replaced single-point SPSC line graph with a ranked `bar` chart (`buildRankedBarThroughputOption`), fixed MPMC legend and X-axis label spacing (`bottomPx`), added explicit `Throughput: Higher is better ↑` and `Latency: Lower is better ↓` indicators, added `(ns)` latency units with `Percentile Ladder` / `Grouped Bars` toggle, applied bold `#6366f1` (`3px` line width) visual styling for `lockfree` contenders, removed the `renderRecommender` widget, and rewrote `docs/guide/queues/benchmarks.md` in plain English.
+
 ## [0.5.0] - 2026-10-18
 
 ### Added
