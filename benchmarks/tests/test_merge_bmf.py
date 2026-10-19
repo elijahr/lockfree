@@ -303,6 +303,92 @@ class MergeBmfTests(unittest.TestCase):
             zzz_section.find("throughput_ops_ms"),
         )
 
+    def test_meta_adapters_merged_across_fragments(self) -> None:
+        """Resolved adapter entries override build-without-* entries across fragments."""
+        a = self.dir / "a.json"
+        b = self.dir / "b.json"
+        write_json(a, {
+            "meta": {
+                "schema": 1,
+                "adapters": {
+                    "liblfds": {
+                        "version": None,
+                        "fingerprint": None,
+                        "kind": "vendored-version-macro",
+                        "status": "build-without-liblfds",
+                    },
+                    "loony": {
+                        "version": "0.3.1",
+                        "fingerprint": None,
+                        "kind": "nimble-resolved",
+                    },
+                },
+                "absent_adapters": ["liblfds"],
+            },
+            "lockfree_latency/spsc/1p1c": {
+                "latency_p50_ns": {"value": 250.0},
+            },
+        })
+        write_json(b, {
+            "meta": {
+                "schema": 1,
+                "adapters": {
+                    "liblfds": {
+                        "version": "7.1.1",
+                        "fingerprint": None,
+                        "kind": "vendored-version-macro",
+                    },
+                    "loony": {
+                        "version": "0.3.1",
+                        "fingerprint": None,
+                        "kind": "nimble-resolved",
+                    },
+                },
+                "absent_adapters": [],
+            },
+            "lockfree_spsc/spsc/1p1c": {
+                "throughput_ops_ms": {"value": 7400.0},
+            },
+        })
+        result = run_merge(str(self.out), str(a), str(b))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        merged = json.loads(self.out.read_text())
+        self.assertEqual(
+            merged["meta"]["adapters"]["liblfds"],
+            {
+                "version": "7.1.1",
+                "fingerprint": None,
+                "kind": "vendored-version-macro",
+            },
+        )
+        self.assertEqual(merged["meta"]["absent_adapters"], [])
+
+    def test_strips_legacy_bounded_aliases(self) -> None:
+        """Legacy duplicate lockfree_queue_bounded_* slugs are stripped during merge."""
+        inp = self.dir / "with_legacy.json"
+        write_json(inp, {
+            "lockfree_mpsc/mpsc/4p1c": {
+                "throughput_ops_ms": {"value": 8500.0},
+            },
+            "lockfree_queue_bounded_mpsc/mpsc/4p1c": {
+                "throughput_ops_ms": {"value": 8500.0},
+            },
+            "lockfreequeues_queue_bounded_spsc/spsc/1p1c": {
+                "throughput_ops_ms": {"value": 7400.0},
+            },
+        })
+        result = run_merge(str(self.out), str(inp))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        merged = json.loads(self.out.read_text())
+        self.assertEqual(
+            merged,
+            {
+                "lockfree_mpsc/mpsc/4p1c": {
+                    "throughput_ops_ms": {"value": 8500.0},
+                },
+            },
+        )
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

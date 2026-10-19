@@ -17,11 +17,6 @@
 import std/[options, os, parseopt, sets, strformat, syncio]
 import ./bench_common
 import ./adapters/lockfree_spsc_adapter
-# Consolidated Queue-based parity adapter.
-import ./adapters/queue_bounded_adapter
-import lockfree/strategy
-import lockfree/reclamation
-import lockfree/internal/pinscope_stub
 
 # Comparison adapters. Each is included only when its
 # `-d:adapter_<lib>_available` gate is set; absent gate yields no
@@ -80,19 +75,6 @@ proc initSpscQ(capacity: int): SpscAdapter[SpscCapacity, uint64] =
   doAssert capacity == SpscCapacity, "capacity must equal SpscCapacity"
   initSpscAdapter[SpscCapacity, uint64]()
 
-# Parallel factory via the consolidated
-# QueueBoundedAdapter at SPSC cardinality. Slug
-# `lockfree_queue_bounded_spsc/spsc/1p1c`. Output metric +
-# units (throughput_ops_ms) identical to the legacy spsc baseline
-# so parity tooling can compute a % delta directly.
-proc initQueueBoundedSpscQ(
-    capacity: int
-): QueueBoundedAdapter[ccSingle, ccSingle, stEager, SpscCapacity, 0, 0, uint64] =
-  doAssert capacity == SpscCapacity, "capacity must equal SpscCapacity"
-  makeQueueBoundedAdapter[ccSingle, ccSingle, stEager, SpscCapacity, 0, 0, uint64](
-    SpscCapacity
-  )
-
 when defined(adapter_boost_lockfree_spsc_available):
   proc initBoostSpscQ(capacity: int): BoostLockfreeSpscAdapter[uint64] =
     makeBoostLockfreeSpscAdapter[uint64](capacity)
@@ -119,7 +101,7 @@ when defined(adapter_liblfds_available):
 # MVP variants are added to SupportedVariants only when the matching
 # adapter symbol is in scope (i.e. its compile-time gate is set).
 proc supportedVariantsList(): seq[string] {.compileTime.} =
-  result = @["spsc", "queue_bounded_spsc"]
+  result = @["spsc"]
   when declared(initBoostSpscQ):
     result.add("boost_lockfree_spsc")
   when declared(initAtomicQueueQ):
@@ -168,36 +150,6 @@ proc runVariant(variant: string, em: var BMFEmitter) =
     echo fmt"{variant} ({slug}):"
     let metrics = runThroughputHarness[SpscAdapter[SpscCapacity, uint64]](
       queueInit = initSpscQ,
-      capacity = SpscCapacity,
-      numProducers = 1,
-      numConsumers = 1,
-      messageCount = BenchSpscMessageCount,
-      runCount = BenchSpscRuns,
-      warmupCount = BenchSpscWarmup,
-    )
-    echo fmt"  mean: {metrics.ops_ms_mean:.1f} ops/ms"
-    echo fmt"  stddev: {metrics.ops_ms_stddev:.1f}"
-    echo fmt"  runs: {metrics.runs}"
-    echo ""
-    em.addMeasure(
-      slug,
-      "throughput_ops_ms",
-      metrics.ops_ms_mean,
-      metrics.ops_ms_mean - metrics.ops_ms_stddev,
-      metrics.ops_ms_mean + metrics.ops_ms_stddev,
-    )
-  of "queue_bounded_spsc":
-    # Same shape as the `spsc` variant above, but
-    # backed by the unified `BQueue[T, ccSingle, ccSingle, stEager,
-    # rkNone, N, 0, 0, 0, 0]` generic via `QueueBoundedAdapter`. Slug +
-    # metric mirror so the parity delta is a simple per-shape division
-    # across the two emitted measures.
-    let slug = "lockfree_queue_bounded_spsc/spsc/1p1c"
-    echo fmt"{variant} ({slug}):"
-    let metrics = runThroughputHarness[
-      QueueBoundedAdapter[ccSingle, ccSingle, stEager, SpscCapacity, 0, 0, uint64]
-    ](
-      queueInit = initQueueBoundedSpscQ,
       capacity = SpscCapacity,
       numProducers = 1,
       numConsumers = 1,

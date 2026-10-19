@@ -929,6 +929,85 @@ class ChartContractTests(unittest.TestCase):
             "expected design/design_rendezvous_channel.md to appear once in mkdocs.yml",
         )
 
+    def test_harness_cardinality_and_adapter_completeness(self) -> None:
+        """Verifies Task A harness cardinality, adapter completeness, and canonical slug invariants."""
+        for fname in ("latest.json", "example.json"):
+            snap_path = REPO_ROOT / "docs" / "assets" / "bench-results" / fname
+            self.assertTrue(snap_path.is_file(), f"{fname} missing")
+            data = json.loads(snap_path.read_text(encoding="utf-8"))
+
+            # 1. Zero absent adapters; loony, boost_lockfree, liblfds, threading resolved
+            self.assertEqual(data["meta"]["absent_adapters"], [])
+            for req_adapter in ("loony", "boost_lockfree", "liblfds", "threading"):
+                entry = data["meta"]["adapters"][req_adapter]
+                self.assertIsNotNone(entry.get("version"), f"{req_adapter} version missing in {fname}")
+                self.assertEqual(entry.get("status"), None, f"{req_adapter} has error status in {fname}")
+
+            # 2. Negative control: zero legacy duplicate lockfree_queue_bounded_* slugs
+            legacy_slugs = [
+                k for k in data
+                if k.startswith(("lockfree_queue_bounded_", "lockfreequeues_queue_bounded_"))
+            ]
+            self.assertEqual(legacy_slugs, [])
+
+            # 3. Full MPMC bounded cardinality grid (1p1c..8p8c) across all 10 contenders
+            expected_mpmc_shapes = [
+                "1p1c", "1p2c", "1p4c",
+                "2p1c", "2p2c", "2p4c",
+                "4p1c", "4p2c", "4p4c",
+                "8p8c",
+            ]
+            for lib in (
+                "lockfree_mpmc",
+                "nim_channels",
+                "boost_lockfree_queue",
+                "crossbeam_array_queue",
+                "threading_channels",
+                "atomic_queue",
+                "rigtorp_mpmc",
+                "flume",
+                "kanal",
+                "liblfds",
+            ):
+                shapes = sorted(
+                    k.split("/")[2]
+                    for k in data
+                    if k.startswith(f"{lib}/mpmc/")
+                )
+                self.assertEqual(shapes, expected_mpmc_shapes, f"{lib}/mpmc shapes mismatch in {fname}")
+
+            # 4. Full MPMC unbounded cardinality grid (1p1c..8p8c) across all 6 contenders
+            for lib in (
+                "lockfree_unbounded_mpmc",
+                "loony",
+                "crossbeam_seg_queue",
+                "moodycamel",
+                "flume_unbounded",
+                "kanal_unbounded",
+            ):
+                shapes = sorted(
+                    k.split("/")[2]
+                    for k in data
+                    if k.startswith(f"{lib}/mpmc_unbounded/")
+                )
+                self.assertEqual(
+                    shapes, expected_mpmc_shapes, f"{lib}/mpmc_unbounded shapes mismatch in {fname}"
+                )
+
+            # 5. Full MPSC bounded and unbounded cardinality sweep (1p1c, 2p1c, 4p1c, 8p1c)
+            expected_mpsc_shapes = ["1p1c", "2p1c", "4p1c", "8p1c"]
+            for lib, topo in (
+                ("lockfree_mpsc", "mpsc"),
+                ("nim_channel", "mpsc"),
+                ("lockfree_unbounded_mpsc", "mpsc_unbounded"),
+            ):
+                shapes = sorted(
+                    k.split("/")[2]
+                    for k in data
+                    if k.startswith(f"{lib}/{topo}/")
+                )
+                self.assertEqual(shapes, expected_mpsc_shapes, f"{lib}/{topo} shapes mismatch in {fname}")
+
 
 if __name__ == "__main__":
     unittest.main()

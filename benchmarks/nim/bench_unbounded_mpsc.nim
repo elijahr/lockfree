@@ -166,6 +166,9 @@ proc runVariant(variant: string, em: var BMFEmitter) =
     runUMpscShape[4](
       em, UnboundedMpscRuns, BenchUnboundedWarmup, UnboundedMpscMessageCount
     )
+    runUMpscShape[8](
+      em, UnboundedMpscRuns, BenchUnboundedWarmup, UnboundedMpscMessageCount
+    )
   else:
     raise newException(ValueError, "unknown variant: " & variant)
 

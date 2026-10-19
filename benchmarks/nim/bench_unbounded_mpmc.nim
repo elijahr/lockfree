@@ -58,7 +58,7 @@ const
   BenchUnboundedWarmup* {.intdefine.} = 2
 
   SegmentSize = 64
-  MaxThreads = 16
+  MaxThreads = 32
 
 when defined(BenchUnboundedTestCompileTime):
   static:
@@ -100,10 +100,10 @@ proc umpmcProducerThread[S: static int, T; MaxT: static int](
   {.cast(gcsafe).}:
     var producer = ctx.queue[].getProducerHere()
     # Register this producer's debra handle on its own thread.
-    # No try/except around `attach()`: `MaxT == MaxThreads == 16` (see
+    # No try/except around `attach()`: `MaxT == MaxThreads == 32` (see
     # the top-of-file constant) bounds the registration capacity above
-    # the largest shape this binary exercises (`4p4c` + main + consumer
-    # threads = 9 attach() calls), so `DebraRegistrationError` is
+    # the largest shape this binary exercises (`8p8c` + main + consumer
+    # threads = 17 attach() calls), so `DebraRegistrationError` is
     # unreachable here by construction.
     when defined(benchProgress):
       var pushed = 0
@@ -120,7 +120,7 @@ proc umpmcConsumerThread[S: static int, T; MaxT: static int](
   {.cast(gcsafe).}:
     var consumer = ctx.queue[].getConsumerHere()
     # Register this consumer's debra handle on its own thread. Same
-    # `MaxT == 16` rationale as the producer thread above: no
+    # `MaxT == 32` rationale as the producer thread above: no
     # try/except is needed because debra registration exhaustion is
     # unreachable for the shapes this binary exercises.
     var local = 0
@@ -333,6 +333,9 @@ proc runVariant(variant: string, em: var BMFEmitter) =
       runUMpmcShape[4, 4](
         em, UnboundedMpmcRuns, BenchUnboundedWarmup, UnboundedMpmcMessageCount
       )
+      runUMpmcShape[8, 8](
+        em, UnboundedMpmcRuns, BenchUnboundedWarmup, UnboundedMpmcMessageCount
+      )
   else:
     when declared(initLoonyQ):
       if variant == "loony":
@@ -342,6 +345,10 @@ proc runVariant(variant: string, em: var BMFEmitter) =
               em, "loony", initLoonyQ, p, c, UnboundedMpmcRuns, BenchUnboundedWarmup,
               UnboundedMpmcMessageCount,
             )
+        runMvpUnboundedShape[LoonyAdapter[uint64]](
+          em, "loony", initLoonyQ, 8, 8, UnboundedMpmcRuns, BenchUnboundedWarmup,
+          UnboundedMpmcMessageCount,
+        )
         return
     when declared(initCrossbeamSegQ):
       if variant == "crossbeam_seg_queue":
@@ -351,6 +358,10 @@ proc runVariant(variant: string, em: var BMFEmitter) =
               em, "crossbeam_seg_queue", initCrossbeamSegQ, p, c, UnboundedMpmcRuns,
               BenchUnboundedWarmup, UnboundedMpmcMessageCount,
             )
+        runMvpUnboundedShape[CrossbeamSegQueueAdapter[uint64]](
+          em, "crossbeam_seg_queue", initCrossbeamSegQ, 8, 8, UnboundedMpmcRuns,
+          BenchUnboundedWarmup, UnboundedMpmcMessageCount,
+        )
         return
     when declared(initMoodycamelQ):
       if variant == "moodycamel":
@@ -360,6 +371,10 @@ proc runVariant(variant: string, em: var BMFEmitter) =
               em, "moodycamel", initMoodycamelQ, p, c, UnboundedMpmcRuns,
               BenchUnboundedWarmup, UnboundedMpmcMessageCount,
             )
+        runMvpUnboundedShape[MoodycamelAdapter[uint64]](
+          em, "moodycamel", initMoodycamelQ, 8, 8, UnboundedMpmcRuns,
+          BenchUnboundedWarmup, UnboundedMpmcMessageCount,
+        )
         return
     when declared(initFlumeUnboundedQ):
       if variant == "flume_unbounded":
@@ -369,6 +384,10 @@ proc runVariant(variant: string, em: var BMFEmitter) =
               em, "flume_unbounded", initFlumeUnboundedQ, p, c, UnboundedMpmcRuns,
               BenchUnboundedWarmup, UnboundedMpmcMessageCount,
             )
+        runMvpUnboundedShape[FlumeUnboundedAdapter[uint64]](
+          em, "flume_unbounded", initFlumeUnboundedQ, 8, 8, UnboundedMpmcRuns,
+          BenchUnboundedWarmup, UnboundedMpmcMessageCount,
+        )
         return
     when declared(initKanalUnboundedQ):
       if variant == "kanal_unbounded":
@@ -378,6 +397,10 @@ proc runVariant(variant: string, em: var BMFEmitter) =
               em, "kanal_unbounded", initKanalUnboundedQ, p, c, UnboundedMpmcRuns,
               BenchUnboundedWarmup, UnboundedMpmcMessageCount,
             )
+        runMvpUnboundedShape[KanalUnboundedAdapter[uint64]](
+          em, "kanal_unbounded", initKanalUnboundedQ, 8, 8, UnboundedMpmcRuns,
+          BenchUnboundedWarmup, UnboundedMpmcMessageCount,
+        )
         return
     raise newException(ValueError, "unknown variant: " & variant)
 

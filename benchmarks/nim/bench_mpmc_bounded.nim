@@ -207,100 +207,6 @@ proc runMpmcShape[N, P, C: static int, T](
   echo ""
   em.addMeasure(slug, "throughput_ops_ms", m, m - s, m + s)
 
-# ---------- BQueue ccMulti x ccMulti harness ----------
-#
-# Slug `lockfree_queue_bounded_mpmc/mpmc/<P>p<C>c`. Output
-# metric / units (throughput_ops_ms) match the legacy Mpmc baseline.
-
-type
-  QBoundedMpmcProducerCtx[N, P, C: static int, T] = object
-    producer: Bound[T, AnyThreadTag, BQueue[T, ccMulti, ccMulti, N, P, C]]
-    startIdx: int
-    count: int
-
-  QBoundedMpmcConsumerCtx[N, P, C: static int, T] = object
-    consumer: Bound[T, AnyThreadTag, BQueue[T, ccMulti, ccMulti, N, P, C]]
-    count: int
-
-proc qBoundedMpmcProducerThread[N, P, C: static int, T](
-    ctx: ptr QBoundedMpmcProducerCtx[N, P, C, T]
-) {.thread.} =
-  for i in ctx.startIdx ..< ctx.startIdx + ctx.count:
-    while not ctx.producer.push(T(i)):
-      benchBackoffOnPeerWait()
-
-proc qBoundedMpmcConsumerThread[N, P, C: static int, T](
-    ctx: ptr QBoundedMpmcConsumerCtx[N, P, C, T]
-) {.thread.} =
-  var local = 0
-  while local < ctx.count:
-    let item = ctx.consumer.pop()
-    if item.isSome:
-      inc local
-    else:
-      benchBackoffOnPeerWait()
-
-proc runOneQBoundedMpmcRun[N, P, C: static int, T](
-    queue: var BQueue[T, ccMulti, ccMulti, N, P, C], messageCount: int
-): float =
-  let baseP = messageCount div P
-  let remP = messageCount mod P
-  let baseC = messageCount div C
-  let remC = messageCount mod C
-  var producerThreads: array[P, Thread[ptr QBoundedMpmcProducerCtx[N, P, C, T]]]
-  var consumerThreads: array[C, Thread[ptr QBoundedMpmcConsumerCtx[N, P, C, T]]]
-  var producerCtxs: array[P, QBoundedMpmcProducerCtx[N, P, C, T]]
-  var consumerCtxs: array[C, QBoundedMpmcConsumerCtx[N, P, C, T]]
-  var nextStart = 0
-  for i in 0 ..< P:
-    let count = baseP + (if i < remP: 1 else: 0)
-    producerCtxs[i] = QBoundedMpmcProducerCtx[N, P, C, T](
-      producer: queue.getProducerHere(idx = i), startIdx: nextStart, count: count
-    )
-    nextStart += count
-  for i in 0 ..< C:
-    let count = baseC + (if i < remC: 1 else: 0)
-    consumerCtxs[i] = QBoundedMpmcConsumerCtx[N, P, C, T](
-      consumer: queue.getConsumerHere(idx = i), count: count
-    )
-  let startTime = getMonoTime()
-  for i in 0 ..< P:
-    createThread(
-      producerThreads[i], qBoundedMpmcProducerThread[N, P, C, T], addr producerCtxs[i]
-    )
-  for i in 0 ..< C:
-    createThread(
-      consumerThreads[i], qBoundedMpmcConsumerThread[N, P, C, T], addr consumerCtxs[i]
-    )
-  for i in 0 ..< P:
-    joinThread(producerThreads[i])
-  for i in 0 ..< C:
-    joinThread(consumerThreads[i])
-  let elapsedNs = float(inNanoseconds(getMonoTime() - startTime))
-  if elapsedNs <= 0.0:
-    return 0.0
-  result = float(messageCount) * 1_000_000.0 / elapsedNs
-
-proc runQBoundedMpmcShape[N, P, C: static int, T](
-    em: var BMFEmitter, runs, warmup, messageCount: int
-) =
-  let slug = "lockfree_queue_bounded_mpmc/mpmc/" & $P & "p" & $C & "c"
-  echo fmt"QueueBoundedMpmc {P}p{C}c ({slug}):"
-  for _ in 0 ..< warmup:
-    var q = q_mod.newBQueue[T, ccMulti, ccMulti, N, P, C]()
-    discard runOneQBoundedMpmcRun(q, messageCount)
-  var samples: seq[float] = @[]
-  for _ in 0 ..< runs:
-    var q = q_mod.newBQueue[T, ccMulti, ccMulti, N, P, C]()
-    samples.add(runOneQBoundedMpmcRun(q, messageCount))
-  let m = mean(samples)
-  let s = stddev(samples)
-  echo fmt"  mean: {m:.1f} ops/ms"
-  echo fmt"  stddev: {s:.1f}"
-  echo fmt"  runs: {samples.len}"
-  echo ""
-  em.addMeasure(slug, "throughput_ops_ms", m, m - s, m + s)
-
 # ---------- Channels harness (uses runThroughputHarness) ----------
 
 proc initChannelsQ(capacity: int): ChannelsAdapter[uint64] =
@@ -332,8 +238,8 @@ proc runChannelsShape(em: var BMFEmitter, p, c: int, runs, warmup, messageCount:
 # ---------- MVP adapter dispatch (boost MPMC + crossbeam ArrayQueue) ----------
 #
 # Both MVP adapters expose push/pop directly so they go through
-# runThroughputHarness; the {1,2,4}p x {1,2,4}c grid keeps shape parity
-# with the lockfree mpmc baseline (≥ 9 shapes per design 2.4).
+# runThroughputHarness; the {1,2,4}p x {1,2,4}c grid + 8p8c keeps shape parity
+# with the lockfree mpmc baseline.
 
 when defined(adapter_boost_lockfree_queue_available):
   proc initBoostMpmcQ(capacity: int): BoostLockfreeQueueAdapter[uint64] =
@@ -402,7 +308,7 @@ proc runMvpMpmcShape[A](
 # ---------- Variant dispatch ----------
 
 proc supportedVariantsList(): seq[string] {.compileTime.} =
-  result = @["mpmc", "queue_bounded_mpmc", "channels"]
+  result = @["mpmc", "channels"]
   when declared(initBoostMpmcQ):
     result.add("boost_lockfree_queue")
   when declared(initCrossbeamArrayQ):
@@ -458,44 +364,15 @@ proc runVariant(variant: string, em: var BMFEmitter) =
     runMpmcShape[MpmcCapacity, 8, 8, uint64](
       em, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
     )
-  of "queue_bounded_mpmc":
-    # Queue parity harness for the full Mpmc shape set.
-    runQBoundedMpmcShape[MpmcCapacity, 1, 1, uint64](
-      em, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
-    )
-    runQBoundedMpmcShape[MpmcCapacity, 1, 2, uint64](
-      em, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
-    )
-    runQBoundedMpmcShape[MpmcCapacity, 1, 4, uint64](
-      em, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
-    )
-    runQBoundedMpmcShape[MpmcCapacity, 2, 1, uint64](
-      em, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
-    )
-    runQBoundedMpmcShape[MpmcCapacity, 2, 2, uint64](
-      em, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
-    )
-    runQBoundedMpmcShape[MpmcCapacity, 2, 4, uint64](
-      em, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
-    )
-    runQBoundedMpmcShape[MpmcCapacity, 4, 1, uint64](
-      em, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
-    )
-    runQBoundedMpmcShape[MpmcCapacity, 4, 2, uint64](
-      em, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
-    )
-    runQBoundedMpmcShape[MpmcCapacity, 4, 4, uint64](
-      em, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
-    )
-    runQBoundedMpmcShape[MpmcCapacity, 8, 8, uint64](
-      em, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
-    )
   of "channels":
     for p in [1, 2, 4]:
       for c in [1, 2, 4]:
         runChannelsShape(
           em, p, c, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
         )
+    runChannelsShape(
+      em, 8, 8, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
+    )
   else:
     when declared(initBoostMpmcQ):
       if variant == "boost_lockfree_queue":
@@ -505,6 +382,10 @@ proc runVariant(variant: string, em: var BMFEmitter) =
               em, "boost_lockfree_queue", initBoostMpmcQ, p, c, BenchMpmcRuns,
               BenchMpmcWarmup, BenchMpmcMessageCount, MpmcCapacity,
             )
+        runMvpMpmcShape[BoostLockfreeQueueAdapter[uint64]](
+          em, "boost_lockfree_queue", initBoostMpmcQ, 8, 8, BenchMpmcRuns,
+          BenchMpmcWarmup, BenchMpmcMessageCount, MpmcCapacity,
+        )
         return
     when declared(initCrossbeamArrayQ):
       if variant == "crossbeam_array_queue":
@@ -514,6 +395,10 @@ proc runVariant(variant: string, em: var BMFEmitter) =
               em, "crossbeam_array_queue", initCrossbeamArrayQ, p, c, BenchMpmcRuns,
               BenchMpmcWarmup, BenchMpmcMessageCount, MpmcCapacity,
             )
+        runMvpMpmcShape[CrossbeamArrayQueueAdapter[uint64]](
+          em, "crossbeam_array_queue", initCrossbeamArrayQ, 8, 8, BenchMpmcRuns,
+          BenchMpmcWarmup, BenchMpmcMessageCount, MpmcCapacity,
+        )
         return
     when declared(initThreadingChannelsQ):
       if variant == "threading_channels":
@@ -523,6 +408,10 @@ proc runVariant(variant: string, em: var BMFEmitter) =
               em, "threading_channels", initThreadingChannelsQ, p, c, BenchMpmcRuns,
               BenchMpmcWarmup, BenchMpmcMessageCount, MpmcCapacity,
             )
+        runMvpMpmcShape[ThreadingChannelsAdapter[uint64]](
+          em, "threading_channels", initThreadingChannelsQ, 8, 8, BenchMpmcRuns,
+          BenchMpmcWarmup, BenchMpmcMessageCount, MpmcCapacity,
+        )
         return
     when declared(initAtomicQueueMpmcQ):
       if variant == "atomic_queue":
@@ -532,6 +421,10 @@ proc runVariant(variant: string, em: var BMFEmitter) =
               em, "atomic_queue", initAtomicQueueMpmcQ, p, c, BenchMpmcRuns,
               BenchMpmcWarmup, BenchMpmcMessageCount, MpmcCapacity,
             )
+        runMvpMpmcShape[AtomicQueueAdapter[uint64]](
+          em, "atomic_queue", initAtomicQueueMpmcQ, 8, 8, BenchMpmcRuns,
+          BenchMpmcWarmup, BenchMpmcMessageCount, MpmcCapacity,
+        )
         return
     when declared(initRigtorpMpmcQ):
       if variant == "rigtorp_mpmc":
@@ -541,6 +434,10 @@ proc runVariant(variant: string, em: var BMFEmitter) =
               em, "rigtorp_mpmc", initRigtorpMpmcQ, p, c, BenchMpmcRuns,
               BenchMpmcWarmup, BenchMpmcMessageCount, MpmcCapacity,
             )
+        runMvpMpmcShape[RigtorpMpmcAdapter[uint64]](
+          em, "rigtorp_mpmc", initRigtorpMpmcQ, 8, 8, BenchMpmcRuns,
+          BenchMpmcWarmup, BenchMpmcMessageCount, MpmcCapacity,
+        )
         return
     when declared(initFlumeMpmcQ):
       if variant == "flume":
@@ -550,6 +447,10 @@ proc runVariant(variant: string, em: var BMFEmitter) =
               em, "flume", initFlumeMpmcQ, p, c, BenchMpmcRuns, BenchMpmcWarmup,
               BenchMpmcMessageCount, MpmcCapacity,
             )
+        runMvpMpmcShape[FlumeAdapter[uint64]](
+          em, "flume", initFlumeMpmcQ, 8, 8, BenchMpmcRuns, BenchMpmcWarmup,
+          BenchMpmcMessageCount, MpmcCapacity,
+        )
         return
     when declared(initKanalMpmcQ):
       if variant == "kanal":
@@ -559,17 +460,24 @@ proc runVariant(variant: string, em: var BMFEmitter) =
               em, "kanal", initKanalMpmcQ, p, c, BenchMpmcRuns, BenchMpmcWarmup,
               BenchMpmcMessageCount, MpmcCapacity,
             )
+        runMvpMpmcShape[KanalAdapter[uint64]](
+          em, "kanal", initKanalMpmcQ, 8, 8, BenchMpmcRuns, BenchMpmcWarmup,
+          BenchMpmcMessageCount, MpmcCapacity,
+        )
         return
     when declared(initLiblfdsMpmcQ):
       if variant == "liblfds":
-        # Impl plan slug grid: liblfds/mpmc/{1,2,4}p{1,2,4}c (the same
-        # 9-shape grid every other MVP MPMC adapter emits).
+        # Impl plan slug grid: liblfds/mpmc/{1,2,4}p{1,2,4}c + 8p8c.
         for p in [1, 2, 4]:
           for c in [1, 2, 4]:
             runMvpMpmcShape[LiblfdsAdapter[uint64]](
               em, "liblfds", initLiblfdsMpmcQ, p, c, BenchMpmcRuns, BenchMpmcWarmup,
               BenchMpmcMessageCount, MpmcCapacity,
             )
+        runMvpMpmcShape[LiblfdsAdapter[uint64]](
+          em, "liblfds", initLiblfdsMpmcQ, 8, 8, BenchMpmcRuns, BenchMpmcWarmup,
+          BenchMpmcMessageCount, MpmcCapacity,
+        )
         return
     raise newException(ValueError, "unknown variant: " & variant)
 

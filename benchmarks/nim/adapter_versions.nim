@@ -288,10 +288,56 @@ const KanalCdylibLinked =
 
 # ---------- Nimble-resolved adapters ----------
 
+proc parseNimbleVersionFromSegment(segment, prefix: string): string =
+  if not segment.startsWith(prefix):
+    return ""
+  let afterPrefix = segment[prefix.len .. ^1]
+  # `<version>-<hash>` (pkgs2) or `<version>` (pkgs). Split on the last
+  # hyphen iff what follows looks like a hex hash (>= 8 hex chars).
+  let lastDash = afterPrefix.rfind('-')
+  if lastDash > 0:
+    let tail = afterPrefix[lastDash + 1 .. ^1]
+    var hexLike = tail.len >= 8
+    if hexLike:
+      for ch in tail:
+        if ch notin {'0' .. '9', 'a' .. 'f', 'A' .. 'F'}:
+          hexLike = false
+          break
+    if hexLike:
+      return afterPrefix[0 ..< lastDash]
+  return afterPrefix
+
+proc scanNimblePkgDirs(pkgName: string): string =
+  ## Fallback scan of `$NIMBLE_DIR/pkgs2` and `$NIMBLE_DIR/pkgs` (defaulting
+  ## to `~/.nimble`) when `nimble path <pkg>` is unavailable or fails.
+  let prefix = pkgName & "-"
+  let nimbleBase = getEnv("NIMBLE_DIR", getHomeDir() / ".nimble")
+  for sub in ["pkgs2", "pkgs"]:
+    let dirPath = nimbleBase / sub
+    if not dirExists(dirPath):
+      continue
+    var matches: seq[string] = @[]
+    for kind, path in walkDir(dirPath):
+      if kind in {pcDir, pcLinkToDir}:
+        let base = path.extractFilename()
+        if base.startsWith(prefix):
+          matches.add(base)
+    if matches.len > 0:
+      # Walk in lexical order and pick the last match (latest version).
+      var best = matches[0]
+      for m in matches:
+        if m > best:
+          best = m
+      let ver = parseNimbleVersionFromSegment(best, prefix)
+      if ver.len > 0:
+        return ver
+  return ""
+
 proc getNimbleResolvedVersion(pkgName: string): string =
   ## Best-effort resolve of a nimble-managed package's version via
-  ## `nimble path <pkg>`. The resolved path conventionally embeds the
-  ## version (`.../pkgs2/<name>-<version>-<hash>` or `.../pkgs/<name>-<version>`);
+  ## `nimble path <pkg>`, falling back to scanning `~/.nimble/pkgs2`.
+  ## The resolved path conventionally embeds the version
+  ## (`.../pkgs2/<name>-<version>-<hash>` or `.../pkgs/<name>-<version>`);
   ## we parse the last hyphenated segment that looks like a version.
   ##
   ## Returns "" on any failure (binary not on PATH, package absent,
@@ -301,71 +347,41 @@ proc getNimbleResolvedVersion(pkgName: string): string =
   ## Defensive: `osproc.execCmdEx` may itself throw on platforms where
   ## the runtime cannot fork (rare; e.g. some heavily sandboxed CI).
   ## Wrap in try/except so a missing nimble never crashes the bench.
+  let prefix = pkgName & "-"
   try:
-    # quoteShell escapes pkgName before concatenation. Today's call sites
-    # pass safe literals ("loony", "threading"), but quoting future-proofs
-    # the helper against any caller passing a dynamic or unusual package
-    # name without re-validating this site.
     let (output, exitCode) = execCmdEx(
       "nimble path " & quoteShell(pkgName), options = {poUsePath, poStdErrToStdOut}
     )
-    if exitCode != 0:
-      return ""
-    # `nimble path <pkg>` may print diagnostic `Info: ...` lines either
-    # before OR after the actual path (the ordering has shifted across
-    # nimble releases, and some `Info:` lines themselves contain
-    # slashes, e.g. `Info: Using the environment variable:
-    # NIMBLE_DIR=/home/.../.nimble`). The reliable signal is not the
-    # line position but the shape: a real package path's basename
-    # starts with `<pkgName>-`. Walk all slash-bearing lines and pick
-    # the first whose trailing segment matches that prefix. Returns
-    # "" if no line qualifies.
-    let prefix = pkgName & "-"
-    var path = ""
-    for line in output.splitLines:
-      # Whitespace strip first; then strip trailing path separators
-      #: some nimble versions / platforms emit
-      # a trailing `/` or `\` on the path line, which would otherwise
-      # leave the basename empty and miss the `<pkg>-` prefix match.
-      var stripped = line.strip()
-      stripped = stripped.strip(chars = {'/', '\\'}, leading = false)
-      if stripped.len == 0:
-        continue
-      if '/' notin stripped and '\\' notin stripped:
-        continue
-      let lastSlash = max(stripped.rfind('/'), stripped.rfind('\\'))
-      let basename =
-        if lastSlash >= 0:
-          stripped[lastSlash + 1 .. ^1]
-        else:
-          stripped
-      if basename.startsWith(prefix):
-        path = stripped
-        break
-    if path.len == 0:
-      return ""
-    # Extract the trailing path segment, then strip a leading "<pkg>-".
-    var segment = path
-    let lastSlash2 = max(segment.rfind('/'), segment.rfind('\\'))
-    if lastSlash2 >= 0:
-      segment = segment[lastSlash2 + 1 .. ^1]
-    if not segment.startsWith(prefix):
-      return ""
-    let afterPrefix = segment[prefix.len .. ^1]
-    # `<version>-<hash>` (pkgs2) or `<version>` (pkgs). Split on the last
-    # hyphen iff what follows looks like a hex hash (>= 8 hex chars).
-    let lastDash = afterPrefix.rfind('-')
-    if lastDash > 0:
-      let tail = afterPrefix[lastDash + 1 .. ^1]
-      var hexLike = tail.len >= 8
-      if hexLike:
-        for ch in tail:
-          if ch notin {'0' .. '9', 'a' .. 'f', 'A' .. 'F'}:
-            hexLike = false
-            break
-      if hexLike:
-        return afterPrefix[0 ..< lastDash]
-    return afterPrefix
+    if exitCode == 0:
+      var path = ""
+      for line in output.splitLines:
+        var stripped = line.strip()
+        stripped = stripped.strip(chars = {'/', '\\'}, leading = false)
+        if stripped.len == 0:
+          continue
+        if '/' notin stripped and '\\' notin stripped:
+          continue
+        let lastSlash = max(stripped.rfind('/'), stripped.rfind('\\'))
+        let basename =
+          if lastSlash >= 0:
+            stripped[lastSlash + 1 .. ^1]
+          else:
+            stripped
+        if basename.startsWith(prefix):
+          path = stripped
+          break
+      if path.len > 0:
+        var segment = path
+        let lastSlash2 = max(segment.rfind('/'), segment.rfind('\\'))
+        if lastSlash2 >= 0:
+          segment = segment[lastSlash2 + 1 .. ^1]
+        let ver = parseNimbleVersionFromSegment(segment, prefix)
+        if ver.len > 0:
+          return ver
+  except CatchableError:
+    discard
+  try:
+    return scanNimblePkgDirs(pkgName)
   except CatchableError:
     return ""
 

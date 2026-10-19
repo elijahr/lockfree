@@ -16,7 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Interactive Benchmark Charts Overhaul (`docs/assets/bench-charts.js`, `docs/assets/bench-charts.css`, `docs/guide/queues/benchmarks.md`)**:
-  - Replaced single-point SPSC line graph with a ranked `bar` chart (`buildRankedBarThroughputOption`), fixed MPMC legend and X-axis label spacing (`bottomPx`), added explicit `Throughput: Higher is better ↑` and `Latency: Lower is better ↓` indicators, added `(ns)` latency units with `Percentile Ladder` / `Grouped Bars` toggle, applied bold `#6366f1` (`3px` line width) visual styling for `lockfree` contenders, removed the `renderRecommender` widget, and rewrote `docs/guide/queues/benchmarks.md` in plain English.
+  - Replaced single-point SPSC line graph with a ranked `bar` chart (`buildRankedBarThroughputOption`), fixed MPMC legend and X-axis label spacing (`bottomPx`), added explicit `Throughput: Higher is better ↑` and `Latency: Lower is better ↓` indicators, added `(ns)` latency units with `Percentile Ladder` / `Grouped Bars` toggle, applied bold `#6366f1` (`3px` line width) for `lockfree` contenders, removed the `renderRecommender` widget, and rewrote `docs/guide/queues/benchmarks.md` in plain English.
+- **Benchmark Harness Cardinality Expansion & Adapter Completeness (`benchmarks/runner.py`, `benchmarks/merge_bmf.py`, `benchmarks/nim/bench_*.nim`, `docs/assets/bench-results/*.json`)**:
+  - Enabled `loony` (`v0.3.1`) in `benchmarks/runner.py` (`--path:<loony_dir>/loony/utils` and `-d:adapter_loony_available`) and added Nimble package directory fallback resolution in `benchmarks/nim/adapter_versions.nim` and cross-fragment `meta.adapters` union in `benchmarks/merge_bmf.py` (`meta.absent_adapters: []`).
+  - Expanded MPMC bounded (`bench_mpmc_bounded.nim`, 10 contenders) and MPMC unbounded (`bench_unbounded_mpmc.nim`, 6 contenders) cardinality sweeps through `8p8c` (`1p1c, 2p2c, 4p4c, 8p8c`), and expanded MPSC bounded (`bench_mpsc.nim`) and unbounded (`bench_unbounded_mpsc.nim`) sweeps through `8p1c` (`1p1c, 2p1c, 4p1c, 8p1c`).
+  - Canonicalized bounded queue benchmark slugs (`lockfree_spsc`, `lockfree_spmc`, `lockfree_mpsc`, `lockfree_mpmc`) by removing duplicate `lockfree_queue_bounded_*` parity aliases and deleting `benchmarks/nim/adapters/queue_bounded_adapter.nim`.
+  - Refreshed `docs/assets/bench-results/latest.json` and `docs/assets/bench-results/example.json` with full 486-key empirical benchmark data across all 16 adapters.
 
 ## [0.5.0] - 2026-10-18
 

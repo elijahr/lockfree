@@ -57,11 +57,9 @@ proc makeLockfreeMpscAdapter*[N, P: static int, T](
   # firing on the (zero-filled but typestate-untracked) heap slot under
   # ARC/ORC — the prior `wasMoved(result.queue[]) ; result.queue[] = ...`
   # form was undefined behavior because `wasMoved` requires a properly
-  # initialized destination. See `queue_bounded_adapter.nim` for the
-  # canonical example; this is the ARC/ORC-correct form gemini's review
-  # surfaced. The producer view is acquired AFTER copyMem completes so
-  # the queue is fully initialized in `result.queue[]` before the view
-  # borrows into it.
+  # initialized destination. The producer view is acquired AFTER copyMem
+  # completes so the queue is fully initialized in `result.queue[]` before
+  # the view borrows into it.
   var tmp = newBQueue[T, ccMulti, ccSingle, N, P, 0]()
   copyMem(result.queue, addr tmp, sizeof(MpscQueue[N, P, T]))
   wasMoved(tmp)

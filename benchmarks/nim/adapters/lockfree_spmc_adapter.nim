@@ -68,11 +68,9 @@ proc makeLockfreeSpmcAdapter*[N, C: static int, T](
   # firing on the (zero-filled but typestate-untracked) heap slot under
   # ARC/ORC — the prior `wasMoved(result.queue[]) ; result.queue[] = ...`
   # form was undefined behavior because `wasMoved` requires a properly
-  # initialized destination. See `queue_bounded_adapter.nim` for the
-  # canonical example; this is the ARC/ORC-correct form gemini's review
-  # surfaced. The consumer view is acquired AFTER copyMem completes so
-  # the queue is fully initialized in `result.queue[]` before the view
-  # borrows into it.
+  # initialized destination. The consumer view is acquired AFTER copyMem
+  # completes so the queue is fully initialized in `result.queue[]` before
+  # the view borrows into it.
   var tmp = newBQueue[T, ccSingle, ccMulti, N, 0, C]()
   copyMem(result.queue, addr tmp, sizeof(SpmcQueue[N, C, T]))
   wasMoved(tmp)
