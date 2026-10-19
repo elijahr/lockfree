@@ -70,6 +70,7 @@ Safe Memory Reclamation (SMR) solves this by deferring physical deallocation unt
 <div markdown="0">
   <div id="bench-smr-latency" class="bench-panel"></div>
 
-  <script src="../../../assets/echarts-5.5.1.min.js"></script>
+  <script src="../../../assets/d3-7.9.0.min.js"></script>
+  <script src="../../../assets/plot-0.6.17.umd.min.js"></script>
   <script src="../../../assets/bench-charts.js"></script>
 </div>

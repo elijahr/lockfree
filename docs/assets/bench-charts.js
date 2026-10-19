@@ -1,47 +1,29 @@
-/* lockfreequeues bench charts — ECharts wiring for docs/benchmarks.md.
+/* lockfree bench charts — Observable Plot (@observablehq/plot) pure SVG engine.
  *
  * Loads the merged Bencher Metric Format (BMF) snapshot from
- * `../assets/bench-results/latest.json` — page lives at
- * `/<version>/benchmarks/` under mike + mkdocs `use_directory_urls`,
- * so we go up one level to reach `/<version>/assets/`. The same
- * relative path works under /dev/, /latest/, and /v*\/ aliases.
+ * `../assets/bench-results/latest.json` (with fallback to `example.json`).
  *
- * Rendering: Apache ECharts 5.x via CDN. We use the `dark` theme as a
- * baseline and override foreground/background/grid colors with the
- * mkdocs Material palette CSS variables so the charts pick up both
- * dark and light schemes. We listen for the Material color-scheme
- * attribute on `<body>` and re-paint when it flips.
+ * Rendering: Observable Plot 0.6.17 + D3 7.9.0 (vendored UMD bundles).
+ * Renders responsive, pure-SVG figures with automatic flow legends and
+ * margins that inherit Material for MkDocs CSS variables for instant
+ * light/dark theme switching and zero axis/legend overlap.
  *
  * Page architecture (multi-panel):
- *   #bench-hero                       — ECharts horizontal bar at a
- *                                       canonical shape (lfq vs alts)
- *   #bench-throughput-spsc            — line chart, SPSC topology
- *   #bench-throughput-mpsc            — line chart, MPSC topology
- *   #bench-throughput-mpmc-bounded    — line chart, MPMC bounded
- *   #bench-throughput-mpmc-unbounded  — line chart, MPMC unbounded
- *   #bench-latency                    — line chart, percentile ladder
- *   #bench-status                     — banner injected on fallback
- *
- * Slug shape: `<library>/<topology>/<P>p<C>c`.
- *
- * BMF measure shape: `{ value, lower_value?, upper_value? }`.
- *
- * Failure modes (graceful):
- *   - latest.json fetch fails or returns _status: "fallback" -> try
- *     example.json fixture and surface a status banner.
- *   - fixture also unavailable -> error banner; panels show empty state.
- *   - ECharts global missing -> per-panel message; hero falls back to
- *     a hand-rendered DOM bar list so the headline still reads.
+ *   #bench-hero                       — Ranked horizontal bar (Plot.barX)
+ *   #bench-throughput-spsc            — Ranked horizontal bar (Plot.barX)
+ *   #bench-throughput-mpsc            — Multi-series line + dot (Plot.line + Plot.dot)
+ *   #bench-throughput-mpmc-bounded    — Multi-series line + dot (Plot.line + Plot.dot)
+ *   #bench-throughput-mpmc-unbounded  — Multi-series line + dot (Plot.line + Plot.dot)
+ *   #bench-latency                    — Percentile ladder / grouped bars (ns)
+ *   #bench-status                     — Banner injected on fallback
  */
 
 (function () {
   'use strict';
 
   // ── module: constants ───────────────────────────────────────────────
-  const SNAPSHOT_URL  = '../assets/bench-results/latest.json';
-  const FIXTURE_URL   = '../assets/bench-results/example.json';
   const CHART_MEASURE = 'throughput_ops_ms';
-  const CHART_HEIGHT  = 360;
+  const LOCKFREE_PRIMARY_COLOR = '#6366f1';
 
   // CONTRACT-TEST-PARSED-START LIBRARY_COLORS
   const LIBRARY_COLORS = Object.freeze({
@@ -193,11 +175,11 @@
     liblfds: 'c',
   });
 
-
   let _activeEcosystem = 'all'; // 'all' | 'nim' | 'cpp' | 'rust'
   let _activeHeroShape = null;  // null (auto) | '4p4c' | '2p2c' | '4p1c' | '1p1c'
   let _activeDisplayMode = 'absolute'; // 'absolute' | 'relative'
   let _currentBmfResult = null;
+  const _rebuildCallbacks = [];
 
   function matchesEcosystem(library) {
     if (_activeEcosystem === 'all') return true;
@@ -324,11 +306,6 @@
                               || topology === 'retire_reclaim' },
   ];
 
-  // Source-code links per panel container id. Each panel heading gets
-  // a small superscript-style anchor pointing at the bench binary that
-  // produces the topology's slugs. Keep this map in sync with the
-  // `benchmarks/nim/` bench harness — adding a new panel here without
-  // a real source target produces a broken link.
   const BENCH_SOURCE_URLS = Object.freeze({
     'bench-throughput-spsc':
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_spsc.nim',
@@ -386,10 +363,6 @@
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_smr_nebr.nim',
   });
 
-  // Build the small "↗ source" anchor next to a panel heading. Uses
-  // Material foreground--light for muted contrast and opens in a new
-  // tab. Safe to call multiple times for the same panel — the helper
-  // is idempotent via a `data-bench-source-link` marker.
   function buildSourceLink(panelId) {
     const url = BENCH_SOURCE_URLS[panelId];
     if (!url) return null;
@@ -409,22 +382,13 @@
     if (link) headingNode.appendChild(link);
   }
 
-  // Locate the markdown-rendered heading (h3/h4/h5/h6) that immediately
-  // precedes a panel container, walking up siblings through `<div>`
-  // wrappers that mkdocs injects for `markdown="0"` blocks. Returns
-  // null if no heading is found within a small lookback budget.
   function findPrecedingHeading(panelNode) {
     let node = panelNode;
-    // Walk up through wrapping divs until we find a heading sibling.
     for (let hop = 0; hop < 4 && node; hop += 1) {
       let sib = node.previousElementSibling;
       while (sib) {
         if (/^H[1-6]$/.test(sib.tagName)) return sib;
-        // Skip over noscript/script/empty wrappers but stop on
-        // anything substantive.
         if (sib.tagName !== 'SCRIPT' && sib.tagName !== 'NOSCRIPT') {
-          // A non-heading substantive sibling means the heading is
-          // not directly before this panel; bubble up to the parent.
           break;
         }
         sib = sib.previousElementSibling;
@@ -559,117 +523,33 @@
       .map((item) => item.label);
   }
 
-
-  function escapeHtml(s) {
-    return String(s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+  function getPlotWidth(container) {
+    if (!container) return 760;
+    const w = container.clientWidth || (container.parentElement && container.parentElement.clientWidth) || 760;
+    return Math.max(340, Math.min(1100, w));
   }
 
-  // ── module: Material palette wiring ────────────────────────────────
-  //
-  // ECharts theme is `dark`/`light`-baseline; we override the visible
-  // chrome (text, axis lines, splitlines, tooltip) with the mkdocs
-  // Material palette CSS variables so charts match body text regardless
-  // of scheme. We read computed style on `<body>` to resolve the
-  // variables — ECharts wants actual color strings, not `var(...)`.
-  function readPalette() {
-    const cs = getComputedStyle(document.body);
-    const get = (name, fallback) => {
-      const v = cs.getPropertyValue(name).trim();
-      return v || fallback;
-    };
-    return {
-      fg:        get('--md-default-fg-color',           '#e8e8ea'),
-      fgLight:   get('--md-default-fg-color--light',    '#aaaaaa'),
-      fgLightest: get('--md-default-fg-color--lightest', '#444444'),
-      bg:        get('--md-default-bg-color',           '#1a1a1d'),
-      codeBg:    get('--md-code-bg-color',              '#23232a'),
-    };
+  function hasPlot() {
+    return typeof window.Plot === 'object' && typeof window.Plot.plot === 'function';
   }
 
-  function currentScheme() {
-    return document.body.getAttribute('data-md-color-scheme') || 'default';
-  }
-
-  function isLightScheme() {
-    // mkdocs Material: default | slate (slate == dark). `default` is light.
-    return currentScheme() !== 'slate';
-  }
-
-  // Build a partial ECharts option that styles axes/tooltip/legend with
-  // the current Material palette. Merged into every chart's option so
-  // the theme switch only needs to re-call `setOption(buildPaletteOpt())`.
-  function buildPaletteOpt() {
-    const p = readPalette();
-    return {
-      backgroundColor: 'transparent',
-      textStyle:       { color: p.fg },
-      title:           { textStyle: { color: p.fg } },
-      legend:          {
-        textStyle: { color: p.fg },
-        inactiveColor: p.fgLightest,
-      },
-      tooltip: {
-        backgroundColor: p.bg,
-        borderColor:     p.fgLightest,
-        textStyle:       { color: p.fg },
-        extraCssText:    'box-shadow: 0 2px 8px rgba(0,0,0,0.3);',
-      },
-      xAxis: {
-        axisLine:  { lineStyle: { color: p.fgLight } },
-        axisLabel: { color: p.fg },
-        axisTick:  { lineStyle: { color: p.fgLight } },
-        splitLine: { lineStyle: { color: p.fgLightest } },
-        nameTextStyle: { color: p.fgLight },
-      },
-      yAxis: {
-        axisLine:  { lineStyle: { color: p.fgLight } },
-        axisLabel: { color: p.fg },
-        axisTick:  { lineStyle: { color: p.fgLight } },
-        splitLine: { lineStyle: { color: p.fgLightest } },
-        nameTextStyle: { color: p.fgLight },
-      },
-    };
-  }
-
-  // Registry of live ECharts instances + their option builders, so we
-  // can re-apply the palette on color-scheme flip and resize on
-  // window resize.
-  const _charts = [];
-  function registerChart(instance, rebuild) {
-    _charts.push({ instance, rebuild });
-  }
-
-  function repaintAllForScheme() {
-    for (const entry of _charts) {
-      try {
-        // Disposing and rebuilding is simpler than diffing every
-        // sub-option for theme baseline. The data pipeline is cheap.
-        entry.rebuild();
-      } catch (err) {
-        console.warn('[bench-charts] re-render failed', err);
+  // Emphasize `lockfree` labels inside rendered Observable Plot SVG axes and HTML legends
+  function emphasizeLockfreeSvgAndLegend(container) {
+    if (!container) return;
+    const texts = container.querySelectorAll('svg text');
+    for (const t of texts) {
+      const raw = (t.textContent || '').trim().replace(/ \*$/, '');
+      if (isLockfreequeues(raw)) {
+        t.setAttribute('font-weight', '700');
       }
     }
-  }
-
-  function resizeAll() {
-    for (const entry of _charts) {
-      try { entry.instance.resize(); } catch (_) { /* noop */ }
+    const swatches = container.querySelectorAll('[class*="swatches"] span, [class*="swatch"]');
+    for (const s of swatches) {
+      const raw = (s.textContent || '').trim().replace(/ \*$/, '');
+      if (isLockfreequeues(raw)) {
+        s.style.fontWeight = '700';
+      }
     }
-  }
-
-  function clearRegisteredCharts() {
-    for (const entry of _charts) {
-      try {
-        if (entry.instance && typeof entry.instance.isDisposed === 'function' && !entry.instance.isDisposed()) {
-          entry.instance.dispose();
-        }
-      } catch (_) { /* noop */ }
-    }
-    _charts.length = 0;
   }
 
   // ── module: data ────────────────────────────────────────────────────
@@ -714,7 +594,7 @@
     return byTopology;
   }
 
-  // ── module: hero selection ──────────────────────────────────────────
+  // ── module: hero selection & badges ─────────────────────────────────
 
   function pickHeroShape(byTopology) {
     if (_activeHeroShape) {
@@ -767,8 +647,6 @@
     return best;
   }
 
-  // ── module: directionality badge helper ────────────────────────────
-
   const THROUGHPUT_BADGE_TEXT = 'Throughput: Higher is better ↑';
   const LATENCY_BADGE_TEXT    = 'Latency: Lower is better ↓';
 
@@ -780,7 +658,7 @@
     }, isLatency ? LATENCY_BADGE_TEXT : THROUGHPUT_BADGE_TEXT);
   }
 
-  // ── module: hero panel (ECharts horizontal bar) ─────────────────────
+  // ── module: hero panel (Observable Plot horizontal bar) ─────────────
 
   function renderHero(host, byTopology) {
     host.innerHTML = '';
@@ -799,8 +677,15 @@
       const mv = shapeMap.get(pick.shape);
       if (!mv || typeof mv.value !== 'number') continue;
       rows.push({
-        library, value: mv.value, lower: mv.lower, upper: mv.upper,
+        library,
+        label: displayLabel(library),
+        value: mv.value,
+        lower: mv.lower,
+        upper: mv.upper,
         slug: mv.slug,
+        isLfq: isLockfreequeues(library),
+        blocking: isBlocking(library),
+        color: getColor(library),
       });
     }
     if (rows.length === 0) {
@@ -809,13 +694,7 @@
       return;
     }
 
-    // Order: lockfreequeues first (by value desc), then alts (by value desc).
-    rows.sort((a, b) => {
-      const aLfq = isLockfreequeues(a.library) ? 0 : 1;
-      const bLfq = isLockfreequeues(b.library) ? 0 : 1;
-      if (aLfq !== bLfq) return aLfq - bLfq;
-      return b.value - a.value;
-    });
+    rows.sort((a, b) => b.value - a.value);
 
     let baselineVal = null;
     if (_activeDisplayMode === 'relative') {
@@ -825,7 +704,22 @@
       }
     }
 
-    const hasAlt = rows.some((r) => !isLockfreequeues(r.library));
+    for (const r of rows) {
+      r.displayVal = baselineVal ? (r.value / baselineVal) : r.value;
+      r.valueText = baselineVal
+        ? r.displayVal.toFixed(1) + 'x'
+        : r.value.toFixed(0) + ' ops/ms';
+      let tip = r.library + ' (' + topologyLabel(pick.topology) + ' ' + pick.shape + ')\n' +
+        'Throughput: ' + r.value.toFixed(1) + ' ops/ms';
+      if (baselineVal) tip += ' (' + (r.value / baselineVal).toFixed(1) + 'x vs stdlib)';
+      if (r.lower != null && r.upper != null) {
+        tip += ' (±' + ((r.upper - r.lower) / 2).toFixed(1) + ')';
+      }
+      if (r.blocking) tip += '\nBlocking on full channel';
+      r.tipText = tip;
+    }
+
+    const hasAlt = rows.some((r) => !r.isLfq);
     const modeDesc = baselineVal ? ' — speedup vs stdlib' : '';
     const headingText = topologyLabel(pick.topology) + ' ' + pick.shape +
       (hasAlt ? ' — lockfree vs alternatives' : ' — lockfree throughput') + modeDesc;
@@ -835,122 +729,73 @@
     );
     host.appendChild(headerRow);
 
-    if (typeof window.echarts !== 'object' || !window.echarts.init) {
-      // Fallback: hand-rendered DOM bars so the headline still reads.
+    if (!hasPlot()) {
       renderHeroDomFallback(host, rows, pick);
       return;
     }
 
     const mount = el('div', { class: 'bench-chart-plot bench-chart-plot-hero' });
     host.appendChild(mount);
-    const sawBlocking = rows.some((r) => isBlocking(r.library));
+
+    const sawBlocking = rows.some((r) => r.blocking);
     if (sawBlocking) {
       host.appendChild(el('p', { class: 'bench-hero-footnote' },
-        'Dotted-edge bars mark libraries that block on full; throughput ' +
-        'reflects blocking semantics, not the non-blocking try_push path.'));
+        'Asterisk (*) marks libraries that block on full; throughput ' +
+        'reflects blocking semantics, not the non-blocking tryPush path.'));
     }
 
-    const build = () => {
-      const inst = window.echarts.init(
-        mount, isLightScheme() ? null : 'dark',
-        { renderer: 'canvas' }
-      );
-      const pal = readPalette();
-      const categories = rows.map((r) => r.library);
-      const values = rows.map((r) => {
-        const isLfq = isLockfreequeues(r.library);
-        const displayVal = baselineVal ? (r.value / baselineVal) : r.value;
-        return {
-          value: displayVal,
-          itemStyle: {
-            color: getColor(r.library),
-            borderColor: isLfq ? '#6366f1' : getColor(r.library),
-            borderType: isBlocking(r.library) ? 'dashed' : 'solid',
-            borderWidth: isLfq ? 3 : (isBlocking(r.library) ? 2 : 0),
-            opacity: isBlocking(r.library) ? 0.55 : 1,
-          },
-          label: {
-            fontWeight: isLfq ? 'bold' : 'normal',
-            color: isLfq ? '#6366f1' : pal.fg,
-          },
-          _row: r,
-          _displayVal: displayVal,
-        };
-      });
-      const opt = Object.assign({}, buildPaletteOpt(), {
-        grid: { left: 170, right: 90, top: 20, bottom: 44, containLabel: true },
-        tooltip: Object.assign({}, buildPaletteOpt().tooltip, {
-          trigger: 'axis',
-          axisPointer: { type: 'shadow' },
-          formatter: (params) => {
-            if (!params || !params.length) return '';
-            const p = params[0];
-            const r = p.data && p.data._row;
-            if (!r) return '';
-            let line = '<strong>' + escapeHtml(r.library) + '</strong><br>' +
-              r.value.toFixed(1) + ' ops/ms';
-            if (baselineVal) {
-              const speedup = (r.value / baselineVal).toFixed(1);
-              line += ' <strong>(' + speedup + 'x vs stdlib)</strong>';
-            }
-            if (r.lower != null && r.upper != null) {
-              const stddev = (r.upper - r.lower) / 2;
-              line += ' (±' + stddev.toFixed(1) + ')';
-            }
-            line += '<br>' + escapeHtml(topologyLabel(pick.topology)) +
-              ' ' + escapeHtml(pick.shape) + ' — ' + THROUGHPUT_BADGE_TEXT;
-            if (isBlocking(r.library)) line += ' (blocking)';
-            return line;
-          },
-        }),
-        xAxis: Object.assign({}, buildPaletteOpt().xAxis, {
-          type: 'value',
-          name: (baselineVal ? 'Relative speedup (x vs stdlib Channel)' : 'Throughput (ops/ms)') +
+    const draw = () => {
+      mount.innerHTML = '';
+      const maxLabelChars = Math.max(12, ...rows.map((r) => r.label.length));
+      const marginLeft = Math.min(230, Math.max(135, maxLabelChars * 7.8 + 18));
+      const fig = window.Plot.plot({
+        width: getPlotWidth(mount),
+        height: Math.max(220, rows.length * 34 + 68),
+        marginLeft: marginLeft,
+        marginRight: 96,
+        marginTop: 14,
+        marginBottom: 42,
+        x: {
+          grid: true,
+          nice: true,
+          label: (baselineVal ? 'Relative speedup (x vs stdlib Channel)' : 'Throughput (ops/ms)') +
             ' — ' + THROUGHPUT_BADGE_TEXT,
-          nameLocation: 'middle',
-          nameGap: 30,
-        }),
-        yAxis: Object.assign({}, buildPaletteOpt().yAxis, {
-          type: 'category',
-          data: categories,
-          inverse: true,
-          axisLabel: Object.assign({}, buildPaletteOpt().yAxis.axisLabel, {
-            formatter: (val) => isLockfreequeues(val) ? '{lfq|' + val + '}' : val,
-            rich: {
-              lfq: {
-                fontWeight: 'bold',
-                color: '#6366f1',
-              },
-            },
+        },
+        y: {
+          domain: rows.map((r) => r.label),
+          label: null,
+        },
+        marks: [
+          window.Plot.barX(rows, {
+            x: 'displayVal',
+            y: 'label',
+            fill: 'color',
+            fillOpacity: (d) => d.blocking ? 0.65 : (d.isLfq ? 1.0 : 0.88),
+            stroke: (d) => d.isLfq ? LOCKFREE_PRIMARY_COLOR : d.color,
+            strokeWidth: (d) => d.isLfq ? 2.5 : (d.blocking ? 1.5 : 0.5),
+            rx: 3,
+            title: 'tipText',
+            tip: true,
           }),
-        }),
-        series: [{
-          type: 'bar',
-          data: values,
-          barCategoryGap: '30%',
-          label: {
-            show: true, position: 'right',
-            fontWeight: 'bold',
-            formatter: (p) => baselineVal ? p.value.toFixed(1) + 'x' : p.value.toFixed(1),
-            color: pal.fg,
-          },
-        }],
+          window.Plot.text(rows, {
+            x: 'displayVal',
+            y: 'label',
+            text: 'valueText',
+            textAnchor: 'start',
+            dx: 6,
+            fontWeight: (d) => d.isLfq ? 'bold' : 'normal',
+          }),
+          window.Plot.ruleX([0]),
+        ],
       });
-      inst.setOption(opt);
-      return inst;
+      mount.appendChild(fig);
+      emphasizeLockfreeSvgAndLegend(mount);
     };
-    const inst = build();
-    registerChart(inst, () => {
-      inst.dispose();
-      const fresh = build();
-      // Swap registry entry's instance so subsequent rebuilds use the
-      // current one.
-      const idx = _charts.findIndex((c) => c.instance === inst);
-      if (idx >= 0) _charts[idx].instance = fresh;
-    });
+
+    draw();
+    _rebuildCallbacks.push(draw);
   }
 
-  // DOM-bar fallback (used only when ECharts global is missing).
   function renderHeroDomFallback(host, rows, pick) {
     const max = Math.max.apply(null, rows.map((r) => r.value));
     const list = el('ol', { class: 'bench-hero-bars' });
@@ -983,7 +828,7 @@
       ' (' + THROUGHPUT_BADGE_TEXT + ')'));
   }
 
-  // ── module: throughput / latency shared controls ────────────────────
+  // ── module: throughput controls & Plot builders ─────────────────────
 
   function buildControls(panelId, initialLogScale, onLogToggle) {
     const wrap = el('div', { class: 'bench-chart-controls' });
@@ -992,16 +837,13 @@
     const cb = el('input', { type: 'checkbox', id });
     cb.checked = initialLogScale;
     cb.addEventListener('change', () => onLogToggle(cb.checked));
-    const lbl = el('label', { for: id }, 'Log-scale Y axis');
+    const lbl = el('label', { for: id }, 'Log-scale axis');
     wrap.appendChild(el('span', { class: 'bench-control-item' }, cb, lbl));
     return wrap;
   }
 
-  // Ranked Bar Chart builder for SPSC / single-point topologies (`type: 'bar'`).
-  // Replaces disconnected single-point line dots with a clear ranked bar chart
-  // comparing contenders side-by-side in descending throughput order.
-  function buildRankedBarThroughputOption(series, xLabels, logScale, panelLabel, baselineByShape) {
-    const pal = readPalette();
+  // Ranked Horizontal Bar Chart builder (`Plot.barX`) for SPSC & single-point panels.
+  function buildRankedBarThroughputOption(mount, series, xLabels, logScale, panelLabel, baselineByShape) {
     const shape = xLabels[0] || '1p1c';
     const isRel = _activeDisplayMode === 'relative' && baselineByShape && baselineByShape.size > 0;
     const baseVal = baselineByShape && baselineByShape.get(shape);
@@ -1011,257 +853,193 @@
         const pt = lib._shapeMap.get(shape) || lib.points[0] || null;
         const rawVal = pt ? pt.value : 0;
         const displayVal = (isRel && baseVal && baseVal > 0) ? (rawVal / baseVal) : rawVal;
+        const isLfq = isLockfreequeues(lib.library);
+        const blocking = isBlocking(lib.library);
+        let tip = lib.library + ' (' + (panelLabel || 'SPSC') + ' ' + shape + ')\n' +
+          'Throughput: ' + rawVal.toFixed(1) + ' ops/ms';
+        if (baseVal && baseVal > 0) {
+          tip += ' (' + (rawVal / baseVal).toFixed(1) + 'x vs stdlib)';
+        }
+        if (pt && pt.lower != null && pt.upper != null) {
+          tip += ' (±' + ((pt.upper - pt.lower) / 2).toFixed(1) + ')';
+        }
+        if (blocking) tip += '\nBlocking on full channel';
         return {
           library: lib.library,
+          label: displayLabel(lib.library),
           point: pt,
           rawVal,
           displayVal,
+          isLfq,
+          blocking,
+          color: getColor(lib.library),
+          valueText: isRel ? displayVal.toFixed(1) + 'x' : rawVal.toFixed(0) + ' ops/ms',
+          tipText: tip,
         };
       })
       .filter((r) => r.displayVal > 0)
       .sort((a, b) => b.displayVal - a.displayVal);
 
-    const categories = ranked.map((r) => displayLabel(r.library));
-    const barData = ranked.map((r) => {
-      const isLfq = isLockfreequeues(r.library);
-      return {
-        value: r.displayVal,
-        itemStyle: {
-          color: getColor(r.library),
-          borderColor: isLfq ? '#6366f1' : getColor(r.library),
-          borderType: isBlocking(r.library) ? 'dashed' : 'solid',
-          borderWidth: isLfq ? 3 : (isBlocking(r.library) ? 2 : 0),
-          opacity: isBlocking(r.library) ? 0.65 : 1,
-        },
-        label: {
-          show: true,
-          position: 'top',
-          fontWeight: isLfq ? 'bold' : 'normal',
-          color: isLfq ? '#6366f1' : pal.fg,
-          formatter: () => isRel ? r.displayVal.toFixed(1) + 'x' : r.rawVal.toFixed(0),
-        },
-        _entry: r,
-      };
-    });
+    const maxLabelChars = Math.max(12, ...ranked.map((r) => r.label.length));
+    const marginLeft = Math.min(230, Math.max(135, maxLabelChars * 7.8 + 18));
 
-    return Object.assign({}, buildPaletteOpt(), {
-      title: {
-        subtext: THROUGHPUT_BADGE_TEXT,
-        right: 16,
-        top: 0,
-        subtextStyle: {
-          color: pal.fgLight,
-          fontSize: 12,
-          fontWeight: 'bold',
-        },
-      },
-      grid: { left: 68, right: 28, top: 44, bottom: 78, containLabel: true },
-      tooltip: Object.assign({}, buildPaletteOpt().tooltip, {
-        trigger: 'axis',
-        axisPointer: { type: 'shadow' },
-        formatter: (params) => {
-          if (!params || !params.length) return '';
-          const p = params[0];
-          const entry = p.data && p.data._entry;
-          if (!entry) return '';
-          const pt = entry.point;
-          let line = '<strong>' + escapeHtml(entry.library) + '</strong> (' +
-            escapeHtml(panelLabel || 'SPSC') + ' ' + escapeHtml(shape) + ')<br>' +
-            entry.rawVal.toFixed(1) + ' ops/ms';
-          if (baseVal && baseVal > 0) {
-            line += ' <strong>(' + (entry.rawVal / baseVal).toFixed(1) + 'x vs stdlib)</strong>';
-          }
-          if (pt && pt.lower != null && pt.upper != null) {
-            const stddev = (pt.upper - pt.lower) / 2;
-            line += ' (±' + stddev.toFixed(1) + ')';
-          }
-          if (isBlocking(entry.library)) line += ' (blocking)';
-          line += '<br><span style="opacity:0.8;">' + THROUGHPUT_BADGE_TEXT + '</span>';
-          return line;
-        },
-      }),
-      xAxis: Object.assign({}, buildPaletteOpt().xAxis, {
-        type: 'category',
-        data: categories,
-        name: 'Contender library (' + shape + ', ranked by throughput)',
-        nameLocation: 'middle',
-        nameGap: 48,
-        axisLabel: Object.assign({}, buildPaletteOpt().xAxis.axisLabel, {
-          interval: 0,
-          rotate: categories.length > 5 ? 20 : 0,
-          formatter: (val) => {
-            const rawLib = String(val).replace(/ \*$/, '');
-            return isLockfreequeues(rawLib) ? '{lfq|' + val + '}' : val;
-          },
-          rich: {
-            lfq: {
-              fontWeight: 'bold',
-              color: '#6366f1',
-            },
-          },
-        }),
-      }),
-      yAxis: Object.assign({}, buildPaletteOpt().yAxis, {
-        type: logScale ? 'log' : 'value',
-        name: (isRel
+    return window.Plot.plot({
+      width: getPlotWidth(mount),
+      height: Math.max(210, ranked.length * 36 + 68),
+      marginLeft: marginLeft,
+      marginRight: 96,
+      marginTop: 14,
+      marginBottom: 42,
+      x: {
+        type: logScale ? 'log' : 'linear',
+        grid: true,
+        nice: true,
+        label: (isRel
           ? 'Relative speedup (x vs stdlib Channel)'
           : 'Throughput (ops/ms)') + (logScale ? ' [log]' : '') + ' — Higher is better ↑',
-        nameLocation: 'middle',
-        nameGap: 52,
-        logBase: 10,
-      }),
-      series: [{
-        name: panelLabel || 'SPSC',
-        type: 'bar',
-        barMaxWidth: 48,
-        data: barData,
-      }],
+      },
+      y: {
+        domain: ranked.map((r) => r.label),
+        label: null,
+      },
+      marks: [
+        window.Plot.barX(ranked, {
+          x1: logScale ? Math.min(1, ...ranked.map((r) => r.displayVal * 0.5)) : 0,
+          x2: 'displayVal',
+          y: 'label',
+          fill: 'color',
+          fillOpacity: (d) => d.blocking ? 0.65 : (d.isLfq ? 1.0 : 0.88),
+          stroke: (d) => d.isLfq ? LOCKFREE_PRIMARY_COLOR : d.color,
+          strokeWidth: (d) => d.isLfq ? 2.5 : (d.blocking ? 1.5 : 0.5),
+          rx: 3,
+          title: 'tipText',
+          tip: true,
+        }),
+        window.Plot.text(ranked, {
+          x: 'displayVal',
+          y: 'label',
+          text: 'valueText',
+          textAnchor: 'start',
+          dx: 6,
+          fontWeight: (d) => d.isLfq ? 'bold' : 'normal',
+        }),
+      ],
     });
   }
 
-  // Common throughput option builder. `series` is a list of
-  // `{ library, points: [{ shape, value, lower, upper }], _shapeMap }`.
-  function buildThroughputOption(series, xLabels, logScale, panelLabel, baselineByShape, panelId) {
+  // Multi-shape Throughput Line + Dot builder (`Plot.line` + `Plot.dot`)
+  function buildThroughputOption(mount, series, xLabels, logScale, panelLabel, baselineByShape, panelId) {
     if (panelId === 'bench-throughput-spsc' || xLabels.length === 1) {
-      return buildRankedBarThroughputOption(series, xLabels, logScale, panelLabel, baselineByShape);
+      return buildRankedBarThroughputOption(mount, series, xLabels, logScale, panelLabel, baselineByShape);
     }
 
-    const pal = readPalette();
     const isRel = _activeDisplayMode === 'relative' && baselineByShape && baselineByShape.size > 0;
-    const echartsSeries = series.map((lib) => {
+    const points = [];
+    const colorDomain = [];
+    const colorRange = [];
+
+    for (const lib of series) {
+      const label = displayLabel(lib.library);
       const isLfq = isLockfreequeues(lib.library);
-      const data = xLabels.map((label) => {
-        const p = lib._shapeMap.get(label);
-        if (p == null) return null;
-        if (isRel) {
-          const base = baselineByShape.get(label);
-          return (base && base > 0) ? (p.value / base) : null;
+      const blocking = isBlocking(lib.library);
+      const color = getColor(lib.library);
+      colorDomain.push(label);
+      colorRange.push(color);
+
+      for (const shape of xLabels) {
+        const pt = lib._shapeMap.get(shape);
+        if (!pt || typeof pt.value !== 'number' || pt.value <= 0) continue;
+        const baseVal = baselineByShape && baselineByShape.get(shape);
+        const displayVal = (isRel && baseVal && baseVal > 0) ? (pt.value / baseVal) : pt.value;
+        if (displayVal == null || displayVal <= 0) continue;
+
+        let tip = lib.library + ' — ' + (panelLabel || '') + ' (' + shape + ')\n' +
+          'Throughput: ' + pt.value.toFixed(1) + ' ops/ms';
+        if (baseVal && baseVal > 0) {
+          tip += ' (' + (pt.value / baseVal).toFixed(1) + 'x vs stdlib)';
         }
-        return p.value;
-      });
-      return {
-        name:   displayLabel(lib.library),
-        type:   'line',
-        data:   data,
-        connectNulls: false,
-        showSymbol: true,
-        symbolSize: isLfq ? 9 : 6,
-        z: isLfq ? 4 : 2,
-        emphasis: { focus: 'series' },
-        lineStyle: {
-          width: isLfq ? 3 : 2,
-          type: isBlocking(lib.library) ? 'dashed' : 'solid',
-        },
-        label: {
-          fontWeight: isLfq ? 'bold' : 'normal',
-        },
-        itemStyle: { color: getColor(lib.library) },
-        _library: lib.library,
-        _points: lib.points,
-      };
-    });
+        if (pt.lower != null && pt.upper != null) {
+          tip += ' (±' + ((pt.upper - pt.lower) / 2).toFixed(1) + ')';
+        }
+        if (blocking) tip += '\nBlocking on full channel';
 
-    // Dynamically reserve enough bottom margin so the X-axis title and
-    // multi-row MPMC legend never collide.
-    const legendRows = Math.max(1, Math.ceil(series.length / 4));
-    const bottomPx = Math.max(98, 58 + legendRows * 26);
+        points.push({
+          library: lib.library,
+          label: label,
+          shape: shape,
+          value: displayVal,
+          rawVal: pt.value,
+          isLfq: isLfq,
+          blocking: blocking,
+          tipText: tip,
+        });
+      }
+    }
 
-    return Object.assign({}, buildPaletteOpt(), {
-      title: {
-        subtext: THROUGHPUT_BADGE_TEXT,
-        right: 16,
-        top: 0,
-        subtextStyle: {
-          color: pal.fgLight,
-          fontSize: 12,
-          fontWeight: 'bold',
-        },
+    const otherPoints = points.filter((d) => !d.isLfq);
+    const lfqPoints = points.filter((d) => d.isLfq);
+
+    return window.Plot.plot({
+      width: getPlotWidth(mount),
+      height: 360,
+      marginLeft: 72,
+      marginRight: 28,
+      marginTop: 22,
+      marginBottom: 46,
+      color: {
+        legend: true,
+        domain: colorDomain,
+        range: colorRange,
       },
-      grid: { left: 68, right: 28, top: 36, bottom: bottomPx, containLabel: true },
-      tooltip: Object.assign({}, buildPaletteOpt().tooltip, {
-        trigger: 'axis',
-        axisPointer: { type: 'cross' },
-        formatter: (params) => {
-          if (!params || !params.length) return '';
-          const shape = params[0].axisValueLabel || params[0].name;
-          const header = panelLabel
-            ? escapeHtml(panelLabel) + ' ' + escapeHtml(shape)
-            : escapeHtml(shape);
-          const lines = ['<strong>' + header + '</strong> <span style="opacity:0.8;">(' + THROUGHPUT_BADGE_TEXT + ')</span>'];
-          const baseVal = baselineByShape && baselineByShape.get(shape);
-          for (const p of params) {
-            if (p.value == null) continue;
-            const lib = (p.seriesName || '').replace(/ \*$/, '');
-            const isLfq = isLockfreequeues(lib);
-            // Find the matching point for stddev.
-            const sObj = echartsSeries[p.seriesIndex];
-            const point = sObj && sObj._points
-              && sObj._points.find((q) => q.shape === shape);
-            const libHtml = isLfq
-              ? '<strong>' + escapeHtml(lib) + '</strong>'
-              : escapeHtml(lib);
-            let line = '<span style="display:inline-block;width:8px;height:8px;'
-              + 'border-radius:50%;background:' + p.color
-              + ';margin-right:6px;"></span>'
-              + libHtml + ': ';
-            if (isRel) {
-              line += p.value.toFixed(1) + 'x vs stdlib';
-              if (point) line += ' (' + point.value.toFixed(1) + ' ops/ms)';
-            } else {
-              line += p.value.toFixed(1) + ' ops/ms';
-              if (baseVal && baseVal > 0) {
-                const speedup = (point ? point.value : p.value) / baseVal;
-                line += ' (' + speedup.toFixed(1) + 'x vs stdlib)';
-              }
-              if (point && point.lower != null && point.upper != null) {
-                const stddev = (point.upper - point.lower) / 2;
-                line += ' (±' + stddev.toFixed(1) + ')';
-              }
-            }
-            if (isBlocking(lib)) line += ' (blocking)';
-            lines.push(line);
-          }
-          return lines.join('<br>');
-        },
-      }),
-      legend: Object.assign({}, buildPaletteOpt().legend, {
-        type: 'plain',
-        bottom: 4,
-        left: 'center',
-        width: '96%',
-        itemGap: 14,
-        padding: [8, 8, 4, 8],
-        formatter: (name) => {
-          const rawLib = String(name).replace(/ \*$/, '');
-          return isLockfreequeues(rawLib) ? '{lfq|' + name + '}' : name;
-        },
-        textStyle: Object.assign({}, buildPaletteOpt().legend.textStyle, {
-          rich: {
-            lfq: {
-              fontWeight: 'bold',
-              color: pal.fg,
-            },
-          },
-        }),
-        data: series.map((lib) => displayLabel(lib.library)),
-      }),
-      xAxis: Object.assign({}, buildPaletteOpt().xAxis, {
-        type: 'category',
-        data: xLabels,
-        name: 'producer/consumer shape (P×C)',
-        nameLocation: 'middle',
-        nameGap: 28,
-      }),
-      yAxis: Object.assign({}, buildPaletteOpt().yAxis, {
-        type: logScale ? 'log' : 'value',
-        name: (isRel
+      x: {
+        type: 'point',
+        domain: xLabels,
+        grid: true,
+        label: 'Producer / consumer contention shape (P×C)',
+      },
+      y: {
+        type: logScale ? 'log' : 'linear',
+        grid: true,
+        nice: true,
+        label: (isRel
           ? 'Relative speedup (x vs stdlib Channel)'
           : 'Throughput (ops/ms)') + (logScale ? ' [log]' : '') + ' — Higher is better ↑',
-        nameLocation: 'middle',
-        nameGap: 52,
-        logBase: 10,
-      }),
-      series: echartsSeries,
+      },
+      marks: [
+        window.Plot.line(otherPoints, {
+          x: 'shape',
+          y: 'value',
+          z: 'label',
+          stroke: 'label',
+          strokeWidth: 2,
+          strokeDasharray: (d) => d.blocking ? '5,4' : null,
+        }),
+        window.Plot.dot(otherPoints, {
+          x: 'shape',
+          y: 'value',
+          fill: 'label',
+          r: 3.5,
+          title: 'tipText',
+          tip: true,
+        }),
+        window.Plot.line(lfqPoints, {
+          x: 'shape',
+          y: 'value',
+          z: 'label',
+          stroke: 'label',
+          strokeWidth: 3.5,
+        }),
+        window.Plot.dot(lfqPoints, {
+          x: 'shape',
+          y: 'value',
+          fill: 'label',
+          stroke: '#ffffff',
+          strokeWidth: 1,
+          r: 5,
+          title: 'tipText',
+          tip: true,
+        }),
+      ],
     });
   }
 
@@ -1276,9 +1054,9 @@
         'No data for this topology yet.'));
       return;
     }
-    if (typeof window.echarts !== 'object' || !window.echarts.init) {
+    if (!hasPlot()) {
       host.appendChild(el('p', { class: 'bench-chart-error' },
-        'Chart unavailable: ECharts library failed to load.'));
+        'Chart unavailable: Observable Plot library failed to load.'));
       return;
     }
 
@@ -1333,34 +1111,29 @@
     }
 
     const xLabels = sortShapeLabels(shapeSet);
-    let logScale = true;
+    const isSinglePoint = panel.id === 'bench-throughput-spsc' || xLabels.length === 1;
+    let logScale = !isSinglePoint;
+
+    const mount = el('div', { class: 'bench-chart-plot' });
+    const draw = () => {
+      mount.innerHTML = '';
+      const fig = buildThroughputOption(mount, series, xLabels, logScale, panel.label, baselineByShape, panel.id);
+      mount.appendChild(fig);
+      emphasizeLockfreeSvgAndLegend(mount);
+    };
 
     const controls = buildControls(panel.id, logScale, (next) => {
       logScale = next;
-      inst.setOption(buildThroughputOption(series, xLabels, logScale, panel.label, baselineByShape, panel.id),
-        { notMerge: true });
+      draw();
     });
-    const mount = el('div', { class: 'bench-chart-plot' });
     host.appendChild(controls);
     host.appendChild(mount);
 
-    let inst = window.echarts.init(
-      mount, isLightScheme() ? null : 'dark', { renderer: 'canvas' }
-    );
-    inst.setOption(buildThroughputOption(series, xLabels, logScale, panel.label, baselineByShape, panel.id));
-    registerChart(inst, () => {
-      inst.dispose();
-      inst = window.echarts.init(
-        mount, isLightScheme() ? null : 'dark', { renderer: 'canvas' }
-      );
-      inst.setOption(buildThroughputOption(series, xLabels, logScale, panel.label, baselineByShape, panel.id));
-      const idx = _charts.findIndex((c) => c.instance && c.instance.isDisposed
-        && c.instance.isDisposed());
-      if (idx >= 0) _charts[idx].instance = inst;
-    });
+    draw();
+    _rebuildCallbacks.push(draw);
   }
 
-  // ── module: latency panel ──────────────────────────────────────────
+  // ── module: latency panel (Observable Plot ladder & grouped bars) ───
 
   const LATENCY_PERCENTILES = Object.freeze([
     { key: 'latency_p50_ns',  label: 'p50 (ns)'  },
@@ -1426,7 +1199,7 @@
     let mode = initialMode || 'ladder';
     let logScale = initialLogScale !== false;
 
-    const modeGroup = el('div', { class: 'bench-chip-group' });
+    const modeGroup = el('div', { class: 'bench-chip-group bench-latency-mode-group' });
     const ladderBtn = el('button', {
       class: 'bench-chip' + (mode === 'ladder' ? ' active' : ''),
       type: 'button',
@@ -1466,133 +1239,147 @@
     return wrap;
   }
 
-  function buildLatencyOption(libraries, xLabels, chartMode, logScale) {
-    const pal = readPalette();
+  function buildLatencyOption(mount, libraries, xLabels, chartMode, logScale) {
     const useBar = chartMode === 'bar';
     const useLog = logScale !== false;
 
-    const echartsSeries = libraries.map((lib) => {
+    const points = [];
+    const colorDomain = [];
+    const colorRange = [];
+
+    for (const lib of libraries) {
+      const label = displayLabel(lib.library);
       const isLfq = isLockfreequeues(lib.library);
-      if (useBar) {
-        return {
-          name: displayLabel(lib.library),
-          type: 'bar',
-          barMaxWidth: 28,
-          data: lib.values.slice(),
-          emphasis: { focus: 'series' },
-          label: {
-            fontWeight: isLfq ? 'bold' : 'normal',
-          },
-          itemStyle: {
-            color: getColor(lib.library),
-            borderColor: isLfq ? '#6366f1' : getColor(lib.library),
-            borderType: isBlocking(lib.library) ? 'dashed' : 'solid',
-            borderWidth: isLfq ? 2 : (isBlocking(lib.library) ? 1.5 : 0),
-          },
-        };
+      const blocking = isBlocking(lib.library);
+      colorDomain.push(label);
+      colorRange.push(getColor(lib.library));
+
+      for (let i = 0; i < xLabels.length; i++) {
+        const val = lib.values[i];
+        if (val == null || val <= 0) continue;
+        const pctLabel = xLabels[i];
+        points.push({
+          library: lib.library,
+          label: label,
+          percentile: pctLabel,
+          value: val,
+          isLfq: isLfq,
+          blocking: blocking,
+          tipText: lib.library + ' — ' + pctLabel + '\nLatency: ' + val.toFixed(0) + ' ns (' + LATENCY_BADGE_TEXT + ')',
+        });
       }
-      return {
-        name: displayLabel(lib.library),
-        type: 'line',
-        step: 'end',
-        data: lib.values.slice(),
-        connectNulls: false,
-        showSymbol: true,
-        symbolSize: isLfq ? 9 : 6,
-        z: isLfq ? 4 : 2,
-        emphasis: { focus: 'series' },
-        label: {
-          fontWeight: isLfq ? 'bold' : 'normal',
-        },
-        lineStyle: {
-          width: isLfq ? 3 : 2,
-          type: isBlocking(lib.library) ? 'dashed' : 'solid',
-        },
-        itemStyle: { color: getColor(lib.library) },
-      };
-    });
+    }
 
-    const legendRows = Math.max(1, Math.ceil(libraries.length / 4));
-    const bottomPx = Math.max(98, 58 + legendRows * 26);
-
-    return Object.assign({}, buildPaletteOpt(), {
-      title: {
-        subtext: LATENCY_BADGE_TEXT,
-        right: 16,
-        top: 0,
-        subtextStyle: {
-          color: pal.fgLight,
-          fontSize: 12,
-          fontWeight: 'bold',
+    if (useBar) {
+      const minVal = Math.max(1, Math.min(...points.map((d) => d.value)) * 0.5);
+      return window.Plot.plot({
+        width: getPlotWidth(mount),
+        height: 360,
+        marginLeft: 74,
+        marginRight: 28,
+        marginTop: 28,
+        marginBottom: 56,
+        color: {
+          legend: true,
+          domain: colorDomain,
+          range: colorRange,
         },
+        fx: {
+          domain: xLabels,
+          label: 'Latency percentile (ns)',
+          padding: 0.18,
+        },
+        x: {
+          domain: colorDomain,
+          axis: null,
+        },
+        y: {
+          type: useLog ? 'log' : 'linear',
+          grid: true,
+          nice: true,
+          label: 'Latency (ns)' + (useLog ? ' [log]' : '') + ' — Lower is better ↓',
+        },
+        marks: [
+          window.Plot.barY(points, {
+            fx: 'percentile',
+            x: 'label',
+            y1: useLog ? minVal : 0,
+            y2: 'value',
+            fill: 'label',
+            stroke: (d) => d.isLfq ? LOCKFREE_PRIMARY_COLOR : null,
+            strokeWidth: (d) => d.isLfq ? 2 : 0,
+            rx: 2,
+            title: 'tipText',
+            tip: true,
+          }),
+        ],
+      });
+    }
+
+    const otherPoints = points.filter((d) => !d.isLfq);
+    const lfqPoints = points.filter((d) => d.isLfq);
+
+    return window.Plot.plot({
+      width: getPlotWidth(mount),
+      height: 360,
+      marginLeft: 74,
+      marginRight: 28,
+      marginTop: 22,
+      marginBottom: 46,
+      color: {
+        legend: true,
+        domain: colorDomain,
+        range: colorRange,
       },
-      grid: { left: 68, right: 28, top: 36, bottom: bottomPx, containLabel: true },
-      tooltip: Object.assign({}, buildPaletteOpt().tooltip, {
-        trigger: 'axis',
-        axisPointer: { type: useBar ? 'shadow' : 'cross' },
-        formatter: (params) => {
-          if (!params || !params.length) return '';
-          const label = params[0].axisValueLabel || params[0].name;
-          const lines = ['<strong>' + escapeHtml(label) + '</strong> <span style="opacity:0.8;">(' + LATENCY_BADGE_TEXT + ')</span>'];
-          for (const p of params) {
-            if (p.value == null) continue;
-            const lib = (p.seriesName || '').replace(/ \*$/, '');
-            const isLfq = isLockfreequeues(lib);
-            const libHtml = isLfq
-              ? '<strong>' + escapeHtml(lib) + '</strong>'
-              : escapeHtml(lib);
-            let line = '<span style="display:inline-block;width:8px;height:8px;'
-              + 'border-radius:50%;background:' + p.color
-              + ';margin-right:6px;"></span>'
-              + libHtml + ': ' + p.value.toFixed(0) + ' ns';
-            if (isBlocking(lib)) line += ' (blocking)';
-            lines.push(line);
-          }
-          return lines.join('<br>');
-        },
-      }),
-      legend: Object.assign({}, buildPaletteOpt().legend, {
-        type: 'plain',
-        bottom: 4,
-        left: 'center',
-        width: '96%',
-        itemGap: 14,
-        padding: [8, 8, 4, 8],
-        formatter: (name) => {
-          const rawLib = String(name).replace(/ \*$/, '');
-          return isLockfreequeues(rawLib) ? '{lfq|' + name + '}' : name;
-        },
-        textStyle: Object.assign({}, buildPaletteOpt().legend.textStyle, {
-          rich: {
-            lfq: {
-              fontWeight: 'bold',
-              color: pal.fg,
-            },
-          },
+      x: {
+        type: 'point',
+        domain: xLabels,
+        grid: true,
+        label: 'Latency percentile (ns)',
+      },
+      y: {
+        type: useLog ? 'log' : 'linear',
+        grid: true,
+        nice: true,
+        label: 'Latency (ns)' + (useLog ? ' [log]' : '') + ' — Lower is better ↓',
+      },
+      marks: [
+        window.Plot.line(otherPoints, {
+          x: 'percentile',
+          y: 'value',
+          z: 'label',
+          stroke: 'label',
+          curve: 'step-after',
+          strokeWidth: 2,
+          strokeDasharray: (d) => d.blocking ? '5,4' : null,
         }),
-        data: libraries.map((lib) => displayLabel(lib.library)),
-      }),
-      xAxis: Object.assign({}, buildPaletteOpt().xAxis, {
-        type: 'category',
-        data: xLabels,
-        name: 'Latency percentile (ns)',
-        nameLocation: 'middle',
-        nameGap: 28,
-      }),
-      yAxis: Object.assign({}, buildPaletteOpt().yAxis, {
-        type: useLog ? 'log' : 'value',
-        logBase: 10,
-        name: 'Latency (ns)' + (useLog ? ' [log]' : '') + ' — Lower is better ↓',
-        nameLocation: 'middle',
-        nameGap: 56,
-        axisLabel: Object.assign({}, buildPaletteOpt().yAxis.axisLabel, {
-          formatter: (value) => {
-            if (value >= 10000) return value.toExponential(0).replace('e+', 'e') + ' ns';
-            return value.toString() + ' ns';
-          },
+        window.Plot.dot(otherPoints, {
+          x: 'percentile',
+          y: 'value',
+          fill: 'label',
+          r: 3.5,
+          title: 'tipText',
+          tip: true,
         }),
-      }),
-      series: echartsSeries,
+        window.Plot.line(lfqPoints, {
+          x: 'percentile',
+          y: 'value',
+          z: 'label',
+          stroke: 'label',
+          curve: 'step-after',
+          strokeWidth: 3.5,
+        }),
+        window.Plot.dot(lfqPoints, {
+          x: 'percentile',
+          y: 'value',
+          fill: 'label',
+          stroke: '#ffffff',
+          strokeWidth: 1,
+          r: 5,
+          title: 'tipText',
+          tip: true,
+        }),
+      ],
     });
   }
 
@@ -1600,10 +1387,6 @@
     if (!host) return;
     host.innerHTML = '';
     const effectivePanelId = panelId || 'bench-latency';
-    // NOTE: heading text is owned by the `#### Latency` markdown in
-    // docs/benchmarks.md; do NOT inject a duplicate <h4> here. Locate
-    // the markdown-rendered heading and decorate it with the source-
-    // code link so the latency panel matches the throughput panels.
     const latencyHeading = findPrecedingHeading(host);
     if (latencyHeading) appendSourceLink(latencyHeading, effectivePanelId);
 
@@ -1619,9 +1402,9 @@
         LATENCY_EMPTY_MESSAGE));
       return;
     }
-    if (typeof window.echarts !== 'object' || !window.echarts.init) {
+    if (!hasPlot()) {
       host.appendChild(el('p', { class: 'bench-chart-error' },
-        'Chart unavailable: ECharts library failed to load.'));
+        'Chart unavailable: Observable Plot library failed to load.'));
       return;
     }
 
@@ -1629,29 +1412,24 @@
     let chartMode = 'ladder';
     let logScale = true;
 
+    const mount = el('div', { class: 'bench-chart-plot' });
+    const draw = () => {
+      mount.innerHTML = '';
+      const fig = buildLatencyOption(mount, libraries, xLabels, chartMode, logScale);
+      mount.appendChild(fig);
+      emphasizeLockfreeSvgAndLegend(mount);
+    };
+
     const controls = buildLatencyControls(effectivePanelId, chartMode, logScale, (nextMode, nextLog) => {
       chartMode = nextMode;
       logScale = nextLog;
-      inst.setOption(buildLatencyOption(libraries, xLabels, chartMode, logScale), { notMerge: true });
+      draw();
     });
-    const mount = el('div', { class: 'bench-chart-plot' });
     host.appendChild(controls);
     host.appendChild(mount);
 
-    let inst = window.echarts.init(
-      mount, isLightScheme() ? null : 'dark', { renderer: 'canvas' }
-    );
-    inst.setOption(buildLatencyOption(libraries, xLabels, chartMode, logScale));
-    registerChart(inst, () => {
-      inst.dispose();
-      inst = window.echarts.init(
-        mount, isLightScheme() ? null : 'dark', { renderer: 'canvas' }
-      );
-      inst.setOption(buildLatencyOption(libraries, xLabels, chartMode, logScale));
-      const idx = _charts.findIndex((c) => c.instance && c.instance.isDisposed
-        && c.instance.isDisposed());
-      if (idx >= 0) _charts[idx].instance = inst;
-    });
+    draw();
+    _rebuildCallbacks.push(draw);
 
     if (effectivePanelId === 'bench-latency') {
       const lfqBoundedExpected = [
@@ -1674,7 +1452,7 @@
       '../../../assets/bench-results/latest.json',
       '../../assets/bench-results/latest.json',
       '../assets/bench-results/latest.json',
-      'assets/bench-results/latest.json'
+      'assets/bench-results/latest.json',
     ];
     let lastErr = null;
     for (const url of candidates) {
@@ -1704,7 +1482,7 @@
       '../../../assets/bench-results/example.json',
       '../../assets/bench-results/example.json',
       '../assets/bench-results/example.json',
-      'assets/bench-results/example.json'
+      'assets/bench-results/example.json',
     ];
     for (const url of candidates) {
       try {
@@ -1782,7 +1560,6 @@
     if (!host) return;
     host.innerHTML = '';
 
-    // Group 1: Ecosystem
     const ecoChips = ['all', 'nim', 'cpp', 'rust'].map((eco) => {
       const label = eco === 'all' ? 'All' :
                     eco === 'nim' ? 'Nim' :
@@ -1805,7 +1582,6 @@
       el('div', { class: 'bench-chip-group' }, ...ecoChips)
     );
 
-    // Group 2: View Mode (Absolute Throughput vs Relative Speedup)
     const modeChips = [
       { mode: 'absolute', label: 'Throughput' },
       { mode: 'relative', label: 'Relative Speedup' },
@@ -1828,7 +1604,6 @@
       el('div', { class: 'bench-chip-group' }, ...modeChips)
     );
 
-    // Group 3: Hero Shape selector
     const shapeChips = [
       { shape: null, label: 'Auto' },
       { shape: '4p4c', label: '4P:4C' },
@@ -1862,7 +1637,7 @@
 
   function rerenderCharts() {
     if (!_currentBmfResult || !_currentBmfResult.data) return;
-    clearRegisteredCharts();
+    _rebuildCallbacks.length = 0;
     const heroHost = document.getElementById('bench-hero');
     const byTopology = groupByTopology(_currentBmfResult.data);
     if (heroHost) renderHero(heroHost, byTopology);
@@ -1900,10 +1675,12 @@
       'bench-smr-latency',
       (t) => t === 'smr_pin_unpin' || t === 'smr_retire_reclaim' || t === 'pin_unpin' || t === 'retire_reclaim'
     );
+  }
 
-    requestAnimationFrame(() => {
-      resizeAll();
-    });
+  function rebuildAllPlots() {
+    for (const fn of _rebuildCallbacks) {
+      try { fn(); } catch (_) { /* noop */ }
+    }
   }
 
   // ── module: bootstrap ───────────────────────────────────────────────
@@ -1936,17 +1713,6 @@
     renderStatusBanner(statusHost, result.status, result.reason);
     rerenderCharts();
 
-    // After initial layout settles, resize all charts to fill their
-    // containers. ECharts auto-sizes at init only if the container has
-    // its final dimensions at that moment; with mkdocs Material, layout
-    // can shift after the script runs (sidebar/nav fonts settle, etc.).
-    requestAnimationFrame(() => {
-      resizeAll();
-      // A second pass after a short tick catches any late reflow from
-      // font loading or theme palette readback.
-      setTimeout(resizeAll, 50);
-    });
-
     if (window.location.hash) {
       const id = window.location.hash.slice(1);
       const node = document.getElementById(id);
@@ -1958,30 +1724,11 @@
     }
   }
 
-  // Window resize: ECharts requires explicit instance.resize().
-  // Debounce so a drag doesn't fire dozens of resizes per second.
   let _resizeTimer = null;
   window.addEventListener('resize', () => {
     if (_resizeTimer) clearTimeout(_resizeTimer);
-    _resizeTimer = setTimeout(resizeAll, 100);
+    _resizeTimer = setTimeout(rebuildAllPlots, 120);
   });
-
-  // mkdocs Material color-scheme flips `data-md-color-scheme` on
-  // `<body>`. We watch for that and re-paint every chart with the
-  // matching ECharts baseline theme + Material palette.
-  if (typeof MutationObserver !== 'undefined') {
-    const mo = new MutationObserver((records) => {
-      for (const r of records) {
-        if (r.type === 'attributes' &&
-            (r.attributeName === 'data-md-color-scheme' ||
-             r.attributeName === 'data-md-color-primary')) {
-          repaintAllForScheme();
-          return;
-        }
-      }
-    });
-    mo.observe(document.body, { attributes: true });
-  }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', render);

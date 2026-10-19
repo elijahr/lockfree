@@ -135,7 +135,8 @@ Use the **Percentile Ladder / Grouped Bars** toggle above the chart to inspect l
 <div markdown="0">
   <div id="bench-latency" class="bench-panel"></div>
 
-  <script src="../../../assets/echarts-5.5.1.min.js"></script>
+  <script src="../../../assets/d3-7.9.0.min.js"></script>
+  <script src="../../../assets/plot-0.6.17.umd.min.js"></script>
   <script src="../../../assets/bench-charts.js"></script>
 </div>
 

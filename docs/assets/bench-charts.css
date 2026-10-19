@@ -1,9 +1,7 @@
-/* lockfreequeues bench chart styling — paired with bench-charts.js.
- * The charts are rendered by Apache ECharts (loaded via CDN); ECharts
- * owns the tooltip, axis, and series chrome. These rules cover the
- * page-level layout (panel containers, controls bar, status banner,
- * hero panel scaffolding) plus the DOM-bar fallback that runs when
- * the ECharts global is missing.
+/* lockfree bench chart styling — paired with bench-charts.js.
+ * Charts are rendered as pure SVG figures by Observable Plot
+ * (@observablehq/plot + D3) and inherit Material for MkDocs CSS
+ * custom properties for instant light/dark theme switching.
  */
 
 /* ── panel layout ─────────────────────────────────────────────────── */
@@ -19,11 +17,7 @@
   font-weight: 600;
 }
 
-/* Source-code link injected next to panel/section headings. Kept
- * unobtrusive: small font, muted color via Material foreground--light,
- * no underline until hover. Applies both to JS-injected throughput
- * headings and to the markdown-owned `#### Latency` heading decorated
- * at render time. */
+/* Source-code link injected next to panel/section headings. */
 .bench-source-link {
   margin-left: 0.6em;
   font-size: 0.72em;
@@ -36,7 +30,7 @@
 
 .bench-source-link:hover,
 .bench-source-link:focus {
-  color: var(--md-accent-fg-color, #3f51b5);
+  color: var(--md-accent-fg-color, #6366f1);
   text-decoration: underline;
 }
 
@@ -53,7 +47,7 @@
   box-sizing: border-box;
 }
 
-/* ── controls / chart mount ───────────────────────────────────────── */
+/* ── controls / Observable Plot SVG mount ─────────────────────────── */
 .bench-chart-controls {
   display: flex;
   gap: 1em;
@@ -73,12 +67,54 @@
   position: relative;
   width: 100%;
   max-width: 100%;
-  min-height: 360px;
+  min-height: 220px;
   box-sizing: border-box;
+  color: var(--md-default-fg-color, #1f2937);
+  --plot-background: var(--md-default-bg-color, #ffffff);
+  font-family: var(--md-text-font-family, system-ui, -apple-system, sans-serif);
 }
 
 .bench-chart-plot-hero {
-  min-height: 280px;
+  min-height: 220px;
+}
+
+/* Observable Plot figure, SVG, and automatic flow-legend styling */
+.bench-chart-plot figure {
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
+  color: var(--md-default-fg-color, currentColor);
+  font-family: var(--md-text-font-family, inherit);
+}
+
+.bench-chart-plot svg {
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  color: var(--md-default-fg-color, currentColor);
+  font-family: var(--md-text-font-family, inherit);
+  font-size: 11.5px;
+}
+
+.bench-chart-plot svg [aria-label="x-grid"] line,
+.bench-chart-plot svg [aria-label="y-grid"] line {
+  stroke: var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.22));
+}
+
+.bench-chart-plot svg [aria-label="x-axis tick"] line,
+.bench-chart-plot svg [aria-label="y-axis tick"] line,
+.bench-chart-plot svg [aria-label="fx-axis tick"] line {
+  stroke: var(--md-default-fg-color--light, rgba(128, 128, 128, 0.55));
+}
+
+.bench-chart-plot [class*="swatches"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45em 1em;
+  margin-bottom: 0.65em;
+  font-family: var(--md-code-font-family, var(--md-text-font-family, monospace));
+  font-size: 0.8em;
+  color: var(--md-default-fg-color, currentColor);
 }
 
 .bench-chart-error {
@@ -122,7 +158,7 @@
   font-style: italic;
 }
 
-/* ── hero DOM-bar fallback (only when ECharts global is missing) ─── */
+/* ── hero DOM-bar fallback (only when Plot global is missing) ─────── */
 .bench-hero-bars {
   list-style: none;
   margin: 0;
@@ -193,7 +229,7 @@
 /* ── responsive breakpoints ───────────────────────────────────────── */
 @media (max-width: 767px) {
   .bench-panel { font-size: 0.875em; }
-  .bench-chart-plot { min-height: 320px; }
+  .bench-chart-plot { min-height: 220px; }
   .bench-hero-row {
     grid-template-columns: 1fr;
     gap: 0.1em;
@@ -259,11 +295,11 @@
 }
 
 .bench-chip:hover {
-  background: var(--md-accent-fg-color--transparent, rgba(63, 81, 181, 0.08));
+  background: var(--md-accent-fg-color--transparent, rgba(99, 102, 241, 0.08));
 }
 
 .bench-chip.active {
-  background: var(--md-accent-fg-color, #3f51b5);
+  background: var(--md-accent-fg-color, #6366f1);
   color: #ffffff;
   font-weight: 600;
 }
