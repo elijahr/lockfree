@@ -78,7 +78,8 @@ The classic Treiber stack algorithm suffers from extreme contention on its singl
 <div markdown="0">
   <div id="bench-pqueue-mpmc" class="bench-panel"></div>
 
-  <script src="../../../assets/echarts-5.5.1.min.js"></script>
+  <script src="../../../assets/d3-7.9.0.min.js"></script>
+  <script src="../../../assets/plot-0.6.17.umd.min.js"></script>
   <script src="../../../assets/bench-charts.js"></script>
 </div>
 

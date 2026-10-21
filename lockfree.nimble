@@ -228,7 +228,14 @@ task benchmarks, "Runs the benchmark suite":
     "bench_taskpool",
     "bench_smr_nebr",
   ]:
-    exec "nim c -d:release --threads:on benchmarks/nim/" & binName & ".nim"
+    var flags = "-d:release --threads:on"
+    var compiler = "nim c"
+    if binName == "bench_unbounded_mpmc":
+      compiler = "nim cpp"
+      flags &= " -d:adapter_loony_available"
+    elif binName == "bench_mpmc_bounded":
+      flags &= " -d:adapter_threading_channels_available"
+    exec compiler & " " & flags & " benchmarks/nim/" & binName & ".nim"
     exec ".tmp/" & binName & " --bmf-out=benchmarks/results/" & binName & ".json"
   # Union the per-binary fragments. Exits 1 on (slug, measure) collisions.
   exec "python3 benchmarks/merge_bmf.py benchmarks/results/latest.json " &

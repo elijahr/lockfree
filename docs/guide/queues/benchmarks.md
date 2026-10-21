@@ -1,195 +1,111 @@
-# Queue Engine Benchmarks: Throughput, Latency & Contention
+# Queue Benchmarks: Throughput, Latency & Contention
 
-Performance benchmarks comparing `lockfree` against alternative queue implementations in Nim, C++, and Rust.
+This page compares the `lockfree` queue engines against alternative concurrent queues in Nim, C, C++, and Rust.
 
-## How to read these numbers
+---
 
-The chart organises every measurement along three axes: the **library** (which
-queue implementation), the **topology** (who's allowed to push and pop), and
-the **shape** (how many of each are running concurrently). Each combination is
-one bar.
+## How to Read These Charts
 
-Topology slugs name the producer/consumer cardinality: **SPSC** is single
-producer single consumer, **SPMC** is single producer with many consumers,
-**MPSC** is the inverse, and **MPMC** is many on both sides. Different
-topologies admit different algorithms — SPSC can be wait-free with no atomic
-RMW on the hot path, while MPMC needs a full Vyukov sequence-counter algorithm.
-See [Lock-freedom Concepts](../concepts/lock-freedom.md) for the algorithmic background.
+Every chart organizes measurements along three dimensions:
 
-Shapes use the `NpMc` form: `4p4c` means four producer threads and four
-consumer threads, all on one queue. Higher counts under the same topology
-crank up contention — `4p4c` MPMC is harder than `1p1c` MPMC because every
-slot is now contested by up to eight threads instead of two, and the
-`ubuntu-latest` runner only has 4 vCPU so `8p8c` measures scheduler
-oversubscription, not the queue itself.
+1. **Library**: Which queue implementation is being tested (`lockfree` is highlighted in bold indigo `#6366f1`).
+2. **Topology**: How many threads are allowed to push and pop:
+   - **SPSC** (Single-Producer Single-Consumer): Exactly one producer thread and one consumer thread (`1p1c`). Because only one thread touches the head and only one touches the tail, SPSC queues can be wait-free without atomic compare-and-swap loops.
+   - **SPMC** (Single-Producer Multi-Consumer): One producer feeding multiple concurrent consumers.
+   - **MPSC** (Multi-Producer Single-Consumer): Multiple concurrent producers feeding one consumer (`1p1c`, `2p1c`, `4p1c`, `8p1c`).
+   - **MPMC** (Multi-Producer Multi-Consumer): Multiple concurrent producers and multiple concurrent consumers (`1p1c`, `2p2c`, `4p4c`, `8p8c`).
+3. **Contention Shape (`NpMc`)**: The number of active producer (`Np`) and consumer (`Mc`) threads sharing a single queue instance. For example, `4p4c` runs four producer threads and four consumer threads concurrently on the same queue.
 
-Bounded variants are ring buffers with compile-time capacity; unbounded
-variants are linked segments reclaimed via NEBR. The bounded/unbounded
-choice changes the cost model — bounded amortises everything in a fixed
-allocation, unbounded pays a small reclamation overhead in exchange for never
-returning a "queue full" error. The trade-off is laid out in
-[Bounded vs Unbounded](../bounded-vs-unbounded.md).
+### Directionality & Units
 
-In the legend, an asterisk (`*`) and the `(blocking)` badge mark libraries
-whose adapter blocks on a full queue instead of returning a non-blocking
-"full" signal — Nim's `system/Channel` and `Threading.Channels` work that way.
-Their bars are also rendered with a dotted edge. The throughput numbers for
-those libraries reflect blocking semantics, not the `try_push` path the
-lockfree bounded variants expose, so cross-comparisons need that
-asterisk in mind.
+- **Throughput Charts (`ops/ms`)**: Measure completed enqueue + dequeue operations per millisecond. **Higher is better (`↑`)**.
+- **Latency Charts (`ns`)**: Measure round-trip ping-pong time in nanoseconds across the `p50`, `p95`, `p99`, `p999`, and `max` percentiles. **Lower is better (`↓`)**.
 
-## When to pick lockfree
+### Bounded vs. Unbounded Queues
 
-If your bottleneck is **single-producer single-consumer with a known capacity**
-— an audio callback handing buffers to a render thread, a GPU command queue,
-a network read loop feeding a worker — the bounded SPSC queue
-(`newSpscQueue`) is wait-free on both sides and sustains upwards of 45,000 ops/ms
-(>45M ops/sec) in release mode. There's no adapter for `system/Channel` at SPSC
-so the fixture has no head-to-head number against it, but the wait-free
-progress guarantee alone usually settles it.
+- **Bounded Queues (`BQueue[T]`)**: Use a fixed-capacity ring buffer allocated once at initialization. When the buffer is full, `tryPush` returns `false` immediately without allocating memory or blocking the caller.
+- **Unbounded Queues (`Queue[T]`)**: Use linked ring segments reclaimed automatically via Epoch-Based Safe Memory Reclamation (NEBR). Producers never encounter a full queue, trading a small per-operation reclamation cost for elastic capacity. See [Bounded vs. Unbounded](../bounded-vs-unbounded.md) for a detailed comparison.
 
-If your bottleneck is **multi-producer multi-consumer at high contention** —
-a job scheduler with dozens of producer threads, an event collector
-funneling from many sources — the bounded MPMC queue (`newMpmcQueue`) is
-the right call. At `4p4c` it sustains over 37,000 ops/ms, up to 21.9x faster than
-`system/Channel` at the same shape. The bounded MPSC queue (`newMpscQueue`) shows a similar
-gap when only the producer side fans out.
+### How `system.Channel` Handles MPSC and MPMC Thread Safety
 
-When NOT to reach for lockfree:
+Nim's standard `system.Channel[T]` is thread-safe for both MPSC and MPMC workloads because it protects its internal buffer with an operating-system mutex (`pthread_mutex_t`) and condition variable (`pthread_cond_t`). Every send and receive acquires that shared lock:
 
-- **You actually want blocking semantics.** If "queue full" should park the
-  producer until the consumer drains a slot, `system/Channel` and
-  `Threading.Channels` give that for free. The lockfree bounded
-  variants return a non-blocking signal instead, and you'd need to layer a
-  semaphore or condvar on top.
-- **You are passing arbitrary unmanaged ref types without an admission token.**
-  Under ARC/ORC/atomicArc, transferring managed reference types across threads
-  requires explicit memory ownership semantics. `lockfree` provides
-  first-class `ManagedRef[T]` and `ManagedSlice[T]` tokens via Path-C admission
-  (`import lockfree/managed_ref`) to safely transfer heap references without
-  leaks or double-frees, or you can use value types and raw pointers (`ptr T`).
-- **NEBR reclamation overhead matters more than throughput.** The unbounded
-  variants pay a small per-pop bookkeeping cost for epoch advancement; on
-  workloads dominated by tiny payloads at very high pop rates the bounded
-  variants will measure higher. The fixture shows the unbounded MPMC queue
-  sustaining strong throughput, but bounded MPMC will always be faster due to
-  zero dynamic segment allocation.
+- **Thread-Safety**: Multiple producers and multiple consumers can safely share a `system.Channel[T]` without data races because the mutex serializes every access.
+- **Blocking Back-Pressure**: When a bounded `system.Channel[T]` reaches capacity, `send` blocks the calling producer thread on the condition variable until a consumer removes an item.
+- **Performance Impact**: Under multi-threaded contention (`2p2c`, `4p4c`, `8p8c`), all threads compete for the same mutex cache line. In the charts below, libraries that block when full are marked with an asterisk (`*`) and a `(blocking)` label.
 
-## Methodology
+---
 
-### Throughput Benchmark
-- N producer threads and N consumer threads share one queue
-- Each thread sends/receives 1,000,000 / N messages
-- Measures end-to-end time, reports ops/ms
-- 33 runs with warmup for stable statistics
+## When to Choose `lockfree`
 
-### Latency Benchmark
-- Ping-pong between 2 threads using 2 queues
-- Measures round-trip time (RTT) in nanoseconds
-- 100,000 iterations per run
-- Reports percentiles: p50, p95, p99, p999
+- **Single-Producer Single-Consumer (`newSpscQueue`)**: Ideal for audio callbacks, render pipelines, and dedicated I/O reader threads. Both `tryPush` and `tryPop` are wait-free (`O(1)`) and sustain over **45,000 ops/ms** (>45 million operations per second).
+- **High-Contention Multi-Producer Multi-Consumer (`newMpmcQueue`)**: Ideal for work distribution, thread pools, and telemetry pipelines. At `4p4c`, `lockfree` sustains over **37,000 ops/ms**—up to **21.9x faster** than `system.Channel` at the same thread count.
+- **Multi-Producer Fan-In (`newMpscQueue`)**: Ideal when many worker threads submit events or logs to a single consumer thread without mutex serialization.
 
-## Running Benchmarks
+### When Another Primitive Fits Better
+
+- **You want automatic thread sleeping on a full or empty channel**: Use [`Channel[T]`](../channels/benchmarks.md) (`send` / `recv` with adaptive backoff) or [`RendezvousChannel[T]`](../channels/benchmarks.md) (for 0-buffer synchronous handoffs).
+- **You are transferring GC-managed `ref` objects across threads**: Wrap managed references in [`ManagedRef[T]`](../managed-ref.md) or [`ManagedSlice[T]`](../managed-slice.md) so ownership is transferred safely under ARC/ORC/atomicArc.
+
+---
+
+## Benchmark Methodology
+
+- **Throughput Suite**: `N` producer threads and `M` consumer threads share one queue and transfer `1,000,000` 64-bit integer payloads per run across 33 iterations after warmup. Throughput is reported in operations per millisecond (`ops/ms`).
+- **Latency Suite**: Two threads exchange a 64-bit token back and forth across two queues for `100,000` round trips per run. Round-trip time (RTT) is recorded in nanoseconds (`ns`) at `p50`, `p95`, `p99`, `p999`, and `max`.
+
+### Running the Benchmarks Locally
 
 ```bash
-# Quick run (10 iterations)
+# Quick verification run (10 iterations)
 nimble benchmarks
 
-# Full benchmark suite
-python benchmarks/runner.py run --runs=33
+# Full statistical benchmark suite (33 iterations)
+python3 benchmarks/runner.py run --runs=33
 ```
 
-## Queue Types Compared
+---
 
-### lockfree variants
+## Queues Compared
 
-The in-tree queues are driven directly from the unified `BQueue` (bounded)
-and `Queue` (unbounded) generics. Each topology is benchmarked from the
-matching family-named smart constructor.
+### `lockfree` Queue Families
 
-| Slug family                       | Topology      | Constructor               | Kind      |
-|-----------------------------------|---------------|---------------------------|-----------|
-| `lockfree_spsc`                 | SPSC          | `newSpscQueue`          | bounded   |
-| `lockfree_spmc`                 | SPMC (MPMC slug grid) | `newSpmcQueue`  | bounded   |
-| `lockfree_mpsc`                 | MPSC          | `newMpscQueue`          | bounded   |
-| `lockfree_mpmc`                 | MPMC          | `newMpmcQueue`          | bounded   |
-| `lockfree_unbounded_spsc`       | SPSC          | `newUnboundedSpscQueue` | unbounded |
-| `lockfree_unbounded_spmc`       | SPMC          | `newUnboundedSpmcQueue` | unbounded |
-| `lockfree_unbounded_mpsc`       | MPSC          | `newUnboundedMpscQueue` | unbounded |
-| `lockfree_unbounded_mpmc`       | MPMC          | `newUnboundedMpmcQueue` | unbounded |
+| Benchmark Slug | Topology | Constructor | Capacity Model |
+| :--- | :--- | :--- | :--- |
+| `lockfree_spsc` | SPSC (`1p1c`) | `newSpscQueue` | Bounded ring buffer |
+| `lockfree_spmc` | SPMC | `newSpmcQueue` | Bounded ring buffer |
+| `lockfree_mpsc` | MPSC (`1p1c`..`8p1c`) | `newMpscQueue` | Bounded ring buffer |
+| `lockfree_mpmc` | MPMC (`1p1c`..`8p8c`) | `newMpmcQueue` | Bounded ring buffer (Vyukov) |
+| `lockfree_unbounded_spsc` | SPSC (`1p1c`) | `newUnboundedSpscQueue` | Unbounded linked segments |
+| `lockfree_unbounded_spmc` | SPMC | `newUnboundedSpmcQueue` | Unbounded linked segments |
+| `lockfree_unbounded_mpsc` | MPSC (`1p1c`..`8p1c`) | `newUnboundedMpscQueue` | Unbounded linked segments |
+| `lockfree_unbounded_mpmc` | MPMC (`1p1c`..`8p8c`) | `newUnboundedMpmcQueue` | Unbounded linked segments (LCRQ + NEBR) |
 
-A `lockfree_queue_bounded_*` parity slug is emitted alongside each
-bounded family — it drives the same `BQueue` generic and exists only to
-guard the unification against per-shape throughput regressions.
+### External Reference Libraries
 
-### Cross-library comparison set
+| Library | Language | Implementation Tested | Topologies Covered |
+| :--- | :--- | :--- | :--- |
+| **MoodyCamel** | C++ | `moodycamel::ConcurrentQueue` | Unbounded MPMC |
+| **Boost.LockFree** | C++ | `boost::lockfree::spsc_queue`, `boost::lockfree::queue` | Bounded SPSC, Bounded MPMC |
+| **atomic_queue** | C++ | `atomic_queue::AtomicQueueB` | Bounded SPSC, Bounded MPMC |
+| **rigtorp** | C++ | `rigtorp::SPSCQueue`, `rigtorp::MPMCQueue` | Bounded SPSC, Bounded MPMC |
+| **crossbeam** | Rust | `crossbeam_queue::ArrayQueue`, `crossbeam_queue::SegQueue` | Bounded MPMC, Unbounded MPMC |
+| **flume** | Rust | `flume::bounded`, `flume::unbounded` | Bounded MPMC, Unbounded MPMC |
+| **kanal** | Rust | `kanal::bounded`, `kanal::unbounded` | Bounded SPSC, Bounded MPMC, Unbounded MPMC |
+| **liblfds** | C | `lfds711_queue_bss` (SPSC), `lfds711_queue_bmm` (MPMC) | Bounded SPSC, Bounded MPMC |
+| **Nim `system.Channel`** | Nim | `system.Channel[T]` (mutex-guarded, blocks when full\*) | MPSC, Bounded MPMC |
+| **Nim `threading/channels`** | Nim | `threading/channels.Chan[T]` (mutex-guarded) | Bounded MPMC |
+| **Loony** | Nim | `LoonyQueue` | Unbounded MPMC |
 
-The comparison adapters (`benchmarks/nim/adapters/`) plot third-party
-queues alongside the in-tree families in the same BMF snapshot consumed
-by the charts on this page. All adapters are gated behind
-`-d:adapter_<library_slug>_available`; absent gates produce no symbol
-references and the production builds are unchanged. The set below was
-expanded for the v5.0.0 benchmark suite so every topology has multiple
-distinct external libraries.
+\* `system.Channel` serializes producers and consumers with an OS mutex and blocks producers when the buffer is full. Its bars and lines are marked with an asterisk (`*`) and a `(blocking)` indicator.
 
-| Library                | Lang | Variant(s) benchmarked                                  | Topologies covered          |
-|------------------------|------|--------------------------------------------------------|-----------------------------|
-| MoodyCamel             | C++  | `ConcurrentQueue`                                       | unbounded MPMC              |
-| Boost.LockFree         | C++  | `boost::lockfree::queue`, `boost::lockfree::spsc_queue` | bounded MPMC, bounded SPSC  |
-| atomic_queue           | C++  | `AtomicQueueB`                                          | bounded SPSC + bounded MPMC |
-| rigtorp SPSCQueue      | C++  | `rigtorp::SPSCQueue`                                    | bounded SPSC                |
-| rigtorp MPMCQueue      | C++  | `rigtorp::mpmc::Queue`                                  | bounded MPMC                |
-| crossbeam              | Rust | `crossbeam_queue::ArrayQueue`, `crossbeam_queue::SegQueue` | bounded MPMC, unbounded MPMC |
-| flume                  | Rust | bounded + unbounded channel                            | bounded MPMC + unbounded MPMC |
-| kanal                  | Rust | bounded + unbounded channel                            | bounded SPSC + bounded MPMC + unbounded MPMC |
-| liblfds (soft-skip)    | C    | `lfds711_queue_bss_*` (SPSC), `lfds711_queue_bmm_*` (MPMC) | bounded SPSC + bounded MPMC |
-| Nim `system.Channel`   | Nim  | `system/channels.Channel` (blocking-on-full\*)         | MPSC + MPMC                 |
-| nimble `threading`     | Nim  | `threading.Chan` (non-blocking try)                    | bounded MPMC                |
-| Loony                  | Nim  | `LoonyQueue`                                            | unbounded MPMC              |
+---
 
-\* The `system.Channel` adapter blocks the producer on a full channel
-instead of returning back-pressure, so its slugs are only loosely
-comparable to the non-blocking adapters; the chart marks them with a
-dotted bar and a `(blocking)` badge.
+## Interactive Results
 
-**liblfds is a soft-skip adapter.** The vendored subset
-(`benchmarks/vendor/liblfds/`) carries the upstream C source and a C
-wrapper, but **not** the `gcc_gnumake` Makefile that builds
-`liblfds711.a`. The `bench-comparison.yml` install step is guarded by
-`test -f .../Makefile` with `continue-on-error: true`, so on a checkout
-that lacks the Makefile the liblfds adapter is simply omitted (a
-`::warning title=Adapter skipped::` annotation is emitted) rather than
-failing the workflow. CI environments that DO carry the full upstream
-tree build the archive and exercise the adapter. The same soft-skip
-pattern applies to every external adapter: install/build → smoke →
-set-define, each `continue-on-error`, so a missing toolchain or library
-drops that adapter's slugs instead of breaking the run.
+Click any library in a chart's legend to show or hide its series. Use the toolbar to filter by contention shape or switch between logarithmic and linear Y-axes.
 
-Library upstreams and licenses, the per-adapter compile gates, and the
-local run recipes are documented in
-[`benchmarks/README.md`](https://github.com/elijahr/lockfree/blob/devel/benchmarks/README.md);
-per-library obligations are tracked in
-[`THIRD_PARTY_LICENSES.md`](https://github.com/elijahr/lockfree/blob/devel/THIRD_PARTY_LICENSES.md).
-
-## Results
-
-Results are generated per-platform. See the `benchmarks/results/` directory for JSON output.
-
-### Live charts
-
-The charts below pull from a snapshot published by the `bench` CI workflow on
-every push to `devel` (see `.github/workflows/bench.yml`). The hero panel
-shows lockfree vs alternatives at a single representative bounded
-shape; the per-topology panels below trace each library across the
-producer/consumer shape grid (and pair bounded with unbounded variants where
-the topology supports both). Each panel's legend toggles libraries on and
-off; the Y axis defaults to log scale and is per-panel switchable to linear.
-Hovering a shape shows mean ± stddev when the underlying measure carries
-one, plus the topology context. Dotted bars and a `(blocking)` badge in the
-legend mark libraries with blocking-on-full semantics — see the methodology
-section below.
-
-#### Headline: lockfree vs alternatives
+#### Headline: `lockfree` vs. Alternatives (`4p4c` Bounded MPMC)
 
 <div markdown="0">
   <div id="bench-status" class="bench-status" hidden></div>
@@ -197,63 +113,71 @@ section below.
 
   <div id="bench-hero" class="bench-panel bench-panel-hero">
     <noscript>
-      Charts require JavaScript. The raw data is published at
-      <code>../../assets/bench-results/latest.json</code>; download the JSON
-      snapshot if you need to consume it programmatically.
+      Charts require JavaScript. Raw benchmark data is available at
+      <code>../../assets/bench-results/latest.json</code>.
     </noscript>
   </div>
 </div>
 
-#### Throughput by topology
+---
+
+### 1. Single-Producer Single-Consumer (SPSC)
+
+Dedicated wait-free ring buffer comparison at `1p1c`. Includes specialized SPSC queues alongside general MPSC and MPMC queues running in single-producer, single-consumer mode to measure the marginal synchronization overhead of general multi-threading primitives.
 
 <div markdown="0">
-  <div id="bench-throughput-spsc"           class="bench-panel"></div>
-  <div id="bench-throughput-mpsc"           class="bench-panel"></div>
-  <div id="bench-throughput-mpmc-bounded"   class="bench-panel"></div>
+  <div id="bench-throughput-spsc" class="bench-panel"></div>
+</div>
+
+---
+
+### 2. Multi-Producer Single-Consumer (MPSC)
+
+Throughput scaling across `1p1c`, `2p1c`, `4p1c`, and `8p1c` producer fan-in shapes. Compares dedicated MPSC queues against multi-producer multi-consumer queues under concurrent push contention feeding a single consumer thread.
+
+<div markdown="0">
+  <div id="bench-throughput-mpsc" class="bench-panel"></div>
+</div>
+
+---
+
+### 3. Multi-Producer Multi-Consumer (Bounded MPMC)
+
+Throughput scaling across symmetric contention shapes (`1p1c`, `2p2c`, `4p4c`, `8p8c`) for fixed-capacity ring buffers. When full, producers return `false` immediately without blocking or heap allocation.
+
+<div markdown="0">
+  <div id="bench-throughput-mpmc-bounded" class="bench-panel"></div>
+</div>
+
+---
+
+### 4. Multi-Producer Multi-Consumer (Unbounded MPMC)
+
+Throughput scaling for elastic linked-segment queues with safe memory reclamation across `1p1c`, `2p2c`, `4p4c`, and `8p8c`. Compares `lockfree.uqueue.Queue` against `loony.LoonyQueue` and cross-language alternatives (`moodycamel`, `crossbeam`).
+
+<div markdown="0">
   <div id="bench-throughput-mpmc-unbounded" class="bench-panel"></div>
 </div>
 
-#### Latency
+---
+
+### 5. Round-Trip Latency Distribution
+
+Token exchange latency in nanoseconds measured across percentiles (`p50`, `p95`, `p99`, `p999`, and `max`). **Lower is better ↓**. Use the toggle to switch between the percentile ladder and grouped bar view.
 
 <div markdown="0">
   <div id="bench-latency" class="bench-panel"></div>
-</div>
 
-#### Interactive Workload Estimator & Queue Recommender
-
-<div markdown="0">
-  <div id="bench-recommender" class="bench-panel bench-panel-recommender"></div>
-
-  <script src="../../../assets/echarts-5.5.1.min.js"></script>
+  <script src="../../../assets/d3-7.9.0.min.js"></script>
+  <script src="../../../assets/plot-0.6.17.umd.min.js"></script>
   <script src="../../../assets/bench-charts.js"></script>
 </div>
 
-### Methodology and fairness caveats
+---
 
-All numbers below are produced on GitHub-hosted `ubuntu-latest` runners (4 vCPU
-implicit, x86_64). Do not infer absolute latency or throughput suitability for
-production hardware from these numbers — use them only for relative comparison
-between queue implementations under identical conditions.
+## Fairness & Hardware Notes
 
-Specific caveats:
-
-- **Cache-line padding asymmetry.** Some libraries (lockfree, MoodyCamel,
-  Boost.LockFree, atomic_queue, rigtorp) pad their head/tail/sequence fields to
-  64 bytes; others may not.
-- **Memory ordering.** lockfree uses `acquire`/`release` ordering on its
-  hot paths; some external libraries default to `seq_cst`, which is stricter
-  and may show as higher latency.
-- **NUMA pinning.** None on `ubuntu-latest`. NUMA-aware comparison would
-  require self-hosted high-core runners (radar item).
-- **Message size and capacity.** All benchmarks transfer 8-byte `uint64_t`
-  payloads. Bounded queues use a compile-time capacity matched across libraries.
-- **Blocking vs non-blocking semantics.** Nim's `system/Channel` and
-  `Threading.Channels` block on full instead of returning a "queue full"
-  signal. Their throughput numbers reflect blocking semantics, not the
-  non-blocking `try_push` path that the lockfree queues use. These are
-  rendered with a dotted bar/line and carry an asterisk on the throughput-
-  panel legends and a `(blocking)` badge on the hero legend.
-- **Producer/consumer thread placement.** No explicit pinning. The runner's
-  scheduler is the ground truth for thread placement.
-- **CPU oversubscription.** `ubuntu-latest` has 4 vCPU. MPMC variants beyond
-  4P + 4C measure scheduler oversubscription, not lock-free contention.
+- **Cache-Line Alignment**: `lockfree`, `MoodyCamel`, `Boost.LockFree`, `atomic_queue`, and `rigtorp` align internal head, tail, and sequence indices to cache-line boundaries (64 bytes on x86_64, 128 bytes on Apple Silicon) to prevent false sharing.
+- **Memory Ordering**: `lockfree` uses `moAcquire` / `moRelease` operations on hot paths; libraries that default to `seq_cst` incur additional memory-fence overhead.
+- **Payload & Capacity Parity**: All queue benchmarks transfer identical 8-byte `uint64` payloads and use matched ring-buffer capacities across bounded implementations.
+- **High Thread Counts (`8p8c`)**: On 4-vCPU CI runners, `8p8c` (16 total threads) measures operating-system scheduler oversubscription alongside queue contention.

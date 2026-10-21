@@ -356,11 +356,9 @@ class ChartContractTests(unittest.TestCase):
         self.assertIsNone(parse_slug("lib/topo/abc"))  # bad shape
 
     def test_chart_assets_present(self) -> None:
-        """The chart wiring requires two checked-in assets plus an
-        ECharts CDN reference in benchmarks.md. If any is missing the
-        chart silently fails with a console error (ECharts global
-        undefined) or a 404 on the JS file. Keep the test as a
-        tripwire."""
+        """The chart wiring requires checked-in Observable Plot + D3 assets
+        and script references in benchmarks.md. Also asserts legacy ECharts
+        bundle has been purged."""
         assets = REPO_ROOT / "docs" / "assets"
         self.assertTrue(
             (assets / "bench-charts.js").is_file(),
@@ -370,13 +368,33 @@ class ChartContractTests(unittest.TestCase):
             (assets / "bench-charts.css").is_file(),
             "bench-charts.css missing",
         )
+        self.assertTrue(
+            (assets / "d3-7.9.0.min.js").is_file(),
+            "d3-7.9.0.min.js missing",
+        )
+        self.assertTrue(
+            (assets / "plot-0.6.17.umd.min.js").is_file(),
+            "plot-0.6.17.umd.min.js missing",
+        )
+        self.assertFalse(
+            (assets / "echarts-5.5.1.min.js").exists(),
+            "legacy echarts-5.5.1.min.js must be removed",
+        )
         bm_path = REPO_ROOT / "docs" / "guide" / "queues" / "benchmarks.md"
         if not bm_path.is_file():
             bm_path = REPO_ROOT / "docs" / "benchmarks.md"
         bm = bm_path.read_text()
         self.assertIn(
-            "echarts", bm.lower(),
-            "benchmarks.md must reference the ECharts library",
+            "../../../assets/d3-7.9.0.min.js", bm,
+            "benchmarks.md must reference d3-7.9.0.min.js",
+        )
+        self.assertIn(
+            "../../../assets/plot-0.6.17.umd.min.js", bm,
+            "benchmarks.md must reference plot-0.6.17.umd.min.js",
+        )
+        self.assertNotIn(
+            "echarts-5.5.1.min.js", bm,
+            "benchmarks.md must not reference legacy echarts-5.5.1.min.js",
         )
         self.assertTrue(
             (assets / "bench-results" / ".gitkeep").is_file(),
@@ -423,7 +441,7 @@ class ChartContractTests(unittest.TestCase):
 
     def test_dom_containers_present_in_subsystem_benchmarks_md(self) -> None:
         """Each subsystem benchmark page in docs/guide/<subsystem>/benchmarks.md
-        must declare its expected DOM container IDs and ECharts/bench-charts.js
+        must declare its expected DOM container IDs and D3/Plot/bench-charts.js
         script tags so interactive charts resolve at load time."""
         subsystem_pages = {
             "maps-sets": (
@@ -451,6 +469,15 @@ class ChartContractTests(unittest.TestCase):
                 "bench-tokenbucket-contention",
                 "bench-streambuffer-throughput",
             ),
+            "channels": (
+                "bench-status",
+                "bench-throughput-mpmc-bounded",
+                "bench-throughput-mpmc-unbounded",
+                "bench-throughput-mpsc",
+                "bench-rendezvous-handoff",
+                "bench-rendezvous-rpc",
+                "bench-rendezvous-latency",
+            ),
             "rendezvous": (
                 "bench-status",
                 "bench-rendezvous-handoff",
@@ -475,9 +502,19 @@ class ChartContractTests(unittest.TestCase):
             self.assertTrue(p.is_file(), f"missing {p}")
             src = p.read_text()
             self.assertIn(
-                "../../../assets/echarts-5.5.1.min.js",
+                "../../../assets/d3-7.9.0.min.js",
                 src,
-                msg=f"{subsys}/benchmarks.md missing echarts script tag",
+                msg=f"{subsys}/benchmarks.md missing d3-7.9.0.min.js script tag",
+            )
+            self.assertIn(
+                "../../../assets/plot-0.6.17.umd.min.js",
+                src,
+                msg=f"{subsys}/benchmarks.md missing plot-0.6.17.umd.min.js script tag",
+            )
+            self.assertNotIn(
+                "echarts-5.5.1.min.js",
+                src,
+                msg=f"{subsys}/benchmarks.md still references legacy echarts-5.5.1.min.js",
             )
             self.assertIn(
                 "../../../assets/bench-charts.js",
@@ -528,6 +565,7 @@ class ChartContractTests(unittest.TestCase):
         self.assertEqual(
             lfq_family,
             [
+                "lockfree_cabi",
                 "lockfree_mpmc",
                 "lockfree_mpsc",
                 "lockfree_spmc",
@@ -537,7 +575,7 @@ class ChartContractTests(unittest.TestCase):
                 "lockfree_unbounded_spmc",
                 "lockfree_unbounded_spsc",
             ],
-            "LIBRARY_COLORS must cover all 8 lockfree_* family members",
+            "LIBRARY_COLORS must cover all lockfree_* family members",
         )
 
     def test_blocking_libraries_const_matches_contract(self) -> None:
@@ -855,6 +893,157 @@ class ChartContractTests(unittest.TestCase):
             uncovered_panels,
             f"declared THROUGHPUT_PANELS with zero matching topologies in example.json: {sorted(uncovered_panels)}",
         )
+
+    def test_visual_overhaul_and_channels_portal_invariants(self) -> None:
+        """Verifies Observable Plot migration and channels portal invariants:
+        - SPSC ranked horizontal bar chart (`Plot.barX` via `buildRankedBarThroughputOption`)
+        - Multi-shape throughput charts (`Plot.line` + `Plot.dot` with automatic flow `legend: true`)
+        - Explicit directionality badges (`Throughput: Higher is better ↑`
+          and `Latency: Lower is better ↓`)
+        - Latency units (`(ns)`) and mode toggle (ladder + grouped bars via `Plot.barY`)
+        - Visual distinction for lockfree (`#6366f1`, `fontWeight: (d) => d.isLfq ? 'bold' : 'normal'`, `strokeWidth: 3.5`)
+        - Complete removal of `renderRecommender` / `bench-recommender` and `echarts`
+        - Plain-English `docs/guide/queues/benchmarks.md` without soft-skip jargon
+        - `mkdocs.yml` includes `guide/channels/benchmarks.md` and has no duplicate
+          `design/design_rendezvous_channel.md` entry.
+        """
+        js_src = (REPO_ROOT / "docs" / "assets" / "bench-charts.js").read_text()
+        css_src = (REPO_ROOT / "docs" / "assets" / "bench-charts.css").read_text()
+        queues_md = (REPO_ROOT / "docs" / "guide" / "queues" / "benchmarks.md").read_text()
+        channels_md = (REPO_ROOT / "docs" / "guide" / "channels" / "benchmarks.md").read_text()
+        mkdocs_yml = (REPO_ROOT / "mkdocs.yml").read_text()
+
+        # (a) Observable Plot engine & SPSC Ranked Bar Chart
+        self.assertIn("window.Plot.plot({", js_src)
+        self.assertIn("window.Plot.barX(", js_src)
+        self.assertIn("window.Plot.line(", js_src)
+        self.assertIn("window.Plot.dot(", js_src)
+        self.assertIn("window.Plot.barY(", js_src)
+        self.assertIn("function buildRankedBarThroughputOption(", js_src)
+        self.assertIn("panelId === 'bench-throughput-spsc'", js_src)
+        self.assertNotIn("echarts", js_src.lower())
+
+        # (b) Automatic flow legend and pure SVG Material CSS variable styling
+        self.assertIn("legend: true", js_src)
+        self.assertIn("--plot-background", css_src)
+
+        # (c) Directionality badges
+        self.assertIn("Throughput: Higher is better ↑", js_src)
+        self.assertIn("Latency: Lower is better ↓", js_src)
+        self.assertIn(".bench-direction-badge", css_src)
+
+        # (d) Latency units and percentile ladder / grouped bars toggle
+        self.assertIn("Latency percentile (ns)", js_src)
+        self.assertIn("' — Lower is better ↓'", js_src)
+        self.assertIn("Percentile Ladder", js_src)
+        self.assertIn("Grouped Bars", js_src)
+
+        # (e) Visual distinction for lockfree
+        self.assertIn("lockfree_spsc:           '#6366f1'", js_src)
+        self.assertIn("fontWeight: (d) => d.isLfq ? 'bold' : 'normal'", js_src)
+        self.assertIn("strokeWidth: 3.5", js_src)
+
+        # (f) Complete removal of Estimator Tool (`renderRecommender` / `bench-recommender`)
+        self.assertNotIn("renderRecommender", js_src)
+        self.assertNotIn("bench-recommender", js_src)
+        self.assertNotIn("bench-recommender", css_src)
+        self.assertNotIn("bench-panel-recommender", css_src)
+        self.assertNotIn("bench-recommender", queues_md)
+
+        # Plain English & no soft-skip jargon in queues/benchmarks.md
+        self.assertNotIn("soft-skip", queues_md.lower())
+        self.assertIn("pthread_mutex_t", queues_md)
+
+        # Channels benchmarks content coverage
+        for contender in ("Channel[T]", "RendezvousChannel[T]", "crossbeam", "flume", "kanal", "system.Channel", "threading/channels"):
+            self.assertIn(contender, channels_md)
+
+        # mkdocs.yml navigation invariants
+        self.assertIn("guide/channels/benchmarks.md", mkdocs_yml)
+        self.assertEqual(
+            mkdocs_yml.count("design/design_rendezvous_channel.md"),
+            1,
+            "expected design/design_rendezvous_channel.md to appear once in mkdocs.yml",
+        )
+
+    def test_harness_cardinality_and_adapter_completeness(self) -> None:
+        """Verifies Task A harness cardinality, adapter completeness, and canonical slug invariants."""
+        for fname in ("latest.json", "example.json"):
+            snap_path = REPO_ROOT / "docs" / "assets" / "bench-results" / fname
+            self.assertTrue(snap_path.is_file(), f"{fname} missing")
+            data = json.loads(snap_path.read_text(encoding="utf-8"))
+
+            # 1. Zero absent adapters; loony, boost_lockfree, liblfds, threading resolved
+            self.assertEqual(data["meta"]["absent_adapters"], [])
+            for req_adapter in ("loony", "boost_lockfree", "liblfds", "threading"):
+                entry = data["meta"]["adapters"][req_adapter]
+                self.assertIsNotNone(entry.get("version"), f"{req_adapter} version missing in {fname}")
+                self.assertEqual(entry.get("status"), None, f"{req_adapter} has error status in {fname}")
+
+            # 2. Negative control: zero legacy duplicate lockfree_queue_bounded_* slugs
+            legacy_slugs = [
+                k for k in data
+                if k.startswith(("lockfree_queue_bounded_", "lockfreequeues_queue_bounded_"))
+            ]
+            self.assertEqual(legacy_slugs, [])
+
+            # 3. Full MPMC bounded cardinality grid (1p1c..8p8c) across all 10 contenders
+            expected_mpmc_shapes = [
+                "1p1c", "1p2c", "1p4c",
+                "2p1c", "2p2c", "2p4c",
+                "4p1c", "4p2c", "4p4c",
+                "8p8c",
+            ]
+            for lib in (
+                "lockfree_mpmc",
+                "nim_channels",
+                "boost_lockfree_queue",
+                "crossbeam_array_queue",
+                "threading_channels",
+                "atomic_queue",
+                "rigtorp_mpmc",
+                "flume",
+                "kanal",
+                "liblfds",
+            ):
+                shapes = sorted(
+                    k.split("/")[2]
+                    for k in data
+                    if k.startswith(f"{lib}/mpmc/")
+                )
+                self.assertEqual(shapes, expected_mpmc_shapes, f"{lib}/mpmc shapes mismatch in {fname}")
+
+            # 4. Full MPMC unbounded cardinality grid (1p1c..8p8c) across all 6 contenders
+            for lib in (
+                "lockfree_unbounded_mpmc",
+                "loony",
+                "crossbeam_seg_queue",
+                "moodycamel",
+                "flume_unbounded",
+                "kanal_unbounded",
+            ):
+                shapes = sorted(
+                    k.split("/")[2]
+                    for k in data
+                    if k.startswith(f"{lib}/mpmc_unbounded/")
+                )
+                self.assertEqual(
+                    shapes, expected_mpmc_shapes, f"{lib}/mpmc_unbounded shapes mismatch in {fname}"
+                )
+
+            # 5. Full MPSC bounded and unbounded cardinality sweep (1p1c, 2p1c, 4p1c, 8p1c)
+            expected_mpsc_shapes = ["1p1c", "2p1c", "4p1c", "8p1c"]
+            for lib, topo in (
+                ("lockfree_mpsc", "mpsc"),
+                ("nim_channel", "mpsc"),
+                ("lockfree_unbounded_mpsc", "mpsc_unbounded"),
+            ):
+                shapes = sorted(
+                    k.split("/")[2]
+                    for k in data
+                    if k.startswith(f"{lib}/{topo}/")
+                )
+                self.assertEqual(shapes, expected_mpsc_shapes, f"{lib}/{topo} shapes mismatch in {fname}")
 
 
 if __name__ == "__main__":

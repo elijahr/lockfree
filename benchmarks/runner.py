@@ -74,6 +74,9 @@ def find_nimble_pkgs() -> tuple[list[str], dict[str, bool]]:
         paths.append(str(d))
         if pkg == "typestates" and (d / "src").is_dir():
             paths.append(str(d / "src"))
+        if pkg == "loony" and (d / "loony" / "utils").is_dir():
+            paths.append(str(d / "loony" / "utils"))
+            available["arc"] = True
     return paths, available
 
 
@@ -178,7 +181,7 @@ def build_nim(quick: bool = False):
         src = BENCHMARK_DIR / "nim" / f"{bin_name}.nim"
         if not src.exists():
             continue
-        cmd = ["nim", "cpp", "-d:release", "-d:danger", "--threads:on"]
+        cmd = ["nim", "cpp", "-d:release", "-d:danger", "--threads:on", "--panics:on"]
 
         for p in nimble_paths:
             cmd.append(f"--path:{p}")
@@ -233,7 +236,7 @@ def build_nim(quick: bool = False):
 
         elif bin_name == "bench_spmc_bounded":
             if quick:
-                cmd.extend(["-d:BenchSpmcRuns=5", "-d:BenchSpmcMessageCount=200000", "-d:BenchSpmcWarmup=1"])
+                cmd.extend(["-d:BenchMpmcRuns=5", "-d:BenchMpmcMessageCount=200000", "-d:BenchMpmcWarmup=1"])
 
         elif bin_name == "bench_unbounded_spsc":
             if quick:
@@ -241,16 +244,16 @@ def build_nim(quick: bool = False):
 
         elif bin_name == "bench_unbounded_spmc":
             if quick:
-                cmd.extend(["-d:UnboundedSpmcRuns=3", "-d:UnboundedSpmcMessageCount=100000"])
+                cmd.extend(["-d:UnboundedSpmcRuns=3", "-d:UnboundedSpmcMessageCount=100000", "-d:BenchUnboundedWarmup=1"])
 
         elif bin_name == "bench_unbounded_mpsc":
             if quick:
-                cmd.extend(["-d:UnboundedMpscRuns=3", "-d:UnboundedMpscMessageCount=100000"])
+                cmd.extend(["-d:UnboundedMpscRuns=3", "-d:UnboundedMpscMessageCount=100000", "-d:BenchUnboundedWarmup=1"])
 
         elif bin_name == "bench_unbounded_mpmc":
             if has_moodycamel:
                 cmd.append("-d:adapter_moodycamel_available")
-            if nimble_pkgs.get("loony") and nimble_pkgs.get("arc"):
+            if nimble_pkgs.get("loony"):
                 cmd.append("-d:adapter_loony_available")
             if rust_available:
                 cmd.extend([
@@ -259,11 +262,11 @@ def build_nim(quick: bool = False):
                     "-d:adapter_kanal_available",
                 ])
             if quick:
-                cmd.extend(["-d:UnboundedMpmcRuns=2", "-d:UnboundedMpmcMessageCount=50000"])
+                cmd.extend(["-d:UnboundedMpmcRuns=2", "-d:UnboundedMpmcMessageCount=50000", "-d:BenchUnboundedWarmup=1"])
 
         elif bin_name == "bench_latency":
             if quick:
-                cmd.extend(["-d:BenchLatencyRuns=5", "-d:BenchLatencyIterations=50000"])
+                cmd.extend(["-d:BenchLatencyRuns=5", "-d:BenchLatencyMessageCount=50000", "-d:BenchLatencyWarmupRuns=1"])
 
         elif bin_name == "bench_maps":
             if quick:

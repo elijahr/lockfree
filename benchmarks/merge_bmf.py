@@ -55,6 +55,41 @@ ALLOWED_FIELDS = frozenset({"value", "lower_value", "upper_value"})
 # are accepted but ignored for the union to keep the merge deterministic
 # without needing a deep-equality check on every meta sub-field).
 META_KEY = "meta"
+LEGACY_BOUNDED_ALIAS_PREFIXES = (
+    "lockfree_queue_bounded_",
+    "lockfreequeues_queue_bounded_",
+)
+
+
+def _merge_meta(
+    base_meta: dict[str, Any], incoming_meta: dict[str, Any]
+) -> dict[str, Any]:
+    """Merge adapter version entries across fragments, preferring resolved
+    adapter entries (no 'status' key) over absent/build-without-* entries."""
+    result = dict(base_meta)
+    base_adapters = result.get("adapters")
+    inc_adapters = incoming_meta.get("adapters")
+    if isinstance(base_adapters, dict) and isinstance(inc_adapters, dict):
+        merged_adapters = dict(base_adapters)
+        for slug, inc_entry in inc_adapters.items():
+            cur_entry = merged_adapters.get(slug)
+            if cur_entry is None:
+                merged_adapters[slug] = inc_entry
+            elif (
+                isinstance(cur_entry, dict)
+                and "status" in cur_entry
+                and isinstance(inc_entry, dict)
+                and "status" not in inc_entry
+            ):
+                merged_adapters[slug] = inc_entry
+        result["adapters"] = merged_adapters
+        if "absent_adapters" in result or "absent_adapters" in incoming_meta:
+            result["absent_adapters"] = [
+                slug
+                for slug, entry in merged_adapters.items()
+                if isinstance(entry, dict) and "status" in entry
+            ]
+    return result
 
 
 def _die(msg: str) -> "int":
@@ -173,14 +208,15 @@ def merge(
         if err is not None:
             return {}, err
         for slug, inner in parsed.items():
-            # `meta` key: preserve from the first input that supplies it.
-            # Every per-binary fragment in a single bench run carries the
-            # same meta block (generated_at differs by milliseconds; all
-            # other fields identical), so first-wins is deterministic and
-            # avoids a deep merge that would have to choose between
-            # nearly-equal timestamps.
             if slug == META_KEY:
-                merged.setdefault(META_KEY, inner)  # type: ignore[arg-type]
+                if META_KEY not in merged:
+                    merged[META_KEY] = inner  # type: ignore[assignment]
+                else:
+                    merged[META_KEY] = _merge_meta(  # type: ignore[assignment]
+                        merged[META_KEY], inner  # type: ignore[arg-type]
+                    )
+                continue
+            if slug.startswith(LEGACY_BOUNDED_ALIAS_PREFIXES):
                 continue
             slug_bucket = merged.setdefault(slug, {})
             for measure, mv in inner.items():

@@ -17,6 +17,7 @@
 
 import std/[monotimes, options, os, parseopt, sets, strformat, syncio, times]
 import ./bench_common
+import ./adapters/lockfree_cabi_adapter
 import lockfree/backoff
 # The legacy `lockfree/mpsc` module has been deleted; the "mpsc"
 # variant below now drives the unified
@@ -152,94 +153,10 @@ proc runMpscShape[N, P: static int, T](
   echo ""
   em.addMeasure(slug, "throughput_ops_ms", m, m - s, m + s)
 
-# ---------- BQueue-based MPSC parity harness ----------
-#
-# Parallel to the Mpsc harness above, but exercises the unified
-# `BQueue[uint64, ccMulti, ccSingle, N, P, 0]`
-# generic. Slug `lockfree_queue_bounded_mpsc/mpsc/<P>p1c`.
-# Output metric / units (throughput_ops_ms) match the Mpsc baseline
-# so B3 can compute a per-shape % delta.
-
-type
-  QMpscProducerCtx[N, P: static int, T] = object
-    producer: Bound[T, AnyThreadTag, BQueue[T, ccMulti, ccSingle, N, P, 0]]
-    startIdx: int
-    count: int
-
-  QMpscConsumerCtx[N, P: static int, T] = object
-    queue: ptr BQueue[T, ccMulti, ccSingle, N, P, 0]
-    count: int
-
-proc qMpscProducerThread[N, P: static int, T](
-    ctx: ptr QMpscProducerCtx[N, P, T]
-) {.thread.} =
-  for i in ctx.startIdx ..< ctx.startIdx + ctx.count:
-    while not ctx.producer.push(T(i)):
-      benchBackoffOnPeerWait()
-
-proc qMpscConsumerThread[N, P: static int, T](
-    ctx: ptr QMpscConsumerCtx[N, P, T]
-) {.thread.} =
-  var local = 0
-  while local < ctx.count:
-    let item = ctx.queue[].pop()
-    if item.isSome:
-      inc local
-    else:
-      benchBackoffOnPeerWait()
-
-proc runOneQMpscRun[N, P: static int, T](
-    queue: var BQueue[T, ccMulti, ccSingle, N, P, 0], messageCount: int
-): float =
-  let baseP = messageCount div P
-  let remP = messageCount mod P
-  var producerThreads: array[P, Thread[ptr QMpscProducerCtx[N, P, T]]]
-  var producerCtxs: array[P, QMpscProducerCtx[N, P, T]]
-  var consumerThread: Thread[ptr QMpscConsumerCtx[N, P, T]]
-  var consumerCtx = QMpscConsumerCtx[N, P, T](queue: addr queue, count: messageCount)
-  var nextStart = 0
-  for i in 0 ..< P:
-    let count = baseP + (if i < remP: 1 else: 0)
-    producerCtxs[i] = QMpscProducerCtx[N, P, T](
-      producer: queue.getProducerHere(idx = i), startIdx: nextStart, count: count
-    )
-    nextStart += count
-  let startTime = getMonoTime()
-  for i in 0 ..< P:
-    createThread(producerThreads[i], qMpscProducerThread[N, P, T], addr producerCtxs[i])
-  createThread(consumerThread, qMpscConsumerThread[N, P, T], addr consumerCtx)
-  for i in 0 ..< P:
-    joinThread(producerThreads[i])
-  joinThread(consumerThread)
-  let elapsedNs = float(inNanoseconds(getMonoTime() - startTime))
-  if elapsedNs <= 0.0:
-    return 0.0
-  result = float(messageCount) * 1_000_000.0 / elapsedNs
-
-proc runQMpscShape[N, P: static int, T](
-    em: var BMFEmitter, runs, warmup, messageCount: int
-) =
-  let slug = "lockfree_queue_bounded_mpsc/mpsc/" & $P & "p1c"
-  echo fmt"QueueBoundedMpsc {P}p1c ({slug}):"
-  for _ in 0 ..< warmup:
-    var q = q_mod.newBQueue[T, ccMulti, ccSingle, N, P, 0]()
-    discard runOneQMpscRun(q, messageCount)
-  var samples: seq[float] = @[]
-  for _ in 0 ..< runs:
-    var q = q_mod.newBQueue[T, ccMulti, ccSingle, N, P, 0]()
-    samples.add(runOneQMpscRun(q, messageCount))
-  let m = mean(samples)
-  let s = stddev(samples)
-  echo fmt"  mean: {m:.1f} ops/ms"
-  echo fmt"  stddev: {s:.1f}"
-  echo fmt"  runs: {samples.len}"
-  echo ""
-  em.addMeasure(slug, "throughput_ops_ms", m, m - s, m + s)
-
 # ---------- nim_channel dispatch (uses runThroughputHarness) ----------
 #
 # system.Channel exposes uniform push/pop through the adapter, so it
-# fits the stock runThroughputHarness on the MPSC {1,2,4}p1c matrix
+# fits the stock runThroughputHarness on the MPSC {1,2,4,8}p1c matrix
 # in parity with the lockfree mpsc baseline.
 
 when defined(adapter_nim_channel_available):
@@ -270,10 +187,39 @@ when defined(adapter_nim_channel_available):
       metrics.ops_ms_mean + metrics.ops_ms_stddev,
     )
 
+proc initLockfreeCabiMpscQ(capacity: int): LockfreeCabiAdapter[uint64] =
+  makeLockfreeCabiAdapter[uint64](capacity)
+
+proc runLockfreeCabiMpscShape(
+    em: var BMFEmitter, p: int, runs, warmup, messageCount: int
+) =
+  let slug = "lockfree_cabi/mpsc/" & $p & "p1c"
+  echo fmt"lockfree_cabi {p}p1c ({slug}):"
+  let metrics = runThroughputHarness[LockfreeCabiAdapter[uint64]](
+    queueInit = initLockfreeCabiMpscQ,
+    capacity = MpscCapacity,
+    numProducers = p,
+    numConsumers = 1,
+    messageCount = messageCount,
+    runCount = runs,
+    warmupCount = warmup,
+  )
+  echo fmt"  mean: {metrics.ops_ms_mean:.1f} ops/ms"
+  echo fmt"  stddev: {metrics.ops_ms_stddev:.1f}"
+  echo fmt"  runs: {metrics.runs}"
+  echo ""
+  em.addMeasure(
+    slug,
+    "throughput_ops_ms",
+    metrics.ops_ms_mean,
+    metrics.ops_ms_mean - metrics.ops_ms_stddev,
+    metrics.ops_ms_mean + metrics.ops_ms_stddev,
+  )
+
 # ---------- Variant dispatch ----------
 
 proc supportedVariantsList(): seq[string] {.compileTime.} =
-  result = @["mpsc", "queue_bounded_mpsc"]
+  result = @["mpsc", "lockfree_cabi"]
   when declared(initNimChannelQ):
     result.add("nim_channel")
 
@@ -291,20 +237,18 @@ proc runVariant(variant: string, em: var BMFEmitter) =
     runMpscShape[MpscCapacity, 4, uint64](
       em, BenchMpscRuns, BenchMpscWarmup, BenchMpscMessageCount
     )
-  of "queue_bounded_mpsc":
-    runQMpscShape[MpscCapacity, 1, uint64](
+    runMpscShape[MpscCapacity, 8, uint64](
       em, BenchMpscRuns, BenchMpscWarmup, BenchMpscMessageCount
     )
-    runQMpscShape[MpscCapacity, 2, uint64](
-      em, BenchMpscRuns, BenchMpscWarmup, BenchMpscMessageCount
-    )
-    runQMpscShape[MpscCapacity, 4, uint64](
-      em, BenchMpscRuns, BenchMpscWarmup, BenchMpscMessageCount
-    )
+  of "lockfree_cabi":
+    for p in [1, 2, 4, 8]:
+      runLockfreeCabiMpscShape(
+        em, p, BenchMpscRuns, BenchMpscWarmup, BenchMpscMessageCount
+      )
   else:
     when declared(initNimChannelQ):
       if variant == "nim_channel":
-        for p in [1, 2, 4]:
+        for p in [1, 2, 4, 8]:
           runNimChannelShape(
             em, p, BenchMpscRuns, BenchMpscWarmup, BenchMpscMessageCount
           )

@@ -152,95 +152,10 @@ proc runSpmcShape[N, C: static int, T](
   echo ""
   em.addMeasure(slug, "throughput_ops_ms", m, m - s, m + s)
 
-# ---------- BQueue ccSingle x ccMulti harness ----------
-#
-# Slug `lockfree_queue_bounded_spmc/mpmc/1p<C>c`. Output metric /
-# units (throughput_ops_ms) match the legacy Spmc baseline so the
-# parity delta is a simple per-shape division across the two emitted
-# measures.
-
-type
-  QBoundedSpmcProducerCtx[N, C: static int, T] = object
-    queue: ptr BQueue[T, ccSingle, ccMulti, N, 0, C]
-    startIdx: int
-    count: int
-
-  QBoundedSpmcConsumerCtx[N, C: static int, T] = object
-    consumer: Bound[T, AnyThreadTag, BQueue[T, ccSingle, ccMulti, N, 0, C]]
-    count: int
-
-proc qBoundedSpmcProducerThread[N, C: static int, T](
-    ctx: ptr QBoundedSpmcProducerCtx[N, C, T]
-) {.thread.} =
-  for i in ctx.startIdx ..< ctx.startIdx + ctx.count:
-    while not ctx.queue[].push(T(i)):
-      benchBackoffOnPeerWait()
-
-proc qBoundedSpmcConsumerThread[N, C: static int, T](
-    ctx: ptr QBoundedSpmcConsumerCtx[N, C, T]
-) {.thread.} =
-  var local = 0
-  while local < ctx.count:
-    let item = ctx.consumer.pop()
-    if item.isSome:
-      inc local
-    else:
-      benchBackoffOnPeerWait()
-
-proc runOneQBoundedSpmcRun[N, C: static int, T](
-    queue: var BQueue[T, ccSingle, ccMulti, N, 0, C], messageCount: int
-): float =
-  let baseC = messageCount div C
-  let remC = messageCount mod C
-  var producerThread: Thread[ptr QBoundedSpmcProducerCtx[N, C, T]]
-  var producerCtx = QBoundedSpmcProducerCtx[N, C, T](
-    queue: addr queue, startIdx: 0, count: messageCount
-  )
-  var consumerThreads: array[C, Thread[ptr QBoundedSpmcConsumerCtx[N, C, T]]]
-  var consumerCtxs: array[C, QBoundedSpmcConsumerCtx[N, C, T]]
-  for i in 0 ..< C:
-    let count = baseC + (if i < remC: 1 else: 0)
-    consumerCtxs[i] = QBoundedSpmcConsumerCtx[N, C, T](
-      consumer: queue.getConsumerHere(idx = i), count: count
-    )
-  let startTime = getMonoTime()
-  createThread(producerThread, qBoundedSpmcProducerThread[N, C, T], addr producerCtx)
-  for i in 0 ..< C:
-    createThread(
-      consumerThreads[i], qBoundedSpmcConsumerThread[N, C, T], addr consumerCtxs[i]
-    )
-  joinThread(producerThread)
-  for i in 0 ..< C:
-    joinThread(consumerThreads[i])
-  let elapsedNs = float(inNanoseconds(getMonoTime() - startTime))
-  if elapsedNs <= 0.0:
-    return 0.0
-  result = float(messageCount) * 1_000_000.0 / elapsedNs
-
-proc runQBoundedSpmcShape[N, C: static int, T](
-    em: var BMFEmitter, runs, warmup, messageCount: int
-) =
-  let slug = "lockfree_queue_bounded_spmc/mpmc/1p" & $C & "c"
-  echo fmt"QueueBoundedSpmc 1p{C}c ({slug}):"
-  for _ in 0 ..< warmup:
-    var q = q_mod.newBQueue[T, ccSingle, ccMulti, N, 0, C]()
-    discard runOneQBoundedSpmcRun(q, messageCount)
-  var samples: seq[float] = @[]
-  for _ in 0 ..< runs:
-    var q = q_mod.newBQueue[T, ccSingle, ccMulti, N, 0, C]()
-    samples.add(runOneQBoundedSpmcRun(q, messageCount))
-  let m = mean(samples)
-  let s = stddev(samples)
-  echo fmt"  mean: {m:.1f} ops/ms"
-  echo fmt"  stddev: {s:.1f}"
-  echo fmt"  runs: {samples.len}"
-  echo ""
-  em.addMeasure(slug, "throughput_ops_ms", m, m - s, m + s)
-
 # ---------- Variant dispatch ----------
 
 proc supportedVariantsList(): seq[string] {.compileTime.} =
-  result = @["spmc", "queue_bounded_spmc"]
+  result = @["spmc"]
 
 const SupportedVariants = supportedVariantsList()
 
@@ -255,17 +170,6 @@ proc runVariant(variant: string, em: var BMFEmitter) =
       em, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
     )
     runSpmcShape[MpmcCapacity, 4, uint64](
-      em, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
-    )
-  of "queue_bounded_spmc":
-    # Queue parity harness for the Spmc 1p<C>c set.
-    runQBoundedSpmcShape[MpmcCapacity, 1, uint64](
-      em, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
-    )
-    runQBoundedSpmcShape[MpmcCapacity, 2, uint64](
-      em, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
-    )
-    runQBoundedSpmcShape[MpmcCapacity, 4, uint64](
       em, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
     )
   else:

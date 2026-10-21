@@ -41,9 +41,7 @@ proc initMpmcAdapter*[N: static int, T](): MpmcAdapter[N, T] =
   # firing on the (zero-filled but typestate-untracked) heap slot under
   # ARC/ORC — the prior `wasMoved(result.queue[]) ; result.queue[] = ...`
   # form was undefined behavior because `wasMoved` requires a properly
-  # initialized destination. See `queue_bounded_adapter.nim` for the
-  # canonical example; this is the ARC/ORC-correct form gemini's review
-  # surfaced.
+  # initialized destination.
   var tmp = newBQueue[T, ccMulti, ccMulti, N, 1, 1]()
   copyMem(result.queue, addr tmp, sizeof(MpmcAdapterQueue[N, T]))
   wasMoved(tmp)

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Channels Benchmark Portal (`docs/guide/channels/benchmarks.md` & `mkdocs.yml`)**:
+  - Added dedicated interactive benchmark documentation comparing `Channel[T]` (bounded `ckBounded` and unbounded `ckUnbounded`) and `RendezvousChannel[T]` (0-buffer synchronous SSM dual-queue) against `crossbeam`, `flume`, `kanal`, `system.Channel`, and `threading/channels`.
+  - Updated `mkdocs.yml` navigation to include `Channels -> Benchmarks` and removed duplicate `Rendezvous Dual-Queue` entry.
+
+### Changed
+
+- **Interactive Benchmark Charts Migration to Observable Plot (`docs/assets/bench-charts.js`, `docs/assets/bench-charts.css`, `docs/assets/d3-7.9.0.min.js`, `docs/assets/plot-0.6.17.umd.min.js`)**:
+  - Migrated interactive benchmark charts from Apache ECharts to Observable Plot (`@observablehq/plot` v0.6.17 + D3 v7.9.0) pure SVG rendering with automatic flow legends and dynamic margins (`echarts-5.5.1.min.js` removed).
+  - Replaced single-point SPSC line graph with a ranked horizontal `Plot.barX` chart (`buildRankedBarThroughputOption`), rendered multi-shape throughput curves with `Plot.line` + `Plot.dot` (`strokeWidth: 3.5` and bold `#6366f1` styling for `lockfree`), added explicit `Throughput: Higher is better ↑` and `Latency: Lower is better ↓` badges, added `(ns)` latency units with `Percentile Ladder` (`curve: 'step-after'`) and `Grouped Bars` (`Plot.barY`) toggle, and updated all 9 benchmark documentation pages.
+- **Benchmark Harness Cardinality Expansion & Adapter Completeness (`benchmarks/runner.py`, `benchmarks/merge_bmf.py`, `benchmarks/nim/bench_*.nim`, `docs/assets/bench-results/*.json`)**:
+  - Enabled `loony` (`v0.3.1`) in `benchmarks/runner.py` (`--path:<loony_dir>/loony/utils` and `-d:adapter_loony_available`) and added Nimble package directory fallback resolution in `benchmarks/nim/adapter_versions.nim` and cross-fragment `meta.adapters` union in `benchmarks/merge_bmf.py` (`meta.absent_adapters: []`).
+  - Expanded MPMC bounded (`bench_mpmc_bounded.nim`, 10 contenders) and MPMC unbounded (`bench_unbounded_mpmc.nim`, 6 contenders) cardinality sweeps through `8p8c` (`1p1c, 2p2c, 4p4c, 8p8c`), and expanded MPSC bounded (`bench_mpsc.nim`) and unbounded (`bench_unbounded_mpsc.nim`) sweeps through `8p1c` (`1p1c, 2p1c, 4p1c, 8p1c`).
+  - Canonicalized bounded queue benchmark slugs (`lockfree_spsc`, `lockfree_spmc`, `lockfree_mpsc`, `lockfree_mpmc`) by removing duplicate `lockfree_queue_bounded_*` parity aliases and deleting `benchmarks/nim/adapters/queue_bounded_adapter.nim`.
+  - Refreshed `docs/assets/bench-results/latest.json` and `docs/assets/bench-results/example.json` with full 486-key empirical benchmark data across all 16 adapters.
+
 ## [0.5.0] - 2026-10-18
 
 ### Added

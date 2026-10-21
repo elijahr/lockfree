@@ -88,7 +88,8 @@ Each thread operates on a shared keyspace of 100,000 keys pre-populated with 50,
 <div markdown="0">
   <div id="bench-maps-snapshot" class="bench-panel"></div>
 
-  <script src="../../../assets/echarts-5.5.1.min.js"></script>
+  <script src="../../../assets/d3-7.9.0.min.js"></script>
+  <script src="../../../assets/plot-0.6.17.umd.min.js"></script>
   <script src="../../../assets/bench-charts.js"></script>
 </div>
 

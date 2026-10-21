@@ -28,11 +28,7 @@ import ./adapters/lockfree_spsc_adapter
 import ./adapters/lockfree_spmc_adapter
 import ./adapters/lockfree_mpsc_adapter
 import ./adapters/lockfree_mpmc_adapter
-# Consolidated Queue-based parity adapter.
-import ./adapters/queue_bounded_adapter
-import lockfree/strategy
-import lockfree/reclamation
-import lockfree/internal/pinscope_stub
+import ./adapters/lockfree_cabi_adapter
 
 const
   ## Per-binary intdefines for latency wall-time control. Mirror the
@@ -85,46 +81,12 @@ proc initMpsc(): LockfreeMpscAdapter[LatencyCapacity, 1, uint64] =
 proc initMpmc(): MpmcAdapter[LatencyCapacity, uint64] =
   initMpmcAdapter[LatencyCapacity, uint64]()
 
-# Consolidated BQueue-based parity factories.
-# All 4 cardinality combos route through the unified
-# `QueueBoundedAdapter[ccProd, ccCons, ST, N, P, C, T]` type. Slugs
-# preserve the per-family naming so parity tooling can compute the
-# % delta directly.
-
-proc initQBoundedSpsc(): QueueBoundedAdapter[
-    ccSingle, ccSingle, stEager, LatencyCapacity, 0, 0, uint64
-] =
-  makeQueueBoundedAdapter[ccSingle, ccSingle, stEager, LatencyCapacity, 0, 0, uint64](
-    LatencyCapacity
-  )
-
-proc initQBoundedSpmc(): QueueBoundedAdapter[
-    ccSingle, ccMulti, stEager, LatencyCapacity, 0, 1, uint64
-] =
-  makeQueueBoundedAdapter[ccSingle, ccMulti, stEager, LatencyCapacity, 0, 1, uint64](
-    LatencyCapacity
-  )
-
-proc initQBoundedMpsc(): QueueBoundedAdapter[
-    ccMulti, ccSingle, stEager, LatencyCapacity, 1, 0, uint64
-] =
-  makeQueueBoundedAdapter[ccMulti, ccSingle, stEager, LatencyCapacity, 1, 0, uint64](
-    LatencyCapacity
-  )
-
-proc initQBoundedMpmc(): QueueBoundedAdapter[
-    ccMulti, ccMulti, stEager, LatencyCapacity, 1, 1, uint64
-] =
-  makeQueueBoundedAdapter[ccMulti, ccMulti, stEager, LatencyCapacity, 1, 1, uint64](
-    LatencyCapacity
-  )
+proc initLockfreeCabi(): LockfreeCabiAdapter[uint64] =
+  makeLockfreeCabiAdapter[uint64](LatencyCapacity)
 
 # ---------- Variant dispatch ----------
 
-const SupportedVariants = [
-  "spsc", "mpmc", "spmc", "mpsc", "queue_bounded_spsc", "queue_bounded_mpmc",
-  "queue_bounded_spmc", "queue_bounded_mpsc",
-]
+const SupportedVariants = ["spsc", "mpmc", "spmc", "mpsc", "lockfree_cabi"]
 
 proc slugFor(variant: string): string =
   ## Slug per design 2.2 / table at design line 357. PR 1 covers the 1p1c
@@ -138,14 +100,8 @@ proc slugFor(variant: string): string =
     "lockfree_mpsc/mpsc/1p1c"
   of "mpmc":
     "lockfree_mpmc/mpmc/1p1c"
-  of "queue_bounded_spsc":
-    "lockfree_queue_bounded_spsc/spsc/1p1c"
-  of "queue_bounded_spmc":
-    "lockfree_queue_bounded_spmc/mpmc/1p1c"
-  of "queue_bounded_mpsc":
-    "lockfree_queue_bounded_mpsc/mpsc/1p1c"
-  of "queue_bounded_mpmc":
-    "lockfree_queue_bounded_mpmc/mpmc/1p1c"
+  of "lockfree_cabi":
+    "lockfree_cabi/mpmc/1p1c"
   else:
     raise newException(ValueError, "unknown variant: " & variant)
 
@@ -183,38 +139,9 @@ proc runVariant(variant: string, em: var BMFEmitter) =
         runCount = BenchLatencyRuns,
         warmupCount = BenchLatencyWarmupRuns,
       )
-    of "queue_bounded_spsc":
-      runLatencyHarness[
-        QueueBoundedAdapter[ccSingle, ccSingle, stEager, LatencyCapacity, 0, 0, uint64]
-      ](
-        queueInit = initQBoundedSpsc,
-        messageCount = BenchLatencyMessageCount,
-        runCount = BenchLatencyRuns,
-        warmupCount = BenchLatencyWarmupRuns,
-      )
-    of "queue_bounded_spmc":
-      runLatencyHarness[
-        QueueBoundedAdapter[ccSingle, ccMulti, stEager, LatencyCapacity, 0, 1, uint64]
-      ](
-        queueInit = initQBoundedSpmc,
-        messageCount = BenchLatencyMessageCount,
-        runCount = BenchLatencyRuns,
-        warmupCount = BenchLatencyWarmupRuns,
-      )
-    of "queue_bounded_mpsc":
-      runLatencyHarness[
-        QueueBoundedAdapter[ccMulti, ccSingle, stEager, LatencyCapacity, 1, 0, uint64]
-      ](
-        queueInit = initQBoundedMpsc,
-        messageCount = BenchLatencyMessageCount,
-        runCount = BenchLatencyRuns,
-        warmupCount = BenchLatencyWarmupRuns,
-      )
-    of "queue_bounded_mpmc":
-      runLatencyHarness[
-        QueueBoundedAdapter[ccMulti, ccMulti, stEager, LatencyCapacity, 1, 1, uint64]
-      ](
-        queueInit = initQBoundedMpmc,
+    of "lockfree_cabi":
+      runLatencyHarness[LockfreeCabiAdapter[uint64]](
+        queueInit = initLockfreeCabi,
         messageCount = BenchLatencyMessageCount,
         runCount = BenchLatencyRuns,
         warmupCount = BenchLatencyWarmupRuns,
