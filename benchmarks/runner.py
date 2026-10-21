@@ -181,7 +181,7 @@ def build_nim(quick: bool = False):
         src = BENCHMARK_DIR / "nim" / f"{bin_name}.nim"
         if not src.exists():
             continue
-        cmd = ["nim", "cpp", "-d:release", "-d:danger", "--threads:on"]
+        cmd = ["nim", "cpp", "-d:release", "-d:danger", "--threads:on", "--panics:on"]
 
         for p in nimble_paths:
             cmd.append(f"--path:{p}")

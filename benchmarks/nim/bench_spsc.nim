@@ -17,6 +17,7 @@
 import std/[options, os, parseopt, sets, strformat, syncio]
 import ./bench_common
 import ./adapters/lockfree_spsc_adapter
+import ./adapters/lockfree_cabi_adapter
 
 # Comparison adapters. Each is included only when its
 # `-d:adapter_<lib>_available` gate is set; absent gate yields no
@@ -98,10 +99,13 @@ when defined(adapter_liblfds_available):
     # ringbuffer-vs-bounded-queue rationale.
     makeLiblfdsAdapter[uint64](kind = lkBss, capacity = capacity)
 
+proc initLockfreeCabiSpscQ(capacity: int): LockfreeCabiAdapter[uint64] =
+  makeLockfreeCabiAdapter[uint64](capacity)
+
 # MVP variants are added to SupportedVariants only when the matching
 # adapter symbol is in scope (i.e. its compile-time gate is set).
 proc supportedVariantsList(): seq[string] {.compileTime.} =
-  result = @["spsc"]
+  result = @["spsc", "lockfree_cabi"]
   when declared(initBoostSpscQ):
     result.add("boost_lockfree_spsc")
   when declared(initAtomicQueueQ):
@@ -167,6 +171,13 @@ proc runVariant(variant: string, em: var BMFEmitter) =
       metrics.ops_ms_mean,
       metrics.ops_ms_mean - metrics.ops_ms_stddev,
       metrics.ops_ms_mean + metrics.ops_ms_stddev,
+    )
+  of "lockfree_cabi":
+    runMvpVariant[LockfreeCabiAdapter[uint64]](
+      em,
+      slug = "lockfree_cabi/spsc/1p1c",
+      queueInit = initLockfreeCabiSpscQ,
+      capacity = SpscCapacity,
     )
   else:
     when declared(initBoostSpscQ):

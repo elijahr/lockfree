@@ -565,6 +565,7 @@ class ChartContractTests(unittest.TestCase):
         self.assertEqual(
             lfq_family,
             [
+                "lockfree_cabi",
                 "lockfree_mpmc",
                 "lockfree_mpsc",
                 "lockfree_spmc",
@@ -574,7 +575,7 @@ class ChartContractTests(unittest.TestCase):
                 "lockfree_unbounded_spmc",
                 "lockfree_unbounded_spsc",
             ],
-            "LIBRARY_COLORS must cover all 8 lockfree_* family members",
+            "LIBRARY_COLORS must cover all lockfree_* family members",
         )
 
     def test_blocking_libraries_const_matches_contract(self) -> None:

@@ -77,6 +77,8 @@ Compares fan-in workloads (`1p1c`, `2p1c`, `4p1c`, `8p1c`) where multiple produc
   <div id="bench-throughput-mpsc" class="bench-panel"></div>
 </div>
 
+---
+
 ### 0-Buffer Synchronous Rendezvous Handoff (`rendezvous_handoff`)
 
 Compares strict zero-buffer bilateral handoff throughput (`RendezvousChannel[T]` vs `crossbeam_channel::bounded(0)`, `flume::bounded(0)`, `kanal::bounded(0)`, and `system.Channel` with `maxItems = 1`) (`Throughput: Higher is better ↑`).
@@ -85,6 +87,8 @@ Compares strict zero-buffer bilateral handoff throughput (`RendezvousChannel[T]`
   <div id="bench-rendezvous-handoff" class="bench-panel"></div>
 </div>
 
+---
+
 ### Synchronous 1:1 RPC Round-Trip Throughput (`rendezvous_rpc`)
 
 Measures two-way request/response ping-pong throughput over a pair of synchronous rendezvous channels (`Throughput: Higher is better ↑`).
@@ -92,6 +96,8 @@ Measures two-way request/response ping-pong throughput over a pair of synchronou
 <div markdown="0">
   <div id="bench-rendezvous-rpc" class="bench-panel"></div>
 </div>
+
+---
 
 ### Synchronous 1:1 RPC Round-Trip Latency (`ns`)
 

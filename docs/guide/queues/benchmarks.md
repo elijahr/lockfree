@@ -119,18 +119,51 @@ Click any library in a chart's legend to show or hide its series. Use the toolba
   </div>
 </div>
 
-#### Throughput by Topology (`ops/ms` — Higher is better ↑)
+---
+
+### 1. Single-Producer Single-Consumer (SPSC)
+
+Dedicated wait-free ring buffer comparison at `1p1c`. Includes specialized SPSC queues alongside general MPSC and MPMC queues running in single-producer, single-consumer mode to measure the marginal synchronization overhead of general multi-threading primitives.
 
 <div markdown="0">
-  <div id="bench-throughput-spsc"           class="bench-panel"></div>
-  <div id="bench-throughput-mpsc"           class="bench-panel"></div>
-  <div id="bench-throughput-mpmc-bounded"   class="bench-panel"></div>
+  <div id="bench-throughput-spsc" class="bench-panel"></div>
+</div>
+
+---
+
+### 2. Multi-Producer Single-Consumer (MPSC)
+
+Throughput scaling across `1p1c`, `2p1c`, `4p1c`, and `8p1c` producer fan-in shapes. Compares dedicated MPSC queues against multi-producer multi-consumer queues under concurrent push contention feeding a single consumer thread.
+
+<div markdown="0">
+  <div id="bench-throughput-mpsc" class="bench-panel"></div>
+</div>
+
+---
+
+### 3. Multi-Producer Multi-Consumer (Bounded MPMC)
+
+Throughput scaling across symmetric contention shapes (`1p1c`, `2p2c`, `4p4c`, `8p8c`) for fixed-capacity ring buffers. When full, producers return `false` immediately without blocking or heap allocation.
+
+<div markdown="0">
+  <div id="bench-throughput-mpmc-bounded" class="bench-panel"></div>
+</div>
+
+---
+
+### 4. Multi-Producer Multi-Consumer (Unbounded MPMC)
+
+Throughput scaling for elastic linked-segment queues with safe memory reclamation across `1p1c`, `2p2c`, `4p4c`, and `8p8c`. Compares `lockfree.uqueue.Queue` against `loony.LoonyQueue` and cross-language alternatives (`moodycamel`, `crossbeam`).
+
+<div markdown="0">
   <div id="bench-throughput-mpmc-unbounded" class="bench-panel"></div>
 </div>
 
-#### Round-Trip Latency (`ns` — Lower is better ↓)
+---
 
-Use the **Percentile Ladder / Grouped Bars** toggle above the chart to inspect latency distribution across `p50`, `p95`, `p99`, `p999`, and `max`.
+### 5. Round-Trip Latency Distribution
+
+Token exchange latency in nanoseconds measured across percentiles (`p50`, `p95`, `p99`, `p999`, and `max`). **Lower is better ↓**. Use the toggle to switch between the percentile ladder and grouped bar view.
 
 <div markdown="0">
   <div id="bench-latency" class="bench-panel"></div>

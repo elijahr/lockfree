@@ -8,13 +8,20 @@
 .bench-panel {
   width: 100%;
   max-width: 100%;
-  margin: 1.5em 0;
+  margin: 1.75em 0 2.5em 0;
+  padding: 1.25em 1.4em 1.4em 1.4em;
+  background: var(--md-code-bg-color, rgba(128, 128, 128, 0.03));
+  border: 1px solid var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.16));
+  border-radius: 8px;
+  box-sizing: border-box;
 }
 
 .bench-panel-title {
-  margin: 0 0 0.5em 0;
-  font-size: 1em;
-  font-weight: 600;
+  margin: 0 0 0.75em 0;
+  padding-bottom: 0.5em;
+  font-size: 1.1em;
+  font-weight: 700;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.14));
 }
 
 /* Source-code link injected next to panel/section headings. */
@@ -111,10 +118,110 @@
   display: flex;
   flex-wrap: wrap;
   gap: 0.45em 1em;
-  margin-bottom: 0.65em;
+  margin: 0.4em 0 1em 0;
+  padding: 0.55em 0.85em;
+  background: var(--md-default-bg-color, #ffffff);
+  border: 1px solid var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.16));
+  border-radius: 6px;
   font-family: var(--md-code-font-family, var(--md-text-font-family, monospace));
   font-size: 0.8em;
   color: var(--md-default-fg-color, currentColor);
+}
+
+/* Interactive legend items */
+.bench-chart-plot [class*="swatches"] span,
+.bench-chart-plot [class*="swatch"] {
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.15s ease, background 0.15s ease;
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+}
+
+.bench-chart-plot [class*="swatches"] span:hover,
+.bench-chart-plot [class*="swatch"]:hover {
+  background: var(--md-accent-fg-color--transparent, rgba(99, 102, 241, 0.12));
+}
+
+.bench-chart-plot .bench-swatch-disabled {
+  opacity: 0.32 !important;
+  text-decoration: line-through;
+}
+
+/* Observable Plot Tooltip: inherit Material for MkDocs theme variables */
+.bench-chart-plot svg [aria-label="tip"] path,
+.bench-chart-plot svg g[aria-label*="tip"] path {
+  fill: var(--md-default-bg-color, #ffffff) !important;
+  stroke: var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.4)) !important;
+  stroke-width: 1px !important;
+}
+
+.bench-chart-plot svg [aria-label="tip"] text,
+.bench-chart-plot svg g[aria-label*="tip"] text {
+  fill: var(--md-default-fg-color, #1f2937) !important;
+}
+
+[data-md-color-scheme="slate"] .bench-chart-plot svg [aria-label="tip"] path,
+[data-md-color-scheme="slate"] .bench-chart-plot svg g[aria-label*="tip"] path {
+  fill: #1e2129 !important;
+  stroke: rgba(255, 255, 255, 0.22) !important;
+}
+
+[data-md-color-scheme="slate"] .bench-chart-plot svg [aria-label="tip"] text,
+[data-md-color-scheme="slate"] .bench-chart-plot svg g[aria-label*="tip"] text {
+  fill: #e6edf3 !important;
+}
+
+.bench-chart-plot .plot-tip,
+.plot-tip {
+  background: var(--md-default-bg-color, #ffffff) !important;
+  color: var(--md-default-fg-color, #1f2937) !important;
+  border-color: var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.35)) !important;
+}
+
+[data-md-color-scheme="slate"] .bench-chart-plot .plot-tip,
+[data-md-color-scheme="slate"] .plot-tip {
+  background: #1e2129 !important;
+  color: #e6edf3 !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+/* SVG dimming / highlighting transitions */
+.bench-chart-plot svg path,
+.bench-chart-plot svg circle,
+.bench-chart-plot svg rect {
+  transition: opacity 0.15s ease, stroke-width 0.15s ease;
+}
+
+.bench-chart-plot.bench-has-highlight svg [data-series-id]:not(.bench-highlighted) {
+  opacity: 0.12 !important;
+}
+
+.bench-chart-plot.bench-has-highlight svg [data-series-id].bench-highlighted {
+  opacity: 1 !important;
+}
+
+.bench-chart-plot svg .bench-series-hidden {
+  display: none !important;
+}
+
+.bench-toggle-all-btn {
+  background: var(--md-default-bg-color, #ffffff);
+  border: 1px solid var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.3));
+  border-radius: 4px;
+  padding: 0.2em 0.65em;
+  font-size: 0.8em;
+  font-family: inherit;
+  color: var(--md-default-fg-color, inherit);
+  cursor: pointer;
+  margin-left: auto;
+  user-select: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.bench-toggle-all-btn:hover {
+  background: var(--md-accent-fg-color--transparent, rgba(99, 102, 241, 0.1));
+  border-color: var(--md-accent-fg-color, #6366f1);
 }
 
 .bench-chart-error {

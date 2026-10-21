@@ -27,16 +27,17 @@
 
   // CONTRACT-TEST-PARSED-START LIBRARY_COLORS
   const LIBRARY_COLORS = Object.freeze({
-    // lockfree queue family (bounded) — high-contrast brand indigo
+    // lockfree queue family (bounded) — distinct chromatic palette
     lockfree_spsc:           '#6366f1',
-    lockfree_spmc:           '#6366f1',
-    lockfree_mpsc:           '#6366f1',
-    lockfree_mpmc:           '#6366f1',
-    // lockfree queue family (unbounded) — lighter brand indigo
+    lockfree_spmc:           '#0891b2',
+    lockfree_mpsc:           '#7c3aed',
+    lockfree_mpmc:           '#2563eb',
+    lockfree_cabi:           '#0284c7',
+    // lockfree queue family (unbounded) — corresponding lighter tints
     lockfree_unbounded_spsc: '#818cf8',
-    lockfree_unbounded_spmc: '#818cf8',
-    lockfree_unbounded_mpsc: '#818cf8',
-    lockfree_unbounded_mpmc: '#818cf8',
+    lockfree_unbounded_spmc: '#22d3ee',
+    lockfree_unbounded_mpsc: '#a78bfa',
+    lockfree_unbounded_mpmc: '#60a5fa',
     // associative maps & sets
     ctrie:                      '#6366f1',
     btable:                     '#4f46e5',
@@ -126,6 +127,7 @@
   const LOCKFREE_FAMILY = [
     'lockfree_spsc', 'lockfree_spmc',
     'lockfree_mpsc', 'lockfree_mpmc',
+    'lockfree_cabi',
     'lockfree_unbounded_spsc', 'lockfree_unbounded_spmc',
     'lockfree_unbounded_mpsc', 'lockfree_unbounded_mpmc',
     'ctrie', 'btable', 'skiplist', 'skiplist_set',
@@ -141,6 +143,7 @@
   const LIBRARY_ECOSYSTEMS = Object.freeze({
     // Nim native & stdlib
     lockfree_spsc: 'nim', lockfree_spmc: 'nim', lockfree_mpsc: 'nim', lockfree_mpmc: 'nim',
+    lockfree_cabi: 'c',
     lockfree_unbounded_spsc: 'nim', lockfree_unbounded_spmc: 'nim',
     lockfree_unbounded_mpsc: 'nim', lockfree_unbounded_mpmc: 'nim',
     nim_channel: 'nim', nim_channels: 'nim', nim_channel_sync: 'nim',
@@ -422,11 +425,120 @@
 
   function isBlocking(library) { return BLOCKING_SET.has(library); }
   function isLockfree(library) {
-    return LFQ_FAMILY_SET.has(library) || library.startsWith('lockfree_');
+    if (typeof library !== 'string') return false;
+    return LFQ_FAMILY_SET.has(library) || library.startsWith('lockfree_') || library.startsWith('lockfree.');
   }
   const isLockfreequeues = isLockfree;
+
+  const CONTENDER_METADATA = Object.freeze({
+    // lockfree queue family (bounded)
+    lockfree_spsc:           { name: 'lockfree.spsc.SPSCQueue',                 lang: 'Nim' },
+    lockfree_spmc:           { name: 'lockfree.spmc.SPMCQueue',                 lang: 'Nim' },
+    lockfree_mpsc:           { name: 'lockfree.mpsc.MPSCQueue',                 lang: 'Nim' },
+    lockfree_mpmc:           { name: 'lockfree.bqueue.BQueue',                  lang: 'Nim' },
+    lockfree_cabi:           { name: 'lockfree.cabi.BQueue',                    lang: 'C-ABI' },
+
+    // lockfree queue family (unbounded)
+    lockfree_unbounded_spsc: { name: 'lockfree.uqueue.Queue (SPSC)',            lang: 'Nim' },
+    lockfree_unbounded_spmc: { name: 'lockfree.uqueue.Queue (SPMC)',            lang: 'Nim' },
+    lockfree_unbounded_mpsc: { name: 'lockfree.uqueue.Queue (MPSC)',            lang: 'Nim' },
+    lockfree_unbounded_mpmc: { name: 'lockfree.uqueue.Queue',                   lang: 'Nim' },
+
+    // legacy aliases for backward compatibility with older snapshots
+    lockfree_queue_bounded_spsc: { name: 'lockfree.spsc.SPSCQueue',             lang: 'Nim' },
+    lockfree_queue_bounded_spmc: { name: 'lockfree.spmc.SPMCQueue',             lang: 'Nim' },
+    lockfree_queue_bounded_mpsc: { name: 'lockfree.mpsc.MPSCQueue',             lang: 'Nim' },
+    lockfree_queue_bounded_mpmc: { name: 'lockfree.bqueue.BQueue',              lang: 'Nim' },
+
+    // associative maps & sets
+    ctrie:                      { name: 'lockfree.ctrie.CTrie',                 lang: 'Nim' },
+    btable:                     { name: 'lockfree.btable.BTable',               lang: 'Nim' },
+    skiplist:                   { name: 'lockfree.skiplist.SkipList',           lang: 'Nim' },
+    skiplist_set:               { name: 'lockfree.skiplist.SkipListSet',        lang: 'Nim' },
+    locked_table:               { name: 'std.tables.Table (Lock)',              lang: 'Nim' },
+    locked_set:                 { name: 'std.sets.HashSet (Lock)',              lang: 'Nim' },
+    dashmap:                    { name: 'dashmap::DashMap',                     lang: 'Rust' },
+    flurry:                     { name: 'flurry::HashMap',                      lang: 'Rust' },
+    crossbeam_skipmap:          { name: 'crossbeam_skiplist::SkipMap',          lang: 'Rust' },
+    crossbeam_skipset:          { name: 'crossbeam_skiplist::SkipSet',          lang: 'Rust' },
+    boost_concurrent_flat_map:  { name: 'boost::unordered::concurrent_flat_map', lang: 'C++' },
+    boost_concurrent_flat_set:  { name: 'boost::unordered::concurrent_flat_set', lang: 'C++' },
+
+    // stacks, deques & priority queues
+    treiber_stack:              { name: 'lockfree.treiber_stack.TreiberStack',  lang: 'Nim' },
+    bstack:                     { name: 'lockfree.bstack.BStack',               lang: 'Nim' },
+    locked_stack:               { name: 'std.deques.Deque (Lock)',              lang: 'Nim' },
+    boost_lockfree_stack:       { name: 'boost::lockfree::stack',               lang: 'C++' },
+    chase_lev_deque:            { name: 'lockfree.chase_lev.ChaseLevDeque',     lang: 'Nim' },
+    chase_lev_deque_batch:      { name: 'lockfree.chase_lev.ChaseLevDeque (Batch)', lang: 'Nim' },
+    crossbeam_deque:            { name: 'crossbeam_deque::Injector',            lang: 'Rust' },
+    crossbeam_deque_batch:      { name: 'crossbeam_deque::Injector (Batch)',    lang: 'Rust' },
+    bpriority_queue:            { name: 'lockfree.bpriority_queue.BPriorityQueue', lang: 'Nim' },
+    skiplist_pq:                { name: 'lockfree.skiplist.SkipListPQ',         lang: 'Nim' },
+    locked_pq:                  { name: 'std.heapqueue.HeapQueue (Lock)',       lang: 'Nim' },
+
+    // broadcast ring & topic bus
+    broadcast_ring_drop:        { name: 'lockfree.broadcast.BroadcastRing (Drop)', lang: 'Nim' },
+    broadcast_ring_backoff:     { name: 'lockfree.broadcast.BroadcastRing (Wait)', lang: 'Nim' },
+    topic_bus_drop:             { name: 'lockfree.topic_bus.TopicBus (Drop)',   lang: 'Nim' },
+    topic_bus_backoff:          { name: 'lockfree.topic_bus.TopicBus (Wait)',   lang: 'Nim' },
+    tokio_broadcast:            { name: 'tokio::sync::broadcast',               lang: 'Rust' },
+    rust_bus:                   { name: 'bus::Bus',                             lang: 'Rust' },
+
+    // rate limiting & streaming
+    token_bucket:               { name: 'lockfree.ratelimit.TokenBucket',       lang: 'Nim' },
+    leaky_bucket:               { name: 'lockfree.ratelimit.LeakyBucket',       lang: 'Nim' },
+    governor_gcra:              { name: 'governor::RateLimiter',                lang: 'Rust' },
+    stream_ring:                { name: 'lockfree.streambuffer.StreamRing',     lang: 'Nim' },
+    rtrb_stream:                { name: 'rtrb::RingBuffer',                     lang: 'Rust' },
+    boost_spsc_stream:          { name: 'boost::lockfree::spsc_queue (Stream)', lang: 'C++' },
+
+    // synchronous rendezvous (0-buffer channel)
+    rendezvous_channel:         { name: 'lockfree.rendezvous.RendezvousChannel', lang: 'Nim' },
+    nim_channel_sync:           { name: 'system.Channel (Sync)',                lang: 'Nim' },
+    crossbeam_rendezvous:       { name: 'crossbeam_channel::bounded(0)',        lang: 'Rust' },
+    flume_rendezvous:           { name: 'flume::bounded(0)',                    lang: 'Rust' },
+    kanal_rendezvous:           { name: 'kanal::bounded(0)',                    lang: 'Rust' },
+
+    // work-stealing taskpool
+    taskpool:                   { name: 'lockfree.taskpool.TaskPool',           lang: 'Nim' },
+    locked_task_queue:          { name: 'std.taskpool (Locked)',                lang: 'Nim' },
+    rayon_pool:                 { name: 'rayon::ThreadPool',                    lang: 'Rust' },
+
+    // safe memory reclamation (NEBR / epoch)
+    nebr:                       { name: 'lockfree.nebr.NEBR',                   lang: 'Nim' },
+    arc_atomic_rc:              { name: 'std.sharedptr.AtomicSharedPtr',        lang: 'Nim' },
+    mutex_guard:                { name: 'std.locks.Lock Guard',                 lang: 'Nim' },
+    deferred_mutex_free:        { name: 'std.deferred.MutexFree',              lang: 'Nim' },
+    crossbeam_epoch:            { name: 'crossbeam_epoch::Collector',           lang: 'Rust' },
+
+    // comparison libraries (Queues / Channels)
+    crossbeam_array_queue:      { name: 'crossbeam::queue::ArrayQueue',         lang: 'Rust' },
+    crossbeam_seg_queue:        { name: 'crossbeam::queue::SegQueue',           lang: 'Rust' },
+    moodycamel:                 { name: 'moodycamel::ConcurrentQueue',          lang: 'C++' },
+    boost_lockfree_queue:       { name: 'boost::lockfree::queue',               lang: 'C++' },
+    boost_lockfree_spsc:        { name: 'boost::lockfree::spsc_queue',          lang: 'C++' },
+    loony:                      { name: 'loony.LoonyQueue',                     lang: 'Nim' },
+    threading_channels:         { name: 'threading.Chan',                       lang: 'Nim' },
+    nim_channel:                { name: 'system.Channel (MPSC)',                lang: 'Nim' },
+    nim_channels:               { name: 'system.Channel (MPMC)',                lang: 'Nim' },
+    atomic_queue:               { name: 'atomic_queue::AtomicQueue2',           lang: 'C++' },
+    rigtorp_mpmc:               { name: 'rigtorp::MPMCQueue',                   lang: 'C++' },
+    rigtorp_spsc:               { name: 'rigtorp::SPSCQueue',                   lang: 'C++' },
+    flume:                      { name: 'flume::bounded',                       lang: 'Rust' },
+    flume_unbounded:            { name: 'flume::unbounded',                     lang: 'Rust' },
+    kanal:                      { name: 'kanal::bounded',                       lang: 'Rust' },
+    kanal_unbounded:            { name: 'kanal::unbounded',                     lang: 'Rust' },
+    liblfds:                    { name: 'liblfds::freelist',                    lang: 'C' },
+  });
+
   function displayLabel(library) {
-    return library + (isBlocking(library) ? ' *' : '');
+    const meta = CONTENDER_METADATA[library];
+    const name = meta ? meta.name : library;
+    const lang = meta ? meta.lang : (LIBRARY_ECOSYSTEMS[library] === 'cpp' ? 'C++' : LIBRARY_ECOSYSTEMS[library] === 'rust' ? 'Rust' : 'Nim');
+    const langTag = lang ? ' (' + lang + ')' : '';
+    const asterisk = isBlocking(library) ? ' *' : '';
+    return name + langTag + asterisk;
   }
 
   // ── module: helpers ─────────────────────────────────────────────────
@@ -539,17 +651,119 @@
     const texts = container.querySelectorAll('svg text');
     for (const t of texts) {
       const raw = (t.textContent || '').trim().replace(/ \*$/, '');
-      if (isLockfreequeues(raw)) {
+      if (raw.startsWith('lockfree.') || isLockfreequeues(raw)) {
         t.setAttribute('font-weight', '700');
+        t.style.fontWeight = '700';
       }
     }
     const swatches = container.querySelectorAll('[class*="swatches"] span, [class*="swatch"]');
     for (const s of swatches) {
       const raw = (s.textContent || '').trim().replace(/ \*$/, '');
-      if (isLockfreequeues(raw)) {
+      if (raw.startsWith('lockfree.') || isLockfreequeues(raw)) {
         s.style.fontWeight = '700';
       }
     }
+  }
+
+  // Interactive Legend: hover highlighting, click-to-toggle, and hide-all / show-all
+  function wireInteractivePlot(mount) {
+    if (!mount) return null;
+    const svg = mount.querySelector('svg');
+    if (!svg) return null;
+
+    const rawSwatches = Array.from(mount.querySelectorAll('[class*="swatches"] span, [class*="swatch"]'))
+      .filter((s) => s.textContent.trim().length > 0 && !s.querySelector('[class*="swatches"]'));
+
+    if (rawSwatches.length === 0) return null;
+
+    const seriesList = [];
+    rawSwatches.forEach((s, idx) => {
+      const seriesId = 's-' + idx;
+      s.setAttribute('data-series-id', seriesId);
+      const label = s.textContent.trim().replace(/ \*$/, '');
+      const colorIndicator = s.querySelector('svg [fill], svg path, svg circle, span[style*="background"]');
+      let color = null;
+      if (colorIndicator) {
+        color = colorIndicator.getAttribute('fill') || colorIndicator.style.backgroundColor;
+      }
+      if (!color) {
+        for (const [lib, meta] of Object.entries(CONTENDER_METADATA)) {
+          if (meta.name && label.startsWith(meta.name)) {
+            color = getColor(lib);
+            break;
+          }
+        }
+      }
+      seriesList.push({
+        id: seriesId,
+        label: label,
+        color: (color || '').toLowerCase(),
+        el: s,
+      });
+    });
+
+    // Tag SVG marks with matching data-series-id
+    const marks = svg.querySelectorAll('g[aria-label="line"] path, g[aria-label="dot"] path, g[aria-label="dot"] circle, g[aria-label="bar"] rect, g[aria-label="bar"] path');
+    for (const m of marks) {
+      const stroke = (m.getAttribute('stroke') || '').toLowerCase();
+      const fill = (m.getAttribute('fill') || '').toLowerCase();
+      for (const s of seriesList) {
+        if (s.color && (stroke === s.color || fill === s.color)) {
+          m.setAttribute('data-series-id', s.id);
+          break;
+        }
+      }
+    }
+
+    // Attach hover and click to each swatch
+    for (const s of seriesList) {
+      s.el.addEventListener('mouseenter', () => {
+        mount.classList.add('bench-has-highlight');
+        const targetMarks = svg.querySelectorAll(`[data-series-id="${s.id}"]`);
+        for (const tm of targetMarks) {
+          tm.classList.add('bench-highlighted');
+          if (tm.tagName.toLowerCase() === 'path' && tm.getAttribute('stroke')) {
+            tm.setAttribute('data-orig-width', tm.getAttribute('stroke-width') || '2');
+            tm.setAttribute('stroke-width', '4.5');
+          }
+        }
+      });
+
+      s.el.addEventListener('mouseleave', () => {
+        mount.classList.remove('bench-has-highlight');
+        const targetMarks = svg.querySelectorAll(`[data-series-id="${s.id}"]`);
+        for (const tm of targetMarks) {
+          tm.classList.remove('bench-highlighted');
+          const orig = tm.getAttribute('data-orig-width');
+          if (orig) {
+            tm.setAttribute('stroke-width', orig);
+            tm.removeAttribute('data-orig-width');
+          }
+        }
+      });
+
+      s.el.addEventListener('click', () => {
+        const isHidden = s.el.classList.toggle('bench-swatch-disabled');
+        const targetMarks = svg.querySelectorAll(`[data-series-id="${s.id}"]`);
+        for (const tm of targetMarks) {
+          if (isHidden) tm.classList.add('bench-series-hidden');
+          else tm.classList.remove('bench-series-hidden');
+        }
+      });
+    }
+
+    return function toggleAll(hiding) {
+      for (const s of seriesList) {
+        if (hiding) s.el.classList.add('bench-swatch-disabled');
+        else s.el.classList.remove('bench-swatch-disabled');
+
+        const targetMarks = svg.querySelectorAll(`[data-series-id="${s.id}"]`);
+        for (const tm of targetMarks) {
+          if (hiding) tm.classList.add('bench-series-hidden');
+          else tm.classList.remove('bench-series-hidden');
+        }
+      }
+    };
   }
 
   // ── module: data ────────────────────────────────────────────────────
@@ -747,7 +961,7 @@
     const draw = () => {
       mount.innerHTML = '';
       const maxLabelChars = Math.max(12, ...rows.map((r) => r.label.length));
-      const marginLeft = Math.min(230, Math.max(135, maxLabelChars * 7.8 + 18));
+      const marginLeft = Math.min(320, Math.max(140, maxLabelChars * 7.8 + 22));
       const fig = window.Plot.plot({
         width: getPlotWidth(mount),
         height: Math.max(220, rows.length * 34 + 68),
@@ -830,7 +1044,7 @@
 
   // ── module: throughput controls & Plot builders ─────────────────────
 
-  function buildControls(panelId, initialLogScale, onLogToggle) {
+  function buildControls(panelId, initialLogScale, onLogToggle, onToggleAll) {
     const wrap = el('div', { class: 'bench-chart-controls' });
     wrap.appendChild(buildDirectionBadge('throughput'));
     const id = 'bench-log-scale-' + panelId;
@@ -839,6 +1053,15 @@
     cb.addEventListener('change', () => onLogToggle(cb.checked));
     const lbl = el('label', { for: id }, 'Log-scale axis');
     wrap.appendChild(el('span', { class: 'bench-control-item' }, cb, lbl));
+    if (typeof onToggleAll === 'function') {
+      const toggleBtn = el('button', { type: 'button', class: 'bench-toggle-all-btn' }, 'Hide All');
+      toggleBtn.addEventListener('click', () => {
+        const hiding = toggleBtn.textContent === 'Hide All';
+        onToggleAll(hiding);
+        toggleBtn.textContent = hiding ? 'Show All' : 'Hide All';
+      });
+      wrap.appendChild(toggleBtn);
+    }
     return wrap;
   }
 
@@ -848,14 +1071,15 @@
     const isRel = _activeDisplayMode === 'relative' && baselineByShape && baselineByShape.size > 0;
     const baseVal = baselineByShape && baselineByShape.get(shape);
 
-    const ranked = series
+    const rankedRaw = series
       .map((lib) => {
         const pt = lib._shapeMap.get(shape) || lib.points[0] || null;
         const rawVal = pt ? pt.value : 0;
         const displayVal = (isRel && baseVal && baseVal > 0) ? (rawVal / baseVal) : rawVal;
         const isLfq = isLockfreequeues(lib.library);
         const blocking = isBlocking(lib.library);
-        let tip = lib.library + ' (' + (panelLabel || 'SPSC') + ' ' + shape + ')\n' +
+        const label = displayLabel(lib.library);
+        let tip = label + ' (' + (panelLabel || 'SPSC') + ' ' + shape + ')\n' +
           'Throughput: ' + rawVal.toFixed(1) + ' ops/ms';
         if (baseVal && baseVal > 0) {
           tip += ' (' + (rawVal / baseVal).toFixed(1) + 'x vs stdlib)';
@@ -866,7 +1090,7 @@
         if (blocking) tip += '\nBlocking on full channel';
         return {
           library: lib.library,
-          label: displayLabel(lib.library),
+          label: label,
           point: pt,
           rawVal,
           displayVal,
@@ -880,8 +1104,18 @@
       .filter((r) => r.displayVal > 0)
       .sort((a, b) => b.displayVal - a.displayVal);
 
+    // Deduplicate by display label to ensure unique discrete Y ticks (prevent overlapping bars & text)
+    const seenLabels = new Set();
+    const ranked = [];
+    for (const r of rankedRaw) {
+      if (!seenLabels.has(r.label)) {
+        seenLabels.add(r.label);
+        ranked.push(r);
+      }
+    }
+
     const maxLabelChars = Math.max(12, ...ranked.map((r) => r.label.length));
-    const marginLeft = Math.min(230, Math.max(135, maxLabelChars * 7.8 + 18));
+    const marginLeft = Math.min(320, Math.max(140, maxLabelChars * 7.8 + 22));
 
     return window.Plot.plot({
       width: getPlotWidth(mount),
@@ -953,7 +1187,7 @@
         const displayVal = (isRel && baseVal && baseVal > 0) ? (pt.value / baseVal) : pt.value;
         if (displayVal == null || displayVal <= 0) continue;
 
-        let tip = lib.library + ' — ' + (panelLabel || '') + ' (' + shape + ')\n' +
+        let tip = label + ' — ' + (panelLabel || '') + ' (' + shape + ')\n' +
           'Throughput: ' + pt.value.toFixed(1) + ' ops/ms';
         if (baseVal && baseVal > 0) {
           tip += ' (' + (pt.value / baseVal).toFixed(1) + 'x vs stdlib)';
@@ -1115,16 +1349,20 @@
     let logScale = !isSinglePoint;
 
     const mount = el('div', { class: 'bench-chart-plot' });
+    let toggleAllFn = null;
     const draw = () => {
       mount.innerHTML = '';
       const fig = buildThroughputOption(mount, series, xLabels, logScale, panel.label, baselineByShape, panel.id);
       mount.appendChild(fig);
       emphasizeLockfreeSvgAndLegend(mount);
+      toggleAllFn = wireInteractivePlot(mount);
     };
 
     const controls = buildControls(panel.id, logScale, (next) => {
       logScale = next;
       draw();
+    }, isSinglePoint ? null : (hiding) => {
+      if (toggleAllFn) toggleAllFn(hiding);
     });
     host.appendChild(controls);
     host.appendChild(mount);
@@ -1192,7 +1430,7 @@
     "Some libraries don't yet have latency measurements — adapter " +
     'coverage is in progress.';
 
-  function buildLatencyControls(panelId, initialMode, initialLogScale, onChange) {
+  function buildLatencyControls(panelId, initialMode, initialLogScale, onChange, onToggleAll) {
     const wrap = el('div', { class: 'bench-chart-controls' });
     wrap.appendChild(buildDirectionBadge('latency'));
 
@@ -1236,6 +1474,16 @@
     });
     const lbl = el('label', { for: id }, 'Log-scale Y axis');
     wrap.appendChild(el('span', { class: 'bench-control-item' }, cb, lbl));
+
+    if (typeof onToggleAll === 'function') {
+      const toggleBtn = el('button', { type: 'button', class: 'bench-toggle-all-btn' }, 'Hide All');
+      toggleBtn.addEventListener('click', () => {
+        const hiding = toggleBtn.textContent === 'Hide All';
+        onToggleAll(hiding);
+        toggleBtn.textContent = hiding ? 'Show All' : 'Hide All';
+      });
+      wrap.appendChild(toggleBtn);
+    }
     return wrap;
   }
 
@@ -1265,7 +1513,7 @@
           value: val,
           isLfq: isLfq,
           blocking: blocking,
-          tipText: lib.library + ' — ' + pctLabel + '\nLatency: ' + val.toFixed(0) + ' ns (' + LATENCY_BADGE_TEXT + ')',
+          tipText: label + ' — ' + pctLabel + '\nLatency: ' + val.toFixed(0) + ' ns (' + LATENCY_BADGE_TEXT + ')',
         });
       }
     }
@@ -1413,17 +1661,21 @@
     let logScale = true;
 
     const mount = el('div', { class: 'bench-chart-plot' });
+    let toggleAllFn = null;
     const draw = () => {
       mount.innerHTML = '';
       const fig = buildLatencyOption(mount, libraries, xLabels, chartMode, logScale);
       mount.appendChild(fig);
       emphasizeLockfreeSvgAndLegend(mount);
+      toggleAllFn = wireInteractivePlot(mount);
     };
 
     const controls = buildLatencyControls(effectivePanelId, chartMode, logScale, (nextMode, nextLog) => {
       chartMode = nextMode;
       logScale = nextLog;
       draw();
+    }, (hiding) => {
+      if (toggleAllFn) toggleAllFn(hiding);
     });
     host.appendChild(controls);
     host.appendChild(mount);
@@ -1654,6 +1906,48 @@
           for (const [shape, mv] of shapeMap) dest.set(shape, mv);
         }
       }
+
+      // Cross-topology inclusion: MPSC, SPMC, and MPMC queues can run in SPSC (1p1c)
+      if (panel.id === 'bench-throughput-spsc') {
+        const queueTopos = ['mpmc', 'mpmc_unbounded', 'mpsc', 'mpsc_unbounded', 'spmc'];
+        for (const topo of queueTopos) {
+          const libs = byTopology.get(topo);
+          if (!libs) continue;
+          for (const [library, shapeMap] of libs) {
+            if (merged.has(library)) continue; // keep dedicated SPSC measurement if present
+            if ((library === 'nim_channels' && merged.has('nim_channel')) ||
+                (library === 'nim_channel' && merged.has('nim_channels'))) continue;
+            const pt1p1c = shapeMap.get('1p1c');
+            if (pt1p1c && typeof pt1p1c.value === 'number') {
+              const dest = new Map();
+              dest.set('1p1c', pt1p1c);
+              merged.set(library, dest);
+            }
+          }
+        }
+      }
+
+      // Cross-topology inclusion: MPMC queues can run in MPSC (*p1c)
+      if (panel.id === 'bench-throughput-mpsc') {
+        const mpmcTopos = ['mpmc', 'mpmc_unbounded'];
+        for (const topo of mpmcTopos) {
+          const libs = byTopology.get(topo);
+          if (!libs) continue;
+          for (const [library, shapeMap] of libs) {
+            let dest = merged.get(library);
+            if (!dest) {
+              dest = new Map();
+              merged.set(library, dest);
+            }
+            for (const [shape, mv] of shapeMap) {
+              if (shape.endsWith('p1c') && !dest.has(shape)) {
+                dest.set(shape, mv);
+              }
+            }
+          }
+        }
+      }
+
       renderThroughputPanel(host, panel, merged);
     }
 

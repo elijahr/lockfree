@@ -17,6 +17,7 @@
 
 import std/[monotimes, options, os, parseopt, sets, strformat, syncio, times]
 import ./bench_common
+import ./adapters/lockfree_cabi_adapter
 import lockfree/backoff
 # The legacy `lockfree/mpsc` module has been deleted; the "mpsc"
 # variant below now drives the unified
@@ -186,10 +187,39 @@ when defined(adapter_nim_channel_available):
       metrics.ops_ms_mean + metrics.ops_ms_stddev,
     )
 
+proc initLockfreeCabiMpscQ(capacity: int): LockfreeCabiAdapter[uint64] =
+  makeLockfreeCabiAdapter[uint64](capacity)
+
+proc runLockfreeCabiMpscShape(
+    em: var BMFEmitter, p: int, runs, warmup, messageCount: int
+) =
+  let slug = "lockfree_cabi/mpsc/" & $p & "p1c"
+  echo fmt"lockfree_cabi {p}p1c ({slug}):"
+  let metrics = runThroughputHarness[LockfreeCabiAdapter[uint64]](
+    queueInit = initLockfreeCabiMpscQ,
+    capacity = MpscCapacity,
+    numProducers = p,
+    numConsumers = 1,
+    messageCount = messageCount,
+    runCount = runs,
+    warmupCount = warmup,
+  )
+  echo fmt"  mean: {metrics.ops_ms_mean:.1f} ops/ms"
+  echo fmt"  stddev: {metrics.ops_ms_stddev:.1f}"
+  echo fmt"  runs: {metrics.runs}"
+  echo ""
+  em.addMeasure(
+    slug,
+    "throughput_ops_ms",
+    metrics.ops_ms_mean,
+    metrics.ops_ms_mean - metrics.ops_ms_stddev,
+    metrics.ops_ms_mean + metrics.ops_ms_stddev,
+  )
+
 # ---------- Variant dispatch ----------
 
 proc supportedVariantsList(): seq[string] {.compileTime.} =
-  result = @["mpsc"]
+  result = @["mpsc", "lockfree_cabi"]
   when declared(initNimChannelQ):
     result.add("nim_channel")
 
@@ -210,6 +240,11 @@ proc runVariant(variant: string, em: var BMFEmitter) =
     runMpscShape[MpscCapacity, 8, uint64](
       em, BenchMpscRuns, BenchMpscWarmup, BenchMpscMessageCount
     )
+  of "lockfree_cabi":
+    for p in [1, 2, 4, 8]:
+      runLockfreeCabiMpscShape(
+        em, p, BenchMpscRuns, BenchMpscWarmup, BenchMpscMessageCount
+      )
   else:
     when declared(initNimChannelQ):
       if variant == "nim_channel":

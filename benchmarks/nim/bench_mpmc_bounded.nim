@@ -40,6 +40,7 @@
 import std/[monotimes, options, os, parseopt, sets, strformat, syncio, times]
 import ./bench_common
 import ./adapters/channels_adapter
+import ./adapters/lockfree_cabi_adapter
 import lockfree/backoff
 # The legacy `lockfree/mpmc` module has been deleted; the "mpmc"
 # variant below now drives the unified
@@ -275,6 +276,9 @@ when defined(adapter_liblfds_available):
     # (`lfds711_queue_bmm_*`).
     makeLiblfdsAdapter[uint64](kind = lkBmm, capacity = capacity)
 
+proc initLockfreeCabiMpmcQ(capacity: int): LockfreeCabiAdapter[uint64] =
+  makeLockfreeCabiAdapter[uint64](capacity)
+
 proc runMvpMpmcShape[A](
     em: var BMFEmitter,
     slugPrefix: string,
@@ -308,7 +312,7 @@ proc runMvpMpmcShape[A](
 # ---------- Variant dispatch ----------
 
 proc supportedVariantsList(): seq[string] {.compileTime.} =
-  result = @["mpmc", "channels"]
+  result = @["mpmc", "lockfree_cabi", "channels"]
   when declared(initBoostMpmcQ):
     result.add("boost_lockfree_queue")
   when declared(initCrossbeamArrayQ):
@@ -372,6 +376,17 @@ proc runVariant(variant: string, em: var BMFEmitter) =
         )
     runChannelsShape(
       em, 8, 8, BenchMpmcRuns, BenchMpmcWarmup, BenchMpmcMessageCount
+    )
+  of "lockfree_cabi":
+    for p in [1, 2, 4]:
+      for c in [1, 2, 4]:
+        runMvpMpmcShape[LockfreeCabiAdapter[uint64]](
+          em, "lockfree_cabi", initLockfreeCabiMpmcQ, p, c, BenchMpmcRuns,
+          BenchMpmcWarmup, BenchMpmcMessageCount, MpmcCapacity,
+        )
+    runMvpMpmcShape[LockfreeCabiAdapter[uint64]](
+      em, "lockfree_cabi", initLockfreeCabiMpmcQ, 8, 8, BenchMpmcRuns,
+      BenchMpmcWarmup, BenchMpmcMessageCount, MpmcCapacity,
     )
   else:
     when declared(initBoostMpmcQ):

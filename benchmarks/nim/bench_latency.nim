@@ -28,6 +28,7 @@ import ./adapters/lockfree_spsc_adapter
 import ./adapters/lockfree_spmc_adapter
 import ./adapters/lockfree_mpsc_adapter
 import ./adapters/lockfree_mpmc_adapter
+import ./adapters/lockfree_cabi_adapter
 
 const
   ## Per-binary intdefines for latency wall-time control. Mirror the
@@ -80,9 +81,12 @@ proc initMpsc(): LockfreeMpscAdapter[LatencyCapacity, 1, uint64] =
 proc initMpmc(): MpmcAdapter[LatencyCapacity, uint64] =
   initMpmcAdapter[LatencyCapacity, uint64]()
 
+proc initLockfreeCabi(): LockfreeCabiAdapter[uint64] =
+  makeLockfreeCabiAdapter[uint64](LatencyCapacity)
+
 # ---------- Variant dispatch ----------
 
-const SupportedVariants = ["spsc", "mpmc", "spmc", "mpsc"]
+const SupportedVariants = ["spsc", "mpmc", "spmc", "mpsc", "lockfree_cabi"]
 
 proc slugFor(variant: string): string =
   ## Slug per design 2.2 / table at design line 357. PR 1 covers the 1p1c
@@ -96,6 +100,8 @@ proc slugFor(variant: string): string =
     "lockfree_mpsc/mpsc/1p1c"
   of "mpmc":
     "lockfree_mpmc/mpmc/1p1c"
+  of "lockfree_cabi":
+    "lockfree_cabi/mpmc/1p1c"
   else:
     raise newException(ValueError, "unknown variant: " & variant)
 
@@ -129,6 +135,13 @@ proc runVariant(variant: string, em: var BMFEmitter) =
     of "mpmc":
       runLatencyHarness[MpmcAdapter[LatencyCapacity, uint64]](
         queueInit = initMpmc,
+        messageCount = BenchLatencyMessageCount,
+        runCount = BenchLatencyRuns,
+        warmupCount = BenchLatencyWarmupRuns,
+      )
+    of "lockfree_cabi":
+      runLatencyHarness[LockfreeCabiAdapter[uint64]](
+        queueInit = initLockfreeCabi,
         messageCount = BenchLatencyMessageCount,
         runCount = BenchLatencyRuns,
         warmupCount = BenchLatencyWarmupRuns,
