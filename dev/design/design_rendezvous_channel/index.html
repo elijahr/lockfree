@@ -10,10 +10,10 @@
         <link rel="canonical" href="https://elijahr.github.io/lockfree/latest/design/design_rendezvous_channel/">
       
       
-        <link rel="prev" href="../design_broadcast_ring/">
+        <link rel="prev" href="../../guide/channels/">
       
       
-        <link rel="next" href="../../guide/broadcast/benchmarks/">
+        <link rel="next" href="../design_async_bridge/">
       
       
         
@@ -810,6 +810,8 @@
                 
   
   
+    
+  
   
   
     
@@ -819,13 +821,11 @@
       
     
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
         
         
-          
-        
-        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_6">
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_6" checked="">
         
           
           <label class="md-nav__link" for="__nav_3_6" id="__nav_3_6_label" tabindex="0">
@@ -846,7 +846,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="false">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_6_label" aria-expanded="true">
           <label class="md-nav__title" for="__nav_3_6">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1334,6 +1334,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/channels/benchmarks/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Benchmarks
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1632,8 +1660,6 @@
                 
   
   
-    
-  
   
   
     
@@ -1643,11 +1669,13 @@
       
     
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3_9" checked="">
+          
+        
+        <input class="md-nav__toggle md-toggle md-toggle--indeterminate" type="checkbox" id="__nav_3_9">
         
           
           <label class="md-nav__link" for="__nav_3_9" id="__nav_3_9_label" tabindex="0">
@@ -1668,7 +1696,7 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="true">
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_3_9_label" aria-expanded="false">
           <label class="md-nav__title" for="__nav_3_9">
             <span class="md-nav__icon md-icon"></span>
             
@@ -1730,427 +1758,6 @@
   
 
       </a>
-    </li>
-  
-
-              
-            
-              
-                
-  
-  
-    
-  
-  
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-        
-      
-      
-        <label class="md-nav__link md-nav__link--active" for="__toc">
-          
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Rendezvous Dual-Queue
-  
-
-    
-  </span>
-  
-  
-
-          <span class="md-nav__icon md-icon"></span>
-        </label>
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
-        
-  
-  
-  <span class="md-ellipsis">
-    
-  
-    Rendezvous Dual-Queue
-  
-
-    
-  </span>
-  
-  
-
-      </a>
-      
-        
-
-<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
-  
-  
-  
-    
-  
-  
-    <label class="md-nav__title" for="__toc">
-      <span class="md-nav__icon md-icon"></span>
-      Table of contents
-    </label>
-    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
-      
-        <li class="md-nav__item">
-  <a href="#concurrency-topology-substrate-banner" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Concurrency Topology &amp; Substrate Banner
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#1-executive-summary-architectural-motivation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. Executive Summary &amp; Architectural Motivation
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="1. Executive Summary &amp; Architectural Motivation">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#11-contrast-buffered-queues-vs-synchronous-rendezvous" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1.1 Contrast: Buffered Queues vs Synchronous Rendezvous
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#2-theoretical-foundations-dual-data-structures" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. Theoretical Foundations: Dual Data Structures
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="2. Theoretical Foundations: Dual Data Structures">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#21-the-duality-principle" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2.1 The Duality Principle
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#3-node-hierarchy-memory-geometry" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. Node Hierarchy &amp; Memory Geometry
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="3. Node Hierarchy &amp; Memory Geometry">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#31-waiter-node-rendezvouswaitert" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.1 Waiter Node (RendezvousWaiter[T])
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#32-the-channel-core-rendezvouschannelcoret" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3.2 The Channel Core (RendezvousChannelCore[T])
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#4-algorithmic-state-machines-for-core-operations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. Algorithmic State Machines for Core Operations
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="4. Algorithmic State Machines for Core Operations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#41-synchronous-send-send" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4.1 Synchronous Send (send)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#42-synchronous-receive-recv" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4.2 Synchronous Receive (recv)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#5-non-blocking-bounded-timeout-operations" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5. Non-Blocking &amp; Bounded Timeout Operations
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="5. Non-Blocking &amp; Bounded Timeout Operations">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#51-timeout-cancellation-race-resolution" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5.1 Timeout Cancellation Race Resolution
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#6-monotonic-correlation-ids-rpc-pairing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6. Monotonic Correlation IDs &amp; RPC Pairing
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="6. Monotonic Correlation IDs &amp; RPC Pairing">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#61-formal-invariants" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6.1 Formal Invariants
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#62-application-request-reply-rpc-over-zero-buffer-channels" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6.2 Application: Request / Reply RPC Over Zero-Buffer Channels
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#7-os-level-thread-parking-parker" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7. OS-Level Thread Parking (Parker)
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="7. OS-Level Thread Parking (Parker)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#71-spin-before-park-optimization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7.1 Spin-Before-Park Optimization
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#8-arcorc-destructor-safety-vbox-transfer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        8. ARC/ORC Destructor Safety &amp; VBox Transfer
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="8. ARC/ORC Destructor Safety &amp; VBox Transfer">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#81-the-atomic-handover-protocol" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        8.1 The Atomic Handover Protocol
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#9-c-abi-interop-specification-lockfree_rendezvoush" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        9. C ABI Interop Specification (lockfree_rendezvous.h)
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="9. C ABI Interop Specification (lockfree_rendezvous.h)">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#91-c-header-includelockfree_rendezvoush" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        9.1 C Header (include/lockfree_rendezvous.h)
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#10-memory-ordering-fences-synchronization-table" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        10. Memory Ordering, Fences &amp; Synchronization Table
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#11-complete-nim-api-surface" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        11. Complete Nim API Surface
-      
-    </span>
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#12-verification-auditor-verification-criteria" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        12. Verification &amp; Auditor Verification Criteria
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="12. Verification &amp; Auditor Verification Criteria">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#121-key-verification-invariants" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        12.1 Key Verification Invariants
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-    </ul>
-  
-</nav>
-      
     </li>
   
 
