@@ -96,6 +96,7 @@ nav:
       - Lock-freedom: guide/concepts/lock-freedom.md
       - Safe memory reclamation: guide/concepts/smr.md
       - Memory management: guide/concepts/memory-management.md
+      - CISL Architecture (Spec): design/cisl_architecture.md
     - Queues:
       - Overview: guide/queues/index.md
       - Bounded (Vyukov): guide/queues/bounded-vyukov.md
@@ -111,6 +112,7 @@ nav:
       - Overview: guide/maps-sets.md
       - Concurrent Hash Trie (Ctrie): design/design_ctrie.md
       - SkipList Map & Set: design/design_atomic_associative.md
+      - DisjointSet (Union-Find): guide/disjoint_set.md
       - Benchmarks: guide/maps-sets/benchmarks.md
     - Stacks & Deques:
       - Overview: guide/stacks-deques.md
@@ -162,6 +164,7 @@ nav:
       - Ctrie (Table): api/ctrie.md
       - SkipListMap (SortedTable): api/skiplist.md
       - SkipListSet (Set): api/set.md
+      - DisjointSet: api/disjoint_set.md
     - Stacks & Deques:
       - TreiberStack: api/stack.md
       - ChaseLevDeque: api/deque.md

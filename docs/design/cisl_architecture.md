@@ -38,25 +38,25 @@ Concurrency Topology: MPMC Lock-Free Concurrent Interval Skip List (IntervalSkip
 
 ### 1.1 Architectural Gap Analysis
 The `lockfree` suite currently provides point-keyed associative containers:
-- [`SkipListMap[K, V]`](../../src/lockfree/skiplist.nim): $O(\log N)$ point lookups and ordered ascending key scans `[k1, k2]` via Fraser/Herlihy lock-free skip lists.
-- [`Ctrie[K, V]`](../../src/lockfree/ctrie.nim): $O(1)$ hash-partitioned point lookups and $O(1)$ generational snapshots.
-- [`BTable[K, V]`](../../src/lockfree/btable.nim): Fixed-capacity bounded open-addressed concurrent hash table.
+- `SkipListMap[K, V]` ([API docs](../api/skiplist.md)): $O(\log N)$ point lookups and ordered ascending key scans `[k1, k2]` via Fraser/Herlihy lock-free skip lists.
+- `Ctrie[K, V]` ([API docs](../api/ctrie.md)): $O(1)$ hash-partitioned point lookups and $O(1)$ generational snapshots.
+- `BTable[K, V]`: Fixed-capacity bounded open-addressed concurrent hash table.
 
 However, point-keyed ordered maps cannot efficiently answer **1D interval stabbing** ($\text{find all } [l_i, h_i] \text{ containing point } q$) or **interval overlap** ($\text{find all } [l_i, h_i] \text{ intersecting } [q_{\text{low}}, q_{\text{high}}]$) queries:
 1. Ordering a standard `SkipListMap` solely by `low` allows pruning intervals with $l_i > q_{\text{high}}$, but forces an $O(N)$ linear scan of all intervals with $l_i \le q_{\text{high}}$ because an interval starting near $-\infty$ may either end before $q_{\text{low}}$ or span all the way to $+\infty$.
 2. Classical augmented interval trees (CLRS red-black or AVL interval trees) require multi-node tree rotations coupled with bottom-up `maxHigh` recalculations. Under fine-grained lock-free CAS execution, tree rotations invalidate ancestor `maxHigh` summaries simultaneously across multiple levels, creating unrecoverable race windows or forcing coarse-grained subtree locks.
 
 ### 1.2 The Concurrent Interval Skip List (`CISL`) Solution
-`IntervalSkipList[K, V, MaxThreads, MaxLevel]` (aliased as `CISL[K, V]`) augments the rotation-free Fraser/Herlihy lock-free skip list ([`src/lockfree/skiplist.nim`](../../src/lockfree/skiplist.nim)) with **level-indexed forward-span upper bounds (`spanMaxHigh[L]`)**:
+`IntervalSkipList[K, V, MaxThreads, MaxLevel]` (aliased as `CISL[K, V]`) augments the rotation-free Fraser/Herlihy lock-free skip list (`src/lockfree/skiplist.nim`) with **level-indexed forward-span upper bounds (`spanMaxHigh[L]`)**:
 - Because skip list towers have **fixed height (`topLevel`) chosen at allocation time** and never rotate, level-$L$ express links form a deterministic hierarchical partition over Level-0 intervals.
-- By enforcing the **Conservative Over-Approximation Invariant** ($\text{spanMaxHigh}[L](u) \ge \max_{w \in \text{Span}_L(u)} w.\text{high}$) via **Pre-Link Monotonic Propagation** prior to Level-0 publication, wait-free readers can prune entire level-$L$ forward spans in $O(1)$ atomic loads without ever suffering a false negative (missed overlapping interval).
+- By enforcing the **Conservative Over-Approximation Invariant** ($\text{spanMaxHigh}_L(u) \ge \max_{w \in \text{Span}_L(u)} w.\text{high}$) via **Pre-Link Monotonic Propagation** prior to Level-0 publication, wait-free readers can prune entire level-$L$ forward spans in $O(1)$ atomic loads without ever suffering a false negative (missed overlapping interval).
 
 ---
 
 ## 2. SMR Lifecycle & NEBR Epoch Integration
 
 ### 2.1 Integration with `DebraManager[MaxThreads, ccMulti]`
-`IntervalSkipList` integrates directly with the in-tree Neutralization-Enhanced Bounded Reclamation (NEBR / Debra) engine in [`src/lockfree/smr/nebr.nim`](../../src/lockfree/smr/nebr.nim), matching the ownership and lifecycle architecture established in [`src/lockfree/skiplist.nim:71-139`](../../src/lockfree/skiplist.nim#L71-L139).
+`IntervalSkipList` integrates directly with the in-tree Neutralization-Enhanced Bounded Reclamation (NEBR / Debra) engine in `src/lockfree/smr/nebr.nim` ([API docs](../api/smr/nebr.md)), matching the ownership and lifecycle architecture established in `src/lockfree/skiplist.nim`.
 
 ```mermaid
 flowchart LR
@@ -257,7 +257,7 @@ sequenceDiagram
 
 #### Step-by-Step Insertion Protocol & Edge-Case Verification
 1. **Search & Physical Cleanup (`find`)**:
-   - Traverse from `level = MaxLevel - 1` down to `0` exactly as in [`src/lockfree/skiplist.nim:390-430`](../../src/lockfree/skiplist.nim#L390-L430), sniping logically marked nodes via `pred.next[level].compareExchange(toEntry(curr, false), toEntry(succ, false), moAcquireRelease, moAcquire)` and retiring unlinked Level-0 nodes via `ready.retire`.
+   - Traverse from `level = MaxLevel - 1` down to `0` exactly as in `src/lockfree/skiplist.nim` (Fraser/Herlihy physical unlinking), sniping logically marked nodes via `pred.next[level].compareExchange(toEntry(curr, false), toEntry(succ, false), moAcquireRelease, moAcquire)` and retiring unlinked Level-0 nodes via `ready.retire`.
    - Record `preds[0 .. MaxLevel - 1]` and `succs[0 .. MaxLevel - 1]`.
 2. **Duplicate Interval Coordinate Check**:
    - If `succs[0]` has identical `(low, high, bounds)` and is unmarked:
@@ -440,7 +440,7 @@ proc findOverlaps*[K, V; MaxThreads, MaxLevel: static int](
 
 ## 6. Typestate Verification & Dual-API Surface
 
-To comply with `lockfree`'s universal compile-time typestate architecture ([`src/lockfree/endpoint.nim`](../../src/lockfree/endpoint.nim), [`src/lockfree/typestates/with_bound.nim`](../../src/lockfree/typestates/with_bound.nim)):
+To comply with `lockfree`'s universal compile-time typestate architecture (`src/lockfree/endpoint.nim`, `src/lockfree/typestates/with_bound.nim`):
 
 ### 6.1 Lifecycle Typestate Machine
 ```nim
