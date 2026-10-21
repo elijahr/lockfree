@@ -136,22 +136,28 @@ extern "C" {
 # ---------------------------------------------------------------------------
 
 type
-  LockedTable = ref object
+  LockedTableObj = object
     lock: Lock
     data: tables.Table[int, int]
 
-  LockedSet = ref object
+  LockedTable = ptr LockedTableObj
+
+  LockedSetObj = object
     lock: Lock
     data: HashSet[int]
 
+  LockedSet = ptr LockedSetObj
+
 proc newLockedTable(): LockedTable =
-  new(result)
+  result = createShared(LockedTableObj)
   initLock(result.lock)
   result.data = tables.initTable[int, int](65536)
 
 proc destroyLockedTable(lt: LockedTable) =
   if lt != nil:
     deinitLock(lt.lock)
+    `=destroy`(lt.data)
+    freeShared(lt)
 
 proc put(lt: LockedTable, k, v: int) {.inline.} =
   withLock(lt.lock):
@@ -169,13 +175,15 @@ proc iterSum(lt: LockedTable): uint64 {.inline.} =
       result += uint64(v)
 
 proc newLockedSet(): LockedSet =
-  new(result)
+  result = createShared(LockedSetObj)
   initLock(result.lock)
   result.data = initHashSet[int](65536)
 
 proc destroyLockedSet(ls: LockedSet) =
   if ls != nil:
     deinitLock(ls.lock)
+    `=destroy`(ls.data)
+    freeShared(ls)
 
 proc contains(ls: LockedSet, k: int): bool {.inline.} =
   withLock(ls.lock):

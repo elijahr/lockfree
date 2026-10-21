@@ -205,10 +205,10 @@ type
     root*: ptr INode[K, V]
 
 template isSNode*[K, V](b: BranchNode[K, V]): bool =
-  (uint(b) and TagMask) == TagSNode
+  uint(b) != 0 and (uint(b) and TagMask) == TagSNode
 
 template isINode*[K, V](b: BranchNode[K, V]): bool =
-  (uint(b) and TagMask) == TagINode
+  uint(b) != 0 and (uint(b) and TagMask) == TagINode
 
 template toSNode*[K, V](b: BranchNode[K, V]): ptr SNode[K, V] =
   cast[ptr SNode[K, V]](uint(b) and (not TagMask))
@@ -454,7 +454,9 @@ proc isLNodeSubtree[K, V](inode: ptr INode[K, V]): bool {.inline.} =
     of mnkCNode:
       let cn = cast[ptr CNode[K, V]](m)
       if cn.csize == 1 and cn.children[0].isINode:
-        cur = cn.children[0].toINode
+        let inPtr = cn.children[0].toINode
+        if inPtr == nil: return false
+        cur = inPtr
       else:
         return false
     else: return false
@@ -468,7 +470,9 @@ proc freeUnlinkedSubTree[K, V](inode: ptr INode[K, V]) =
       let cn = cast[ptr CNode[K, V]](m)
       for i in 0 ..< cn.csize:
         if cn.children[i].isINode:
-          freeUnlinkedSubTree[K, V](cn.children[i].toINode)
+          let inPtr = cn.children[i].toINode
+          if inPtr != nil:
+            freeUnlinkedSubTree[K, V](inPtr)
       decRef(cn.gen)
       deallocShared(cn)
     of mnkLNode:
@@ -488,7 +492,7 @@ proc freeUnlinkedCNode[K, V](cn: ptr CNode[K, V], targetGen: ptr Generation) =
       let child = cn.children[i]
       if child.isINode:
         let inode = child.toINode
-        if inode.gen == targetGen:
+        if inode != nil and inode.gen == targetGen:
           destroyINodeCallback[K, V](cast[pointer](inode))
     decRef(cn.gen)
     deallocShared(cn)
@@ -500,9 +504,12 @@ proc gcopy[K, V](cnode: ptr CNode[K, V], targetGen: ptr Generation): ptr CNode[K
     let child = cnode.children[i]
     if child.isINode:
       let oldInode = child.toINode
-      if oldInode.gen != targetGen:
-        let freshInode = allocINode[K, V](oldInode.main.load(moAcquire), targetGen)
-        result.children[i] = makeBranchNode(freshInode)
+      if oldInode != nil:
+        if oldInode.gen != targetGen:
+          let freshInode = allocINode[K, V](oldInode.main.load(moAcquire), targetGen)
+          result.children[i] = makeBranchNode(freshInode)
+        else:
+          result.children[i] = child
       else:
         result.children[i] = child
     else:
@@ -525,6 +532,7 @@ proc get*[K, V; MaxThreads: static int](
     var cur = self.core.root.load(moAcquire)
     var level = 0
     while true:
+      if unlikely(cur == nil): return none(V)
       let main = cur.main.load(moAcquire)
       if unlikely(main == nil): return none(V)
       case main.kind
@@ -538,12 +546,14 @@ proc get*[K, V; MaxThreads: static int](
         let child = cn.children[idx]
         if child.isSNode:
           let sn = child.toSNode
-          if sn.hash == h and sn.key == key:
+          if sn != nil and sn.hash == h and sn.key == key:
             return some(sn.vbox.val)
           return none(V)
-        else:
+        elif child.isINode:
           cur = child.toINode
           level += 5
+        else:
+          return none(V)
       of mnkLNode:
         let ln = cast[ptr LNode[K, V]](main)
         if ln.hash != h: return none(V)
@@ -589,7 +599,7 @@ proc clean[K, V; MaxThreads: static int](
     sn: ptr SNode[K, V],
     ready: var RetireReady[MaxThreads, ccMulti]
 ) {.notATransition.} =
-  if parent == nil: return
+  if parent == nil or cur == nil or sn == nil: return
   let pMain = parent.main.load(moAcquire)
   if pMain != nil and pMain.kind == mnkCNode:
     let pcn = cast[ptr CNode[K, V]](pMain)
@@ -636,6 +646,9 @@ proc putInternal[K, V; MaxThreads: static int](
       var restarted = false
 
       while not restarted:
+        if unlikely(cur == nil):
+          restarted = true
+          break
         let main = cur.main.load(moAcquire)
         if unlikely(main == nil):
           restarted = true
@@ -689,7 +702,7 @@ proc putInternal[K, V; MaxThreads: static int](
               parent = cur
               cur = child.toINode
               level += 5
-            else:
+            elif child.isSNode:
               # SNode leaf
               let sn = child.toSNode
               if sn.key == key:
@@ -744,6 +757,9 @@ proc putInternal[K, V; MaxThreads: static int](
                   destroySNodeCallback[K, V](cast[pointer](newSn))
                   restarted = true
                   break
+            else:
+              restarted = true
+              break
 
         of mnkLNode:
           let ln = cast[ptr LNode[K, V]](main)
@@ -840,6 +856,9 @@ proc delete*[K, V; MaxThreads: static int](
       var restarted = false
 
       while not restarted:
+        if unlikely(cur == nil):
+          restarted = true
+          break
         let main = cur.main.load(moAcquire)
         if unlikely(main == nil): return none(V)
         case main.kind
@@ -866,9 +885,9 @@ proc delete*[K, V; MaxThreads: static int](
             parent = cur
             cur = child.toINode
             level += 5
-          else:
+          elif child.isSNode:
             let sn = child.toSNode
-            if sn.key != key:
+            if sn == nil or sn.key != key:
               return none(V)
             let val = sn.vbox.val
 
@@ -925,6 +944,9 @@ proc delete*[K, V; MaxThreads: static int](
                 destroyCNodeCallback[K, V](cast[pointer](newCn))
                 restarted = true
                 break
+          else:
+            restarted = true
+            break
 
         of mnkLNode:
           let ln = cast[ptr LNode[K, V]](main)
@@ -1046,6 +1068,9 @@ proc atomicUpdate*[K, V; MaxThreads: static int](
       var restarted = false
 
       while not restarted:
+        if unlikely(cur == nil):
+          restarted = true
+          break
         let main = cur.main.load(moAcquire)
         if unlikely(main == nil): return none(V)
         case main.kind
@@ -1072,9 +1097,9 @@ proc atomicUpdate*[K, V; MaxThreads: static int](
             parent = cur
             cur = child.toINode
             level += 5
-          else:
+          elif child.isSNode:
             let sn = child.toSNode
-            if sn.key != key:
+            if sn == nil or sn.key != key:
               return none(V) # Key absent
 
             let oldVal = sn.vbox.val
@@ -1099,6 +1124,9 @@ proc atomicUpdate*[K, V; MaxThreads: static int](
               backoffOnRetry(spins)
               restarted = true
               break
+          else:
+            restarted = true
+            break
 
         of mnkLNode:
           let ln = cast[ptr LNode[K, V]](main)
@@ -1170,6 +1198,9 @@ proc upsert*[K, V; MaxThreads: static int](
       var restarted = false
 
       while not restarted:
+        if unlikely(cur == nil):
+          restarted = true
+          break
         let main = cur.main.load(moAcquire)
         if unlikely(main == nil):
           restarted = true
@@ -1221,7 +1252,7 @@ proc upsert*[K, V; MaxThreads: static int](
               parent = cur
               cur = child.toINode
               level += 5
-            else:
+            elif child.isSNode:
               let sn = child.toSNode
               if sn.key == key:
                 # Key present: update with updateProc
@@ -1275,6 +1306,9 @@ proc upsert*[K, V; MaxThreads: static int](
                   backoffOnRetry(spins)
                   restarted = true
                   break
+            else:
+              restarted = true
+              break
 
         of mnkLNode:
           let ln = cast[ptr LNode[K, V]](main)
@@ -1376,6 +1410,7 @@ proc get*[K, V; MaxThreads: static int](
     var cur = snap.root
     var level = 0
     while true:
+      if unlikely(cur == nil): return none(V)
       let main = cur.main.load(moAcquire)
       if unlikely(main == nil): return none(V)
       case main.kind
@@ -1389,12 +1424,14 @@ proc get*[K, V; MaxThreads: static int](
         let child = cn.children[idx]
         if child.isSNode:
           let sn = child.toSNode
-          if sn.hash == h and sn.key == key:
+          if sn != nil and sn.hash == h and sn.key == key:
             return some(sn.vbox.val)
           return none(V)
-        else:
+        elif child.isINode:
           cur = child.toINode
           level += 5
+        else:
+          return none(V)
       of mnkLNode:
         let ln = cast[ptr LNode[K, V]](main)
         if ln.hash != h: return none(V)
@@ -1429,6 +1466,7 @@ iterator pairs*[K, V; MaxThreads: static int](
       var stack: seq[ptr INode[K, V]] = @[snap.root]
       while stack.len > 0:
         let inode = stack.pop()
+        if inode == nil: continue
         let main = inode.main.load(moAcquire)
         if main != nil:
           case main.kind
@@ -1438,9 +1476,12 @@ iterator pairs*[K, V; MaxThreads: static int](
               let child = cn.children[i]
               if child.isSNode:
                 let sn = child.toSNode
-                yield (sn.key, sn.vbox.val)
-              else:
-                stack.add(child.toINode)
+                if sn != nil and sn.vbox != nil:
+                  yield (sn.key, sn.vbox.val)
+              elif child.isINode:
+                let inPtr = child.toINode
+                if inPtr != nil:
+                  stack.add(inPtr)
           of mnkLNode:
             let ln = cast[ptr LNode[K, V]](main)
             var curr = ln.head
@@ -1558,9 +1599,13 @@ proc freeTreeRecursive[K, V](
       for i in 0 ..< cn.csize:
         let child = cn.children[i]
         if child.isSNode:
-          destroySNodeCallback[K, V](cast[pointer](child.toSNode))
+          let snPtr = child.toSNode
+          if snPtr != nil:
+            destroySNodeCallback[K, V](cast[pointer](snPtr))
         elif child.isINode:
-          freeTreeRecursive(child.toINode, visitedInodes)
+          let inPtr = child.toINode
+          if inPtr != nil:
+            freeTreeRecursive(inPtr, visitedInodes)
       decRef(cn.gen)
       deallocShared(cn)
     of mnkTNode:
