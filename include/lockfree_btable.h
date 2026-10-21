@@ -24,40 +24,60 @@ extern "C" {
  * 1. Status Codes & Callback Types (Shared with lockfree.h)
  * ========================================================================== */
 
+#ifndef LF_STATUS_DEFINED
+#define LF_STATUS_DEFINED
+typedef enum lf_status {
+    LF_ERR_PANIC           = -2,
+    LF_ERR_FAILURE         = -1,
+    LF_OK                  =  0,
+    LF_ERR_EMPTY           =  1,
+    LF_ERR_FULL            =  2,
+    LF_ERR_CLOSED          =  3,
+    LF_ERR_INVALID_ARG     =  4,
+    LF_ERR_REGISTRY_FULL   =  5,
+    LF_ERR_UNSUPPORTED     =  6
+} lf_status_t;
+
 #ifndef LFQ_STATUS_DEFINED
 #define LFQ_STATUS_DEFINED
-typedef enum lfq_status {
-    LFQ_OK                  =  0,
-    LFQ_ERR_EMPTY           =  1,
-    LFQ_ERR_FULL            =  2,
-    LFQ_ERR_CLOSED          =  3,
-    LFQ_ERR_INVALID_ARG     =  4,
-    LFQ_ERR_REGISTRY_FULL   =  5,
-    LFQ_ERR_UNSUPPORTED     =  6,
-    LFQ_ERR_FAILURE         = -1,
-    LFQ_ERR_PANIC           = -2
-} lfq_status_t;
+#define lfq_status_t lf_status_t
+#define lfq_status lf_status
+#define LFQ_OK                  LF_OK
+#define LFQ_ERR_EMPTY           LF_ERR_EMPTY
+#define LFQ_ERR_FULL            LF_ERR_FULL
+#define LFQ_ERR_CLOSED          LF_ERR_CLOSED
+#define LFQ_ERR_INVALID_ARG     LF_ERR_INVALID_ARG
+#define LFQ_ERR_REGISTRY_FULL   LF_ERR_REGISTRY_FULL
+#define LFQ_ERR_UNSUPPORTED     LF_ERR_UNSUPPORTED
+#define LFQ_ERR_FAILURE         LF_ERR_FAILURE
+#define LFQ_ERR_PANIC           LF_ERR_PANIC
+#endif
 #endif
 
 /**
  * @brief Optional cleanup callback invoked for remaining `(key, val)` entries
  * when the bounded table is cleared or destroyed.
  */
-typedef void (*lfq_btable_destructor_fn)(void* key, void* val, void* user_data);
+typedef void (*lf_btable_destructor_fn)(void* key, void* val, void* user_data);
+#define lfq_btable_destructor_fn lf_btable_destructor_fn
 
 /**
  * @brief Factory callback invoked under the table combiner lease by
  * `lfq_btable_compute_if_absent` when `key` is not present.
  */
-typedef void* (*lfq_btable_mapping_fn)(const void* key, void* user_data);
-typedef lfq_btable_mapping_fn lfq_map_compute_fn;
+typedef void* (*lf_btable_mapping_fn)(const void* key, void* user_data);
+#define lfq_btable_mapping_fn lf_btable_mapping_fn
+typedef lf_btable_mapping_fn lf_map_compute_fn;
+#define lfq_map_compute_fn lf_map_compute_fn
 
 /**
  * @brief In-place update callback invoked under the table combiner lease by
  * `lfq_btable_atomic_update` and `lfq_btable_upsert` when `key` is present.
  */
-typedef void* (*lfq_btable_update_fn)(const void* key, void* old_val, void* user_data);
-typedef lfq_btable_update_fn lfq_map_merge_fn;
+typedef void* (*lf_btable_update_fn)(const void* key, void* old_val, void* user_data);
+#define lfq_btable_update_fn lf_btable_update_fn
+typedef lf_btable_update_fn lf_map_merge_fn;
+#define lfq_map_merge_fn lf_map_merge_fn
 
 /* ==========================================================================
  * 2. Opaque Handle & C ABI Operations (lfq_btable_*)
@@ -68,7 +88,9 @@ typedef lfq_btable_update_fn lfq_map_merge_fn;
 /**
  * @brief Opaque handle to a preallocated zero-SMR bounded concurrent hash table.
  */
-typedef struct lfq_btable lfq_btable_t;
+typedef struct lf_btable lf_btable_t;
+#define lfq_btable lf_btable
+#define lfq_btable_t lf_btable_t
 #endif
 
 /**
@@ -81,12 +103,13 @@ typedef struct lfq_btable lfq_btable_t;
  * @return LFQ_OK on success, LFQ_ERR_INVALID_ARG if `capacity == 0` or `out_table == NULL`,
  *         or LFQ_ERR_UNSUPPORTED if `capacity > 65536`.
  */
-lfq_status_t lfq_btable_create(
+lf_status_t lf_btable_create(
     size_t capacity,
-    lfq_btable_destructor_fn destructor,
+    lf_btable_destructor_fn destructor,
     void* user_data,
-    lfq_btable_t** out_table
+    lf_btable_t** out_table
 );
+#define lfq_btable_create lf_btable_create
 
 /**
  * @brief Destroys a bounded hash table, invoking `destructor` (if non-NULL)
@@ -95,7 +118,8 @@ lfq_status_t lfq_btable_create(
  * @param table Bounded table handle.
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG if `table == NULL`.
  */
-lfq_status_t lfq_btable_destroy(lfq_btable_t* table);
+lf_status_t lf_btable_destroy(lf_btable_t* table);
+#define lfq_btable_destroy lf_btable_destroy
 
 /**
  * @brief Inserts `(key, val)` or updates `key`'s value in-place if already present.
@@ -109,12 +133,13 @@ lfq_status_t lfq_btable_destroy(lfq_btable_t* table);
  * @return LFQ_OK on insert or update, LFQ_ERR_FULL if `key` is absent and `len == capacity`,
  *         or LFQ_ERR_INVALID_ARG if `table == NULL`.
  */
-lfq_status_t lfq_btable_put(
-    lfq_btable_t* table,
+lf_status_t lf_btable_put(
+    lf_btable_t* table,
     void* key,
     void* val,
     bool* out_inserted
 );
+#define lfq_btable_put lf_btable_put
 
 /**
  * @brief Inserts `(key, val)` only if `key` is not already present.
@@ -128,12 +153,13 @@ lfq_status_t lfq_btable_put(
  * @return LFQ_OK if inserted or if `key` already existed, LFQ_ERR_FULL if `key` is absent
  *         and `len == capacity`, or LFQ_ERR_INVALID_ARG if `table == NULL`.
  */
-lfq_status_t lfq_btable_insert(
-    lfq_btable_t* table,
+lf_status_t lf_btable_insert(
+    lf_btable_t* table,
     void* key,
     void* val,
     bool* out_inserted
 );
+#define lfq_btable_insert lf_btable_insert
 
 /**
  * @brief Looks up `key` in the bounded table.
@@ -144,11 +170,12 @@ lfq_status_t lfq_btable_insert(
  * @return LFQ_OK if found, LFQ_ERR_EMPTY if `key` is absent,
  *         or LFQ_ERR_INVALID_ARG if `table == NULL` or `out_val == NULL`.
  */
-lfq_status_t lfq_btable_get(
-    const lfq_btable_t* table,
+lf_status_t lf_btable_get(
+    const lf_btable_t* table,
     void* key,
     void** out_val
 );
+#define lfq_btable_get lf_btable_get
 
 /**
  * @brief Removes `key` from the bounded table if present.
@@ -159,20 +186,22 @@ lfq_status_t lfq_btable_get(
  * @return LFQ_OK if `key` was found and removed, LFQ_ERR_EMPTY if `key` was absent,
  *         or LFQ_ERR_INVALID_ARG if `table == NULL`.
  */
-lfq_status_t lfq_btable_delete(
-    lfq_btable_t* table,
+lf_status_t lf_btable_delete(
+    lf_btable_t* table,
     void* key,
     bool* out_deleted
 );
+#define lfq_btable_delete lf_btable_delete
 
 /**
  * @brief Alias for `lfq_btable_delete`.
  */
-lfq_status_t lfq_btable_remove(
-    lfq_btable_t* table,
+lf_status_t lf_btable_remove(
+    lf_btable_t* table,
     void* key,
     bool* out_removed
 );
+#define lfq_btable_remove lf_btable_remove
 
 /**
  * @brief Atomically removes `key` and returns its associated value in `*out_val`.
@@ -183,19 +212,21 @@ lfq_status_t lfq_btable_remove(
  * @return LFQ_OK if `key` was removed, LFQ_ERR_EMPTY if `key` was absent,
  *         or LFQ_ERR_INVALID_ARG if `table == NULL` or `out_val == NULL`.
  */
-lfq_status_t lfq_btable_take(
-    lfq_btable_t* table,
+lf_status_t lf_btable_take(
+    lf_btable_t* table,
     void* key,
     void** out_val
 );
+#define lfq_btable_take lf_btable_take
 
 /**
  * @brief Returns `true` if `key` is currently present in the bounded table.
  */
-bool lfq_btable_contains(
-    const lfq_btable_t* table,
+bool lf_btable_contains(
+    const lf_btable_t* table,
     void* key
 );
+#define lfq_btable_contains lf_btable_contains
 
 /**
  * @brief Atomically looks up `key`; if absent and `len < capacity`, computes
@@ -209,13 +240,14 @@ bool lfq_btable_contains(
  * @return LFQ_OK if found or computed, LFQ_ERR_FULL if `key` is absent and `len == capacity`,
  *         or LFQ_ERR_INVALID_ARG if `table == NULL` or `mapping_fn == NULL`.
  */
-lfq_status_t lfq_btable_compute_if_absent(
-    lfq_btable_t* table,
+lf_status_t lf_btable_compute_if_absent(
+    lf_btable_t* table,
     void* key,
-    lfq_btable_mapping_fn mapping_fn,
+    lf_btable_mapping_fn mapping_fn,
     void* user_data,
     void** out_val
 );
+#define lfq_btable_compute_if_absent lf_btable_compute_if_absent
 
 /**
  * @brief Atomically updates the value for an existing `key` in-place via
@@ -229,13 +261,14 @@ lfq_status_t lfq_btable_compute_if_absent(
  * @return LFQ_OK if `key` was found and updated, LFQ_ERR_EMPTY if `key` is absent,
  *         or LFQ_ERR_INVALID_ARG if `table == NULL` or `update_fn == NULL`.
  */
-lfq_status_t lfq_btable_atomic_update(
-    lfq_btable_t* table,
+lf_status_t lf_btable_atomic_update(
+    lf_btable_t* table,
     void* key,
-    lfq_btable_update_fn update_fn,
+    lf_btable_update_fn update_fn,
     void* user_data,
     void** out_val
 );
+#define lfq_btable_atomic_update lf_btable_atomic_update
 
 /**
  * @brief Atomically inserts `(key, initial_val)` if `key` is absent (`len < capacity`),
@@ -250,14 +283,15 @@ lfq_status_t lfq_btable_atomic_update(
  * @return LFQ_OK on insert or update, LFQ_ERR_FULL if `key` is absent and `len == capacity`,
  *         or LFQ_ERR_INVALID_ARG if `table == NULL` or `update_fn == NULL`.
  */
-lfq_status_t lfq_btable_upsert(
-    lfq_btable_t* table,
+lf_status_t lf_btable_upsert(
+    lf_btable_t* table,
     void* key,
     void* initial_val,
-    lfq_btable_update_fn update_fn,
+    lf_btable_update_fn update_fn,
     void* user_data,
     void** out_val
 );
+#define lfq_btable_upsert lf_btable_upsert
 
 /**
  * @brief Clears all entries from the bounded table (invoking the configured
@@ -267,27 +301,32 @@ lfq_status_t lfq_btable_upsert(
  * @param table Bounded table handle.
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG if `table == NULL`.
  */
-lfq_status_t lfq_btable_clear(lfq_btable_t* table);
+lf_status_t lf_btable_clear(lf_btable_t* table);
+#define lfq_btable_clear lf_btable_clear
 
 /**
  * @brief Returns the current number of active key-value entries (`0 .. capacity`).
  */
-size_t lfq_btable_len(const lfq_btable_t* table);
+size_t lf_btable_len(const lf_btable_t* table);
+#define lfq_btable_len lf_btable_len
 
 /**
  * @brief Returns the configured entry capacity of the bounded table (`0` if `table == NULL`).
  */
-size_t lfq_btable_capacity(const lfq_btable_t* table);
+size_t lf_btable_capacity(const lf_btable_t* table);
+#define lfq_btable_capacity lf_btable_capacity
 
 /**
  * @brief Returns `true` if the bounded table is empty or `NULL`.
  */
-bool lfq_btable_is_empty(const lfq_btable_t* table);
+bool lf_btable_is_empty(const lf_btable_t* table);
+#define lfq_btable_is_empty lf_btable_is_empty
 
 /**
  * @brief Returns `true` if the bounded table has reached capacity (`false` if `table == NULL`).
  */
-bool lfq_btable_is_full(const lfq_btable_t* table);
+bool lf_btable_is_full(const lf_btable_t* table);
+#define lfq_btable_is_full lf_btable_is_full
 
 #ifdef __cplusplus
 }

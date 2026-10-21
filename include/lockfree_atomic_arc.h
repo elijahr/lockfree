@@ -2,8 +2,8 @@
  * @file lockfree_atomic_arc.h
  * @brief Standalone C99/C11 Header for Lock-Free 128-Bit DWCAS AtomicArc & ArcGuard
  *
- * Exposes `AtomicArc[pointer]` (`lfq_atomic_arc_t`) and `ArcGuard[pointer]`
- * (`lfq_arc_guard_t`) across the C ABI boundary (`lfq_atomic_arc_*` and
+ * Exposes `AtomicArc[pointer]` (`lf_atomic_arc_t`) and `ArcGuard[pointer]`
+ * (`lf_arc_guard_t`) across the C ABI boundary (`lfq_atomic_arc_*` and
  * `lfq_arc_guard_*`), supporting wait-free / lock-free 128-bit DWCAS
  * split-reference-counted `load`, `store`, `swap`, and `compare_exchange`
  * with deterministic payload reclamation via optional destructor callbacks.
@@ -24,38 +24,58 @@ extern "C" {
  * 1. Status Codes & Destructor Callback (Shared with lockfree.h)
  * ========================================================================== */
 
+#ifndef LF_STATUS_DEFINED
+#define LF_STATUS_DEFINED
+typedef enum lf_status {
+    LF_ERR_PANIC           = -2,
+    LF_ERR_FAILURE         = -1,
+    LF_OK                  =  0,
+    LF_ERR_EMPTY           =  1,
+    LF_ERR_FULL            =  2,
+    LF_ERR_CLOSED          =  3,
+    LF_ERR_INVALID_ARG     =  4,
+    LF_ERR_REGISTRY_FULL   =  5,
+    LF_ERR_UNSUPPORTED     =  6
+} lf_status_t;
+
 #ifndef LFQ_STATUS_DEFINED
 #define LFQ_STATUS_DEFINED
-typedef enum lfq_status {
-    LFQ_OK                  =  0,
-    LFQ_ERR_EMPTY           =  1,
-    LFQ_ERR_FULL            =  2,
-    LFQ_ERR_CLOSED          =  3,
-    LFQ_ERR_INVALID_ARG     =  4,
-    LFQ_ERR_REGISTRY_FULL   =  5,
-    LFQ_ERR_UNSUPPORTED     =  6,
-    LFQ_ERR_FAILURE         = -1,
-    LFQ_ERR_PANIC           = -2
-} lfq_status_t;
+#define lfq_status_t lf_status_t
+#define lfq_status lf_status
+#define LFQ_OK                  LF_OK
+#define LFQ_ERR_EMPTY           LF_ERR_EMPTY
+#define LFQ_ERR_FULL            LF_ERR_FULL
+#define LFQ_ERR_CLOSED          LF_ERR_CLOSED
+#define LFQ_ERR_INVALID_ARG     LF_ERR_INVALID_ARG
+#define LFQ_ERR_REGISTRY_FULL   LF_ERR_REGISTRY_FULL
+#define LFQ_ERR_UNSUPPORTED     LF_ERR_UNSUPPORTED
+#define LFQ_ERR_FAILURE         LF_ERR_FAILURE
+#define LFQ_ERR_PANIC           LF_ERR_PANIC
+#endif
 #endif
 
-typedef void (*lfq_arc_destructor_fn)(void* item, void* user_data);
+typedef void (*lf_arc_destructor_fn)(void* item, void* user_data);
+#define lfq_arc_destructor_fn lf_arc_destructor_fn
 
 /* ==========================================================================
- * 2. Opaque Handles (lfq_atomic_arc_t & lfq_arc_guard_t)
+ * 2. Opaque Handles (lf_atomic_arc_t & lf_arc_guard_t)
  * ========================================================================== */
 
 /**
  * @brief Opaque handle to a lock-free 128-bit DWCAS split-reference-counted
  *        atomic shared pointer (`AtomicArc[pointer]`).
  */
-typedef struct lfq_atomic_arc lfq_atomic_arc_t;
+typedef struct lf_atomic_arc lf_atomic_arc_t;
+#define lfq_atomic_arc lf_atomic_arc
+#define lfq_atomic_arc_t lf_atomic_arc_t
 
 /**
  * @brief Opaque handle to a reference-counted guard (`ArcGuard[pointer]`)
  *        keeping the underlying payload alive until released.
  */
-typedef struct lfq_arc_guard lfq_arc_guard_t;
+typedef struct lf_arc_guard lf_arc_guard_t;
+#define lfq_arc_guard lf_arc_guard
+#define lfq_arc_guard_t lf_arc_guard_t
 
 /* ==========================================================================
  * 3. ArcGuard Lifecycle & Accessors (lfq_arc_guard_*)
@@ -70,31 +90,34 @@ typedef struct lfq_arc_guard lfq_arc_guard_t;
  * @param out_guard  Out-pointer receiving the created guard handle.
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG / LFQ_ERR_FAILURE.
  */
-lfq_status_t lfq_arc_guard_create(
+lf_status_t lf_arc_guard_create(
     void* item,
-    lfq_arc_destructor_fn destructor,
+    lf_arc_destructor_fn destructor,
     void* user_data,
-    lfq_arc_guard_t** out_guard
+    lf_arc_guard_t** out_guard
 );
+#define lfq_arc_guard_create lf_arc_guard_create
 
 /**
  * @brief Returns the raw payload pointer protected by `guard`, or NULL if
  *        `guard` is NULL or empty.
  */
-void* lfq_arc_guard_get(const lfq_arc_guard_t* guard);
+void* lf_arc_guard_get(const lf_arc_guard_t* guard);
+#define lfq_arc_guard_get lf_arc_guard_get
 
 /**
  * @brief Clones `guard`, atomically incrementing the underlying control block's
- *        reference count and returning a new independent `lfq_arc_guard_t*`.
+ *        reference count and returning a new independent `lf_arc_guard_t*`.
  *
  * @param guard     Source guard handle (may be NULL).
  * @param out_clone Out-pointer receiving the cloned guard handle.
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_arc_guard_clone(
-    const lfq_arc_guard_t* guard,
-    lfq_arc_guard_t** out_clone
+lf_status_t lf_arc_guard_clone(
+    const lf_arc_guard_t* guard,
+    lf_arc_guard_t** out_clone
 );
+#define lfq_arc_guard_clone lf_arc_guard_clone
 
 /**
  * @brief Releases `guard`, decrementing the control block's reference count
@@ -103,14 +126,15 @@ lfq_status_t lfq_arc_guard_clone(
  * @param guard Guard handle to release (no-op if NULL, returns LFQ_OK).
  * @return LFQ_OK on success.
  */
-lfq_status_t lfq_arc_guard_release(lfq_arc_guard_t* guard);
+lf_status_t lf_arc_guard_release(lf_arc_guard_t* guard);
+#define lfq_arc_guard_release lf_arc_guard_release
 
 /* ==========================================================================
  * 4. AtomicArc Lifecycle & Lock-Free DWCAS Operations (lfq_atomic_arc_*)
  * ========================================================================== */
 
 /**
- * @brief Creates a new lock-free `lfq_atomic_arc_t` initialized with `initial_item`.
+ * @brief Creates a new lock-free `lf_atomic_arc_t` initialized with `initial_item`.
  *
  * @param initial_item Initial pointer payload (pass NULL for an empty AtomicArc).
  * @param destructor   Optional callback invoked when `initial_item`'s control
@@ -119,30 +143,33 @@ lfq_status_t lfq_arc_guard_release(lfq_arc_guard_t* guard);
  * @param out_arc      Out-pointer receiving the allocated AtomicArc handle.
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG / LFQ_ERR_FAILURE.
  */
-lfq_status_t lfq_atomic_arc_create(
+lf_status_t lf_atomic_arc_create(
     void* initial_item,
-    lfq_arc_destructor_fn destructor,
+    lf_arc_destructor_fn destructor,
     void* user_data,
-    lfq_atomic_arc_t** out_arc
+    lf_atomic_arc_t** out_arc
 );
+#define lfq_atomic_arc_create lf_atomic_arc_create
 
 /**
  * @brief Destroys `arc` and releases its slot reference to the currently
- *        installed control block. Any live `lfq_arc_guard_t` handles acquired
+ *        installed control block. Any live `lf_arc_guard_t` handles acquired
  *        prior to destruction remain valid until individually released.
  *
  * @param arc AtomicArc handle to destroy.
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG if `arc` is NULL.
  */
-lfq_status_t lfq_atomic_arc_destroy(lfq_atomic_arc_t* arc);
+lf_status_t lf_atomic_arc_destroy(lf_atomic_arc_t* arc);
+#define lfq_atomic_arc_destroy lf_atomic_arc_destroy
 
 /**
  * @brief Returns true if `arc` is NULL or currently holds a NULL payload.
  */
-bool lfq_atomic_arc_is_null(const lfq_atomic_arc_t* arc);
+bool lf_atomic_arc_is_null(const lf_atomic_arc_t* arc);
+#define lfq_atomic_arc_is_null lf_atomic_arc_is_null
 
 /**
- * @brief Atomically loads an `lfq_arc_guard_t` from `arc` using 128-bit DWCAS.
+ * @brief Atomically loads an `lf_arc_guard_t` from `arc` using 128-bit DWCAS.
  *        If `arc` currently holds NULL, `*out_guard` is set to NULL and
  *        `LFQ_OK` is returned.
  *
@@ -150,10 +177,11 @@ bool lfq_atomic_arc_is_null(const lfq_atomic_arc_t* arc);
  * @param out_guard Out-pointer receiving the acquired guard (or NULL if empty).
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_atomic_arc_load(
-    const lfq_atomic_arc_t* arc,
-    lfq_arc_guard_t** out_guard
+lf_status_t lf_atomic_arc_load(
+    const lf_atomic_arc_t* arc,
+    lf_arc_guard_t** out_guard
 );
+#define lfq_atomic_arc_load lf_atomic_arc_load
 
 /**
  * @brief Allocates a new control block for `new_item` (or clears to NULL if
@@ -165,12 +193,13 @@ lfq_status_t lfq_atomic_arc_load(
  * @param user_data  Opaque context pointer passed to `destructor`.
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_atomic_arc_store(
-    lfq_atomic_arc_t* arc,
+lf_status_t lf_atomic_arc_store(
+    lf_atomic_arc_t* arc,
     void* new_item,
-    lfq_arc_destructor_fn destructor,
+    lf_arc_destructor_fn destructor,
     void* user_data
 );
+#define lfq_atomic_arc_store lf_atomic_arc_store
 
 /**
  * @brief Atomically stores an existing `guard` into `arc` (sharing ownership of
@@ -180,15 +209,16 @@ lfq_status_t lfq_atomic_arc_store(
  * @param guard Guard whose control block will be installed (remains valid).
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_atomic_arc_store_guard(
-    lfq_atomic_arc_t* arc,
-    const lfq_arc_guard_t* guard
+lf_status_t lf_atomic_arc_store_guard(
+    lf_atomic_arc_t* arc,
+    const lf_arc_guard_t* guard
 );
+#define lfq_atomic_arc_store_guard lf_atomic_arc_store_guard
 
 /**
  * @brief Allocates a new control block for `new_item` (or NULL if
  *        `new_item == NULL`), atomically swaps it into `arc`, and returns the
- *        previous value as an `lfq_arc_guard_t*` in `*out_old_guard`.
+ *        previous value as an `lf_arc_guard_t*` in `*out_old_guard`.
  *
  * @param arc           AtomicArc handle.
  * @param new_item      New pointer payload (or NULL).
@@ -198,28 +228,30 @@ lfq_status_t lfq_atomic_arc_store_guard(
  *                      previous slot was empty).
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_atomic_arc_swap(
-    lfq_atomic_arc_t* arc,
+lf_status_t lf_atomic_arc_swap(
+    lf_atomic_arc_t* arc,
     void* new_item,
-    lfq_arc_destructor_fn destructor,
+    lf_arc_destructor_fn destructor,
     void* user_data,
-    lfq_arc_guard_t** out_old_guard
+    lf_arc_guard_t** out_old_guard
 );
+#define lfq_atomic_arc_swap lf_atomic_arc_swap
 
 /**
  * @brief Atomically swaps `guard` into `arc` and returns the previous value as
- *        an `lfq_arc_guard_t*` in `*out_old_guard`.
+ *        an `lf_arc_guard_t*` in `*out_old_guard`.
  *
  * @param arc           AtomicArc handle.
  * @param guard         Guard to install into `arc` (may be NULL).
  * @param out_old_guard Out-pointer receiving the displaced guard (or NULL).
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_atomic_arc_swap_guard(
-    lfq_atomic_arc_t* arc,
-    const lfq_arc_guard_t* guard,
-    lfq_arc_guard_t** out_old_guard
+lf_status_t lf_atomic_arc_swap_guard(
+    lf_atomic_arc_t* arc,
+    const lf_arc_guard_t* guard,
+    lf_arc_guard_t** out_old_guard
 );
+#define lfq_atomic_arc_swap_guard lf_atomic_arc_swap_guard
 
 /**
  * @brief Atomically compares the control block in `arc` against `*inout_expected`
@@ -234,12 +266,13 @@ lfq_status_t lfq_atomic_arc_swap_guard(
  * @param out_swapped    Out-pointer receiving true on CAS success, false on mismatch.
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_atomic_arc_compare_exchange_guard(
-    lfq_atomic_arc_t* arc,
-    lfq_arc_guard_t** inout_expected,
-    const lfq_arc_guard_t* desired,
+lf_status_t lf_atomic_arc_compare_exchange_guard(
+    lf_atomic_arc_t* arc,
+    lf_arc_guard_t** inout_expected,
+    const lf_arc_guard_t* desired,
     bool* out_swapped
 );
+#define lfq_atomic_arc_compare_exchange_guard lf_atomic_arc_compare_exchange_guard
 
 /**
  * @brief Convenience `compare_exchange` that wraps `desired_item` in a new
@@ -255,14 +288,15 @@ lfq_status_t lfq_atomic_arc_compare_exchange_guard(
  * @param out_swapped    Out-pointer receiving true on CAS success, false on mismatch.
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_atomic_arc_compare_exchange(
-    lfq_atomic_arc_t* arc,
-    lfq_arc_guard_t** inout_expected,
+lf_status_t lf_atomic_arc_compare_exchange(
+    lf_atomic_arc_t* arc,
+    lf_arc_guard_t** inout_expected,
     void* desired_item,
-    lfq_arc_destructor_fn destructor,
+    lf_arc_destructor_fn destructor,
     void* user_data,
     bool* out_swapped
 );
+#define lfq_atomic_arc_compare_exchange lf_atomic_arc_compare_exchange
 
 #ifdef __cplusplus
 }

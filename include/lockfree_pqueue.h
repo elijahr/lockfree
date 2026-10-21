@@ -24,26 +24,42 @@ extern "C" {
  * 1. Status Codes & Callback Types (Shared with lockfree.h)
  * ========================================================================== */
 
+#ifndef LF_STATUS_DEFINED
+#define LF_STATUS_DEFINED
+typedef enum lf_status {
+    LF_ERR_PANIC           = -2,
+    LF_ERR_FAILURE         = -1,
+    LF_OK                  =  0,
+    LF_ERR_EMPTY           =  1,
+    LF_ERR_FULL            =  2,
+    LF_ERR_CLOSED          =  3,
+    LF_ERR_INVALID_ARG     =  4,
+    LF_ERR_REGISTRY_FULL   =  5,
+    LF_ERR_UNSUPPORTED     =  6
+} lf_status_t;
+
 #ifndef LFQ_STATUS_DEFINED
 #define LFQ_STATUS_DEFINED
-typedef enum lfq_status {
-    LFQ_OK                  =  0,
-    LFQ_ERR_EMPTY           =  1,
-    LFQ_ERR_FULL            =  2,
-    LFQ_ERR_CLOSED          =  3,
-    LFQ_ERR_INVALID_ARG     =  4,
-    LFQ_ERR_REGISTRY_FULL   =  5,
-    LFQ_ERR_UNSUPPORTED     =  6,
-    LFQ_ERR_FAILURE         = -1,
-    LFQ_ERR_PANIC           = -2
-} lfq_status_t;
+#define lfq_status_t lf_status_t
+#define lfq_status lf_status
+#define LFQ_OK                  LF_OK
+#define LFQ_ERR_EMPTY           LF_ERR_EMPTY
+#define LFQ_ERR_FULL            LF_ERR_FULL
+#define LFQ_ERR_CLOSED          LF_ERR_CLOSED
+#define LFQ_ERR_INVALID_ARG     LF_ERR_INVALID_ARG
+#define LFQ_ERR_REGISTRY_FULL   LF_ERR_REGISTRY_FULL
+#define LFQ_ERR_UNSUPPORTED     LF_ERR_UNSUPPORTED
+#define LFQ_ERR_FAILURE         LF_ERR_FAILURE
+#define LFQ_ERR_PANIC           LF_ERR_PANIC
+#endif
 #endif
 
 /**
  * @brief Optional cleanup callback invoked for remaining payloads when the
  * priority queue is destroyed.
  */
-typedef void (*lfq_pqueue_destructor_fn)(void* item, void* user_data);
+typedef void (*lf_pqueue_destructor_fn)(void* item, void* user_data);
+#define lfq_pqueue_destructor_fn lf_pqueue_destructor_fn
 
 /* ==========================================================================
  * 2. Opaque Handle & C ABI Operations (lfq_pqueue_*)
@@ -52,7 +68,9 @@ typedef void (*lfq_pqueue_destructor_fn)(void* item, void* user_data);
 /**
  * @brief Opaque handle to a lock-free concurrent priority queue.
  */
-typedef struct lfq_pqueue lfq_pqueue_t;
+typedef struct lf_pqueue lf_pqueue_t;
+#define lfq_pqueue lf_pqueue
+#define lfq_pqueue_t lf_pqueue_t
 
 /**
  * @brief Creates a new lock-free concurrent priority queue.
@@ -62,11 +80,12 @@ typedef struct lfq_pqueue lfq_pqueue_t;
  * @param out_pqueue Out-pointer receiving the allocated priority queue handle.
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG / LFQ_ERR_FAILURE.
  */
-lfq_status_t lfq_pqueue_create(
-    lfq_pqueue_destructor_fn destructor,
+lf_status_t lf_pqueue_create(
+    lf_pqueue_destructor_fn destructor,
     void* user_data,
-    lfq_pqueue_t** out_pqueue
+    lf_pqueue_t** out_pqueue
 );
+#define lfq_pqueue_create lf_pqueue_create
 
 /**
  * @brief Destroys a lock-free priority queue and releases all internal resources.
@@ -74,7 +93,8 @@ lfq_status_t lfq_pqueue_create(
  * @param pqueue Priority queue handle.
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_pqueue_destroy(lfq_pqueue_t* pqueue);
+lf_status_t lf_pqueue_destroy(lf_pqueue_t* pqueue);
+#define lfq_pqueue_destroy lf_pqueue_destroy
 
 /**
  * @brief Inserts a `(priority, item)` entry into the priority queue.
@@ -86,11 +106,12 @@ lfq_status_t lfq_pqueue_destroy(lfq_pqueue_t* pqueue);
  * @param item     Opaque payload pointer (`void*`).
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG / LFQ_ERR_FAILURE.
  */
-lfq_status_t lfq_pqueue_push(
-    lfq_pqueue_t* pqueue,
+lf_status_t lf_pqueue_push(
+    lf_pqueue_t* pqueue,
     int64_t priority,
     void* item
 );
+#define lfq_pqueue_push lf_pqueue_push
 
 /**
  * @brief Atomically removes and returns the minimum-priority entry.
@@ -101,11 +122,12 @@ lfq_status_t lfq_pqueue_push(
  * @return LFQ_OK if an item was popped, LFQ_ERR_EMPTY if the queue is empty,
  *         or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_pqueue_pop_min(
-    lfq_pqueue_t* pqueue,
+lf_status_t lf_pqueue_pop_min(
+    lf_pqueue_t* pqueue,
     int64_t* out_priority,
     void** out_item
 );
+#define lfq_pqueue_pop_min lf_pqueue_pop_min
 
 /**
  * @brief Inspects the minimum-priority entry without removing it.
@@ -116,11 +138,12 @@ lfq_status_t lfq_pqueue_pop_min(
  * @return LFQ_OK if an item was observed, LFQ_ERR_EMPTY if the queue is empty,
  *         or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_pqueue_peek_min(
-    const lfq_pqueue_t* pqueue,
+lf_status_t lf_pqueue_peek_min(
+    const lf_pqueue_t* pqueue,
     int64_t* out_priority,
     void** out_item
 );
+#define lfq_pqueue_peek_min lf_pqueue_peek_min
 
 /**
  * @brief Clears all entries from the priority queue (invoking the configured
@@ -129,7 +152,8 @@ lfq_status_t lfq_pqueue_peek_min(
  * @param pqueue Priority queue handle.
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_pqueue_clear(lfq_pqueue_t* pqueue);
+lf_status_t lf_pqueue_clear(lf_pqueue_t* pqueue);
+#define lfq_pqueue_clear lf_pqueue_clear
 
 /**
  * @brief Returns the approximate number of active items in the priority queue.
@@ -137,7 +161,8 @@ lfq_status_t lfq_pqueue_clear(lfq_pqueue_t* pqueue);
  * @param pqueue Priority queue handle.
  * @return Current active item count (0 if `pqueue` is NULL or empty).
  */
-size_t lfq_pqueue_len(const lfq_pqueue_t* pqueue);
+size_t lf_pqueue_len(const lf_pqueue_t* pqueue);
+#define lfq_pqueue_len lf_pqueue_len
 
 /**
  * @brief Returns `true` if the priority queue currently contains no active items.
@@ -145,7 +170,8 @@ size_t lfq_pqueue_len(const lfq_pqueue_t* pqueue);
  * @param pqueue Priority queue handle.
  * @return `true` if empty or NULL, `false` otherwise.
  */
-bool lfq_pqueue_is_empty(const lfq_pqueue_t* pqueue);
+bool lf_pqueue_is_empty(const lf_pqueue_t* pqueue);
+#define lfq_pqueue_is_empty lf_pqueue_is_empty
 
 #ifdef __cplusplus
 }

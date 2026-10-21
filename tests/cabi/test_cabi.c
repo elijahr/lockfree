@@ -2067,6 +2067,35 @@ static void test_cabi_btable(void) {
 }
 
 /* -------------------------------------------------------------------------
+ * Test: Primary lf_* Modern Prefix Direct Interoperability
+ * ------------------------------------------------------------------------- */
+static void test_cabi_lf_modern_prefix(void) {
+    printf("Running test_cabi_lf_modern_prefix...\n");
+    lf_queue_t* queue = NULL;
+    lf_status_t status = lf_bounded_mpmc_create(8, 2, 2, NULL, NULL, &queue);
+    TEST_ASSERT(status == LF_OK && queue != NULL, "lf_bounded_mpmc_create failed");
+    TEST_ASSERT(lf_queue_is_empty(queue), "lf_queue_is_empty failed");
+
+    lf_producer_t* prod = NULL;
+    lf_consumer_t* cons = NULL;
+    TEST_ASSERT(lf_producer_acquire(queue, &prod) == LF_OK, "lf_producer_acquire failed");
+    TEST_ASSERT(lf_consumer_acquire(queue, &cons) == LF_OK, "lf_consumer_acquire failed");
+
+    TEST_ASSERT(lf_push(prod, (void*)(uintptr_t)42) == LF_OK, "lf_push failed");
+    TEST_ASSERT(lf_queue_len(queue) == 1, "lf_queue_len failed");
+
+    void* item = NULL;
+    TEST_ASSERT(lf_pop(cons, &item) == LF_OK, "lf_pop failed");
+    TEST_ASSERT((uintptr_t)item == 42, "lf_pop item mismatch");
+    TEST_ASSERT(lf_pop(cons, &item) == LF_ERR_EMPTY, "lf_pop on empty failed");
+
+    TEST_ASSERT(lf_producer_release(prod) == LF_OK, "lf_producer_release failed");
+    TEST_ASSERT(lf_consumer_release(cons) == LF_OK, "lf_consumer_release failed");
+    TEST_ASSERT(lf_queue_destroy(queue) == LF_OK, "lf_queue_destroy failed");
+    printf("test_cabi_lf_modern_prefix PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
  * Main Entry Point
  * ------------------------------------------------------------------------- */
 int main(void) {
@@ -2092,6 +2121,7 @@ int main(void) {
     test_cabi_bpqueue();
     test_cabi_btable();
     test_cabi_concurrency();
+    test_cabi_lf_modern_prefix();
 
     /* TaskPool C ABI */
     printf("Running test_cabi_taskpool...\n");
