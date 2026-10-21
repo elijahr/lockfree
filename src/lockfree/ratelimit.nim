@@ -60,6 +60,14 @@ type
     leakRatePerSec*: uint64    ## Tokens leaked per second
     scaleFactor*: uint64       ## Scaling factor (default: 1)
 
+proc `=copy`*(dest: var TokenBucket, source: TokenBucket) {.
+    error: "TokenBucket/LeakyBucket contains atomic state and cannot be copied. Pass by `var` or `ptr`."
+.}
+
+proc `=copy`*(dest: var LeakyBucket, source: LeakyBucket) {.
+    error: "TokenBucket/LeakyBucket contains atomic state and cannot be copied. Pass by `var` or `ptr`."
+.}
+
 # ------------------------------------------------------------------------------
 # 2. Time & High-Resolution Sleep Utilities
 # ------------------------------------------------------------------------------
@@ -420,27 +428,30 @@ proc reset*(self: var LeakyBucket) =
 # ------------------------------------------------------------------------------
 
 type
-  lfq_rate_limit_state_t* {.exportc: "lfq_rate_limit_state_t", bycopy.} = object
+  lf_rate_limit_state_t* {.exportc: "lf_rate_limit_state_t", bycopy.} = object
     last_timestamp_ns*: uint64
     tokens_or_level*: uint64
+  lfq_rate_limit_state_t* = lf_rate_limit_state_t
 
-  lfq_token_bucket_t* {.exportc: "lfq_token_bucket_t", bycopy.} = object
+  lf_token_bucket_t* {.exportc: "lf_token_bucket_t", bycopy.} = object
     state* {.align: CacheLineBytes.}: RateLimitState
     capacity*: uint64
     refill_rate_per_sec*: uint64
     scale_factor*: uint64
+  lfq_token_bucket_t* = lf_token_bucket_t
 
-  lfq_leaky_bucket_t* {.exportc: "lfq_leaky_bucket_t", bycopy.} = object
+  lf_leaky_bucket_t* {.exportc: "lf_leaky_bucket_t", bycopy.} = object
     state* {.align: CacheLineBytes.}: RateLimitState
     burst_tolerance_ns*: uint64
     leak_rate_per_sec*: uint64
     scale_factor*: uint64
+  lfq_leaky_bucket_t* = lf_leaky_bucket_t
 
-proc lfq_token_bucket_init*(
-    bucket: ptr lfq_token_bucket_t,
+proc lf_token_bucket_init*(
+    bucket: ptr lf_token_bucket_t,
     capacity: uint64,
     refill_rate: uint64
-): cint {.exportc: "lfq_token_bucket_init", cdecl, gcsafe, raises: [].} =
+): cint {.exportc: "lf_token_bucket_init", cdecl, gcsafe, raises: [].} =
   if unlikely(bucket == nil):
     return -1
   try:
@@ -450,10 +461,17 @@ proc lfq_token_bucket_init*(
   except:
     -1
 
-proc lfq_token_bucket_try_acquire*(
-    bucket: ptr lfq_token_bucket_t,
+proc lfq_token_bucket_init*(
+    bucket: ptr lf_token_bucket_t,
+    capacity: uint64,
+    refill_rate: uint64
+): cint {.exportc: "lfq_token_bucket_init", cdecl, gcsafe, raises: [].} =
+  lf_token_bucket_init(bucket, capacity, refill_rate)
+
+proc lf_token_bucket_try_acquire*(
+    bucket: ptr lf_token_bucket_t,
     tokens: uint64
-): bool {.exportc: "lfq_token_bucket_try_acquire", cdecl, gcsafe, raises: [].} =
+): bool {.exportc: "lf_token_bucket_try_acquire", cdecl, gcsafe, raises: [].} =
   if unlikely(bucket == nil):
     return false
   try:
@@ -462,17 +480,23 @@ proc lfq_token_bucket_try_acquire*(
   except:
     false
 
+proc lfq_token_bucket_try_acquire*(
+    bucket: ptr lf_token_bucket_t,
+    tokens: uint64
+): bool {.exportc: "lfq_token_bucket_try_acquire", cdecl, gcsafe, raises: [].} =
+  lf_token_bucket_try_acquire(bucket, tokens)
+
 proc available*(self: ptr TokenBucket): uint64 {.inline.} =
   self[].available()
 
 proc waterLevel*(self: ptr LeakyBucket): uint64 {.inline.} =
   self[].waterLevel()
 
-proc lfq_token_bucket_acquire_timeout*(
-    bucket: ptr lfq_token_bucket_t,
+proc lf_token_bucket_acquire_timeout*(
+    bucket: ptr lf_token_bucket_t,
     tokens: uint64,
     timeout_ns: int64
-): bool {.exportc: "lfq_token_bucket_acquire_timeout", cdecl, gcsafe, raises: [].} =
+): bool {.exportc: "lf_token_bucket_acquire_timeout", cdecl, gcsafe, raises: [].} =
   if unlikely(bucket == nil):
     return false
   try:
@@ -481,9 +505,16 @@ proc lfq_token_bucket_acquire_timeout*(
   except:
     false
 
-proc lfq_token_bucket_available*(
-    bucket: ptr lfq_token_bucket_t
-): uint64 {.exportc: "lfq_token_bucket_available", cdecl, gcsafe, raises: [].} =
+proc lfq_token_bucket_acquire_timeout*(
+    bucket: ptr lf_token_bucket_t,
+    tokens: uint64,
+    timeout_ns: int64
+): bool {.exportc: "lfq_token_bucket_acquire_timeout", cdecl, gcsafe, raises: [].} =
+  lf_token_bucket_acquire_timeout(bucket, tokens, timeout_ns)
+
+proc lf_token_bucket_available*(
+    bucket: ptr lf_token_bucket_t
+): uint64 {.exportc: "lf_token_bucket_available", cdecl, gcsafe, raises: [].} =
   if unlikely(bucket == nil):
     return 0'u64
   try:
@@ -492,11 +523,16 @@ proc lfq_token_bucket_available*(
   except:
     0'u64
 
-proc lfq_leaky_bucket_init*(
-    bucket: ptr lfq_leaky_bucket_t,
+proc lfq_token_bucket_available*(
+    bucket: ptr lf_token_bucket_t
+): uint64 {.exportc: "lfq_token_bucket_available", cdecl, gcsafe, raises: [].} =
+  lf_token_bucket_available(bucket)
+
+proc lf_leaky_bucket_init*(
+    bucket: ptr lf_leaky_bucket_t,
     burst_tolerance_ns: uint64,
     leak_rate: uint64
-): cint {.exportc: "lfq_leaky_bucket_init", cdecl, gcsafe, raises: [].} =
+): cint {.exportc: "lf_leaky_bucket_init", cdecl, gcsafe, raises: [].} =
   if unlikely(bucket == nil):
     return -1
   try:
@@ -506,10 +542,17 @@ proc lfq_leaky_bucket_init*(
   except:
     -1
 
-proc lfq_leaky_bucket_try_consume*(
-    bucket: ptr lfq_leaky_bucket_t,
+proc lfq_leaky_bucket_init*(
+    bucket: ptr lf_leaky_bucket_t,
+    burst_tolerance_ns: uint64,
+    leak_rate: uint64
+): cint {.exportc: "lfq_leaky_bucket_init", cdecl, gcsafe, raises: [].} =
+  lf_leaky_bucket_init(bucket, burst_tolerance_ns, leak_rate)
+
+proc lf_leaky_bucket_try_consume*(
+    bucket: ptr lf_leaky_bucket_t,
     weight: uint64
-): bool {.exportc: "lfq_leaky_bucket_try_consume", cdecl, gcsafe, raises: [].} =
+): bool {.exportc: "lf_leaky_bucket_try_consume", cdecl, gcsafe, raises: [].} =
   if unlikely(bucket == nil):
     return false
   try:
@@ -518,11 +561,17 @@ proc lfq_leaky_bucket_try_consume*(
   except:
     false
 
-proc lfq_leaky_bucket_consume_timeout*(
-    bucket: ptr lfq_leaky_bucket_t,
+proc lfq_leaky_bucket_try_consume*(
+    bucket: ptr lf_leaky_bucket_t,
+    weight: uint64
+): bool {.exportc: "lfq_leaky_bucket_try_consume", cdecl, gcsafe, raises: [].} =
+  lf_leaky_bucket_try_consume(bucket, weight)
+
+proc lf_leaky_bucket_consume_timeout*(
+    bucket: ptr lf_leaky_bucket_t,
     weight: uint64,
     timeout_ns: int64
-): bool {.exportc: "lfq_leaky_bucket_consume_timeout", cdecl, gcsafe, raises: [].} =
+): bool {.exportc: "lf_leaky_bucket_consume_timeout", cdecl, gcsafe, raises: [].} =
   if unlikely(bucket == nil):
     return false
   try:
@@ -531,9 +580,16 @@ proc lfq_leaky_bucket_consume_timeout*(
   except:
     false
 
-proc lfq_leaky_bucket_water_level*(
-    bucket: ptr lfq_leaky_bucket_t
-): uint64 {.exportc: "lfq_leaky_bucket_water_level", cdecl, gcsafe, raises: [].} =
+proc lfq_leaky_bucket_consume_timeout*(
+    bucket: ptr lf_leaky_bucket_t,
+    weight: uint64,
+    timeout_ns: int64
+): bool {.exportc: "lfq_leaky_bucket_consume_timeout", cdecl, gcsafe, raises: [].} =
+  lf_leaky_bucket_consume_timeout(bucket, weight, timeout_ns)
+
+proc lf_leaky_bucket_water_level*(
+    bucket: ptr lf_leaky_bucket_t
+): uint64 {.exportc: "lf_leaky_bucket_water_level", cdecl, gcsafe, raises: [].} =
   if unlikely(bucket == nil):
     return 0'u64
   try:
@@ -541,4 +597,9 @@ proc lfq_leaky_bucket_water_level*(
     lb[].waterLevel()
   except:
     0'u64
+
+proc lfq_leaky_bucket_water_level*(
+    bucket: ptr lf_leaky_bucket_t
+): uint64 {.exportc: "lfq_leaky_bucket_water_level", cdecl, gcsafe, raises: [].} =
+  lf_leaky_bucket_water_level(bucket)
 

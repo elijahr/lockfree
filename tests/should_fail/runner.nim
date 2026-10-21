@@ -282,6 +282,20 @@ const cases = @[
     outcome: eoCompileFails,
     substring: "TypestateGate domain state mismatch: sendState requires InState payload transition",
   ),
+  Case(
+    name:
+      "bqueue copy-safety — BQueue cannot be copied",
+    file: "tests/should_fail/bqueue_copy_forbidden.nim",
+    outcome: eoCompileFails,
+    substring: "is not available for type <BQueue>",
+  ),
+  Case(
+    name:
+      "ratelimit copy-safety — TokenBucket cannot be copied",
+    file: "tests/should_fail/ratelimit_copy_forbidden.nim",
+    outcome: eoCompileFails,
+    substring: "is not available for type <TokenBucket>",
+  ),
 ]
 
 

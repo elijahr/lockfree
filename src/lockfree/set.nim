@@ -307,6 +307,16 @@ proc initSkipListSet*[
 ](): SkipListSet[T, MaxThreads, MaxLevel] {.inline.} =
   newSkipListSet[T, MaxThreads, MaxLevel]()
 
+proc initSkipListSet*[
+    T;
+    MaxThreads: static int = DefaultMaxThreads,
+    MaxLevel: static int = DefaultMaxLevel
+](
+    manager: ptr DebraManager[MaxThreads, ccMulti]
+): SkipListSet[T, MaxThreads, MaxLevel] {.inline.} =
+  ## Constructs a new empty `SkipListSet` sharing an external `DebraManager`.
+  newSkipListSet[T, MaxThreads, MaxLevel](manager)
+
 proc `=destroy`*[T; MaxThreads, MaxLevel: static int](
     self: var SkipListSet[T, MaxThreads, MaxLevel]
 ) {.gcsafe.} =

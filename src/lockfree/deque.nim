@@ -207,6 +207,18 @@ proc initConcurrentDeque*[T](initialCapacity: int = 64): ConcurrentDeque[T] {.in
   ## Ergonomic alias constructor for `ChaseLevDeque[T]`.
   initChaseLevDeque[T](initialCapacity)
 
+proc newChaseLevDeque*[T](initialCapacity: int = 64): ChaseLevDeque[T] {.inline.} =
+  ## Alias for `initChaseLevDeque[T]`.
+  initChaseLevDeque[T](initialCapacity)
+
+proc newDeque*[T](initialCapacity: int = 64): Deque[T] {.inline.} =
+  ## Alias for `initChaseLevDeque[T]`.
+  initChaseLevDeque[T](initialCapacity)
+
+proc newConcurrentDeque*[T](initialCapacity: int = 64): ConcurrentDeque[T] {.inline.} =
+  ## Alias for `initChaseLevDeque[T]`.
+  initChaseLevDeque[T](initialCapacity)
+
 proc isNil*[T](self: ChaseLevDeque[T]): bool {.inline.} =
   ## Returns true if the deque handle has an uninitialized or destroyed core.
   self.core == nil

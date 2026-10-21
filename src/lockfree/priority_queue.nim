@@ -717,6 +717,16 @@ proc peekMin*[T; MaxThreads: static int; MaxLevel: static int](
     curr = toPtr[T, MaxLevel](succEntry)
   return none(T)
 
+template pop*[T; MaxThreads: static int, MaxLevel: static int](
+    pq: SkipListPriorityQueue[T, MaxThreads, MaxLevel]
+): untyped =
+  pq.popMin()
+
+template peek*[T; MaxThreads: static int, MaxLevel: static int](
+    pq: SkipListPriorityQueue[T, MaxThreads, MaxLevel]
+): untyped =
+  pq.peekMin()
+
 proc len*[T; MaxThreads: static int; MaxLevel: static int](
     pq: SkipListPriorityQueue[T, MaxThreads, MaxLevel]
 ): int {.inline.} =

@@ -454,6 +454,14 @@ proc initMpmcBoundedQueue*[T; N, P, C: static int](): MpmcBoundedQueue[T, N, P, 
   ## Initializes an MpmcBoundedQueue (Multi-Producer Multi-Consumer).
   initBQueue[T, ccMulti, ccMulti, N, P, C]()
 
+proc initBoundedMpmcQueue*[T; N, P, C: static int](): MpmcBoundedQueue[T, N, P, C] {.inline.} =
+  ## Initializes a Bounded MPMC Queue (Multi-Producer Multi-Consumer).
+  initBQueue[T, ccMulti, ccMulti, N, P, C]()
+
+proc newBoundedMpmcQueue*[T; N, P, C: static int](): MpmcBoundedQueue[T, N, P, C] {.inline.} =
+  ## Smart constructor for Bounded MPMC Queue (Multi-Producer Multi-Consumer).
+  initBoundedMpmcQueue[T, N, P, C]()
+
 proc newSpscBoundedQueue*[T; N: static int](): SpscBoundedQueue[T, N] {.inline.} =
   ## Smart constructor for SpscBoundedQueue (Single-Producer Single-Consumer).
   newSpscQueue[T, N]()
@@ -461,6 +469,14 @@ proc newSpscBoundedQueue*[T; N: static int](): SpscBoundedQueue[T, N] {.inline.}
 proc initSpscBoundedQueue*[T; N: static int](): SpscBoundedQueue[T, N] {.inline.} =
   ## Initializes an SpscBoundedQueue (Single-Producer Single-Consumer).
   initBQueue[T, ccSingle, ccSingle, N, 0, 0]()
+
+proc initBoundedSpscQueue*[T; N: static int](): SpscBoundedQueue[T, N] {.inline.} =
+  ## Initializes a Bounded SPSC Queue (Single-Producer Single-Consumer).
+  initBQueue[T, ccSingle, ccSingle, N, 0, 0]()
+
+proc newBoundedSpscQueue*[T; N: static int](): SpscBoundedQueue[T, N] {.inline.} =
+  ## Smart constructor for Bounded SPSC Queue (Single-Producer Single-Consumer).
+  initBoundedSpscQueue[T, N]()
 
 proc newMpscBoundedQueue*[T; N, P: static int](): MpscBoundedQueue[T, N, P] {.inline.} =
   ## Smart constructor for MpscBoundedQueue (Multi-Producer Single-Consumer).
@@ -470,6 +486,14 @@ proc initMpscBoundedQueue*[T; N, P: static int](): MpscBoundedQueue[T, N, P] {.i
   ## Initializes an MpscBoundedQueue (Multi-Producer Single-Consumer).
   initBQueue[T, ccMulti, ccSingle, N, P, 0]()
 
+proc initBoundedMpscQueue*[T; N, P: static int](): MpscBoundedQueue[T, N, P] {.inline.} =
+  ## Initializes a Bounded MPSC Queue (Multi-Producer Single-Consumer).
+  initBQueue[T, ccMulti, ccSingle, N, P, 0]()
+
+proc newBoundedMpscQueue*[T; N, P: static int](): MpscBoundedQueue[T, N, P] {.inline.} =
+  ## Smart constructor for Bounded MPSC Queue (Multi-Producer Single-Consumer).
+  initBoundedMpscQueue[T, N, P]()
+
 proc newSpmcBoundedQueue*[T; N, C: static int](): SpmcBoundedQueue[T, N, C] {.inline.} =
   ## Smart constructor for SpmcBoundedQueue (Single-Producer Multi-Consumer).
   newSpmcQueue[T, N, C]()
@@ -477,6 +501,14 @@ proc newSpmcBoundedQueue*[T; N, C: static int](): SpmcBoundedQueue[T, N, C] {.in
 proc initSpmcBoundedQueue*[T; N, C: static int](): SpmcBoundedQueue[T, N, C] {.inline.} =
   ## Initializes an SpmcBoundedQueue (Single-Producer Multi-Consumer).
   initBQueue[T, ccSingle, ccMulti, N, 0, C]()
+
+proc initBoundedSpmcQueue*[T; N, C: static int](): SpmcBoundedQueue[T, N, C] {.inline.} =
+  ## Initializes a Bounded SPMC Queue (Single-Producer Multi-Consumer).
+  initBQueue[T, ccSingle, ccMulti, N, 0, C]()
+
+proc newBoundedSpmcQueue*[T; N, C: static int](): SpmcBoundedQueue[T, N, C] {.inline.} =
+  ## Smart constructor for Bounded SPMC Queue (Single-Producer Multi-Consumer).
+  initBoundedSpmcQueue[T, N, C]()
 
 proc capacity*[T; ccProd, ccCons: static PinScopeCardinality, N, P, C: static int](
     self: var BQueue[T, ccProd, ccCons, N, P, C]
@@ -891,6 +923,15 @@ proc `=destroy`*[T; ccProd, ccCons: static PinScopeCardinality, N, P, C: static 
       for i in 0 ..< N:
         disposeSlotEncoded[T](self.cells.cells[i].payload.data)
 
+proc `=copy`*[
+    T;
+    ccProd, ccCons: static PinScopeCardinality,
+    N, P, C: static int
+](
+    dest: var BQueue[T, ccProd, ccCons, N, P, C],
+    source: BQueue[T, ccProd, ccCons, N, P, C]
+) {.error: "BQueue contains inlined atomic storage and cannot be copied. Pass by `var` or `ptr`.".}
+
 ## ----------------------------------------------------------------------
 ## Push / pop on Bound endpoints.
 ##
@@ -1207,6 +1248,7 @@ iterator drain*[
 iterator items*[T; ccProd: static PinScopeCardinality, N, P: static int](
     self: var BQueue[T, ccProd, ccSingle, N, P, 0]
 ): T =
+  ## Warning: Destructively drains the queue.
   while true:
     let opt = self.pop()
     if opt.isNone:
@@ -1219,6 +1261,7 @@ iterator items*[
     Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag,
     N, C: static int,
 ](self: Bound[T, Tag, BQueue[T, ccSingle, ccMulti, N, 0, C]]): T =
+  ## Warning: Destructively drains the queue.
   while true:
     let opt = self.pop()
     if opt.isNone:
@@ -1231,6 +1274,7 @@ iterator items*[
     Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag,
     N, P, C: static int,
 ](self: Bound[T, Tag, BQueue[T, ccMulti, ccMulti, N, P, C]]): T =
+  ## Warning: Destructively drains the queue.
   while true:
     let opt = self.pop()
     if opt.isNone:
@@ -1241,6 +1285,7 @@ iterator items*[
 iterator pairs*[T; ccProd: static PinScopeCardinality, N, P: static int](
     self: var BQueue[T, ccProd, ccSingle, N, P, 0]
 ): (int, T) =
+  ## Warning: Destructively drains the queue.
   var idx = 0
   while true:
     let opt = self.pop()
@@ -1255,6 +1300,7 @@ iterator pairs*[
     Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag,
     N, C: static int,
 ](self: Bound[T, Tag, BQueue[T, ccSingle, ccMulti, N, 0, C]]): (int, T) =
+  ## Warning: Destructively drains the queue.
   var idx = 0
   while true:
     let opt = self.pop()
@@ -1269,6 +1315,7 @@ iterator pairs*[
     Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag,
     N, P, C: static int,
 ](self: Bound[T, Tag, BQueue[T, ccMulti, ccMulti, N, P, C]]): (int, T) =
+  ## Warning: Destructively drains the queue.
   var idx = 0
   while true:
     let opt = self.pop()

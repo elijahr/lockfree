@@ -1,0 +1,33 @@
+{
+  "project": "lockfree",
+  "generated_at": "2026-10-21T17:45:44Z",
+  "seasons": [
+    {
+      "name": "v0.6.0",
+      "total": 1,
+      "completed": 0,
+      "in_progress": 0,
+      "planned": 1,
+      "percent_complete": 0,
+      "items": [
+        {
+          "id": "ergonomics-nim-idiom-init-new-standardization-and-lf-c-abi-prefix-migration",
+          "title": "Ergonomics, Nim-Idiom init/new standardization, and lf_ C-ABI prefix migration",
+          "season": "v0.6.0",
+          "sunlight": "blazing",
+          "status": "SOWN",
+          "created_at": "2026-10-21T17:45:44Z",
+          "updated_at": "2026-10-21T17:45:44Z",
+          "completed_at": "",
+          "tags": [
+            "ergonomics",
+            "cabi",
+            "api",
+            "nim-style",
+            "copy-safety"
+          ]
+        }
+      ]
+    }
+  ]
+}
