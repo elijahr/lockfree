@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Channels Benchmark Portal (`docs/guide/channels/benchmarks.md` & `mkdocs.yml`)**:
   - Added dedicated interactive benchmark documentation comparing `Channel[T]` (bounded `ckBounded` and unbounded `ckUnbounded`) and `RendezvousChannel[T]` (0-buffer synchronous SSM dual-queue) against `crossbeam`, `flume`, `kanal`, `system.Channel`, and `threading/channels`.
   - Updated `mkdocs.yml` navigation to include `Channels -> Benchmarks` and removed duplicate `Rendezvous Dual-Queue` entry.
+- **Wait-Free / Lock-Free Concurrent Disjoint-Set (`src/lockfree/disjoint_set.nim`)**:
+  - `DisjointSet` (`UnionFind` / `ConcurrentDisjointSet`): Preallocated zero-SMR flat-array concurrent Disjoint-Set (Union-Find / DSU) using 64-bit packed `[rank: uint32 | parent: uint32]` atomic words.
+  - Wait-free `find` with one-shot atomic CAS path splitting/halving (`O(alpha(N))` amortized), lock-free rank-based `union` / `tryUnion` with deterministic index tie-breaking (Anderson-Woll / Jayanti-Tarjan), linearizable `sameSet` / `connected` root re-verification, and atomic `numSets` tracking.
+  - Exported from `src/lockfree.nim` and verified in `tests/t_disjoint_set.nim` across single-threaded, 8-thread component merging, parallel dependency-graph cycle detection, and concurrent reader/writer workloads.
 
 ### Changed
 
