@@ -599,6 +599,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../design/cisl_architecture/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    CISL Architecture (Spec)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -1099,6 +1127,34 @@
     
   
     SkipList Map &amp; Set
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/disjoint_set/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DisjointSet (Union-Find)
   
 
     
@@ -2886,6 +2942,34 @@
 
               
             
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../disjoint_set/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    DisjointSet
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
           </ul>
         </nav>
       
@@ -3200,6 +3284,39 @@
     <span class="md-ellipsis">
       
         initConcurrentDeque
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#newChaseLevDeque" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        newChaseLevDeque
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#newDeque" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        newDeque
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#newConcurrentDeque" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        newConcurrentDeque
       
     </span>
   </a>
@@ -4889,6 +5006,39 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#newChaseLevDeque" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        newChaseLevDeque
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#newDeque" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        newDeque
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#newConcurrentDeque" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        newConcurrentDeque
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#isNil" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5941,6 +6091,213 @@ with formal C11 / weak-memory-model fences (Le, Pop, Cohen, Nardelli PPoPP
   
 
   
+    <h4 id="newChaseLevDeque" class="doc doc-heading">
+      
+      <span class="doc doc-object-name doc-proc-name">newChaseLevDeque</span>
+      
+        
+          <span class="doc-label" data-label="inline">inline</span>
+        
+      
+    <a href="#newChaseLevDeque" class="headerlink" title="Permanent link">¶</a></h4>
+  
+
+  
+    <div class="doc-signature highlight">
+      <pre><code class="language-nim highlight"><span class="k">proc</span><span class="w"> </span><span class="nf">newChaseLevDeque</span><span class="p">(</span><span class="n">initialCapacity</span><span class="p">:</span><span class="w"> </span><span class="nb">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">64</span><span class="p">):</span><span class="w"> </span><span class="n">ChaseLevDeque</span><span class="o">[</span><span class="n">T</span><span class="o">]</span>
+</code></pre>
+    </div>
+  
+
+  <div class="doc doc-contents first">
+    
+      <div class="doc-description">
+        <p>Alias for <code>initChaseLevDeque[T]</code>.</p>
+      </div>
+    
+
+    
+      <div class="doc-section doc-section-parameters">
+        <h5>Parameters</h5>
+        <ul>
+          
+            <li>
+              <code>initialCapacity</code>
+              (<code>int</code>)
+              
+            </li>
+          
+        </ul>
+      </div>
+    
+
+    
+      <div class="doc-section doc-section-returns">
+        <h5>Returns</h5>
+        <p><code>ChaseLevDeque[T]</code></p>
+      </div>
+    
+
+    
+
+    
+      <div class="doc-source">
+        <span class="doc-source-label">Source:</span>
+        
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L210" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:210
+          </a>
+        
+      </div>
+    
+  </div>
+</div>
+      
+    
+      
+      
+        <div class="doc doc-object doc-proc">
+  
+
+  
+    <h4 id="newDeque" class="doc doc-heading">
+      
+      <span class="doc doc-object-name doc-proc-name">newDeque</span>
+      
+        
+          <span class="doc-label" data-label="inline">inline</span>
+        
+      
+    <a href="#newDeque" class="headerlink" title="Permanent link">¶</a></h4>
+  
+
+  
+    <div class="doc-signature highlight">
+      <pre><code class="language-nim highlight"><span class="k">proc</span><span class="w"> </span><span class="nf">newDeque</span><span class="p">(</span><span class="n">initialCapacity</span><span class="p">:</span><span class="w"> </span><span class="nb">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">64</span><span class="p">):</span><span class="w"> </span><span class="n">Deque</span><span class="o">[</span><span class="n">T</span><span class="o">]</span>
+</code></pre>
+    </div>
+  
+
+  <div class="doc doc-contents first">
+    
+      <div class="doc-description">
+        <p>Alias for <code>initChaseLevDeque[T]</code>.</p>
+      </div>
+    
+
+    
+      <div class="doc-section doc-section-parameters">
+        <h5>Parameters</h5>
+        <ul>
+          
+            <li>
+              <code>initialCapacity</code>
+              (<code>int</code>)
+              
+            </li>
+          
+        </ul>
+      </div>
+    
+
+    
+      <div class="doc-section doc-section-returns">
+        <h5>Returns</h5>
+        <p><code>Deque[T]</code></p>
+      </div>
+    
+
+    
+
+    
+      <div class="doc-source">
+        <span class="doc-source-label">Source:</span>
+        
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L214" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:214
+          </a>
+        
+      </div>
+    
+  </div>
+</div>
+      
+    
+      
+      
+        <div class="doc doc-object doc-proc">
+  
+
+  
+    <h4 id="newConcurrentDeque" class="doc doc-heading">
+      
+      <span class="doc doc-object-name doc-proc-name">newConcurrentDeque</span>
+      
+        
+          <span class="doc-label" data-label="inline">inline</span>
+        
+      
+    <a href="#newConcurrentDeque" class="headerlink" title="Permanent link">¶</a></h4>
+  
+
+  
+    <div class="doc-signature highlight">
+      <pre><code class="language-nim highlight"><span class="k">proc</span><span class="w"> </span><span class="nf">newConcurrentDeque</span><span class="p">(</span><span class="n">initialCapacity</span><span class="p">:</span><span class="w"> </span><span class="nb">int</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">64</span><span class="p">):</span><span class="w"> </span><span class="n">ConcurrentDeque</span><span class="o">[</span><span class="n">T</span><span class="o">]</span>
+</code></pre>
+    </div>
+  
+
+  <div class="doc doc-contents first">
+    
+      <div class="doc-description">
+        <p>Alias for <code>initChaseLevDeque[T]</code>.</p>
+      </div>
+    
+
+    
+      <div class="doc-section doc-section-parameters">
+        <h5>Parameters</h5>
+        <ul>
+          
+            <li>
+              <code>initialCapacity</code>
+              (<code>int</code>)
+              
+            </li>
+          
+        </ul>
+      </div>
+    
+
+    
+      <div class="doc-section doc-section-returns">
+        <h5>Returns</h5>
+        <p><code>ConcurrentDeque[T]</code></p>
+      </div>
+    
+
+    
+
+    
+      <div class="doc-source">
+        <span class="doc-source-label">Source:</span>
+        
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L218" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:218
+          </a>
+        
+      </div>
+    
+  </div>
+</div>
+      
+    
+      
+      
+        <div class="doc doc-object doc-proc">
+  
+
+  
     <h4 id="isNil" class="doc doc-heading">
       
       <span class="doc doc-object-name doc-proc-name">isNil</span>
@@ -5994,8 +6351,8 @@ with formal C11 / weak-memory-model fences (Le, Pop, Cohen, Nardelli PPoPP
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L210" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:210
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L222" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:222
           </a>
         
       </div>
@@ -6059,8 +6416,8 @@ with formal C11 / weak-memory-model fences (Le, Pop, Cohen, Nardelli PPoPP
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L214" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:214
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L226" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:226
           </a>
         
       </div>
@@ -6125,8 +6482,8 @@ with formal C11 / weak-memory-model fences (Le, Pop, Cohen, Nardelli PPoPP
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L220" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:220
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L232" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:232
           </a>
         
       </div>
@@ -6194,8 +6551,8 @@ with formal C11 / weak-memory-model fences (Le, Pop, Cohen, Nardelli PPoPP
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L229" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:229
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L241" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:241
           </a>
         
       </div>
@@ -6261,8 +6618,8 @@ with formal C11 / weak-memory-model fences (Le, Pop, Cohen, Nardelli PPoPP
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L233" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:233
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L245" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:245
           </a>
         
       </div>
@@ -6328,8 +6685,8 @@ empty.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L251" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:251
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L263" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:263
           </a>
         
       </div>
@@ -6400,8 +6757,8 @@ empty.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L291" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:291
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L303" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:303
           </a>
         
       </div>
@@ -6467,8 +6824,8 @@ is empty or on CAS contention with peers.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L300" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:300
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L312" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:312
           </a>
         
       </div>
@@ -6539,8 +6896,8 @@ is empty or on CAS contention with peers.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L323" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:323
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L335" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:335
           </a>
         
       </div>
@@ -6620,8 +6977,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L332" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:332
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L344" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:344
           </a>
         
       </div>
@@ -6692,8 +7049,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L382" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:382
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L394" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:394
           </a>
         
       </div>
@@ -6753,8 +7110,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L395" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:395
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L407" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:407
           </a>
         
       </div>
@@ -6827,8 +7184,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L405" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:405
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L417" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:417
           </a>
         
       </div>
@@ -6900,8 +7257,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L411" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:411
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L423" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:423
           </a>
         
       </div>
@@ -6979,8 +7336,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L417" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:417
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L429" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:429
           </a>
         
       </div>
@@ -7047,8 +7404,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L423" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:423
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L435" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:435
           </a>
         
       </div>
@@ -7114,8 +7471,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L431" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:431
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L443" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:443
           </a>
         
       </div>
@@ -7187,8 +7544,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L439" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:439
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L451" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:451
           </a>
         
       </div>
@@ -7260,8 +7617,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L447" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:447
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L459" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:459
           </a>
         
       </div>
@@ -7339,8 +7696,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L453" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:453
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L465" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:465
           </a>
         
       </div>
@@ -7424,8 +7781,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L459" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:459
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L471" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:471
           </a>
         
       </div>
@@ -7503,8 +7860,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L465" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:465
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L477" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:477
           </a>
         
       </div>
@@ -7570,8 +7927,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L471" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:471
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L483" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:483
           </a>
         
       </div>
@@ -7643,8 +8000,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L479" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:479
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L491" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:491
           </a>
         
       </div>
@@ -7716,8 +8073,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L487" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:487
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L499" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:499
           </a>
         
       </div>
@@ -7783,8 +8140,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L495" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:495
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L507" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:507
           </a>
         
       </div>
@@ -7850,8 +8207,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L500" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:500
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L512" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:512
           </a>
         
       </div>
@@ -7917,8 +8274,8 @@ Writes stolen items to <code>dest[0 ..&lt; stolenCount]</code> in FIFO order and
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L505" target="_blank" rel="noopener">
-            src/lockfree/deque.nim:505
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/deque.nim#L517" target="_blank" rel="noopener">
+            src/lockfree/deque.nim:517
           </a>
         
       </div>
