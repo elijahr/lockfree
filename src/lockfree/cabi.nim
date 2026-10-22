@@ -46,6 +46,8 @@ import lockfree/bpriority_queue
 export bpriority_queue
 import lockfree/btable
 export btable
+import lockfree/bqueue128
+export bqueue128
 import std/options
 
 # ------------------------------------------------------------------------------
@@ -312,7 +314,7 @@ proc boundedQueueDestroy[N, P, C: static int](qBase: ptr lf_queue_t): lf_status_
       except:
         discard
     `=destroy`(q.rawQueue[])
-    deallocShared(q.rawQueue)
+    freeAligned(q.rawQueue)
     deallocShared(q)
     LF_OK
 
@@ -323,7 +325,7 @@ proc createBoundedInstance[N, P, C: static int](
     maxConsumers: int
 ): ptr lf_queue_t =
   let q = cast[ptr BoundedQueueImpl[N, P, C]](allocShared0(sizeof(BoundedQueueImpl[N, P, C])))
-  let raw = cast[ptr BQueue[pointer, ccMulti, ccMulti, N, P, C]](allocShared0(sizeof(BQueue[pointer, ccMulti, ccMulti, N, P, C])))
+  let raw = allocAligned[BQueue[pointer, ccMulti, ccMulti, N, P, C]]()
   raw[] = newBQueue[pointer, ccMulti, ccMulti, N, P, C]()
   q.rawQueue = raw
   q.base.destructor = destructor
@@ -625,7 +627,7 @@ proc unboundedQueueDestroy[S, MaxThreads: static int](qBase: ptr lf_queue_t): lf
         except:
           discard
       `=destroy`(q.rawQueue[])
-      deallocShared(q.rawQueue)
+      freeAligned(q.rawQueue)
       deallocShared(q)
       LF_OK
 
@@ -637,7 +639,7 @@ proc createUnboundedInstance[S, MaxThreads: static int](
     maxConsumers: int
 ): ptr lf_queue_t =
   let q = cast[ptr UnboundedQueueImpl[S, MaxThreads]](allocShared0(sizeof(UnboundedQueueImpl[S, MaxThreads])))
-  let raw = cast[ptr Queue[pointer, ccMulti, ccMulti, stEager, S, MaxThreads]](allocShared0(sizeof(Queue[pointer, ccMulti, ccMulti, stEager, S, MaxThreads])))
+  let raw = allocAligned[Queue[pointer, ccMulti, ccMulti, stEager, S, MaxThreads]]()
   raw[] = newUnboundedMpmcQueue[pointer, stEager, S, MaxThreads]()
   q.rawQueue = raw
   q.base.destructor = destructor
@@ -900,7 +902,7 @@ proc lf_stack_create*(
     return LF_ERR_INVALID_ARG
   cAbiBoundary:
     let s = cast[ptr lf_stack_t](allocShared0(sizeof(lf_stack_t)))
-    let raw = cast[ptr TreiberStack[pointer]](allocShared0(sizeof(TreiberStack[pointer])))
+    let raw = allocAligned[TreiberStack[pointer]]()
     raw[] = initTreiberStack[pointer]()
     s.destructor = destructor
     s.userData = user_data
@@ -923,7 +925,7 @@ proc lf_stack_destroy*(stack: ptr lf_stack_t): lf_status_t {.exportc: "lf_stack_
       except:
         discard
     `=destroy`(stack.raw[])
-    deallocShared(stack.raw)
+    freeAligned(stack.raw)
     deallocShared(stack)
     LF_OK
 
@@ -3370,7 +3372,7 @@ proc bstackDestroyImpl[N: static int](s: ptr lf_bstack_t): lf_status_t {.nimcall
           except:
             discard
       `=destroy`(impl.raw[])
-      deallocShared(impl.raw)
+      freeAligned(impl.raw)
       impl.raw = nil
     deallocShared(impl)
     LF_OK
@@ -3399,7 +3401,7 @@ proc createBStackTier[N: static int](
 ): lf_status_t {.nimcall, gcsafe, raises: [].} =
   cAbiBoundary:
     let impl = cast[ptr BStackImpl[N]](allocShared0(sizeof(BStackImpl[N])))
-    let raw = cast[ptr BStack[pointer, N, ccMulti, ccMulti]](allocShared0(sizeof(BStack[pointer, N, ccMulti, ccMulti])))
+    let raw = allocAligned[BStack[pointer, N, ccMulti, ccMulti]]()
     raw[] = initBStack[pointer, N]()
     raw[].setEffectiveCapacity(effCap)
     impl.raw = raw
@@ -3611,7 +3613,7 @@ proc bpqueueDestroyImpl[N: static int](pq: ptr lf_bpqueue_t): lf_status_t {.nimc
           except:
             discard
       `=destroy`(impl.raw[])
-      deallocShared(impl.raw)
+      freeAligned(impl.raw)
       impl.raw = nil
     deallocShared(impl)
     LF_OK
@@ -3640,7 +3642,7 @@ proc createBPQueueTier[N: static int](
 ): lf_status_t {.nimcall, gcsafe, raises: [].} =
   cAbiBoundary:
     let impl = cast[ptr BPQueueImpl[N]](allocShared0(sizeof(BPQueueImpl[N])))
-    let raw = cast[ptr BPriorityQueue[Prioritized[int64, pointer], N, ccMulti, ccMulti]](allocShared0(sizeof(BPriorityQueue[Prioritized[int64, pointer], N, ccMulti, ccMulti])))
+    let raw = allocAligned[BPriorityQueue[Prioritized[int64, pointer], N, ccMulti, ccMulti]]()
     raw[] = initBPriorityQueue[Prioritized[int64, pointer], N]()
     raw[].setEffectiveCapacity(effCap)
     impl.raw = raw
@@ -3935,7 +3937,7 @@ proc btableDestroyImpl[N: static int](t: ptr lf_btable_t): lf_status_t {.nimcall
     if impl.raw != nil:
       impl.raw[].clearWith(t.destructor, t.userData)
       `=destroy`(impl.raw[])
-      deallocShared(impl.raw)
+      freeAligned(impl.raw)
       impl.raw = nil
     deallocShared(impl)
     LF_OK
@@ -3964,7 +3966,7 @@ proc createBTableTier[N: static int](
 ): lf_status_t {.nimcall, gcsafe, raises: [].} =
   cAbiBoundary:
     let impl = cast[ptr BTableImpl[N]](allocShared0(sizeof(BTableImpl[N])))
-    let raw = cast[ptr BTable[pointer, pointer, N, ccMulti, ccMulti]](allocShared0(sizeof(BTable[pointer, pointer, N, ccMulti, ccMulti])))
+    let raw = allocAligned[BTable[pointer, pointer, N, ccMulti, ccMulti]]()
     raw[] = initBTable[pointer, pointer, N]()
     raw[].setEffectiveCapacity(effCap)
     impl.raw = raw
@@ -4151,6 +4153,240 @@ proc lf_btable_is_full*(
   if unlikely(table == nil or table.isFullFn == nil):
     return false
   table.isFullFn(table)
+
+# ==============================================================================
+# 19. BQueue128 (128-Bit DWCAS Bounded MPMC Queue)
+# ==============================================================================
+
+type
+  lf_bqueue128_destructor_fn* = proc(item: pointer, userData: pointer) {.cdecl, gcsafe, raises: [].}
+  lfq_bqueue128_destructor_fn* = lf_bqueue128_destructor_fn
+
+  lf_bqueue128_t* = object
+    destructor*: lf_bqueue128_destructor_fn
+    userData*: pointer
+    destroyFn*: proc(q: ptr lf_bqueue128_t): lf_status_t {.nimcall, gcsafe, raises: [].}
+    pushFn*: proc(q: ptr lf_bqueue128_t, item: pointer): lf_status_t {.nimcall, gcsafe, raises: [].}
+    popFn*: proc(q: ptr lf_bqueue128_t, outItem: ptr pointer): lf_status_t {.nimcall, gcsafe, raises: [].}
+    peekFn*: proc(q: ptr lf_bqueue128_t, outItem: ptr pointer): lf_status_t {.nimcall, gcsafe, raises: [].}
+    clearFn*: proc(q: ptr lf_bqueue128_t): lf_status_t {.nimcall, gcsafe, raises: [].}
+    lenFn*: proc(q: ptr lf_bqueue128_t): csize_t {.nimcall, gcsafe, raises: [].}
+    capFn*: proc(q: ptr lf_bqueue128_t): csize_t {.nimcall, gcsafe, raises: [].}
+    isEmptyFn*: proc(q: ptr lf_bqueue128_t): bool {.nimcall, gcsafe, raises: [].}
+    isFullFn*: proc(q: ptr lf_bqueue128_t): bool {.nimcall, gcsafe, raises: [].}
+
+  lfq_bqueue128_t* = lf_bqueue128_t
+
+  BQueue128Impl[N: static int] = object
+    base*: lf_bqueue128_t
+    raw*: ptr BQueue128[pointer, N]
+
+proc bqueue128PushImpl[N: static int](q: ptr lf_bqueue128_t, item: pointer): lf_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BQueue128Impl[N]](q)
+  cAbiBoundary:
+    if impl.raw[].tryPush(item):
+      LF_OK
+    else:
+      LF_ERR_FULL
+
+proc bqueue128PopImpl[N: static int](q: ptr lf_bqueue128_t, outItem: ptr pointer): lf_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BQueue128Impl[N]](q)
+  cAbiBoundary:
+    var item: pointer = nil
+    if impl.raw[].tryPop(item):
+      if outItem != nil:
+        outItem[] = item
+      LF_OK
+    else:
+      LF_ERR_EMPTY
+
+proc bqueue128PeekImpl[N: static int](q: ptr lf_bqueue128_t, outItem: ptr pointer): lf_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BQueue128Impl[N]](q)
+  cAbiBoundary:
+    var item: pointer = nil
+    if impl.raw[].tryPeek(item):
+      if outItem != nil:
+        outItem[] = item
+      LF_OK
+    else:
+      LF_ERR_EMPTY
+
+proc bqueue128ClearImpl[N: static int](q: ptr lf_bqueue128_t): lf_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BQueue128Impl[N]](q)
+  cAbiBoundary:
+    if q.destructor != nil:
+      var item: pointer = nil
+      while impl.raw[].tryPop(item):
+        try:
+          q.destructor(item, q.userData)
+        except:
+          discard
+    impl.raw[].clear()
+    LF_OK
+
+proc bqueue128DestroyImpl[N: static int](q: ptr lf_bqueue128_t): lf_status_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BQueue128Impl[N]](q)
+  cAbiBoundary:
+    if impl.raw != nil:
+      if q.destructor != nil:
+        var item: pointer = nil
+        while impl.raw[].tryPop(item):
+          try:
+            q.destructor(item, q.userData)
+          except:
+            discard
+      `=destroy`(impl.raw[])
+      freeAlignedBQueue128(impl.raw)
+      impl.raw = nil
+    deallocShared(impl)
+    LF_OK
+
+proc bqueue128LenImpl[N: static int](q: ptr lf_bqueue128_t): csize_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BQueue128Impl[N]](q)
+  csize_t(impl.raw[].len())
+
+proc bqueue128CapImpl[N: static int](q: ptr lf_bqueue128_t): csize_t {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BQueue128Impl[N]](q)
+  csize_t(impl.raw[].capacity())
+
+proc bqueue128IsEmptyImpl[N: static int](q: ptr lf_bqueue128_t): bool {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BQueue128Impl[N]](q)
+  impl.raw[].isEmpty()
+
+proc bqueue128IsFullImpl[N: static int](q: ptr lf_bqueue128_t): bool {.nimcall, gcsafe, raises: [].} =
+  let impl = cast[ptr BQueue128Impl[N]](q)
+  impl.raw[].isFull()
+
+proc createBQueue128Tier[N: static int](
+    destructor: lf_bqueue128_destructor_fn,
+    userData: pointer,
+    outQueue: ptr ptr lf_bqueue128_t
+): lf_status_t {.nimcall, gcsafe, raises: [].} =
+  cAbiBoundary:
+    let impl = cast[ptr BQueue128Impl[N]](allocShared0(sizeof(BQueue128Impl[N])))
+    let raw = allocAlignedBQueue128[pointer, N]()
+    impl.raw = raw
+    impl.base.destructor = destructor
+    impl.base.userData = userData
+    impl.base.destroyFn = bqueue128DestroyImpl[N]
+    impl.base.pushFn = bqueue128PushImpl[N]
+    impl.base.popFn = bqueue128PopImpl[N]
+    impl.base.peekFn = bqueue128PeekImpl[N]
+    impl.base.clearFn = bqueue128ClearImpl[N]
+    impl.base.lenFn = bqueue128LenImpl[N]
+    impl.base.capFn = bqueue128CapImpl[N]
+    impl.base.isEmptyFn = bqueue128IsEmptyImpl[N]
+    impl.base.isFullFn = bqueue128IsFullImpl[N]
+    outQueue[] = cast[ptr lf_bqueue128_t](impl)
+    LF_OK
+
+proc lf_bqueue128_create*(
+    capacity: csize_t,
+    destructor: lf_bqueue128_destructor_fn,
+    user_data: pointer,
+    out_queue: ptr ptr lf_bqueue128_t
+): lf_status_t {.exportc: "lf_bqueue128_create", cdecl, gcsafe, raises: [].} =
+  if unlikely(capacity == 0 or out_queue == nil):
+    return LF_ERR_INVALID_ARG
+  if unlikely(capacity > 65536):
+    return LF_ERR_UNSUPPORTED
+  let cap = int(capacity)
+  if cap <= 4:
+    createBQueue128Tier[4](destructor, user_data, out_queue)
+  elif cap <= 8:
+    createBQueue128Tier[8](destructor, user_data, out_queue)
+  elif cap <= 16:
+    createBQueue128Tier[16](destructor, user_data, out_queue)
+  elif cap <= 32:
+    createBQueue128Tier[32](destructor, user_data, out_queue)
+  elif cap <= 64:
+    createBQueue128Tier[64](destructor, user_data, out_queue)
+  elif cap <= 128:
+    createBQueue128Tier[128](destructor, user_data, out_queue)
+  elif cap <= 256:
+    createBQueue128Tier[256](destructor, user_data, out_queue)
+  elif cap <= 512:
+    createBQueue128Tier[512](destructor, user_data, out_queue)
+  elif cap <= 1024:
+    createBQueue128Tier[1024](destructor, user_data, out_queue)
+  elif cap <= 2048:
+    createBQueue128Tier[2048](destructor, user_data, out_queue)
+  elif cap <= 4096:
+    createBQueue128Tier[4096](destructor, user_data, out_queue)
+  elif cap <= 8192:
+    createBQueue128Tier[8192](destructor, user_data, out_queue)
+  elif cap <= 16384:
+    createBQueue128Tier[16384](destructor, user_data, out_queue)
+  elif cap <= 32768:
+    createBQueue128Tier[32768](destructor, user_data, out_queue)
+  else:
+    createBQueue128Tier[65536](destructor, user_data, out_queue)
+
+proc lf_bqueue128_destroy*(
+    queue: ptr lf_bqueue128_t
+): lf_status_t {.exportc: "lf_bqueue128_destroy", cdecl, gcsafe, raises: [].} =
+  if unlikely(queue == nil or queue.destroyFn == nil):
+    return LF_ERR_INVALID_ARG
+  queue.destroyFn(queue)
+
+proc lf_bqueue128_push*(
+    queue: ptr lf_bqueue128_t,
+    item: pointer
+): lf_status_t {.exportc: "lf_bqueue128_push", cdecl, gcsafe, raises: [].} =
+  if unlikely(queue == nil or queue.pushFn == nil):
+    return LF_ERR_INVALID_ARG
+  queue.pushFn(queue, item)
+
+proc lf_bqueue128_pop*(
+    queue: ptr lf_bqueue128_t,
+    out_item: ptr pointer
+): lf_status_t {.exportc: "lf_bqueue128_pop", cdecl, gcsafe, raises: [].} =
+  if unlikely(queue == nil or queue.popFn == nil or out_item == nil):
+    return LF_ERR_INVALID_ARG
+  queue.popFn(queue, out_item)
+
+proc lf_bqueue128_peek*(
+    queue: ptr lf_bqueue128_t,
+    out_item: ptr pointer
+): lf_status_t {.exportc: "lf_bqueue128_peek", cdecl, gcsafe, raises: [].} =
+  if unlikely(queue == nil or queue.peekFn == nil or out_item == nil):
+    return LF_ERR_INVALID_ARG
+  queue.peekFn(queue, out_item)
+
+proc lf_bqueue128_clear*(
+    queue: ptr lf_bqueue128_t
+): lf_status_t {.exportc: "lf_bqueue128_clear", cdecl, gcsafe, raises: [].} =
+  if unlikely(queue == nil or queue.clearFn == nil):
+    return LF_ERR_INVALID_ARG
+  queue.clearFn(queue)
+
+proc lf_bqueue128_len*(
+    queue: ptr lf_bqueue128_t
+): csize_t {.exportc: "lf_bqueue128_len", cdecl, gcsafe, raises: [].} =
+  if unlikely(queue == nil or queue.lenFn == nil):
+    return 0
+  queue.lenFn(queue)
+
+proc lf_bqueue128_capacity*(
+    queue: ptr lf_bqueue128_t
+): csize_t {.exportc: "lf_bqueue128_capacity", cdecl, gcsafe, raises: [].} =
+  if unlikely(queue == nil or queue.capFn == nil):
+    return 0
+  queue.capFn(queue)
+
+proc lf_bqueue128_is_empty*(
+    queue: ptr lf_bqueue128_t
+): bool {.exportc: "lf_bqueue128_is_empty", cdecl, gcsafe, raises: [].} =
+  if unlikely(queue == nil or queue.isEmptyFn == nil):
+    return true
+  queue.isEmptyFn(queue)
+
+proc lf_bqueue128_is_full*(
+    queue: ptr lf_bqueue128_t
+): bool {.exportc: "lf_bqueue128_is_full", cdecl, gcsafe, raises: [].} =
+  if unlikely(queue == nil or queue.isFullFn == nil):
+    return false
+  queue.isFullFn(queue)
 
 
 # ==============================================================================
@@ -5439,4 +5675,61 @@ proc lfq_btable_is_full*(
     table: ptr lfq_btable_t
 ): bool {.exportc: "lfq_btable_is_full", cdecl, gcsafe, raises: [].} =
   lf_btable_is_full(table)
+
+proc lfq_bqueue128_create*(
+    capacity: csize_t,
+    destructor: lfq_bqueue128_destructor_fn,
+    user_data: pointer,
+    out_queue: ptr ptr lfq_bqueue128_t
+): lfq_status_t {.exportc: "lfq_bqueue128_create", cdecl, gcsafe, raises: [].} =
+  lf_bqueue128_create(capacity, destructor, user_data, out_queue)
+
+proc lfq_bqueue128_destroy*(
+    queue: ptr lfq_bqueue128_t
+): lfq_status_t {.exportc: "lfq_bqueue128_destroy", cdecl, gcsafe, raises: [].} =
+  lf_bqueue128_destroy(queue)
+
+proc lfq_bqueue128_push*(
+    queue: ptr lfq_bqueue128_t,
+    item: pointer
+): lfq_status_t {.exportc: "lfq_bqueue128_push", cdecl, gcsafe, raises: [].} =
+  lf_bqueue128_push(queue, item)
+
+proc lfq_bqueue128_pop*(
+    queue: ptr lfq_bqueue128_t,
+    out_item: ptr pointer
+): lfq_status_t {.exportc: "lfq_bqueue128_pop", cdecl, gcsafe, raises: [].} =
+  lf_bqueue128_pop(queue, out_item)
+
+proc lfq_bqueue128_peek*(
+    queue: ptr lfq_bqueue128_t,
+    out_item: ptr pointer
+): lfq_status_t {.exportc: "lfq_bqueue128_peek", cdecl, gcsafe, raises: [].} =
+  lf_bqueue128_peek(queue, out_item)
+
+proc lfq_bqueue128_clear*(
+    queue: ptr lfq_bqueue128_t
+): lfq_status_t {.exportc: "lfq_bqueue128_clear", cdecl, gcsafe, raises: [].} =
+  lf_bqueue128_clear(queue)
+
+proc lfq_bqueue128_len*(
+    queue: ptr lfq_bqueue128_t
+): csize_t {.exportc: "lfq_bqueue128_len", cdecl, gcsafe, raises: [].} =
+  lf_bqueue128_len(queue)
+
+proc lfq_bqueue128_capacity*(
+    queue: ptr lfq_bqueue128_t
+): csize_t {.exportc: "lfq_bqueue128_capacity", cdecl, gcsafe, raises: [].} =
+  lf_bqueue128_capacity(queue)
+
+proc lfq_bqueue128_is_empty*(
+    queue: ptr lfq_bqueue128_t
+): bool {.exportc: "lfq_bqueue128_is_empty", cdecl, gcsafe, raises: [].} =
+  lf_bqueue128_is_empty(queue)
+
+proc lfq_bqueue128_is_full*(
+    queue: ptr lfq_bqueue128_t
+): bool {.exportc: "lfq_bqueue128_is_full", cdecl, gcsafe, raises: [].} =
+  lf_bqueue128_is_full(queue)
+
 

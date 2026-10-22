@@ -296,6 +296,13 @@ const cases = @[
     outcome: eoCompileFails,
     substring: "is not available for type <TokenBucket>",
   ),
+  Case(
+    name:
+      "bqueue128 copy-safety — BQueue128 cannot be copied",
+    file: "tests/should_fail/bqueue128_copy_forbidden.nim",
+    outcome: eoCompileFails,
+    substring: "is not available for type <BQueue128>",
+  ),
 ]
 
 

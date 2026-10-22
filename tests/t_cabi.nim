@@ -1402,6 +1402,38 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check lf_btable_contains(bt, cast[pointer](2)) == false
     check lf_btable_destroy(bt) == LF_OK
 
+    # 4. lf_bqueue128_*
+    var bq: ptr lf_bqueue128_t = nil
+    check lf_bqueue128_create(0, nil, nil, addr bq) == LF_ERR_INVALID_ARG
+    check lf_bqueue128_create(65537, nil, nil, addr bq) == LF_ERR_UNSUPPORTED
+    check lf_bqueue128_create(4, nil, nil, addr bq) == LF_OK
+    check bq != nil
+    check lf_bqueue128_capacity(bq) == 4
+    check lf_bqueue128_is_empty(bq) == true
+    check lf_bqueue128_is_full(bq) == false
+    check lf_bqueue128_len(bq) == 0
+
+    for i in 1 .. 4:
+      check lf_bqueue128_push(bq, cast[pointer](i * 111)) == LF_OK
+    check lf_bqueue128_is_full(bq) == true
+    check lf_bqueue128_push(bq, cast[pointer](999)) == LF_ERR_FULL
+
+    var bqItem: pointer = nil
+    check lf_bqueue128_peek(bq, addr bqItem) == LF_OK
+    check cast[int](bqItem) == 111
+
+    for i in 1 .. 4:
+      check lf_bqueue128_pop(bq, addr bqItem) == LF_OK
+      check cast[int](bqItem) == i * 111
+    check lf_bqueue128_pop(bq, addr bqItem) == LF_ERR_EMPTY
+    check lf_bqueue128_is_empty(bq) == true
+
+    # Push and clear test
+    check lf_bqueue128_push(bq, cast[pointer](777)) == LF_OK
+    check lf_bqueue128_clear(bq) == LF_OK
+    check lf_bqueue128_is_empty(bq) == true
+    check lf_bqueue128_destroy(bq) == LF_OK
+
 
   test "Backward compatibility aliases (lfq_* and LFQ_*)":
     # 1. Status enum and macros
@@ -1537,6 +1569,13 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check cast[int](item) == 50
     check lfq_btable_destroy(btbl) == LFQ_OK
 
+    var lbq: ptr lfq_bqueue128_t = nil
+    check lfq_bqueue128_create(8, nil, nil, addr lbq) == LFQ_OK
+    check lfq_bqueue128_push(lbq, cast[pointer](55)) == LFQ_OK
+    check lfq_bqueue128_pop(lbq, addr item) == LFQ_OK
+    check cast[int](item) == 55
+    check lfq_bqueue128_destroy(lbq) == LFQ_OK
+
   when not defined(windows):
     test "Direct C99 Header Interoperability":
       let code1 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree.h"))
@@ -1557,6 +1596,8 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
       check code8 == 0
       let code9 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_btable.h"))
       check code9 == 0
+      let code10 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_bqueue128.h"))
+      check code10 == 0
 
     test "Compiled C99 test harness execution (clang + liblockfree.a)":
       let rootDir = currentSourcePath().parentDir() / ".."

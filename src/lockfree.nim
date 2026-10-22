@@ -7,7 +7,7 @@
 ## Source-of-truth remains `lockfree.nimble`; this constant MUST
 ## be bumped in lockstep on every release.
 
-const LockfreeVersion* {.strdefine.} = "0.5.0"
+const LockfreeVersion* {.strdefine.} = "0.6.0"
   ## In-tree package version. Mirrors the `version = "0.5.0"` line in
   ## `lockfree.nimble`. `{.strdefine.}` lets downstream builds
   ## override via `-d:LockfreeVersion=<x.y.z>` for fork builds; the
@@ -51,13 +51,13 @@ const LockfreeVersion* {.strdefine.} = "0.5.0"
 when compileOption("threads"):
   import lockfree/atomics
   import lockfree/atomics/dsl
-  import ./lockfree/[atomic_arc, bpriority_queue, bqueue, broadcast, bstack, btable, cardinality, channel, ctrie, deque, disjoint_set, endpoint, exceptions, flat_combiner, priority_queue, queue, ratelimit, reclamation, rendezvous, set, skiplist, stack, strategy, streambuffer, taskpool, typestate_constructs]
+  import ./lockfree/[atomic_arc, bpriority_queue, bqueue, bqueue128, broadcast, bstack, btable, cardinality, channel, ctrie, deque, disjoint_set, endpoint, exceptions, flat_combiner, priority_queue, queue, ratelimit, reclamation, rendezvous, set, skiplist, stack, strategy, streambuffer, taskpool, typestate_constructs]
   import ./lockfree/internal/pinscope_stub
   import ./lockfree/typestates/with_bound
   import ./lockfree/typestates/constructs
 
   export atomics, dsl
-  export atomic_arc, bpriority_queue, bqueue, broadcast, bstack, btable, cardinality, channel, ctrie, deque, disjoint_set, endpoint, exceptions, flat_combiner, priority_queue, queue, ratelimit, reclamation, rendezvous, set, skiplist, stack, strategy, streambuffer, taskpool, typestate_constructs
+  export atomic_arc, bpriority_queue, bqueue, bqueue128, broadcast, bstack, btable, cardinality, channel, ctrie, deque, disjoint_set, endpoint, exceptions, flat_combiner, priority_queue, queue, ratelimit, reclamation, rendezvous, set, skiplist, stack, strategy, streambuffer, taskpool, typestate_constructs
   export pinscope_stub
   export with_bound, constructs
 
@@ -69,12 +69,12 @@ else:
   # + supporting enums.
   import lockfree/atomics
   import lockfree/atomics/dsl
-  import ./lockfree/[bpriority_queue, bqueue, bstack, btable, cardinality, channel, disjoint_set, endpoint, queue, reclamation, stack, strategy]
+  import ./lockfree/[bpriority_queue, bqueue, bqueue128, bstack, btable, cardinality, channel, disjoint_set, endpoint, queue, reclamation, stack, strategy]
   import ./lockfree/internal/pinscope_stub
   import ./lockfree/typestates/with_bound
   import ./lockfree/typestates/constructs
 
   export atomics, dsl
-  export bpriority_queue, bqueue, bstack, btable, cardinality, channel, disjoint_set, endpoint, queue, reclamation, stack, strategy
+  export bpriority_queue, bqueue, bqueue128, bstack, btable, cardinality, channel, disjoint_set, endpoint, queue, reclamation, stack, strategy
   export pinscope_stub
   export with_bound, constructs

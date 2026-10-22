@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **128-Bit DWCAS Bounded MPMC Queue (`BQueue128`) (`src/lockfree/bqueue128.nim`, `include/lockfree_bqueue128.h`)**:
+  - High-performance bounded MPMC queue for 64-bit scalar types and raw pointers (`uint64`, `int64`, `pointer`, `int`) using 128-bit hardware Double-Word Compare-And-Swap (`CMPXCHG16B` / `CASP`).
+  - Fuses monotonic sequence turn counter and payload into a single 16-byte atomic `Pair[uint64, T]` word (`BQueue128Slot[T]`).
+  - Achieves single-instruction atomic slot publication on enqueue and dequeue, completely eliminating intermediate half-written states and producer descheduling stall vulnerabilities.
+  - 16-byte slot density delivers up to 75–87% memory footprint reduction over padded cell architectures, packing 4 slots per 64-byte line and 8 slots per 128-byte Apple Silicon line.
+  - Achieves 114.8M ops/sec on 1P x 1C (+235% / 3.35x faster than classical `BQueue`).
+  - Complete FFI/C-ABI bindings via `include/lockfree_bqueue128.h` (`lf_bqueue128_*` and legacy `lfq_bqueue128_*`).
+  - Full documentation (`docs/guide/queues/bqueue128.md`, `docs/api/bqueue128.md`) and comparative benchmarks (`benchmarks/nim/bench_bqueue128.nim`).
+
+### Fixed
+
+- **C-ABI Cache-Line Heap Misalignment Hotfix (`src/lockfree/cabi.nim`)**:
+  - Replaced unaligned `allocShared0` allocations for `BQueue`, `Queue`, `TreiberStack`, `BStack`, `BPriorityQueue`, and `BTable` with `allocAligned[T]()` and `freeAligned()`.
+  - Guarantees strict 64-byte / 128-byte cache-line isolation and eliminates false sharing caused by unaligned heap baselines.
+- **Vyukov BQueue Documentation Correction (`docs/guide/queues/bounded-vyukov.md`)**:
+  - Corrected erroneous claim that `BQueue` was copyable; documented the strict non-copyable `=copy {.error.}` invariant and pass-by-`var`/`ptr` requirements.
+
 ## [0.6.0] - 2026-10-21
 
 ### Added

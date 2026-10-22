@@ -618,6 +618,12 @@ bool lf_topic_bus_has_topic(const lf_topic_bus_t* bus, const char* topic);
 
 #include "lockfree_btable.h"
 
+/* -------------------------------------------------------------------------
+ * 19. 128-Bit DWCAS Bounded MPMC Queue (BQueue128)
+ * ------------------------------------------------------------------------- */
+
+#include "lockfree_bqueue128.h"
+
 #ifdef __cplusplus
 }
 #endif

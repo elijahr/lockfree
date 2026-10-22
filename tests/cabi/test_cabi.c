@@ -2067,6 +2067,59 @@ static void test_cabi_btable(void) {
 }
 
 /* -------------------------------------------------------------------------
+ * Test: BQueue128 128-Bit DWCAS Bounded MPMC Queue
+ * ------------------------------------------------------------------------- */
+static void test_cabi_bqueue128(void) {
+    printf("Running test_cabi_bqueue128...\n");
+    lf_bqueue128_t* q = NULL;
+    TEST_ASSERT(lf_bqueue128_create(0, NULL, NULL, &q) == LF_ERR_INVALID_ARG, "Create 0 cap should fail");
+    TEST_ASSERT(lf_bqueue128_create(65537, NULL, NULL, &q) == LF_ERR_UNSUPPORTED, "Create >65536 should fail");
+    TEST_ASSERT(lf_bqueue128_create(4, NULL, NULL, &q) == LF_OK, "lf_bqueue128_create(4) failed");
+    TEST_ASSERT(q != NULL, "q should not be NULL");
+    TEST_ASSERT(lf_bqueue128_capacity(q) == 4, "Capacity should be 4");
+    TEST_ASSERT(lf_bqueue128_len(q) == 0, "Len should be 0");
+    TEST_ASSERT(lf_bqueue128_is_empty(q) == true, "Queue should be empty");
+    TEST_ASSERT(lf_bqueue128_is_full(q) == false, "Queue should not be full");
+
+    for (uintptr_t i = 1; i <= 4; i++) {
+        TEST_ASSERT(lf_bqueue128_push(q, (void*)(i * 10)) == LF_OK, "Push failed");
+    }
+    TEST_ASSERT(lf_bqueue128_is_full(q) == true, "Queue should be full");
+    TEST_ASSERT(lf_bqueue128_push(q, (void*)999) == LF_ERR_FULL, "Push to full queue should fail");
+
+    void* peeked = NULL;
+    TEST_ASSERT(lf_bqueue128_peek(q, &peeked) == LF_OK, "Peek failed");
+    TEST_ASSERT((uintptr_t)peeked == 10, "Peeked item mismatch");
+
+    for (uintptr_t i = 1; i <= 4; i++) {
+        void* popped = NULL;
+        TEST_ASSERT(lf_bqueue128_pop(q, &popped) == LF_OK, "Pop failed");
+        TEST_ASSERT((uintptr_t)popped == i * 10, "Popped item mismatch");
+    }
+    void* popped = NULL;
+    TEST_ASSERT(lf_bqueue128_pop(q, &popped) == LF_ERR_EMPTY, "Pop on empty queue should return EMPTY");
+    TEST_ASSERT(lf_bqueue128_is_empty(q) == true, "Queue should be empty");
+
+    /* Test clear */
+    TEST_ASSERT(lf_bqueue128_push(q, (void*)42) == LF_OK, "Push before clear failed");
+    TEST_ASSERT(lf_bqueue128_clear(q) == LF_OK, "Clear failed");
+    TEST_ASSERT(lf_bqueue128_is_empty(q) == true, "Queue should be empty after clear");
+
+    TEST_ASSERT(lf_bqueue128_destroy(q) == LF_OK, "Destroy failed");
+
+    /* Backward compatibility aliases */
+    lfq_bqueue128_t* lq = NULL;
+    TEST_ASSERT(lfq_bqueue128_create(8, NULL, NULL, &lq) == LFQ_OK, "lfq_bqueue128_create failed");
+    TEST_ASSERT(lfq_bqueue128_push(lq, (void*)77) == LFQ_OK, "lfq push failed");
+    void* litem = NULL;
+    TEST_ASSERT(lfq_bqueue128_pop(lq, &litem) == LFQ_OK, "lfq pop failed");
+    TEST_ASSERT((uintptr_t)litem == 77, "lfq popped item mismatch");
+    TEST_ASSERT(lfq_bqueue128_destroy(lq) == LFQ_OK, "lfq destroy failed");
+
+    printf("test_cabi_bqueue128 PASSED.\n");
+}
+
+/* -------------------------------------------------------------------------
  * Test: Primary lf_* Modern Prefix Direct Interoperability
  * ------------------------------------------------------------------------- */
 static void test_cabi_lf_modern_prefix(void) {
@@ -2120,6 +2173,7 @@ int main(void) {
     test_cabi_bstack();
     test_cabi_bpqueue();
     test_cabi_btable();
+    test_cabi_bqueue128();
     test_cabi_concurrency();
     test_cabi_lf_modern_prefix();
 

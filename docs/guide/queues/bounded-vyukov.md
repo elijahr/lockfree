@@ -102,10 +102,8 @@ storage plus per-side head/tail counters. No heap allocation.
 
 This means:
 
-- A `BQueue` is **copyable** (field-wise copy is sound; copies do not
-  alias the slot storage). For shared-queue patterns, pass by `var` or
-  `ptr` — copying a queue you are concurrently pushing into produces
-  two independent queues sharing no state.
+- A `BQueue` is **non-copyable** (`=copy {.error.}`). Copying a queue value that embeds live atomic turn counters and inlined slot buffers mid-stream produces memory safety anomalies and torn states. For shared concurrency patterns across threads or functions, pass by `var` or `ptr`.
+- **Cache-line Alignment**: When allocating `BQueue` on the heap, always use `allocAligned[BQueue[...]]()` and `freeAligned()` to guarantee proper 64-byte/128-byte cache-line isolation and prevent false sharing.
 - A `BQueue` has no destructor side effects beyond freeing its slot
   storage. Under `--mm:none`, the storage lives wherever you placed
   the queue value (stack, heap, global).

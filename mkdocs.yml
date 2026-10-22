@@ -100,6 +100,7 @@ nav:
     - Queues:
       - Overview: guide/queues/index.md
       - Bounded (Vyukov): guide/queues/bounded-vyukov.md
+      - 128-Bit DWCAS (BQueue128): guide/queues/bqueue128.md
       - Unbounded MPMC (strict-LCRQ): guide/queues/strict-lcrq-mpmc.md
       - Legacy cardinalities: guide/queues/legacy.md
       - Benchmarks: guide/queues/benchmarks.md
@@ -156,6 +157,7 @@ nav:
     - lockfree (umbrella): api/lockfree.md
     - Queues:
       - Bounded Queue (BQueue): api/bqueue.md
+      - 128-Bit DWCAS Queue (BQueue128): api/bqueue128.md
       - Unbounded Queue (Queue): api/queue.md
     - Channels:
       - Channel: api/channel.md

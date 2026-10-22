@@ -16,6 +16,7 @@ Below is the complete API reference categorized by architectural function.
 ## 1. FIFO Queues
 
 - **[BQueue (Bounded Queue)](bqueue.md)** — Fixed-capacity circular ring buffer based on Dmitry Vyukov's per-slot sequence counter protocol. Covers SPSC (wait-free), SPMC, MPSC, and MPMC (lock-free). Zero runtime allocations in steady state.
+- **[BQueue128 (128-Bit DWCAS Queue)](bqueue128.md)** — High-density bounded MPMC queue for 64-bit scalar types and pointers. Employs hardware 128-bit atomic DWCAS for instantaneous single-instruction publication without intermediate half-written states.
 - **[Queue (Unbounded Queue)](queue.md)** — Dynamic-capacity linked-segment queue. MPMC uses the Morrison & Afek strict-LCRQ algorithm with 128-bit hardware DWCAS; SPSC, SPMC, and MPSC use committed-flag segment chains. Backed by in-tree Debra/NEBR safe memory reclamation.
 
 ---
