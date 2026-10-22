@@ -23,6 +23,7 @@ When designing concurrent systems, you typically know what abstract data type yo
 | **Deque / Work-Stealing** | `ChaseLevDeque[T]` | `Deque[T]`, `ConcurrentDeque[T]` | Chase-Lev Dynamic Circular Deque with C11 Fences & Bulk Stealing | Single-Worker / Multi-Thief | Worker: **Lock-Free**<br>Thieves: **Lock-Free** |
 | **Task Pool / Fork-Join Scheduler**| `TaskPool` | `ThreadPool`, `ConcurrentTaskPool` | Work-Stealing Scheduler over `ChaseLevDeque` and `TreiberStack` | Multi-Worker Work-Stealing | **Lock-Free Scheduling** |
 | **Broadcast / Pub-Sub Ring Buffer**| `BroadcastRing[T]` | `BroadcastCursor[T]`, `TopicBus[T]` | Lock-Free Multicast Ring with Dynamic Reader Cursors & Slow-Consumer Policies | SPMC / MPMC Multicast Fan-Out | Readers: **Wait-Free / Lock-Free**<br>Writers: **Lock-Free** |
+| **Disjoint-Set / Union-Find** | `DisjointSet` | `UnionFind` | Jayanti & Tarjan Wait-Free Path Splitting + Anderson & Woll Rank-Based Union | MPMC (Multi-Threaded) | Find/SameSet: **Wait-Free**<br>Union: **Lock-Free** |
 
 ---
 

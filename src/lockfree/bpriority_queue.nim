@@ -623,6 +623,16 @@ proc peekMin*[
           return (if ok: some(move(val)) else: none(T))
       cpuPause()
 
+template pop*[T; Cap: static int; ccProd, ccCons: static PinScopeCardinality](
+    pq: BPriorityQueue[T, Cap, ccProd, ccCons]
+): untyped =
+  pq.popMin()
+
+template peek*[T; Cap: static int; ccProd, ccCons: static PinScopeCardinality](
+    pq: BPriorityQueue[T, Cap, ccProd, ccCons]
+): untyped =
+  pq.peekMin()
+
 proc clear*[
   T;
   Cap: static int;

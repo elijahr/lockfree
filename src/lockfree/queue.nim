@@ -931,6 +931,38 @@ proc newQueue*[
         reset(mgr[])
         freeAligned(mgr)
 
+proc initQueue*[
+    T;
+    ccProd, ccCons: static PinScopeCardinality,
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](
+    _: typedesc[Queue[T, ccProd, ccCons, ST, S, MaxThreads]]
+): Queue[T, ccProd, ccCons, ST, S, MaxThreads] {.inline.} =
+  ## Typedesc overload for initializing an unbounded Queue value object.
+  newQueue(Queue[T, ccProd, ccCons, ST, S, MaxThreads])
+
+proc initQueue*[
+    T;
+    ccProd, ccCons: static PinScopeCardinality,
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): Queue[T, ccProd, ccCons, ST, S, MaxThreads] {.inline.} =
+  ## Initializes an unbounded Queue value object with sensible defaults (S=64, MaxThreads=128).
+  newQueue(Queue[T, ccProd, ccCons, ST, S, MaxThreads])
+
+proc newQueue*[
+    T;
+    ccProd, ccCons: static PinScopeCardinality,
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): Queue[T, ccProd, ccCons, ST, S, MaxThreads] {.inline.} =
+  ## Smart constructor alias for initQueue.
+  initQueue[T, ccProd, ccCons, ST, S, MaxThreads]()
+
 ## ----------------------------------------------------------------------
 ## len / segmentCount accessors.
 ## ----------------------------------------------------------------------
@@ -1196,120 +1228,374 @@ proc `=destroy`*[
 ## Every signature returns `Queue[...]`, never a backing type.
 ## ----------------------------------------------------------------------
 
-proc newUnboundedSpscQueue*[
+proc initUnboundedSpscQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
-    S, MaxThreads: static int,
+    S: static int = 64,
+    MaxThreads: static int = 128,
 ](): Queue[T, ccSingle, ccSingle, ST, S, MaxThreads] {.inline.} =
-  ## Unbounded SPSC (`ccSingle × ccSingle`) auto-create smart-constructor.
+  ## Unbounded SPSC (`ccSingle × ccSingle`) auto-create constructor.
   ## Skips manager allocation (SPSC has no debra integration).
   newQueue(Queue[T, ccSingle, ccSingle, ST, S, MaxThreads])
 
-proc newUnboundedMpscQueue*[
+proc newUnboundedSpscQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
-    S, MaxThreads: static int,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): Queue[T, ccSingle, ccSingle, ST, S, MaxThreads] {.inline.} =
+  ## Unbounded SPSC (`ccSingle × ccSingle`) auto-create smart-constructor.
+  initUnboundedSpscQueue[T, ST, S, MaxThreads]()
+
+proc initUnboundedMpscQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
 ](
     manager: ptr DebraManager[MaxThreads, nebr.ccSingle]
 ): Queue[T, ccMulti, ccSingle, ST, S, MaxThreads] {.inline.} =
-  ## Unbounded MPSC (`ccMulti × ccSingle`) borrow smart-constructor —
-  ## manager-only form. The consumer thread calls `q.bindConsumer()` on its own
-  ## thread to register and obtain its `Bound` endpoint.
-  ##
-  ## The consumer's debra handle is owned by `Bound` (opaque storage).
-  ## `bindConsumer` wraps registration + binding in one call.
+  ## Unbounded MPSC (`ccMulti × ccSingle`) borrow constructor — manager-only form.
   newQueue(Queue[T, ccMulti, ccSingle, ST, S, MaxThreads], manager)
 
 proc newUnboundedMpscQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
-    S, MaxThreads: static int,
-](): Queue[T, ccMulti, ccSingle, ST, S, MaxThreads] {.inline.} =
-  ## Unbounded mpsc-equivalent (`ccMulti × ccSingle`) auto-create
-  ## smart-constructor. No thread is registered at construction: the consumer
-  ## thread calls `attachConsumer()` and producer threads call
-  ## `getProducer().attach()` on their own threads.
-  newQueue(Queue[T, ccMulti, ccSingle, ST, S, MaxThreads])
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](
+    manager: ptr DebraManager[MaxThreads, nebr.ccSingle]
+): Queue[T, ccMulti, ccSingle, ST, S, MaxThreads] {.inline.} =
+  ## Unbounded MPSC (`ccMulti × ccSingle`) borrow smart-constructor — manager-only form.
+  initUnboundedMpscQueue[T, ST, S, MaxThreads](manager)
 
-proc newUnboundedSpmcQueue*[
+proc initUnboundedMpscQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
-    S, MaxThreads: static int,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): Queue[T, ccMulti, ccSingle, ST, S, MaxThreads] {.inline.} =
+  ## Unbounded mpsc-equivalent (`ccMulti × ccSingle`) auto-create constructor.
+  newQueue(Queue[T, ccMulti, ccSingle, ST, S, MaxThreads])
+
+proc newUnboundedMpscQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): Queue[T, ccMulti, ccSingle, ST, S, MaxThreads] {.inline.} =
+  ## Unbounded mpsc-equivalent (`ccMulti × ccSingle`) auto-create smart-constructor.
+  initUnboundedMpscQueue[T, ST, S, MaxThreads]()
+
+proc initUnboundedSpmcQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
 ](
     manager: ptr DebraManager[MaxThreads, nebr.ccMulti]
 ): Queue[T, ccSingle, ccMulti, ST, S, MaxThreads] {.inline.} =
-  ## Unbounded spmc-equivalent (`ccSingle × ccMulti`) borrow smart-constructor.
+  ## Unbounded spmc-equivalent (`ccSingle × ccMulti`) borrow constructor.
   newQueue(Queue[T, ccSingle, ccMulti, ST, S, MaxThreads], manager)
 
 proc newUnboundedSpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
-    S, MaxThreads: static int,
-](): Queue[T, ccSingle, ccMulti, ST, S, MaxThreads] {.inline.} =
-  ## Unbounded spmc-equivalent (`ccSingle × ccMulti`) auto-create
-  ## smart-constructor.
-  newQueue(Queue[T, ccSingle, ccMulti, ST, S, MaxThreads])
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](
+    manager: ptr DebraManager[MaxThreads, nebr.ccMulti]
+): Queue[T, ccSingle, ccMulti, ST, S, MaxThreads] {.inline.} =
+  ## Unbounded spmc-equivalent (`ccSingle × ccMulti`) borrow smart-constructor.
+  initUnboundedSpmcQueue[T, ST, S, MaxThreads](manager)
 
-proc newUnboundedMpmcQueue*[
+proc initUnboundedSpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
-    S, MaxThreads: static int,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): Queue[T, ccSingle, ccMulti, ST, S, MaxThreads] {.inline.} =
+  ## Unbounded spmc-equivalent (`ccSingle × ccMulti`) auto-create constructor.
+  newQueue(Queue[T, ccSingle, ccMulti, ST, S, MaxThreads])
+
+proc newUnboundedSpmcQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): Queue[T, ccSingle, ccMulti, ST, S, MaxThreads] {.inline.} =
+  ## Unbounded spmc-equivalent (`ccSingle × ccMulti`) auto-create smart-constructor.
+  initUnboundedSpmcQueue[T, ST, S, MaxThreads]()
+
+proc initUnboundedMpmcQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
 ](
     manager: ptr DebraManager[MaxThreads, nebr.ccMulti]
 ): Queue[T, ccMulti, ccMulti, ST, S, MaxThreads] {.inline.} =
-  ## Unbounded mpmc-equivalent (`ccMulti × ccMulti`) borrow smart-constructor.
+  ## Unbounded mpmc-equivalent (`ccMulti × ccMulti`) borrow constructor.
   newQueue(Queue[T, ccMulti, ccMulti, ST, S, MaxThreads], manager)
 
 proc newUnboundedMpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
-    S, MaxThreads: static int,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](
+    manager: ptr DebraManager[MaxThreads, nebr.ccMulti]
+): Queue[T, ccMulti, ccMulti, ST, S, MaxThreads] {.inline.} =
+  ## Unbounded mpmc-equivalent (`ccMulti × ccMulti`) borrow smart-constructor.
+  initUnboundedMpmcQueue[T, ST, S, MaxThreads](manager)
+
+proc initUnboundedMpmcQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
 ](): Queue[T, ccMulti, ccMulti, ST, S, MaxThreads] {.inline.} =
-  ## Unbounded mpmc-equivalent (`ccMulti × ccMulti`) auto-create
-  ## smart-constructor.
+  ## Unbounded mpmc-equivalent (`ccMulti × ccMulti`) auto-create constructor.
   newQueue(Queue[T, ccMulti, ccMulti, ST, S, MaxThreads])
+
+proc newUnboundedMpmcQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): Queue[T, ccMulti, ccMulti, ST, S, MaxThreads] {.inline.} =
+  ## Unbounded mpmc-equivalent (`ccMulti × ccMulti`) auto-create smart-constructor.
+  initUnboundedMpmcQueue[T, ST, S, MaxThreads]()
+
+proc initUnboundedQueue*[
+    T;
+    ccProd, ccCons: static PinScopeCardinality,
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): UnboundedQueue[T, ccProd, ccCons, ST, S, MaxThreads] {.inline.} =
+  ## Generic constructor for UnboundedQueue.
+  newQueue(Queue[T, ccProd, ccCons, ST, S, MaxThreads])
 
 proc newUnboundedQueue*[
     T;
     ccProd, ccCons: static PinScopeCardinality,
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
-    S, MaxThreads: static int,
+    S: static int = 64,
+    MaxThreads: static int = 128,
 ](): UnboundedQueue[T, ccProd, ccCons, ST, S, MaxThreads] {.inline.} =
   ## Generic smart constructor for UnboundedQueue.
-  newQueue(Queue[T, ccProd, ccCons, ST, S, MaxThreads])
+  initUnboundedQueue[T, ccProd, ccCons, ST, S, MaxThreads]()
+
+proc initSpscQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): SpscQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Initializes an unbounded SpscQueue (Single-Producer Single-Consumer).
+  initUnboundedSpscQueue[T, ST, S, MaxThreads]()
+
+proc newSpscQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): SpscQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Smart constructor for SpscQueue (Single-Producer Single-Consumer Unbounded).
+  initSpscQueue[T, ST, S, MaxThreads]()
+
+proc initMpscQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](
+    manager: ptr DebraManager[MaxThreads, nebr.ccSingle]
+): MpscQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Initializes an unbounded MpscQueue with shared manager.
+  initUnboundedMpscQueue[T, ST, S, MaxThreads](manager)
+
+proc newMpscQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](
+    manager: ptr DebraManager[MaxThreads, nebr.ccSingle]
+): MpscQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Smart constructor for MpscQueue with shared manager.
+  initMpscQueue[T, ST, S, MaxThreads](manager)
+
+proc initMpscQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): MpscQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Initializes an unbounded MpscQueue (Multi-Producer Single-Consumer).
+  initUnboundedMpscQueue[T, ST, S, MaxThreads]()
+
+proc newMpscQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): MpscQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Smart constructor for MpscQueue (Multi-Producer Single-Consumer Unbounded).
+  initMpscQueue[T, ST, S, MaxThreads]()
+
+proc initSpmcQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](
+    manager: ptr DebraManager[MaxThreads, nebr.ccMulti]
+): SpmcQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Initializes an unbounded SpmcQueue with shared manager.
+  initUnboundedSpmcQueue[T, ST, S, MaxThreads](manager)
+
+proc newSpmcQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](
+    manager: ptr DebraManager[MaxThreads, nebr.ccMulti]
+): SpmcQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Smart constructor for SpmcQueue with shared manager.
+  initSpmcQueue[T, ST, S, MaxThreads](manager)
+
+proc initSpmcQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): SpmcQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Initializes an unbounded SpmcQueue (Single-Producer Multi-Consumer).
+  initUnboundedSpmcQueue[T, ST, S, MaxThreads]()
+
+proc newSpmcQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): SpmcQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Smart constructor for SpmcQueue (Single-Producer Multi-Consumer Unbounded).
+  initSpmcQueue[T, ST, S, MaxThreads]()
+
+proc initMpmcQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](
+    manager: ptr DebraManager[MaxThreads, nebr.ccMulti]
+): MpmcQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Initializes an unbounded MpmcQueue with shared manager.
+  initUnboundedMpmcQueue[T, ST, S, MaxThreads](manager)
+
+proc newMpmcQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](
+    manager: ptr DebraManager[MaxThreads, nebr.ccMulti]
+): MpmcQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Smart constructor for MpmcQueue with shared manager.
+  initMpmcQueue[T, ST, S, MaxThreads](manager)
+
+proc initMpmcQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): MpmcQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Initializes an unbounded MpmcQueue (Multi-Producer Multi-Consumer).
+  initUnboundedMpmcQueue[T, ST, S, MaxThreads]()
+
+proc newMpmcQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): MpmcQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Smart constructor for MpmcQueue (Multi-Producer Multi-Consumer Unbounded).
+  initMpmcQueue[T, ST, S, MaxThreads]()
+
+proc initSpscUnboundedQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): SpscQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Initializes an SpscQueue (Single-Producer Single-Consumer Unbounded).
+  initUnboundedSpscQueue[T, ST, S, MaxThreads]()
 
 proc newSpscUnboundedQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
-    S, MaxThreads: static int,
+    S: static int = 64,
+    MaxThreads: static int = 128,
 ](): SpscQueue[T, ST, S, MaxThreads] {.inline.} =
-  ## Smart constructor for SpscQueue (Single-Producer Single-Consumer
-  ## Unbounded).
-  newUnboundedSpscQueue[T, ST, S, MaxThreads]()
+  ## Smart constructor for SpscQueue (Single-Producer Single-Consumer Unbounded).
+  initSpscUnboundedQueue[T, ST, S, MaxThreads]()
+
+proc initMpscUnboundedQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): MpscQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Initializes an MpscQueue (Multi-Producer Single-Consumer Unbounded).
+  initUnboundedMpscQueue[T, ST, S, MaxThreads]()
 
 proc newMpscUnboundedQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
-    S, MaxThreads: static int,
+    S: static int = 64,
+    MaxThreads: static int = 128,
 ](): MpscQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Smart constructor for MpscQueue (Multi-Producer Single-Consumer Unbounded).
-  newUnboundedMpscQueue[T, ST, S, MaxThreads]()
+  initMpscUnboundedQueue[T, ST, S, MaxThreads]()
+
+proc initSpmcUnboundedQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): SpmcQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Initializes an SpmcQueue (Single-Producer Multi-Consumer Unbounded).
+  initUnboundedSpmcQueue[T, ST, S, MaxThreads]()
 
 proc newSpmcUnboundedQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
-    S, MaxThreads: static int,
+    S: static int = 64,
+    MaxThreads: static int = 128,
 ](): SpmcQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Smart constructor for SpmcQueue (Single-Producer Multi-Consumer Unbounded).
-  newUnboundedSpmcQueue[T, ST, S, MaxThreads]()
+  initSpmcUnboundedQueue[T, ST, S, MaxThreads]()
+
+proc initMpmcUnboundedQueue*[
+    T;
+    ST: static DeallocationStrategy = DefaultDeallocationStrategy,
+    S: static int = 64,
+    MaxThreads: static int = 128,
+](): MpmcQueue[T, ST, S, MaxThreads] {.inline.} =
+  ## Initializes an MpmcQueue (Multi-Producer Multi-Consumer Unbounded).
+  initUnboundedMpmcQueue[T, ST, S, MaxThreads]()
 
 proc newMpmcUnboundedQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
-    S, MaxThreads: static int,
+    S: static int = 64,
+    MaxThreads: static int = 128,
 ](): MpmcQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Smart constructor for MpmcQueue (Multi-Producer Multi-Consumer Unbounded).
-  newUnboundedMpmcQueue[T, ST, S, MaxThreads]()
+  initMpmcUnboundedQueue[T, ST, S, MaxThreads]()
 
 ## ----------------------------------------------------------------------
 ## Push / pop on Bound endpoints.
@@ -2527,6 +2813,7 @@ iterator items*[
     ST: static DeallocationStrategy,
     S, MaxThreads: static int,
 ](self: var Queue[T, ccSingle, ccSingle, ST, S, MaxThreads]): T =
+  ## Warning: Destructively drains the queue.
   while true:
     let opt = self.pop()
     if opt.isNone:
@@ -2540,6 +2827,7 @@ iterator items*[
     ST: static DeallocationStrategy,
     S, MaxThreads: static int,
 ](self: Bound[T, Tag, Queue[T, ccMulti, ccSingle, ST, S, MaxThreads]]): T =
+  ## Warning: Destructively drains the queue.
   while true:
     let opt = self.pop()
     if opt.isNone:
@@ -2553,6 +2841,7 @@ iterator items*[
     ST: static DeallocationStrategy,
     S, MaxThreads: static int,
 ](self: Bound[T, Tag, Queue[T, ccSingle, ccMulti, ST, S, MaxThreads]]): T =
+  ## Warning: Destructively drains the queue.
   while true:
     let opt = self.pop()
     if opt.isNone:
@@ -2566,11 +2855,75 @@ iterator items*[
     ST: static DeallocationStrategy,
     S, MaxThreads: static int,
 ](self: Bound[T, Tag, Queue[T, ccMulti, ccMulti, ST, S, MaxThreads]]): T =
+  ## Warning: Destructively drains the queue.
   while true:
     let opt = self.pop()
     if opt.isNone:
       break
     yield opt.get()
+
+# pairs: SPSC absorbed (bare Queue).
+iterator pairs*[
+    T;
+    ST: static DeallocationStrategy,
+    S, MaxThreads: static int,
+](self: var Queue[T, ccSingle, ccSingle, ST, S, MaxThreads]): (int, T) =
+  ## Warning: Destructively drains the queue.
+  var idx = 0
+  while true:
+    let opt = self.pop()
+    if opt.isNone:
+      break
+    yield (idx, opt.get())
+    inc idx
+
+# pairs: MPSC via Bound consumer endpoint.
+iterator pairs*[
+    T;
+    Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag,
+    ST: static DeallocationStrategy,
+    S, MaxThreads: static int,
+](self: Bound[T, Tag, Queue[T, ccMulti, ccSingle, ST, S, MaxThreads]]): (int, T) =
+  ## Warning: Destructively drains the queue.
+  var idx = 0
+  while true:
+    let opt = self.pop()
+    if opt.isNone:
+      break
+    yield (idx, opt.get())
+    inc idx
+
+# pairs: SPMC via Bound consumer endpoint.
+iterator pairs*[
+    T;
+    Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag,
+    ST: static DeallocationStrategy,
+    S, MaxThreads: static int,
+](self: Bound[T, Tag, Queue[T, ccSingle, ccMulti, ST, S, MaxThreads]]): (int, T) =
+  ## Warning: Destructively drains the queue.
+  var idx = 0
+  while true:
+    let opt = self.pop()
+    if opt.isNone:
+      break
+    yield (idx, opt.get())
+    inc idx
+
+# pairs: MPMC via Bound consumer endpoint.
+iterator pairs*[
+    T;
+    Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag,
+    ST: static DeallocationStrategy,
+    S, MaxThreads: static int,
+](self: Bound[T, Tag, Queue[T, ccMulti, ccMulti, ST, S, MaxThreads]]): (int, T) =
+  ## Warning: Destructively drains the queue.
+  var idx = 0
+  while true:
+    let opt = self.pop()
+    if opt.isNone:
+      break
+    yield (idx, opt.get())
+    inc idx
 
 # --- destroyAndDrain: SPSC absorbed + callback ---------------------------
 proc destroyAndDrain*[

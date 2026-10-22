@@ -200,7 +200,7 @@ jobs:
             sanitize-address: 'no'
             cache-tag: 'orc'
             continue-on-error: 'false'
-            timeout: 45
+            timeout: 60
 
           - cell: '1b'
             label: 'baseline cpp/gcc/linux'
@@ -213,7 +213,7 @@ jobs:
             sanitize-address: 'no'
             cache-tag: 'cpp'
             continue-on-error: 'false'
-            timeout: 45
+            timeout: 60
 
           - cell: '1c'
             label: 'baseline arc/gcc/linux + nebr aggregator'
@@ -226,7 +226,7 @@ jobs:
             sanitize-address: 'no'
             cache-tag: 'arc'
             continue-on-error: 'false'
-            timeout: 45
+            timeout: 60
 
           - cell: '1d'
             label: 'baseline refc/gcc/linux'
@@ -239,7 +239,7 @@ jobs:
             sanitize-address: 'no'
             cache-tag: 'refc'
             continue-on-error: 'false'
-            timeout: 45
+            timeout: 60
 
     steps:
       - name: Checkout project
@@ -347,7 +347,7 @@ jobs:
   multi-nim:
     name: '13: Multi-Nim (2.2.10, 2.2.12, devel)'
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Checkout project

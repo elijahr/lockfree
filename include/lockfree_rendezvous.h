@@ -22,19 +22,34 @@ extern "C" {
  * 1. Status Codes (Shared with lockfree.h)
  * ========================================================================== */
 
+#ifndef LF_STATUS_DEFINED
+#define LF_STATUS_DEFINED
+typedef enum lf_status {
+    LF_ERR_PANIC           = -2,
+    LF_ERR_FAILURE         = -1,
+    LF_OK                  =  0,
+    LF_ERR_EMPTY           =  1,
+    LF_ERR_FULL            =  2,
+    LF_ERR_CLOSED          =  3,
+    LF_ERR_INVALID_ARG     =  4,
+    LF_ERR_REGISTRY_FULL   =  5,
+    LF_ERR_UNSUPPORTED     =  6
+} lf_status_t;
+
 #ifndef LFQ_STATUS_DEFINED
 #define LFQ_STATUS_DEFINED
-typedef enum lfq_status {
-    LFQ_OK                  =  0,
-    LFQ_ERR_EMPTY           =  1,
-    LFQ_ERR_FULL            =  2,
-    LFQ_ERR_CLOSED          =  3,
-    LFQ_ERR_INVALID_ARG     =  4,
-    LFQ_ERR_REGISTRY_FULL   =  5,
-    LFQ_ERR_UNSUPPORTED     =  6,
-    LFQ_ERR_FAILURE         = -1,
-    LFQ_ERR_PANIC           = -2
-} lfq_status_t;
+#define lfq_status_t lf_status_t
+#define lfq_status lf_status
+#define LFQ_OK                  LF_OK
+#define LFQ_ERR_EMPTY           LF_ERR_EMPTY
+#define LFQ_ERR_FULL            LF_ERR_FULL
+#define LFQ_ERR_CLOSED          LF_ERR_CLOSED
+#define LFQ_ERR_INVALID_ARG     LF_ERR_INVALID_ARG
+#define LFQ_ERR_REGISTRY_FULL   LF_ERR_REGISTRY_FULL
+#define LFQ_ERR_UNSUPPORTED     LF_ERR_UNSUPPORTED
+#define LFQ_ERR_FAILURE         LF_ERR_FAILURE
+#define LFQ_ERR_PANIC           LF_ERR_PANIC
+#endif
 #endif
 
 /* ==========================================================================
@@ -44,7 +59,9 @@ typedef enum lfq_status {
 /**
  * @brief Opaque handle to a zero-buffer synchronous dual RendezvousChannel.
  */
-typedef struct lfq_rendezvous lfq_rendezvous_t;
+typedef struct lf_rendezvous lf_rendezvous_t;
+#define lfq_rendezvous lf_rendezvous
+#define lfq_rendezvous_t lf_rendezvous_t
 
 /**
  * @brief Creates a new zero-buffer synchronous RendezvousChannel.
@@ -52,7 +69,8 @@ typedef struct lfq_rendezvous lfq_rendezvous_t;
  * @param out_chan Out-pointer receiving the allocated channel handle.
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG / LFQ_ERR_OUT_OF_MEM.
  */
-lfq_status_t lfq_rendezvous_create(lfq_rendezvous_t** out_chan);
+lf_status_t lf_rendezvous_create(lf_rendezvous_t** out_chan);
+#define lfq_rendezvous_create lf_rendezvous_create
 
 /**
  * @brief Destroys a RendezvousChannel and releases all internal resources.
@@ -60,7 +78,8 @@ lfq_status_t lfq_rendezvous_create(lfq_rendezvous_t** out_chan);
  * @param chan Channel handle.
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG if chan is NULL.
  */
-lfq_status_t lfq_rendezvous_destroy(lfq_rendezvous_t* chan);
+lf_status_t lf_rendezvous_destroy(lf_rendezvous_t* chan);
+#define lfq_rendezvous_destroy lf_rendezvous_destroy
 
 /**
  * @brief Closes the channel and immediately wakes all blocked senders/receivers
@@ -69,7 +88,8 @@ lfq_status_t lfq_rendezvous_destroy(lfq_rendezvous_t* chan);
  * @param chan Channel handle.
  * @return LFQ_OK on success, or LFQ_ERR_INVALID_ARG if chan is NULL.
  */
-lfq_status_t lfq_rendezvous_close(lfq_rendezvous_t* chan);
+lf_status_t lf_rendezvous_close(lf_rendezvous_t* chan);
+#define lfq_rendezvous_close lf_rendezvous_close
 
 /**
  * @brief Checks whether the RendezvousChannel has been closed.
@@ -77,7 +97,8 @@ lfq_status_t lfq_rendezvous_close(lfq_rendezvous_t* chan);
  * @param chan Channel handle.
  * @return true if closed or chan is NULL, false otherwise.
  */
-bool lfq_rendezvous_is_closed(const lfq_rendezvous_t* chan);
+bool lf_rendezvous_is_closed(const lf_rendezvous_t* chan);
+#define lfq_rendezvous_is_closed lf_rendezvous_is_closed
 
 /**
  * @brief Synchronously sends a pointer payload, blocking until a receiver pairs
@@ -89,11 +110,12 @@ bool lfq_rendezvous_is_closed(const lfq_rendezvous_t* chan);
  *                    shared with the paired receiver (may be NULL).
  * @return LFQ_OK on bilateral handoff, LFQ_ERR_CLOSED if closed, or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_rendezvous_send(
-    lfq_rendezvous_t* chan,
+lf_status_t lf_rendezvous_send(
+    lf_rendezvous_t* chan,
     void* payload,
     uint64_t* out_corr_id
 );
+#define lfq_rendezvous_send lf_rendezvous_send
 
 /**
  * @brief Synchronously receives a pointer payload, blocking until a sender pairs
@@ -105,11 +127,12 @@ lfq_status_t lfq_rendezvous_send(
  *                    shared with the paired sender (may be NULL).
  * @return LFQ_OK on bilateral handoff, LFQ_ERR_CLOSED if closed, or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_rendezvous_recv(
-    lfq_rendezvous_t* chan,
+lf_status_t lf_rendezvous_recv(
+    lf_rendezvous_t* chan,
     void** out_payload,
     uint64_t* out_corr_id
 );
+#define lfq_rendezvous_recv lf_rendezvous_recv
 
 /**
  * @brief Attempts an immediate non-blocking send if a waiting receiver is already
@@ -121,11 +144,12 @@ lfq_status_t lfq_rendezvous_recv(
  * @return LFQ_OK if paired immediately, LFQ_ERR_EMPTY if no waiting receiver,
  *         LFQ_ERR_CLOSED if closed, or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_rendezvous_try_send(
-    lfq_rendezvous_t* chan,
+lf_status_t lf_rendezvous_try_send(
+    lf_rendezvous_t* chan,
     void* payload,
     uint64_t* out_corr_id
 );
+#define lfq_rendezvous_try_send lf_rendezvous_try_send
 
 /**
  * @brief Attempts an immediate non-blocking receive if a waiting sender is already
@@ -137,11 +161,12 @@ lfq_status_t lfq_rendezvous_try_send(
  * @return LFQ_OK if paired immediately, LFQ_ERR_EMPTY if no waiting sender,
  *         LFQ_ERR_CLOSED if closed, or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_rendezvous_try_recv(
-    lfq_rendezvous_t* chan,
+lf_status_t lf_rendezvous_try_recv(
+    lf_rendezvous_t* chan,
     void** out_payload,
     uint64_t* out_corr_id
 );
+#define lfq_rendezvous_try_recv lf_rendezvous_try_recv
 
 /**
  * @brief Synchronously sends a pointer payload with a bounded timeout in milliseconds.
@@ -153,12 +178,13 @@ lfq_status_t lfq_rendezvous_try_recv(
  * @return LFQ_OK on handoff, LFQ_ERR_EMPTY on timeout, LFQ_ERR_CLOSED if closed,
  *         or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_rendezvous_send_timeout(
-    lfq_rendezvous_t* chan,
+lf_status_t lf_rendezvous_send_timeout(
+    lf_rendezvous_t* chan,
     void* payload,
     int32_t timeout_ms,
     uint64_t* out_corr_id
 );
+#define lfq_rendezvous_send_timeout lf_rendezvous_send_timeout
 
 /**
  * @brief Synchronously receives a pointer payload with a bounded timeout in milliseconds.
@@ -170,12 +196,13 @@ lfq_status_t lfq_rendezvous_send_timeout(
  * @return LFQ_OK on handoff, LFQ_ERR_EMPTY on timeout, LFQ_ERR_CLOSED if closed,
  *         or LFQ_ERR_INVALID_ARG.
  */
-lfq_status_t lfq_rendezvous_recv_timeout(
-    lfq_rendezvous_t* chan,
+lf_status_t lf_rendezvous_recv_timeout(
+    lf_rendezvous_t* chan,
     void** out_payload,
     int32_t timeout_ms,
     uint64_t* out_corr_id
 );
+#define lfq_rendezvous_recv_timeout lf_rendezvous_recv_timeout
 
 #ifdef __cplusplus
 }

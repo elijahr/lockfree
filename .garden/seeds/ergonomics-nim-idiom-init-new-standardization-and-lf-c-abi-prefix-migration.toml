@@ -1,0 +1,8 @@
+id = "ergonomics-nim-idiom-init-new-standardization-and-lf-c-abi-prefix-migration"
+title = "Ergonomics, Nim-Idiom init/new standardization, and lf_ C-ABI prefix migration"
+season = "v0.6.0"
+sunlight = "blazing"
+tags = ["ergonomics", "cabi", "api", "nim-style", "copy-safety"]
+status = "SOWN"
+created_at = "2026-10-21T17:45:44Z"
+updated_at = "2026-10-21T17:45:44Z"

@@ -772,6 +772,28 @@ proc contains*[
   var dummyVal: V
   submitBTableOp(self.core, btOpContains, key, move(dummyVal), nil)
 
+proc `[]`*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](self: BTable[K, V, Cap, ccProd, ccCons], key: K): V {.gcsafe, notATransition.} =
+  ## Returns the value associated with `key`.
+  ## Raises `KeyError` if `key` is not found.
+  var val: V
+  if self.tryGet(key, val):
+    return val
+  raise newException(KeyError, "key not found: " & $key)
+
+proc hasKey*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality
+](self: BTable[K, V, Cap, ccProd, ccCons], key: K): bool {.inline, gcsafe, notATransition.} =
+  ## Alias for `contains`. Returns `true` if `key` is present in the table.
+  self.contains(key)
+
 proc remove*[
   K, V;
   Cap: static int;
@@ -1446,6 +1468,30 @@ proc contains*[
     key: K
 ): bool {.inline, gcsafe, notATransition.} =
   ep.queue[].contains(key)
+
+proc `[]`*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality;
+  Tag: TableWriterTag | TableReaderTag
+](
+    ep: Bound[(K, V), Tag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: K
+): V {.inline, gcsafe, notATransition.} =
+  ep.queue[][key]
+
+proc hasKey*[
+  K, V;
+  Cap: static int;
+  ccProd: static PinScopeCardinality;
+  ccCons: static PinScopeCardinality;
+  Tag: TableWriterTag | TableReaderTag
+](
+    ep: Bound[(K, V), Tag, BTable[K, V, Cap, ccProd, ccCons]],
+    key: K
+): bool {.inline, gcsafe, notATransition.} =
+  ep.queue[].hasKey(key)
 
 proc len*[
   K, V;

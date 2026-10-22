@@ -529,6 +529,21 @@ proc contains*[K, V; MaxThreads, MaxLevel: static int](
   ## handle).
   self.get(key).isSome
 
+proc hasKey*[K, V; MaxThreads, MaxLevel: static int](
+    self: SkipListMap[K, V, MaxThreads, MaxLevel],
+    key: K,
+    handle: ThreadHandle[MaxThreads, ccMulti]
+): bool {.inline.} =
+  ## Alias for `contains`. Returns true if `key` is present in the map.
+  self.contains(key, handle)
+
+proc hasKey*[K, V; MaxThreads, MaxLevel: static int](
+    self: SkipListMap[K, V, MaxThreads, MaxLevel],
+    key: K
+): bool {.inline.} =
+  ## Alias for `contains`. Returns true if `key` is present in the map (auto-dispatched thread handle).
+  self.contains(key)
+
 proc put*[K, V; MaxThreads, MaxLevel: static int](
     self: var SkipListMap[K, V, MaxThreads, MaxLevel],
     key: K,
