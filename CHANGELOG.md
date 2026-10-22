@@ -5,17 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.6.0] - 2026-10-21
 
 ### Added
 
-- **Channels Benchmark Portal (`docs/guide/channels/benchmarks.md` & `mkdocs.yml`)**:
-  - Added dedicated interactive benchmark documentation comparing `Channel[T]` (bounded `ckBounded` and unbounded `ckUnbounded`) and `RendezvousChannel[T]` (0-buffer synchronous SSM dual-queue) against `crossbeam`, `flume`, `kanal`, `system.Channel`, and `threading/channels`.
-  - Updated `mkdocs.yml` navigation to include `Channels -> Benchmarks` and removed duplicate `Rendezvous Dual-Queue` entry.
 - **Wait-Free / Lock-Free Concurrent Disjoint-Set (`src/lockfree/disjoint_set.nim`)**:
   - `DisjointSet` (`UnionFind` / `ConcurrentDisjointSet`): Preallocated zero-SMR flat-array concurrent Disjoint-Set (Union-Find / DSU) using 64-bit packed `[rank: uint32 | parent: uint32]` atomic words.
   - Wait-free `find` with one-shot atomic CAS path splitting/halving (`O(alpha(N))` amortized), lock-free rank-based `union` / `tryUnion` with deterministic index tie-breaking (Anderson-Woll / Jayanti-Tarjan), linearizable `sameSet` / `connected` root re-verification, and atomic `numSets` tracking.
   - Exported from `src/lockfree.nim` and verified in `tests/t_disjoint_set.nim` across single-threaded, 8-thread component merging, parallel dependency-graph cycle detection, and concurrent reader/writer workloads.
+  - Full user guide (`docs/guide/disjoint_set.md`) and API reference (`docs/api/disjoint_set.md`) integrated into documentation.
+- **CISL Architecture & Formal Specification (`docs/design/cisl_architecture.md`)**:
+  - Added comprehensive formal specification for the Concurrent Intermediate Synchronization Layer (CISL), formalizing the 4 architectural layers (Physical Hardware Atomics, Core Concurrency Primitives, Universal Typestates & High-Level Orchestration, and FFI / C-ABI Surface) with invariant lattices, progress guarantees, and cross-layer safety proofs.
+- **Standardized Idiomatic Nim Value Constructors (`init*`)**:
+  - Added `init*` value constructors across all primitives (`initQueue`, `initUnboundedQueue`, `initMpmcQueue`, `initSpscQueue`, `initMpscQueue`, `initSpmcQueue`, `initBQueue`, `initBoundedQueue`, `initBoundedMpmcQueue`, `initBoundedSpscQueue`, `initBoundedMpscQueue`, `initBoundedSpmcQueue`, `initTreiberStack`, `initBStack`, `initChaseLevDeque`, `initBTable`, `initSkipListMap`, `initSkipListSet`, `initBPriorityQueue`, `initPriorityQueue`) aligning with Nim stdlib conventions (`init*` for stack/value objects, `new*` for ref/heap allocations).
+  - Maintained `new*` wrappers/aliases for backwards compatibility while disambiguating bounded vs unbounded constructor collisions when importing `lockfree`.
+- **C-ABI Prefix Migration (`lf_` / `LF_`) & Full Backwards Compatibility (`include/lockfree.h` & `src/lockfree/cabi.nim`)**:
+  - Modernized the FFI export surface from `lfq_` / `LFQ_` to `lf_` / `LF_` across types (`lf_queue_t`, `lf_stack_t`, `lf_bstack_t`, `lf_bpqueue_t`, `lf_btable_t`, `lf_table_t`, `lf_set_t`, `lf_ctrie_t`, etc.), functions (`lf_*_create`, `lf_*_destroy`, `lf_*_push`, etc.), and return codes (`LF_OK`, `LF_ERR_*`).
+  - Preserved 100% backwards compatibility via C header `#define` aliases and dual-exported Nim FFI symbols.
+- **Channels Benchmark Portal (`docs/guide/channels/benchmarks.md` & `mkdocs.yml`)**:
+  - Added dedicated interactive benchmark documentation comparing `Channel[T]` (bounded `ckBounded` and unbounded `ckUnbounded`) and `RendezvousChannel[T]` (0-buffer synchronous SSM dual-queue) against `crossbeam`, `flume`, `kanal`, `system.Channel`, and `threading/channels`.
+  - Updated `mkdocs.yml` navigation to include `Channels -> Benchmarks` and removed duplicate `Rendezvous Dual-Queue` entry.
+
+### Fixed
+
+- **Copy-Safety Compilation Invariants**:
+  - Added compile-time `{.error.}` guards on `=copy` for `BQueue` and `TokenBucket`/`LeakyBucket` to prevent accidental slicing/shallow copying of inlined atomics.
 
 ### Changed
 
