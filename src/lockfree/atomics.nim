@@ -47,6 +47,35 @@ when not (
   .}
 
 # ---------------------------------------------------------------------------
+# Hardware 128-bit DWCAS Platform Predicate & Downstream Compiler Flags
+# ---------------------------------------------------------------------------
+
+const supportsDwcas* = (sizeof(pointer) == 8) and (
+  defined(amd64) or defined(x86_64) or
+  defined(arm64) or defined(aarch64) or
+  defined(vcc)
+)
+  ## Compile-time predicate indicating whether the target architecture and
+  ## toolchain provide 128-bit hardware Double-Word Compare-And-Swap (DWCAS).
+  ##
+  ## True on 64-bit x86 (cmpxchg16b), 64-bit ARM (casp under FEAT_LSE or ldxp/stxp),
+  ## and MSVC on x64/ARM64 (_InterlockedCompareExchange128).
+  ## False on 32-bit platforms, WebAssembly, and architectures without 128-bit atomics.
+
+when supportsDwcas and not defined(lockfreeCustomCFlags):
+  # Downstream Nimble packages do not automatically inherit a dependency's nim.cfg.
+  # To ensure hardware DWCAS instructions inline cleanly out of the box without
+  # requiring manual user compiler configuration, we inject target-specific C
+  # compiler flags via {.passC.}.
+  # Callers wishing to control flags manually can define `-d:lockfreeCustomCFlags`.
+  when (defined(amd64) or defined(x86_64)) and (defined(gcc) or defined(clang)) and not defined(vcc):
+    {.passc: "-mcx16".}
+  elif (defined(arm64) or defined(aarch64)) and defined(gcc) and not defined(vcc):
+    {.passc: "-march=armv8.1-a+lse -mno-outline-atomics".}
+  elif (defined(arm64) or defined(aarch64)) and defined(clang) and not defined(vcc):
+    {.passc: "-march=armv8.1-a+lse".}
+
+# ---------------------------------------------------------------------------
 # MSVC intrinsics surface
 # ---------------------------------------------------------------------------
 #

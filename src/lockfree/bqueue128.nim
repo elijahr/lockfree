@@ -35,6 +35,9 @@ import ./atomics
 import ./internal/aligned_alloc
 import std/options
 
+when not supportsDwcas:
+  {.error: "BQueue128 requires 128-bit hardware DWCAS support (x86_64 with -mcx16, aarch64 with LSE, or 64-bit vcc).".}
+
 type
   BQueue128Slot*[T] = Atomic[Pair[uint64, T]]
     ## 16-byte slot holding monotonic sequence counter (`Pair.first`) and
@@ -116,7 +119,7 @@ proc tryPush*[T: uint64 | int64 | pointer | int, N: static int](
     let cell = addr self.cells[pos and mask]
     var observed: Pair[uint64, T]
     dwcasOrderRelaxedCAS:
-      observed = load(cell[], moAcquire)
+      observed = load(cell[], moSequentiallyConsistent)
     let diff = int64(observed.first) - int64(pos)
     if diff == 0:
       if self.tail.compareExchangeWeak(pos, pos + 1, moRelaxed, moRelaxed):
@@ -150,7 +153,7 @@ proc tryPop*[T: uint64 | int64 | pointer | int, N: static int](
     let cell = addr self.cells[pos and mask]
     var observed: Pair[uint64, T]
     dwcasOrderRelaxedCAS:
-      observed = load(cell[], moAcquire)
+      observed = load(cell[], moSequentiallyConsistent)
     let diff = int64(observed.first) - int64(pos + 1)
     if diff == 0:
       if self.head.compareExchangeWeak(pos, pos + 1, moRelaxed, moRelaxed):
@@ -189,7 +192,7 @@ proc tryPeek*[T: uint64 | int64 | pointer | int, N: static int](
   let cell = unsafeAddr self.cells[pos and mask]
   var observed: Pair[uint64, T]
   dwcasOrderRelaxedCAS:
-    observed = load(cell[], moAcquire)
+    observed = load(cell[], moSequentiallyConsistent)
   if int64(observed.first) == int64(pos + 1):
     val = observed.second
     return true

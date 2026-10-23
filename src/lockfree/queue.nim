@@ -217,7 +217,7 @@ proc tryClaim*[T](cell: var LCRQCell[T], expectedSeq: uint): Option[T] {.inline.
   ## the sole authority on cell state. A filled cell with payload `default(T)`
   ## (e.g. `q.push(0)`, `q.push(nil)`) is a legitimate publish and MUST be
   ## returned via `some(observed.second)`.
-  var prev = load(cell, moAcquire)
+  var prev = load(cell, moSequentiallyConsistent)
   if prev.first != expectedSeq + 1:
     when not supportsCopyMem(T):
       wasMoved(prev.second)
@@ -521,7 +521,7 @@ proc newSegment[T; ccProd, ccCons: static PinScopeCardinality, S: static int]():
       store(
         result.cells[i],
         Pair[uint, SlotEncoding(T)](first: 0'u, second: default(SlotEncoding(T))),
-        moRelaxed,
+        moSequentiallyConsistent,
       )
   elif ccProd == ccMulti:
     # MPSC: legacy committed flags init (unchanged).
@@ -593,7 +593,7 @@ proc forecloseSegmentForRetire[T; S: static int](
   ## cell but no consumer has claimed it yet — retiring would lose the value.
   var i = fromIdx
   while i < S:
-    let cur = load(seg.cells[i], moAcquire)
+    let cur = load(seg.cells[i], moSequentiallyConsistent)
     if seqIsClosed(cur.first):
       inc i
       continue
@@ -605,7 +605,7 @@ proc forecloseSegmentForRetire[T; S: static int](
         continue
       # CAS failed — either CLOSED by a concurrent consumer, or producer just
       # published. Re-read to discriminate.
-      let recheck = load(seg.cells[i], moAcquire)
+      let recheck = load(seg.cells[i], moSequentiallyConsistent)
       if seqIsClosed(recheck.first):
         inc i
         continue
@@ -1753,7 +1753,7 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
               # reservation and this publish), or — defensively — is at some
               # other unexpected seq value. Re-load with moAcquire to
               # discriminate.
-              let observed = load(seg.cells[tail], moAcquire)
+              let observed = load(seg.cells[tail], moSequentiallyConsistent)
               if seqIsClosed(observed.first):
                 # Cell closed by consumer. The close is a permanent contract,
                 # not a transient failure: the producer MUST escalate to
@@ -2172,7 +2172,7 @@ proc pop*[
             # it) — leave the scan; the fast-path will claim it on a
             # subsequent outer-loop iteration once mySlot realigns with
             # prevConsumerIdx+1.
-            let recheck = load(seg.cells[mySlot], moAcquire)
+            let recheck = load(seg.cells[mySlot], moSequentiallyConsistent)
             if seqIsClosed(recheck.first):
               inc localScanCloses
               if localScanCloses >= S:
@@ -2276,7 +2276,7 @@ proc pop*[
         #       segment. (b) cell empty (seq == 0) — producer raced our
         #       tail-load and has not yet published. Retry on the next outer
         #       loop iteration.
-        let recheck = load(seg.cells[mySlot], moAcquire)
+        let recheck = load(seg.cells[mySlot], moSequentiallyConsistent)
         if seqIsClosed(recheck.first):
           # CRIT-2: fall through to slow-path-style skip. `prevConsumerIdx` is
           # already advanced to `mySlot` by the successful CAS above; the next
@@ -2346,7 +2346,7 @@ proc pop*[
           var waitBackoff = InitialSpin
           while true:
             backoffOnRetry(waitBackoff)
-            let inner = load(seg.cells[mySlot], moAcquire)
+            let inner = load(seg.cells[mySlot], moSequentiallyConsistent)
             if seqIsClosed(inner.first):
               # Cell was closed while we waited (close-on-empty raced the
               # producer). CRIT-2: do NOT retire the segment here — fall
@@ -2593,7 +2593,7 @@ proc popBatch*[
                 discard self.queue.itemCount.fetchSub(1, moRelaxed)
               inc totalPopped
               continue
-            let recheck = load(seg.cells[mySlot], moAcquire)
+            let recheck = load(seg.cells[mySlot], moSequentiallyConsistent)
             if seqIsClosed(recheck.first):
               inc closesSeenThisSegment
               if closesSeenThisSegment >= S:
@@ -2618,7 +2618,7 @@ proc popBatch*[
             var published = false
             while waitSpins < LockFreeQueuesMaxWaitForPublishSpins:
               backoffOnRetry(waitBackoff)
-              let inner = load(seg.cells[mySlot], moAcquire)
+              let inner = load(seg.cells[mySlot], moSequentiallyConsistent)
               if seqIsClosed(inner.first):
                 break
               if inner.first != 0'u:
@@ -2649,14 +2649,14 @@ proc popBatch*[
                 inc totalPopped
                 inc batchClaimed
               else:
-                let recheck = load(seg.cells[slot], moAcquire)
+                let recheck = load(seg.cells[slot], moSequentiallyConsistent)
                 if not seqIsClosed(recheck.first):
                   var waitSpins = 0
                   var waitBackoff = InitialSpin
                   var published = false
                   while waitSpins < LockFreeQueuesMaxWaitForPublishSpins:
                     backoffOnRetry(waitBackoff)
-                    let inner = load(seg.cells[slot], moAcquire)
+                    let inner = load(seg.cells[slot], moSequentiallyConsistent)
                     if seqIsClosed(inner.first):
                       break
                     if inner.first != 0'u:

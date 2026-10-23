@@ -32,6 +32,7 @@
     lockfree_spmc:           '#0891b2',
     lockfree_mpsc:           '#7c3aed',
     lockfree_mpmc:           '#2563eb',
+    lockfree_bqueue128:      '#06b6d4',
     lockfree_cabi:           '#0284c7',
     // lockfree queue family (unbounded) — corresponding lighter tints
     lockfree_unbounded_spsc: '#818cf8',
@@ -436,6 +437,7 @@
     lockfree_spmc:           { name: 'lockfree.spmc.SPMCQueue',                 lang: 'Nim' },
     lockfree_mpsc:           { name: 'lockfree.mpsc.MPSCQueue',                 lang: 'Nim' },
     lockfree_mpmc:           { name: 'lockfree.bqueue.BQueue',                  lang: 'Nim' },
+    lockfree_bqueue128:      { name: 'lockfree.bqueue128.BQueue128',            lang: 'Nim' },
     lockfree_cabi:           { name: 'lockfree.cabi.BQueue',                    lang: 'C-ABI' },
 
     // lockfree queue family (unbounded)
@@ -656,8 +658,9 @@
         t.style.fontWeight = '700';
       }
     }
-    const swatches = container.querySelectorAll('[class*="swatches"] span, [class*="swatch"]');
+    const swatches = container.querySelectorAll('[class*="-swatch"]');
     for (const s of swatches) {
+      if (s.className && s.className.includes('swatches')) continue;
       const raw = (s.textContent || '').trim().replace(/ \*$/, '');
       if (raw.startsWith('lockfree.') || isLockfreequeues(raw)) {
         s.style.fontWeight = '700';
@@ -671,8 +674,10 @@
     const svg = mount.querySelector('svg');
     if (!svg) return null;
 
-    const rawSwatches = Array.from(mount.querySelectorAll('[class*="swatches"] span, [class*="swatch"]'))
-      .filter((s) => s.textContent.trim().length > 0 && !s.querySelector('[class*="swatches"]'));
+    // Observable Plot generates a container with class `*-swatches` and individual items
+    // with class `*-swatch`. We strictly select individual swatches and exclude the container.
+    const rawSwatches = Array.from(mount.querySelectorAll('[class*="-swatch"]'))
+      .filter((s) => !s.className.includes('swatches') && s.textContent.trim().length > 0);
 
     if (rawSwatches.length === 0) return null;
 
@@ -681,10 +686,18 @@
       const seriesId = 's-' + idx;
       s.setAttribute('data-series-id', seriesId);
       const label = s.textContent.trim().replace(/ \*$/, '');
-      const colorIndicator = s.querySelector('svg [fill], svg path, svg circle, span[style*="background"]');
+      const svgEl = s.querySelector('svg');
       let color = null;
-      if (colorIndicator) {
-        color = colorIndicator.getAttribute('fill') || colorIndicator.style.backgroundColor;
+      if (svgEl) {
+        color = svgEl.getAttribute('fill') || svgEl.style.fill;
+        if (!color) {
+          const innerWithFill = svgEl.querySelector('[fill], path, circle');
+          if (innerWithFill) color = innerWithFill.getAttribute('fill') || innerWithFill.style.fill;
+        }
+      }
+      if (!color) {
+        const bgSpan = s.querySelector('span[style*="background"], [style*="background-color"]');
+        if (bgSpan) color = bgSpan.style.backgroundColor;
       }
       if (!color) {
         for (const [lib, meta] of Object.entries(CONTENDER_METADATA)) {
@@ -705,10 +718,15 @@
     // Tag SVG marks with matching data-series-id
     const marks = svg.querySelectorAll('g[aria-label="line"] path, g[aria-label="dot"] path, g[aria-label="dot"] circle, g[aria-label="bar"] rect, g[aria-label="bar"] path');
     for (const m of marks) {
-      const stroke = (m.getAttribute('stroke') || '').toLowerCase();
-      const fill = (m.getAttribute('fill') || '').toLowerCase();
+      const stroke = (m.getAttribute('stroke') || (m.parentElement ? m.parentElement.getAttribute('stroke') : '') || '').toLowerCase();
+      const fill = (m.getAttribute('fill') || (m.parentElement ? m.parentElement.getAttribute('fill') : '') || '').toLowerCase();
+      const titleEl = m.querySelector('title') || (m.parentElement ? m.parentElement.querySelector('title') : null);
+      const titleText = titleEl ? titleEl.textContent : '';
+
       for (const s of seriesList) {
-        if (s.color && (stroke === s.color || fill === s.color)) {
+        const colorMatch = s.color && (stroke === s.color || fill === s.color);
+        const titleMatch = s.label && titleText && titleText.startsWith(s.label);
+        if (colorMatch || titleMatch) {
           m.setAttribute('data-series-id', s.id);
           break;
         }
@@ -742,7 +760,8 @@
         }
       });
 
-      s.el.addEventListener('click', () => {
+      s.el.addEventListener('click', (e) => {
+        e.stopPropagation();
         const isHidden = s.el.classList.toggle('bench-swatch-disabled');
         const targetMarks = svg.querySelectorAll(`[data-series-id="${s.id}"]`);
         for (const tm of targetMarks) {
