@@ -42,6 +42,10 @@ directly.
   grid: Loony, Crossbeam SegQueue, MoodyCamel).
 - `nim/bench_latency.nim` - Latency (ping-pong RTT) driver across the
   four bounded lockfree variants.
+- `nim/bench_bqueue128.nim` - Dedicated 128-bit hardware DWCAS bounded
+  queue benchmark evaluating 16-byte dense slot density vs 64/128-byte
+  cache-line padded cells (`BQueue128` vs `BQueue`) across 1p1c, 2p2c,
+  4p4c, and 8p8c contention shapes.
 - `nim/adapters/` - One file per upstream queue library
   (`<library_slug>_adapter.nim`). Adapters expose a `push(value)
   -> PushResult` / `pop() -> PopResult[T]` shape consumed by the
@@ -81,6 +85,9 @@ nimble benchmarks
 nim c -r -d:release -d:danger --threads:on \
   -d:BenchMpmcMessageCount=100000 -d:BenchMpmcRuns=5 -d:BenchMpmcWarmup=2 \
   benchmarks/nim/bench_mpmc_bounded.nim
+
+# Dedicated 128-bit hardware DWCAS bounded queue benchmark (BQueue128 vs BQueue):
+nim c -r -d:release -d:danger --threads:on benchmarks/nim/bench_bqueue128.nim
 
 # Emit BMF JSON natively (no Python parser; merge to combine).
 ./.tmp/bench_spsc                --bmf-out=spsc.json

@@ -35,6 +35,7 @@ are stable in the lifted source tree.
 | [`spmc.nim`](spmc.nim) | SPMC | Bounded | All |
 | [`mpsc.nim`](mpsc.nim) | MPSC | Bounded | All |
 | [`mpmc.nim`](mpmc.nim) | MPMC | Bounded | All |
+| [`bqueue128.nim`](bqueue128.nim) | MPMC / SPSC | Bounded (128-bit DWCAS) | All |
 | [`audio_buffer.nim`](audio_buffer.nim) | SPSC | Bounded | `none`-friendly |
 | [`task_fanout.nim`](task_fanout.nim) | SPMC | Unbounded | All |
 | [`event_collector.nim`](event_collector.nim) | MPSC | Unbounded | All |

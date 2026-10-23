@@ -195,6 +195,7 @@ task examples, "Runs the examples":
   exec "nim c --threads:on -r examples/spmc.nim"
   exec "nim c --threads:on -r examples/mpsc.nim"
   exec "nim c --threads:on -r examples/mpmc.nim"
+  exec "nim c --threads:on -r examples/bqueue128.nim"
   # Advanced examples
   exec "nim c --threads:on -r examples/audio_buffer.nim"
   exec "nim c --threads:on -r examples/task_fanout.nim"

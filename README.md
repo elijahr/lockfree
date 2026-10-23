@@ -12,7 +12,8 @@ Lock-free concurrent data structures, communication channels, and safe memory re
 The `lockfree` library provides non-blocking concurrent programming primitives across single-producer, multi-producer, single-consumer, and multi-consumer topologies. It consolidates the implementations previously published under `lockfreequeues` and `nim-debra`.
 
 The package provides:
-- Bounded ring buffers (`BQueue`) with static memory allocation.
+- Bounded ring buffers (`BQueue`) with static memory allocation and cache-line padded cells.
+- 128-bit hardware DWCAS bounded ring buffers (`BQueue128`) with single-instruction atomic publish and dense 16-byte slots.
 - Unbounded dynamic-segment queues (`Queue`) using Morrison-Afek strict-LCRQ with 128-bit DWCAS.
 - Communication channels (`Channel`) with automatic thread-local registration.
 - Synchronous zero-buffer dual queues (`RendezvousChannel`) with kernel futex wait/wake.
@@ -22,8 +23,8 @@ The package provides:
 - Work-stealing task pool and scheduler (`TaskPool`).
 - Rate limiters (`TokenBucket`, `LeakyBucket`) and circular byte streaming (`StreamBuffer`).
 - Safe memory reclamation via Neutralization-Enhanced Bounded Epoch Reclamation (`lockfree/smr/nebr`).
-- Foreign function interface exports via C ABI headers (`include/lockfree.h`).
-- Verified safety with 500+ tests under ThreadSanitizer (TSAN) and AddressSanitizer (ASAN), with 23 negative compile-time rejection controls.
+- Foreign function interface exports via C ABI headers (`include/lockfree.h` and `include/lockfree_bqueue128.h`).
+- Verified safety with 500+ tests under ThreadSanitizer (TSAN) and AddressSanitizer (ASAN), with 32 negative compile-time rejection controls.
 
 ---
 
@@ -100,6 +101,12 @@ var cons = mpmc.getConsumer()
 
 assert prod.push(101)
 assert cons.pop() == some(101)
+
+# 128-bit hardware DWCAS bounded queue (16-byte dense slots, single-instruction publish):
+var dwcasQ = initBQueue128[int, 1024]()
+assert dwcasQ.tryPush(200)
+var poppedVal: int
+assert dwcasQ.tryPop(poppedVal) and poppedVal == 200
 ```
 
 ### 3. Unbounded Queues (`Queue` + NEBR)
@@ -188,6 +195,7 @@ At the core of `lockfree`'s Morrison-Afek LCRQ unbounded MPMC queue and NEBR rec
 | **MPSC** | `BQueue` | `newMpscQueue[T, N, P]()` / `BoundedMpscQueue` | Lock-free / Wait-free | Zero-alloc (Ring buffer) | None (Static slots) |
 | **MPSC** | `Queue` | `newUnboundedMpscQueue[T, Strategy, S, MaxT]()` | Lock-free / Wait-free | Linked Segments | NEBR Epoch SMR |
 | **MPMC** | `BQueue` | `newMpmcQueue[T, N, P, C]()` / `BoundedMpmcQueue` | Lock-free / Lock-free | Zero-alloc (Ring buffer) | None (Static slots) |
+| **MPMC / SPSC** | `BQueue128` | `initBQueue128[T, N]()` / `allocAlignedBQueue128[T, N]()` | Lock-free (DWCAS) / Lock-free (DWCAS) | Zero-alloc (Ring buffer) | None (Static 16B slots) |
 | **MPMC** | `Queue` | `newUnboundedMpmcQueue[T, Strategy, S, MaxT]()` | Lock-free (LCRQ DWCAS) / Lock-free | Linked Segments | NEBR Epoch SMR |
 | **MPMC** | `BStack` | `initBStack[T, Cap]()` / `BoundedStack` | Lock-free / Lock-free | Zero-alloc (Indexed pool) | None (64-bit ABA tag) |
 | **MPMC** | `Stack` | `initTreiberStack[T]()` / `ConcurrentStack` | Lock-free / Lock-free | Dynamic Heap Nodes | NEBR Epoch SMR + Tagged DWCAS |
@@ -207,17 +215,18 @@ At the core of `lockfree`'s Morrison-Afek LCRQ unbounded MPMC queue and NEBR rec
 | **CSP (0-Buf)** | `RendezvousChannel` | `newRendezvousChannel[T]()` | Lock-free Fast Path + Futex | Dynamic Waiter Nodes | Refcounted / Wait-Queue |
 | **Work-Stealing** | `TaskPool` | `newTaskPool(numThreads)` | Lock-free Work-Stealing | Pinned Deques + Stack | Task Arena / Retired Array |
 | **Shared Ptr** | `AtomicArc` | `newAtomicArc[T](val)` / `AtomicWeak[T]` | Wait-free (Clone) / Lock-free (Upgrade) | ControlBlock Allocation | Split Strong/Weak Refcount |
-| **C ABI** | `lfq_*` | `lfq_queue_*`, `lfq_stack_*`, `lfq_deque_*`, `lfq_table_*`, `lfq_set_*`, `lfq_pqueue_*`, `lfq_flat_combiner_*`, `lfq_atomic_arc_*` | Topology-dependent | C Heap | NEBR / Internal |
+| **C ABI** | `lf_*` / `lfq_*` | `lf_queue_*`, `lf_bqueue128_*`, `lf_stack_*`, `lf_deque_*`, `lf_table_*`, `lf_set_*`, `lf_pqueue_*`, `lf_flat_combiner_*`, `lf_atomic_arc_*` | Topology-dependent | C Heap (Cacheline Aligned) | NEBR / Internal |
 
 ### Sizing and Topology Guidance:
-- **`BQueue`, `BStack`, `BPriorityQueue`, `BTable` (Bounded Zero-SMR)**: Pre-allocated structures with compile-time capacity and zero heap allocations in steady state. Ideal for embedded, real-time audio, bounded caches, and high-frequency packet loops.
+- **`BQueue128` (128-Bit DWCAS Bounded Zero-SMR)**: Uses single-instruction 128-bit hardware compare-and-swap (`cmpxchg16b` on x86_64, `casp` on ARM64/Apple Silicon) to atomically commit tag and payload in a dense 16-byte slot. Delivers **~129.4M ops/sec** (2.13x faster than classical `BQueue` on 1p1c workloads) and completely eliminates producer stalls. Recommended for 1p1c / 2p2c topologies or memory-constrained buffers; for 4+ threads under heavy contention, classical `BQueue` with cacheline-padded cells is recommended.
+- **`BQueue`, `BStack`, `BPriorityQueue`, `BTable` (Bounded Zero-SMR)**: Pre-allocated structures with compile-time capacity and zero heap allocations in steady state. Enforce non-copyable invariants (`=copy {.error.}`) and strict cacheline alignment (`allocAligned` / `freeAligned`). Ideal for embedded, real-time audio, bounded caches, and high-frequency packet loops.
 - **`Queue` (Unbounded)**: Segmented queues that expand under burst loads without blocking producers. Multi-consumer variants employ Morrison-Afek LCRQ and NEBR epoch reclamation.
 - **`Stack` (Treiber LIFO)**: High-concurrency stack featuring an Elimination-Backoff Array where overlapping push/pop pairs exchange data directly without serializing on the stack top.
 - **`Deque` (Chase-Lev Work-Stealing)**: Single-worker (bottom LIFO) and concurrent multi-thief (top FIFO) circular deque for fork-join parallelism, work-stealing schedulers, and task pools.
 - **`Ctrie`, `SkipListMap`, `SkipListSet` & `SkipListPriorityQueue` (Dynamic Associative & Priority)**: Lock-free dynamic structures backed by NEBR epoch reclamation—`Ctrie` provides $O(1)$ linearizable snapshots, while SkipList variants maintain total key/priority ordering at level 0 with Harris-style logical deletion marking.
 - **`FlatCombiner` (Batch Delegation)**: Converts sequential data structures into high-throughput concurrent primitives by electing a combiner thread to execute up to 64 thread-local publication-list requests per pass.
 - **`Channel` & `RendezvousChannel` (Actor Facade)**: Ergonomic `Sender[T]` / `Receiver[T]` handles with split refcounting, automatic thread registration via thread-local storage (`{.threadvar.}`), and zero-buffer synchronous handoffs.
-- **`lfq_*` (C ABI)**: Clean C99 FFI surface (`include/lockfree.h`) exportable to C, C++, Rust, Zig, and Python.
+- **`lf_*` / `lfq_*` (C ABI)**: Clean C99 FFI surface (`include/lockfree.h` and `include/lockfree_bqueue128.h`) with standardized modern `lf_` prefix and 100% backward-compatible `lfq_` macro aliases, exportable to C, C++, Rust, Zig, and Python with cacheline-aligned allocation (`allocAligned`).
 
 ---
 
@@ -235,6 +244,9 @@ At the core of `lockfree`'s Morrison-Afek LCRQ unbounded MPMC queue and NEBR rec
 
 | Topology | Engine | Shape | Throughput (ops/ms) | Throughput (ops/sec) | vs Nim stdlib `system/Channel` |
 | :--- | :--- | :--- | :---: | :---: | :---: |
+| Topology | Engine | Shape | Throughput (ops/ms) | Throughput (ops/sec) | vs Nim stdlib `system/Channel` |
+| :--- | :--- | :--- | :---: | :---: | :---: |
+| **MPMC** | `BQueue128` (128-Bit DWCAS) | 1 producer, 1 consumer | **129,400 ops/ms** | **129,400,000 ops/s** | **2.13x faster** vs BQueue (Apple Silicon ARM64) |
 | **MPMC** | `BQueue` (Bounded) | 4 producers, 4 consumers | **37,409 ops/ms** | **37,409,159 ops/s** | **13.6x faster** (2,748 ops/ms) |
 | **SPMC** | `BQueue` (Bounded) | 1 producer, 2 consumers | **29,571 ops/ms** | **29,571,078 ops/s** | — *(stdlib has no SPMC)* |
 | **MPSC** | `BQueue` (Bounded) | 4 producers, 1 consumer | **26,804 ops/ms** | **26,803,792 ops/s** | **3.0x faster** (8,837 ops/ms) |
@@ -256,9 +268,9 @@ At the core of `lockfree`'s Morrison-Afek LCRQ unbounded MPMC queue and NEBR rec
 The codebase is protected by a continuous verification matrix executing on every commit:
 
 ```sh
-nimble test          # Runs 23 compile-fail negative controls + 460 unit tests (0.20s)
+nimble test          # Runs 32 compile-fail negative controls + 480+ unit tests (0.20s)
 nimble channel       # Runs 25 Channel facade lifecycle & worker tests (0.06s)
-nimble cabi          # Runs 15 C ABI interop & checksum verification tests (0.07s)
+nimble cabi          # Runs 36 C ABI interop & checksum verification tests (0.07s)
 nimble testStress    # Runs 21 100k-item high-volume contention sweeps (0.63s)
 nimble testTSan      # Full matrix ThreadSanitizer sweep (0 data races)
 nimble testASan      # Full matrix AddressSanitizer sweep (0 leaks, 0 use-after-free)

@@ -23,7 +23,8 @@ Every chart organizes measurements along three dimensions:
 
 ### Bounded vs. Unbounded Queues
 
-- **Bounded Queues (`BQueue[T]`)**: Use a fixed-capacity ring buffer allocated once at initialization. When the buffer is full, `tryPush` returns `false` immediately without allocating memory or blocking the caller.
+- **Bounded Queues (`BQueue[T]`)**: Use a fixed-capacity ring buffer allocated once at initialization with cache-line padded cells. When the buffer is full, `tryPush` returns `false` immediately without allocating memory or blocking the caller.
+- **128-Bit DWCAS Bounded Queues (`BQueue128[T]`)**: Use dense 16-byte slots with single-instruction hardware Double-Word CAS (DWCAS) for atomic publish without producer stalls, achieving up to 129.4M ops/s on low-contention topologies. See the [BQueue128 Guide](bqueue128.md#empirical-benchmarks-architectural-trade-offs) for a complete empirical trade-off analysis.
 - **Unbounded Queues (`Queue[T]`)**: Use linked ring segments reclaimed automatically via Epoch-Based Safe Memory Reclamation (NEBR). Producers never encounter a full queue, trading a small per-operation reclamation cost for elastic capacity. See [Bounded vs. Unbounded](../bounded-vs-unbounded.md) for a detailed comparison.
 
 ### How `system.Channel` Handles MPSC and MPMC Thread Safety
@@ -76,6 +77,7 @@ python3 benchmarks/runner.py run --runs=33
 | `lockfree_spmc` | SPMC | `newSpmcQueue` | Bounded ring buffer |
 | `lockfree_mpsc` | MPSC (`1p1c`..`8p1c`) | `newMpscQueue` | Bounded ring buffer |
 | `lockfree_mpmc` | MPMC (`1p1c`..`8p8c`) | `newMpmcQueue` | Bounded ring buffer (Vyukov) |
+| `lockfree_bqueue128` | MPMC / SPSC (`1p1c`..`8p8c`) | `initBQueue128` / `allocAlignedBQueue128` | Bounded ring buffer (128-bit DWCAS) |
 | `lockfree_unbounded_spsc` | SPSC (`1p1c`) | `newUnboundedSpscQueue` | Unbounded linked segments |
 | `lockfree_unbounded_spmc` | SPMC | `newUnboundedSpmcQueue` | Unbounded linked segments |
 | `lockfree_unbounded_mpsc` | MPSC (`1p1c`..`8p1c`) | `newUnboundedMpscQueue` | Unbounded linked segments |
