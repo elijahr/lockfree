@@ -77,8 +77,54 @@
 ## matters; missing meta is a documentation gap, not a measurement
 ## failure.
 
-import std/[json, os, osproc, sha1, strutils, times]
+import std/[cpuinfo, json, os, osproc, sha1, strutils, times]
 import ../../src/lockfree
+
+proc detectCpuModel(): string =
+  when defined(macosx) or defined(macos) or defined(darwin):
+    try:
+      let (outp, code) = execCmdEx("sysctl -n machdep.cpu.brand_string")
+      if code == 0 and outp.strip().len > 0:
+        return outp.strip()
+    except CatchableError:
+      discard
+  elif defined(linux):
+    try:
+      if fileExists("/proc/cpuinfo"):
+        for line in lines("/proc/cpuinfo"):
+          if line.startsWith("model name") or line.startsWith("Hardware") or line.startsWith("Processor"):
+            let parts = line.split(":", 1)
+            if parts.len == 2 and parts[1].strip().len > 0:
+              return parts[1].strip()
+    except CatchableError:
+      discard
+  elif defined(windows):
+    let p = getEnv("PROCESSOR_IDENTIFIER")
+    if p.len > 0: return p
+  return hostCPU
+
+proc detectTotalMemory(): (int64, string) =
+  when defined(macosx) or defined(macos) or defined(darwin):
+    try:
+      let (outp, code) = execCmdEx("sysctl -n hw.memsize")
+      if code == 0:
+        let bytes = parseBiggestInt(outp.strip())
+        let gb = bytes div (1024 * 1024 * 1024)
+        return (bytes, $gb & " GB")
+    except CatchableError:
+      discard
+  elif defined(linux):
+    try:
+      if fileExists("/proc/meminfo"):
+        for line in lines("/proc/meminfo"):
+          if line.startsWith("MemTotal:"):
+            let kbStr = line.replace("MemTotal:", "").replace("kB", "").strip()
+            let bytes = parseBiggestInt(kbStr) * 1024
+            let gb = bytes div (1024 * 1024 * 1024)
+            return (bytes, $gb & " GB")
+    except CatchableError:
+      discard
+  return (0'i64, "Unknown")
 
 # ---------- Compile-time content fingerprints ----------
 #
@@ -462,6 +508,14 @@ proc getAdapterVersions*(): JsonNode =
   let host = newJObject()
   host["os"] = newJString(hostOS)
   host["arch"] = newJString(hostCPU)
+  host["cpu_model"] = newJString(detectCpuModel())
+  host["cores"] = newJInt(countProcessors())
+  let (memBytes, memHuman) = detectTotalMemory()
+  if memBytes > 0:
+    host["memory_bytes"] = newJInt(memBytes)
+    host["memory_human"] = newJString(memHuman)
+  let envType = if getEnv("GITHUB_ACTIONS") == "true": "GitHub Actions CI Runner" else: "Local Workstation"
+  host["environment"] = newJString(envType)
   result["host"] = host
 
   result["lockfree_version"] = newJString(LockfreeVersion)

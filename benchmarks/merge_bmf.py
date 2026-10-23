@@ -89,6 +89,16 @@ def _merge_meta(
                 for slug, entry in merged_adapters.items()
                 if isinstance(entry, dict) and "status" in entry
             ]
+    base_host = result.get("host")
+    inc_host = incoming_meta.get("host")
+    if isinstance(base_host, dict) and isinstance(inc_host, dict):
+        merged_host = dict(base_host)
+        for k, v in inc_host.items():
+            if k not in merged_host or not merged_host[k]:
+                merged_host[k] = v
+        result["host"] = merged_host
+    elif isinstance(inc_host, dict):
+        result["host"] = dict(inc_host)
     return result
 
 

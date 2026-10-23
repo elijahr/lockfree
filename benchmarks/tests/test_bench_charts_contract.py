@@ -565,6 +565,7 @@ class ChartContractTests(unittest.TestCase):
         self.assertEqual(
             lfq_family,
             [
+                "lockfree_bqueue128",
                 "lockfree_cabi",
                 "lockfree_mpmc",
                 "lockfree_mpsc",

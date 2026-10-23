@@ -182,12 +182,50 @@
   let _activeEcosystem = 'all'; // 'all' | 'nim' | 'cpp' | 'rust'
   let _activeHeroShape = null;  // null (auto) | '4p4c' | '2p2c' | '4p1c' | '1p1c'
   let _activeDisplayMode = 'absolute'; // 'absolute' | 'relative'
+  let _activeEnvironment = null; // environment ID key if multi-environment
   let _currentBmfResult = null;
   const _rebuildCallbacks = [];
 
+  function getEnvironments() {
+    if (!_currentBmfResult || !_currentBmfResult.data) return null;
+    const meta = _currentBmfResult.data.meta;
+    if (meta && meta.environments && typeof meta.environments === 'object') {
+      return meta.environments;
+    }
+    return null;
+  }
+
+  function getActiveHost() {
+    const envs = getEnvironments();
+    if (envs) {
+      if (!_activeEnvironment || !envs[_activeEnvironment]) {
+        _activeEnvironment = Object.keys(envs)[0];
+      }
+      return (envs[_activeEnvironment] && envs[_activeEnvironment].host) || {};
+    }
+    if (_currentBmfResult && _currentBmfResult.data && _currentBmfResult.data.meta) {
+      return _currentBmfResult.data.meta.host || {};
+    }
+    return {};
+  }
+
+  function getActiveBenchmarkData() {
+    const envs = getEnvironments();
+    if (envs) {
+      if (!_activeEnvironment || !envs[_activeEnvironment]) {
+        _activeEnvironment = Object.keys(envs)[0];
+      }
+      const envObj = envs[_activeEnvironment];
+      return (envObj && (envObj.benchmarks || envObj.data)) || {};
+    }
+    if (_currentBmfResult && _currentBmfResult.data) {
+      return _currentBmfResult.data;
+    }
+    return {};
+  }
+
   function matchesEcosystem(library) {
     if (_activeEcosystem === 'all') return true;
-    if (isLockfreequeues(library)) return true;
     const eco = LIBRARY_ECOSYSTEMS[library];
     return eco === _activeEcosystem;
   }
@@ -1825,16 +1863,100 @@
     renderLatencyPanel(document.getElementById('bench-smr-latency'), null, 'bench-smr-latency');
   }
 
-  // ── module: interactive toolbar ─────────────────────────────────────
+  // ── module: interactive toolbar & system specs ─────────────────────
+
+  function renderSystemSpecs() {
+    const host = getActiveHost();
+    const envs = getEnvironments();
+    if (!host || (!host.cpu_model && !host.os && !envs)) return null;
+
+    const wrapper = el('div', { class: 'bench-specs-container' });
+
+    // Multi-environment tabs if multiple environments exist
+    if (envs && Object.keys(envs).length > 1) {
+      const envChips = Object.entries(envs).map(([envKey, envObj]) => {
+        const isActive = _activeEnvironment === envKey;
+        const btn = el('button', {
+          class: 'bench-chip bench-env-chip' + (isActive ? ' active' : ''),
+          type: 'button',
+          'data-env': envKey,
+        }, envObj.label || (envObj.host && envObj.host.cpu_model) || envKey);
+        btn.addEventListener('click', () => {
+          if (_activeEnvironment === envKey) return;
+          _activeEnvironment = envKey;
+          const tb = document.getElementById('bench-toolbar');
+          if (tb) renderToolbar(tb);
+          rerenderCharts();
+        });
+        return btn;
+      });
+
+      const envGroup = el('div', { class: 'bench-filter-group bench-env-group' },
+        el('span', { class: 'bench-filter-label' }, 'Environment:'),
+        el('div', { class: 'bench-chip-group' }, ...envChips)
+      );
+      wrapper.appendChild(envGroup);
+    }
+
+    const card = el('div', { class: 'bench-specs-card' });
+    const items = [];
+
+    if (host.environment) {
+      items.push(el('div', { class: 'bench-spec-item' },
+        el('span', { class: 'bench-spec-k' }, 'Profile'),
+        el('span', { class: 'bench-spec-v bench-spec-badge' }, host.environment)
+      ));
+    }
+    if (host.cpu_model) {
+      items.push(el('div', { class: 'bench-spec-item' },
+        el('span', { class: 'bench-spec-k' }, 'CPU Model'),
+        el('span', { class: 'bench-spec-v' }, host.cpu_model)
+      ));
+    }
+    if (host.cores) {
+      const arch = host.arch ? ' (' + host.arch + ')' : '';
+      items.push(el('div', { class: 'bench-spec-item' },
+        el('span', { class: 'bench-spec-k' }, 'Cores'),
+        el('span', { class: 'bench-spec-v' }, host.cores + ' threads' + arch)
+      ));
+    }
+    if (host.memory_human) {
+      items.push(el('div', { class: 'bench-spec-item' },
+        el('span', { class: 'bench-spec-k' }, 'Memory'),
+        el('span', { class: 'bench-spec-v' }, host.memory_human)
+      ));
+    }
+    if (host.os) {
+      items.push(el('div', { class: 'bench-spec-item' },
+        el('span', { class: 'bench-spec-k' }, 'OS'),
+        el('span', { class: 'bench-spec-v' }, host.os + (host.arch ? ' ' + host.arch : ''))
+      ));
+    }
+
+    if (items.length > 0) {
+      card.appendChild(el('div', { class: 'bench-specs-grid' }, ...items));
+      wrapper.appendChild(card);
+    }
+
+    return wrapper;
+  }
 
   function renderToolbar(host) {
     if (!host) return;
     host.innerHTML = '';
 
-    const ecoChips = ['all', 'nim', 'cpp', 'rust'].map((eco) => {
+    const specsNode = renderSystemSpecs();
+    if (specsNode) {
+      host.appendChild(specsNode);
+    }
+
+    const controlsBar = el('div', { class: 'bench-controls-bar' });
+
+    const ecoChips = ['all', 'nim', 'cpp', 'rust', 'c'].map((eco) => {
       const label = eco === 'all' ? 'All' :
                     eco === 'nim' ? 'Nim' :
-                    eco === 'cpp' ? 'C++' : 'Rust';
+                    eco === 'cpp' ? 'C++' :
+                    eco === 'rust' ? 'Rust' : 'C';
       const btn = el('button', {
         class: 'bench-chip' + (_activeEcosystem === eco ? ' active' : ''),
         type: 'button',
@@ -1901,16 +2023,19 @@
       el('div', { class: 'bench-chip-group' }, ...shapeChips)
     );
 
-    host.appendChild(ecoGroup);
-    host.appendChild(modeGroup);
-    host.appendChild(shapeGroup);
+    controlsBar.appendChild(ecoGroup);
+    controlsBar.appendChild(modeGroup);
+    controlsBar.appendChild(shapeGroup);
+    host.appendChild(controlsBar);
   }
 
   function rerenderCharts() {
-    if (!_currentBmfResult || !_currentBmfResult.data) return;
+    if (!_currentBmfResult) return;
+    const bmfData = getActiveBenchmarkData();
+    if (!bmfData) return;
     _rebuildCallbacks.length = 0;
     const heroHost = document.getElementById('bench-hero');
-    const byTopology = groupByTopology(_currentBmfResult.data);
+    const byTopology = groupByTopology(bmfData);
     if (heroHost) renderHero(heroHost, byTopology);
 
     for (const panel of THROUGHPUT_PANELS) {
@@ -1972,19 +2097,19 @@
 
     renderLatencyPanel(
       document.getElementById('bench-latency'),
-      _currentBmfResult.data || null,
+      bmfData,
       'bench-latency',
       (t) => t === 'spsc' || t === 'spmc' || t === 'mpsc' || t === 'mpmc'
     );
     renderLatencyPanel(
       document.getElementById('bench-rendezvous-latency'),
-      _currentBmfResult.data || null,
+      bmfData,
       'bench-rendezvous-latency',
       (t) => t === 'rendezvous_rpc' || t === 'rendezvous_handoff'
     );
     renderLatencyPanel(
       document.getElementById('bench-smr-latency'),
-      _currentBmfResult.data || null,
+      bmfData,
       'bench-smr-latency',
       (t) => t === 'smr_pin_unpin' || t === 'smr_retire_reclaim' || t === 'pin_unpin' || t === 'retire_reclaim'
     );
