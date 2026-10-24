@@ -47,7 +47,7 @@ proc prepareCAS*(atom: ptr Atomic[int], expected, desired: int): CASPending {.in
   CASPending(CASAttempt(atom: atom, expected: expected, desired: desired))
 
 # Execute CAS - returns the typestate union; caller MUST match on it.
-proc executeCAS*(p: CASPending): CASResult {.transition.} =
+proc executeCAS*(p: sink CASPending): CASResult {.transition.} =
   let attempt = CASAttempt(p)
   var expected = attempt.expected
   let success = attempt.atom[].compareExchangeWeak(
