@@ -34,6 +34,7 @@ type
 
 typestate SPSCPushOp[N: static int]:
   inheritsFromRootObj = true
+  consumeOnTransition = false
   opaqueStates = true
   states SPSCPushStart[N],
     SPSCPushPointersLoaded[N],
