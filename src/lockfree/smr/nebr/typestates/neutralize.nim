@@ -54,7 +54,7 @@ proc scanStart*[MaxThreads: static int, CC: static PinScopeCardinality = ccSingl
   )
 
 proc loadEpoch*[MaxThreads: static int, CC: static PinScopeCardinality](
-    s: ScanStart[MaxThreads, CC], epochsBeforeNeutralize: uint64 = 2
+    s: sink ScanStart[MaxThreads, CC], epochsBeforeNeutralize: uint64 = 2
 ): Scanning[MaxThreads, CC] {.transition.} =
   ## Load global epoch and compute threshold for stalled threads. Threads with
   ## epoch < (globalEpoch - epochsBeforeNeutralize) get signaled.
@@ -82,7 +82,7 @@ func threshold*[MaxThreads: static int, CC: static PinScopeCardinality](
   NeutralizeContext[MaxThreads, CC](s).threshold
 
 proc scanAndSignal*[MaxThreads: static int, CC: static PinScopeCardinality](
-    s: Scanning[MaxThreads, CC]
+    s: sink Scanning[MaxThreads, CC]
 ): ScanComplete[MaxThreads, CC] {.transition.} =
   ## Scan all registered threads and send SIGUSR1 to stalled pinned threads.
   ## Returns count of signals sent.

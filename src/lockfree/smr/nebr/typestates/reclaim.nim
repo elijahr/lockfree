@@ -142,7 +142,7 @@ proc reclaimStart*[MaxThreads: static int, CC: static PinScopeCardinality = ccSi
   )
 
 proc loadEpochs*[MaxThreads: static int, CC: static PinScopeCardinality](
-    s: ReclaimStart[MaxThreads, CC]
+    s: sink ReclaimStart[MaxThreads, CC]
 ): EpochsLoaded[MaxThreads, CC] {.transition.} =
   ## Load global epoch and compute minimum epoch across pinned threads.
   ##
@@ -224,7 +224,7 @@ func safeEpoch*[MaxThreads: static int, CC: static PinScopeCardinality](
   ReclaimContext[MaxThreads, CC](e).safeEpoch
 
 proc checkSafe*[MaxThreads: static int, CC: static PinScopeCardinality](
-    e: EpochsLoaded[MaxThreads, CC]
+    e: sink EpochsLoaded[MaxThreads, CC]
 ): ReclaimCheck[MaxThreads, CC] {.transition.} =
   ## Check if any epochs are safe to reclaim.
   let ctx = ReclaimContext[MaxThreads, CC](e)
