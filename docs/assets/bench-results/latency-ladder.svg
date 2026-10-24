@@ -31,17 +31,17 @@
   <rect x="35" y="75" width="180" height="95" class="inner-card" />
   <rect x="35" y="75" width="180" height="4" rx="2" fill="#10b981" />
   <text x="125.0" y="107" class="metric-name">Median (p50)</text>
-  <text x="125.0" y="143" class="metric-val" fill="#10b981">235 <tspan class="metric-unit">ns</tspan></text>
+  <text x="125.0" y="143" class="metric-val" fill="#10b981">250 <tspan class="metric-unit">ns</tspan></text>
   <rect x="235" y="75" width="180" height="95" class="inner-card" />
   <rect x="235" y="75" width="180" height="4" rx="2" fill="#3b82f6" />
   <text x="325.0" y="107" class="metric-name">95th percentile</text>
-  <text x="325.0" y="143" class="metric-val" fill="#3b82f6">265 <tspan class="metric-unit">ns</tspan></text>
+  <text x="325.0" y="143" class="metric-val" fill="#3b82f6">271 <tspan class="metric-unit">ns</tspan></text>
   <rect x="435" y="75" width="180" height="95" class="inner-card" />
   <rect x="435" y="75" width="180" height="4" rx="2" fill="#6366f1" />
   <text x="525.0" y="107" class="metric-name">99th percentile</text>
-  <text x="525.0" y="143" class="metric-val" fill="#6366f1">286 <tspan class="metric-unit">ns</tspan></text>
+  <text x="525.0" y="143" class="metric-val" fill="#6366f1">281 <tspan class="metric-unit">ns</tspan></text>
   <rect x="635" y="75" width="180" height="95" class="inner-card" />
   <rect x="635" y="75" width="180" height="4" rx="2" fill="#8b5cf6" />
   <text x="725.0" y="107" class="metric-name">99.9th percentile</text>
-  <text x="725.0" y="143" class="metric-val" fill="#8b5cf6">426 <tspan class="metric-unit">ns</tspan></text>
+  <text x="725.0" y="143" class="metric-val" fill="#8b5cf6">342 <tspan class="metric-unit">ns</tspan></text>
 </svg>
