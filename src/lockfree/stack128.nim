@@ -316,3 +316,7 @@ proc `=destroy`*[T](self: var TaggedStack[T]) =
     curFree = next
   self.freeList.store(Pair[uint64, uint64](first: 0'u64, second: 0'u64), moSequentiallyConsistent)
   self.count.store(0, moRelaxed)
+
+proc destroy*[T](self: var TaggedStack[T]) {.inline.} =
+  ## Explicitly destroys and reclaims all active and pooled nodes.
+  `=destroy`(self)

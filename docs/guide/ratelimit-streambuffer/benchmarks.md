@@ -12,8 +12,10 @@ Performance benchmarks evaluating `TokenBucket` and `LeakyBucket` (hardware 128-
 
 | Library Slug | Language | Primitive | Algorithm | Progress Guarantee |
 | :--- | :--- | :--- | :--- | :--- |
-| `token_bucket` | Nim | `TokenBucket` (`lockfree/ratelimit`) | 128-bit DWCAS fractional nano-token bucket | Lock-Free (CAS loop) |
-| `leaky_bucket` | Nim | `LeakyBucket` (`lockfree/ratelimit`) | Atomic water-level / emission-interval meter | Lock-Free (CAS loop) |
+| `token_bucket` | Nim | `TokenBucket` (`lockfree/ratelimit`) | 128-bit DWCAS fractional nano-token bucket | Lock-Free (128-bit DWCAS) |
+| `token_bucket64` | Nim | `TokenBucket64` (`lockfree/ratelimit`) | 64-bit single-word packed millisecond bucket | Lock-Free (64-bit CAS) |
+| `leaky_bucket` | Nim | `LeakyBucket` (`lockfree/ratelimit`) | 128-bit DWCAS water-level / emission meter | Lock-Free (128-bit DWCAS) |
+| `leaky_bucket64` | Nim | `LeakyBucket64` (`lockfree/ratelimit`) | 64-bit single-word packed GCRA meter | Lock-Free (64-bit CAS) |
 | `governor_gcra` | Rust | `governor::RateLimiter` (Direct In-Memory) | Generic Cell Rate Algorithm (GCRA) atomic state | Lock-Free (64-bit CAS) |
 | `stream_ring` | Nim | `StreamRing` (`lockfree/streambuffer`) | Zero-copy SPSC circular byte slice buffer | Wait-Free (Read & Write) |
 | `rtrb_stream` | Rust | `rtrb::RingBuffer<u8>` | Wait-free SPSC chunked byte ring buffer | Wait-Free (Read & Write) |

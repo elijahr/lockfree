@@ -93,3 +93,28 @@ Following the Nim standard library idioms:
 | `sameSet(x, y)` | Wait-Free | $O(\alpha(N))$ amortized | 0 |
 | `setsCount` | Wait-Free | $O(1)$ | 0 |
 | `reset()` | Single-Threaded | $O(N)$ | 0 |
+
+---
+
+## 5. Benchmarks & Scaling Characteristics
+
+`DisjointSet` is benchmarked under concurrent read contention (`find`) and randomized graph edge streams (`union` and `sameSet`) across 1 to 16 threads against a standard locked Tarjan DSU baseline (`locked_disjoint_set`).
+
+### Interactive Performance Visualizer
+
+<div markdown="0">
+  <div id="bench-status" class="bench-status" hidden></div>
+  <div id="bench-toolbar" class="bench-toolbar"></div>
+</div>
+
+### Concurrent `find` Throughput (`disjoint_set_find`)
+
+<div markdown="0">
+  <div id="bench-disjoint-set-find" class="bench-panel"></div>
+</div>
+
+### Concurrent Edge Stream `union` / `sameSet` Throughput (`disjoint_set_union`)
+
+<div markdown="0">
+  <div id="bench-disjoint-set-union" class="bench-panel"></div>
+</div>

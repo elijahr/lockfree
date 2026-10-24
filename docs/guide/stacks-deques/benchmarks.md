@@ -14,6 +14,7 @@ The classic Treiber stack algorithm suffers from extreme contention on its singl
 | :--- | :--- | :--- | :--- | :--- |
 | `treiber_stack` | Nim | `lockfree/stack` (`TreiberStack[T]`) | Lock-Free (Push & Pop) | Elimination-backoff collision array + NEBR |
 | `bstack` | Nim | `lockfree/bstack` (`BStack[T, Cap]`) | Lock-Free (Tagged slot CAS) | Preallocated slot pool + elimination-backoff array (Zero SMR) |
+| `tagged_stack` | Nim | `lockfree/stack128` (`TaggedStack[T]`) | Lock-Free (128-bit DWCAS) | 128-bit hardware DWCAS + monotonic 64-bit ABA counter + freelist (Zero SMR) |
 | `boost_lockfree_stack` | C++ | `boost::lockfree::stack<T>` | Lock-Free (Tagged pointer CAS) | Exponential backoff (no elimination array) |
 | `locked_stack` | Nim | `seq[T]` + `std/locks.Lock` | Blocking (`pthread_mutex_t`) | OS mutex queue serialization |
 | `chase_lev_deque` | Nim | `lockfree/deque` (`ChaseLevDeque[T]`) | Wait-Free Push / Lock-Free Steal | Cache-line isolated top/bottom indices |

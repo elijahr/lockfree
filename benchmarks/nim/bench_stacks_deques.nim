@@ -2,6 +2,7 @@
 ##   1. MPMC Stacks (`stack_mpmc` across 1p1c, 2p2c, 4p4c, 8p8c):
 ##      - `treiber_stack` (Nim Lock-Free TreiberStack with elimination backoff)
 ##      - `bstack` (Nim Preallocated Zero-SMR Bounded Stack with elimination backoff)
+##      - `tagged_stack` (Nim Lock-Free TaggedStack / Stack128 with 128-bit hardware DWCAS)
 ##      - `boost_lockfree_stack` (C++ boost::lockfree::stack)
 ##      - `locked_stack` (Nim seq + Lock baseline)
 ##   2. Work-Stealing Deques (`work_stealing` across 1w1t, 1w2t, 1w4t, 1w8t):
@@ -24,6 +25,8 @@ import lockfree/deque
 import lockfree/priority_queue
 import lockfree/bpriority_queue
 import lockfree/atomics
+when supportsDwcas:
+  import lockfree/stack128
 
 const
   BenchStackRuns* {.intdefine.} = 3
@@ -111,6 +114,7 @@ type
   StackKind = enum
     skTreiber
     skBStack
+    skTaggedStack
     skBoost
     skLocked
 
@@ -118,6 +122,7 @@ type
     stackKind: StackKind
     treiberPtr: ptr TreiberStack[int]
     bstackPtr: ptr BStack[int, BStackBenchCap]
+    taggedPtr: pointer # ptr TaggedStack[int] when supportsDwcas
     boostPtr: pointer
     lockedPtr: LockedStack[int]
     isProducer: bool
@@ -134,6 +139,9 @@ proc stackWorkerBody(ctxPtr: ptr StackWorkerCtx) {.thread.} =
       of skBStack:
         while not ctx.bstackPtr[].tryPush(i):
           benchBackoffOnPeerWait()
+      of skTaggedStack:
+        when supportsDwcas:
+          cast[ptr TaggedStack[int]](ctx.taggedPtr)[].push(i)
       of skBoost:
         when defined(adapter_boost_lockfree_available) and defined(cpp):
           while not bench_boost_stack_push(ctx.boostPtr, uint64(i)):
@@ -156,6 +164,13 @@ proc stackWorkerBody(ctxPtr: ptr StackWorkerCtx) {.thread.} =
           inc consumed
         else:
           benchBackoffOnPeerWait()
+      of skTaggedStack:
+        when supportsDwcas:
+          var outVal = 0
+          if cast[ptr TaggedStack[int]](ctx.taggedPtr)[].tryPop(outVal):
+            inc consumed
+          else:
+            benchBackoffOnPeerWait()
       of skBoost:
         when defined(adapter_boost_lockfree_available) and defined(cpp):
           var outVal = 0'u64
@@ -181,6 +196,8 @@ proc runStackBenchmark(
 ): float =
   var tStack: TreiberStack[int]
   var bStackNim: BStack[int, BStackBenchCap]
+  when supportsDwcas:
+    var tagStack: TaggedStack[int]
   var lStack: LockedStack[int]
   var bStack: pointer = nil
 
@@ -189,6 +206,9 @@ proc runStackBenchmark(
     tStack = initTreiberStack[int]()
   of skBStack:
     bStackNim = initBStack[int, BStackBenchCap]()
+  of skTaggedStack:
+    when supportsDwcas:
+      tagStack = initTaggedStack[int]()
   of skBoost:
     when defined(adapter_boost_lockfree_available) and defined(cpp):
       bStack = bench_boost_stack_init(csize_t(max(65536, messageCount)))
@@ -198,6 +218,9 @@ proc runStackBenchmark(
   defer:
     if stackKind == skLocked:
       destroyLockedStack(lStack)
+    elif stackKind == skTaggedStack:
+      when supportsDwcas:
+        tagStack.destroy()
     elif stackKind == skBoost:
       when defined(adapter_boost_lockfree_available) and defined(cpp):
         bench_boost_stack_destroy(bStack)
@@ -217,6 +240,7 @@ proc runStackBenchmark(
       stackKind: stackKind,
       treiberPtr: addr tStack,
       bstackPtr: addr bStackNim,
+      taggedPtr: (when supportsDwcas: cast[pointer](addr tagStack) else: nil),
       boostPtr: bStack,
       lockedPtr: lStack,
       isProducer: true,
@@ -231,6 +255,7 @@ proc runStackBenchmark(
       stackKind: stackKind,
       treiberPtr: addr tStack,
       bstackPtr: addr bStackNim,
+      taggedPtr: (when supportsDwcas: cast[pointer](addr tagStack) else: nil),
       boostPtr: bStack,
       lockedPtr: lStack,
       isProducer: false,
@@ -578,8 +603,10 @@ proc main() =
   var stackTargets = @[
     (skTreiber, "treiber_stack"),
     (skBStack, "bstack"),
-    (skLocked, "locked_stack")
   ]
+  when supportsDwcas:
+    stackTargets.add((skTaggedStack, "tagged_stack"))
+  stackTargets.add((skLocked, "locked_stack"))
   when defined(adapter_boost_lockfree_available) and defined(cpp):
     stackTargets.insert((skBoost, "boost_lockfree_stack"), 2)
 

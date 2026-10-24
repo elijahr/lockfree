@@ -699,7 +699,7 @@ proc tryAcquireAt*(self: var TokenBucket64, nowMs: uint32, requested: uint32 = 1
   var oldVal = self.state.load(moAcquire)
   while true:
     let (lastTs, tokens) = unpackRateLimit64(oldVal)
-    let diff = int32(nowMs - lastTs)
+    let diff = cast[int32](nowMs - lastTs)
     let elapsedMs = if diff > 0: uint32(diff) else: 0'u32
     let added = if self.refillRatePerSec == 0: 0'u32 else: uint32((uint64(elapsedMs) * uint64(self.refillRatePerSec)) div 1000'u64)
     let avail = min(uint64(self.capacity), uint64(tokens) + uint64(added))

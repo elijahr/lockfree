@@ -136,6 +136,10 @@ proc `=destroy`*(self: var DisjointSet) {.raises: [].} =
     if self.core.rc.fetchSub(1, moAcquireRelease) == 1:
       destroyDisjointSetCore(self.core)
 
+proc destroy*(self: var DisjointSet) {.inline.} =
+  ## Explicitly releases a reference to the shared disjoint set core.
+  `=destroy`(self)
+
 proc `=copy`*(dest: var DisjointSet, src: DisjointSet) =
   if dest.core == src.core:
     return

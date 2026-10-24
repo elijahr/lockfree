@@ -1,7 +1,9 @@
 ## Benchmarks for Rate Limiting & Streaming:
 ##   1. Rate Limiter Contention (`contention` across 1t, 2t, 4t, 8t, 16t):
 ##      - `token_bucket` (Nim Lock-Free TokenBucket with 128-bit DWCAS nano-tokens)
-##      - `leaky_bucket` (Nim Lock-Free LeakyBucket / GCRA virtual scheduling)
+##      - `token_bucket64` (Nim Lock-Free TokenBucket64 with 64-bit single-word CAS)
+##      - `leaky_bucket` (Nim Lock-Free LeakyBucket / GCRA virtual scheduling with 128-bit DWCAS)
+##      - `leaky_bucket64` (Nim Lock-Free LeakyBucket64 with 64-bit single-word CAS)
 ##      - `governor_gcra` (Rust governor GCRA rate limiter)
 ##   2. SPSC Circular Byte Stream Buffers (`spsc_chunk` across 64b, 512b, 4kb, 64kb):
 ##      - `stream_ring` (Nim Lock-Free StreamRing)
@@ -70,13 +72,17 @@ static inline void bench_boost_stream_destroy(void* p) {
 type
   RateLimiterKind = enum
     rlkTokenBucket
+    rlkTokenBucket64
     rlkLeakyBucket
+    rlkLeakyBucket64
     rlkGovernor
 
   RLWorkerCtx = object
     kind: RateLimiterKind
     tbPtr: ptr TokenBucket
+    tb64Ptr: ptr TokenBucket64
     lbPtr: ptr LeakyBucket
+    lb64Ptr: ptr LeakyBucket64
     govPtr: pointer
     opsCount: int
     threadId: int
@@ -89,9 +95,17 @@ proc rlWorkerBody(ctxPtr: ptr RLWorkerCtx) {.thread.} =
     for _ in 0 ..< ops:
       while not ctx.tbPtr[].tryAcquire(1):
         benchBackoffOnPeerWait()
+  of rlkTokenBucket64:
+    for _ in 0 ..< ops:
+      while not ctx.tb64Ptr[].tryAcquire(1):
+        benchBackoffOnPeerWait()
   of rlkLeakyBucket:
     for _ in 0 ..< ops:
       while not ctx.lbPtr[].tryConsume(1):
+        benchBackoffOnPeerWait()
+  of rlkLeakyBucket64:
+    for _ in 0 ..< ops:
+      while not ctx.lb64Ptr[].tryConsume(1):
         benchBackoffOnPeerWait()
   of rlkGovernor:
     when defined(adapter_rust_ffi_available):
@@ -101,7 +115,9 @@ proc rlWorkerBody(ctxPtr: ptr RLWorkerCtx) {.thread.} =
 
 proc runRateLimiterBenchmark(kind: RateLimiterKind, numThreads: int, totalTokens: int): float =
   var tb: TokenBucket
+  var tb64: TokenBucket64
   var lb: LeakyBucket
+  var lb64: LeakyBucket64
   var govPtr: pointer = nil
 
   # Identical burst = 10_000_000 and rate = 1_000_000_000 across all 3 limiters (HIGH-A04)
@@ -112,10 +128,21 @@ proc runRateLimiterBenchmark(kind: RateLimiterKind, numThreads: int, totalTokens
       refillRatePerSec = 1_000_000_000,
       initialTokens = 10_000_000
     )
+  of rlkTokenBucket64:
+    tb64 = initTokenBucket64(
+      capacityTokens = 10_000_000'u32,
+      refillRatePerSec = 1_000_000_000'u32,
+      initialTokens = 10_000_000'u32
+    )
   of rlkLeakyBucket:
     lb = initLeakyBucketWithBurst(
       burstTokens = 10_000_000,
       leakRatePerSec = 1_000_000_000
+    )
+  of rlkLeakyBucket64:
+    lb64 = initLeakyBucket64(
+      burstToleranceMs = 10'u32,
+      leakRatePerSec = 1_000_000_000'u32
     )
   of rlkGovernor:
     when defined(adapter_rust_ffi_available):
@@ -136,7 +163,9 @@ proc runRateLimiterBenchmark(kind: RateLimiterKind, numThreads: int, totalTokens
     ctxs[i] = RLWorkerCtx(
       kind: kind,
       tbPtr: addr tb,
+      tb64Ptr: addr tb64,
       lbPtr: addr lb,
+      lb64Ptr: addr lb64,
       govPtr: govPtr,
       opsCount: base + (if i < rem: 1 else: 0),
       threadId: i
@@ -288,7 +317,9 @@ proc main() =
 
   var rlTargets = @[
     (rlkTokenBucket, "token_bucket"),
-    (rlkLeakyBucket, "leaky_bucket")
+    (rlkTokenBucket64, "token_bucket64"),
+    (rlkLeakyBucket, "leaky_bucket"),
+    (rlkLeakyBucket64, "leaky_bucket64")
   ]
   when defined(adapter_rust_ffi_available):
     rlTargets.add((rlkGovernor, "governor_gcra"))

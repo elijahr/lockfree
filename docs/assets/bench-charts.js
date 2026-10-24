@@ -55,6 +55,7 @@
     // stacks, deques & priority queues
     treiber_stack:              '#6366f1',
     bstack:                     '#4f46e5',
+    tagged_stack:               '#06b6d4',
     locked_stack:               '#78909c',
     boost_lockfree_stack:       '#00897b',
     chase_lev_deque:            '#6366f1',
@@ -64,6 +65,9 @@
     bpriority_queue:            '#6366f1',
     skiplist_pq:                '#00897b',
     locked_pq:                  '#78909c',
+    // disjoint-set / union-find
+    disjoint_set:               '#6366f1',
+    locked_disjoint_set:        '#78909c',
     // broadcast ring & topic bus
     broadcast_ring_drop:        '#6366f1',
     broadcast_ring_backoff:     '#0277bd',
@@ -73,7 +77,9 @@
     rust_bus:                   '#fb8c00',
     // rate limiting & streaming
     token_bucket:               '#6366f1',
+    token_bucket64:             '#818cf8',
     leaky_bucket:               '#4f46e5',
+    leaky_bucket64:             '#a78bfa',
     governor_gcra:              '#f4511e',
     stream_ring:                '#6366f1',
     rtrb_stream:                '#d84315',
@@ -119,6 +125,7 @@
   const BLOCKING_LIBRARIES = [
     'threading_channels', 'nim_channel', 'nim_channels', 'nim_channel_sync',
     'locked_table', 'locked_set', 'locked_stack', 'locked_pq', 'locked_task_queue',
+    'locked_disjoint_set',
     'broadcast_ring_backoff', 'topic_bus_backoff',
     'mutex_guard', 'deferred_mutex_free',
   ];
@@ -132,11 +139,12 @@
     'lockfree_unbounded_spsc', 'lockfree_unbounded_spmc',
     'lockfree_unbounded_mpsc', 'lockfree_unbounded_mpmc',
     'ctrie', 'btable', 'skiplist', 'skiplist_set',
-    'treiber_stack', 'bstack', 'chase_lev_deque', 'chase_lev_deque_batch',
+    'disjoint_set',
+    'treiber_stack', 'bstack', 'tagged_stack', 'chase_lev_deque', 'chase_lev_deque_batch',
     'bpriority_queue', 'skiplist_pq',
     'broadcast_ring_drop', 'broadcast_ring_backoff',
     'topic_bus_drop', 'topic_bus_backoff',
-    'token_bucket', 'leaky_bucket', 'stream_ring',
+    'token_bucket', 'token_bucket64', 'leaky_bucket', 'leaky_bucket64', 'stream_ring',
     'rendezvous_channel', 'taskpool', 'nebr',
   ];
   const LFQ_FAMILY_SET = new Set(LOCKFREE_FAMILY);
@@ -150,13 +158,14 @@
     nim_channel: 'nim', nim_channels: 'nim', nim_channel_sync: 'nim',
     threading_channels: 'nim', loony: 'nim',
     ctrie: 'nim', btable: 'nim', skiplist: 'nim', skiplist_set: 'nim',
+    disjoint_set: 'nim', locked_disjoint_set: 'nim',
     locked_table: 'nim', locked_set: 'nim',
-    treiber_stack: 'nim', bstack: 'nim', locked_stack: 'nim',
+    treiber_stack: 'nim', bstack: 'nim', tagged_stack: 'nim', locked_stack: 'nim',
     chase_lev_deque: 'nim', chase_lev_deque_batch: 'nim',
     bpriority_queue: 'nim', skiplist_pq: 'nim', locked_pq: 'nim',
     broadcast_ring_drop: 'nim', broadcast_ring_backoff: 'nim',
     topic_bus_drop: 'nim', topic_bus_backoff: 'nim',
-    token_bucket: 'nim', leaky_bucket: 'nim', stream_ring: 'nim',
+    token_bucket: 'nim', token_bucket64: 'nim', leaky_bucket: 'nim', leaky_bucket64: 'nim', stream_ring: 'nim',
     rendezvous_channel: 'nim',
     taskpool: 'nim', locked_task_queue: 'nim',
     nebr: 'nim', arc_atomic_rc: 'nim', mutex_guard: 'nim', deferred_mutex_free: 'nim',
@@ -271,6 +280,8 @@
     pin_unpin: 'SMR Critical-Section Pin/Unpin',
     smr_retire_reclaim: 'SMR Retire/Reclaim + Neutralization',
     retire_reclaim: 'SMR Retire/Reclaim + Neutralization',
+    disjoint_set_find: 'DisjointSet find (Read Contention)',
+    disjoint_set_union: 'DisjointSet union & sameSet (Graph Edge Stream)',
   });
 
   function topologyLabel(topology) {
@@ -346,6 +357,11 @@
     { id: 'bench-smr-retire-reclaim',        label: 'Retire/Reclaim & Stalled-Thread Neutralization',
       includes: (topology) => topology === 'smr_retire_reclaim'
                               || topology === 'retire_reclaim' },
+    // Concurrent Disjoint-Set (Union-Find)
+    { id: 'bench-disjoint-set-find',         label: 'DisjointSet find Contention',
+      includes: (topology) => topology === 'disjoint_set_find' },
+    { id: 'bench-disjoint-set-union',        label: 'DisjointSet union & sameSet Edge Stream',
+      includes: (topology) => topology === 'disjoint_set_union' },
   ];
 
   const BENCH_SOURCE_URLS = Object.freeze({
@@ -403,6 +419,10 @@
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_smr_nebr.nim',
     'bench-smr-latency':
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_smr_nebr.nim',
+    'bench-disjoint-set-find':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_disjoint_set.nim',
+    'bench-disjoint-set-union':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_disjoint_set.nim',
   });
 
   function buildSourceLink(panelId) {
@@ -507,6 +527,7 @@
     // stacks, deques & priority queues
     treiber_stack:              { name: 'lockfree.treiber_stack.TreiberStack',  lang: 'Nim' },
     bstack:                     { name: 'lockfree.bstack.BStack',               lang: 'Nim' },
+    tagged_stack:               { name: 'lockfree.stack128.TaggedStack',        lang: 'Nim' },
     locked_stack:               { name: 'std.deques.Deque (Lock)',              lang: 'Nim' },
     boost_lockfree_stack:       { name: 'boost::lockfree::stack',               lang: 'C++' },
     chase_lev_deque:            { name: 'lockfree.chase_lev.ChaseLevDeque',     lang: 'Nim' },
@@ -516,6 +537,10 @@
     bpriority_queue:            { name: 'lockfree.bpriority_queue.BPriorityQueue', lang: 'Nim' },
     skiplist_pq:                { name: 'lockfree.skiplist.SkipListPQ',         lang: 'Nim' },
     locked_pq:                  { name: 'std.heapqueue.HeapQueue (Lock)',       lang: 'Nim' },
+
+    // disjoint-set / union-find
+    disjoint_set:               { name: 'lockfree.disjoint_set.DisjointSet',    lang: 'Nim' },
+    locked_disjoint_set:        { name: 'disjoint_set.DisjointSet (Lock)',      lang: 'Nim' },
 
     // broadcast ring & topic bus
     broadcast_ring_drop:        { name: 'lockfree.broadcast.BroadcastRing (Drop)', lang: 'Nim' },
@@ -527,7 +552,9 @@
 
     // rate limiting & streaming
     token_bucket:               { name: 'lockfree.ratelimit.TokenBucket',       lang: 'Nim' },
+    token_bucket64:             { name: 'lockfree.ratelimit.TokenBucket64',     lang: 'Nim' },
     leaky_bucket:               { name: 'lockfree.ratelimit.LeakyBucket',       lang: 'Nim' },
+    leaky_bucket64:             { name: 'lockfree.ratelimit.LeakyBucket64',     lang: 'Nim' },
     governor_gcra:              { name: 'governor::RateLimiter',                lang: 'Rust' },
     stream_ring:                { name: 'lockfree.streambuffer.StreamRing',     lang: 'Nim' },
     rtrb_stream:                { name: 'rtrb::RingBuffer',                     lang: 'Rust' },

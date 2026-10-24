@@ -270,6 +270,7 @@ SAMPLE_BMF: dict = {
 EXPECTED_BLOCKING_LIBRARIES = {
     "threading_channels", "nim_channel", "nim_channels", "nim_channel_sync",
     "locked_table", "locked_set", "locked_stack", "locked_pq", "locked_task_queue",
+    "locked_disjoint_set",
     "broadcast_ring_backoff", "topic_bus_backoff",
     "mutex_guard", "deferred_mutex_free",
 }
@@ -716,8 +717,8 @@ class ChartContractTests(unittest.TestCase):
         )
         entries = entry_re.findall(block)
         self.assertEqual(
-            len(entries), 24,
-            f"expected 24 throughput panels, got {len(entries)}: {entries}",
+            len(entries), 26,
+            f"expected 26 throughput panels, got {len(entries)}: {entries}",
         )
 
         # The agreed routing intent. Source of truth for what the
@@ -758,6 +759,8 @@ class ChartContractTests(unittest.TestCase):
             "pin_unpin":           "bench-smr-pin-unpin",
             "smr_retire_reclaim":  "bench-smr-retire-reclaim",
             "retire_reclaim":      "bench-smr-retire-reclaim",
+            "disjoint_set_find":   "bench-disjoint-set-find",
+            "disjoint_set_union":  "bench-disjoint-set-union",
         }
 
         # Translate each JS predicate body into a Python callable

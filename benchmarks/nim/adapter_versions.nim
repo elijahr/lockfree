@@ -509,7 +509,7 @@ proc getAdapterVersions*(): JsonNode =
   host["os"] = newJString(hostOS)
   host["arch"] = newJString(hostCPU)
   host["cpu_model"] = newJString(detectCpuModel())
-  host["cores"] = newJInt(countProcessors())
+  host["cores"] = newJInt(cpuinfo.countProcessors())
   let (memBytes, memHuman) = detectTotalMemory()
   if memBytes > 0:
     host["memory_bytes"] = newJInt(memBytes)
