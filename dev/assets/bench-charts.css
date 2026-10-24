@@ -143,7 +143,8 @@
   background: var(--md-accent-fg-color--transparent, rgba(99, 102, 241, 0.12));
 }
 
-.bench-chart-plot .bench-swatch-disabled {
+.bench-chart-plot [class*="-swatch"]:not([class*="-swatches"]).bench-swatch-disabled,
+.bench-chart-plot .bench-swatch-disabled:not([class*="-swatches"]) {
   opacity: 0.32 !important;
   text-decoration: line-through;
 }
@@ -354,14 +355,88 @@
 /* ── interactive toolbar & filter chips ──────────────────────────── */
 .bench-toolbar {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1.25em;
-  align-items: center;
+  flex-direction: column;
+  gap: 0.85em;
+  align-items: stretch;
   background: var(--md-code-bg-color, rgba(0, 0, 0, 0.04));
   border: 1px solid var(--md-default-fg-color--lightest, rgba(0, 0, 0, 0.1));
   border-radius: 8px;
-  padding: 0.75em 1em;
+  padding: 0.85em 1.1em;
   margin-bottom: 1.25em;
+}
+
+.bench-controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25em;
+  align-items: center;
+}
+
+/* ── system specs & environment switcher ────────────────────────── */
+.bench-specs-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+
+.bench-env-group {
+  margin-bottom: 0.2em;
+}
+
+.bench-env-chip.active {
+  background: var(--md-primary-fg-color, #4f46e5) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+
+.bench-specs-card {
+  width: 100%;
+  background: var(--md-default-bg-color, #ffffff);
+  border: 1px solid var(--md-default-fg-color--lightest, rgba(0, 0, 0, 0.12));
+  border-radius: 6px;
+  padding: 0.55em 0.85em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+[data-md-color-scheme="slate"] .bench-specs-card {
+  background: #1e2129;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.bench-specs-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25em 2em;
+  align-items: center;
+}
+
+.bench-spec-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+
+.bench-spec-k {
+  font-size: 0.68em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--md-default-fg-color--light, #888);
+}
+
+.bench-spec-v {
+  font-size: 0.84em;
+  font-weight: 600;
+  color: var(--md-default-fg-color, #222);
+}
+
+[data-md-color-scheme="slate"] .bench-spec-v {
+  color: #f0f6fc;
+}
+
+.bench-spec-badge {
+  color: var(--md-accent-fg-color, #6366f1);
 }
 
 .bench-filter-group {

@@ -32,6 +32,7 @@
     lockfree_spmc:           '#0891b2',
     lockfree_mpsc:           '#7c3aed',
     lockfree_mpmc:           '#2563eb',
+    lockfree_bqueue128:      '#06b6d4',
     lockfree_cabi:           '#0284c7',
     // lockfree queue family (unbounded) — corresponding lighter tints
     lockfree_unbounded_spsc: '#818cf8',
@@ -54,6 +55,7 @@
     // stacks, deques & priority queues
     treiber_stack:              '#6366f1',
     bstack:                     '#4f46e5',
+    tagged_stack:               '#06b6d4',
     locked_stack:               '#78909c',
     boost_lockfree_stack:       '#00897b',
     chase_lev_deque:            '#6366f1',
@@ -63,6 +65,9 @@
     bpriority_queue:            '#6366f1',
     skiplist_pq:                '#00897b',
     locked_pq:                  '#78909c',
+    // disjoint-set / union-find
+    disjoint_set:               '#6366f1',
+    locked_disjoint_set:        '#78909c',
     // broadcast ring & topic bus
     broadcast_ring_drop:        '#6366f1',
     broadcast_ring_backoff:     '#0277bd',
@@ -72,7 +77,9 @@
     rust_bus:                   '#fb8c00',
     // rate limiting & streaming
     token_bucket:               '#6366f1',
+    token_bucket64:             '#818cf8',
     leaky_bucket:               '#4f46e5',
+    leaky_bucket64:             '#a78bfa',
     governor_gcra:              '#f4511e',
     stream_ring:                '#6366f1',
     rtrb_stream:                '#d84315',
@@ -118,6 +125,7 @@
   const BLOCKING_LIBRARIES = [
     'threading_channels', 'nim_channel', 'nim_channels', 'nim_channel_sync',
     'locked_table', 'locked_set', 'locked_stack', 'locked_pq', 'locked_task_queue',
+    'locked_disjoint_set',
     'broadcast_ring_backoff', 'topic_bus_backoff',
     'mutex_guard', 'deferred_mutex_free',
   ];
@@ -131,11 +139,12 @@
     'lockfree_unbounded_spsc', 'lockfree_unbounded_spmc',
     'lockfree_unbounded_mpsc', 'lockfree_unbounded_mpmc',
     'ctrie', 'btable', 'skiplist', 'skiplist_set',
-    'treiber_stack', 'bstack', 'chase_lev_deque', 'chase_lev_deque_batch',
+    'disjoint_set',
+    'treiber_stack', 'bstack', 'tagged_stack', 'chase_lev_deque', 'chase_lev_deque_batch',
     'bpriority_queue', 'skiplist_pq',
     'broadcast_ring_drop', 'broadcast_ring_backoff',
     'topic_bus_drop', 'topic_bus_backoff',
-    'token_bucket', 'leaky_bucket', 'stream_ring',
+    'token_bucket', 'token_bucket64', 'leaky_bucket', 'leaky_bucket64', 'stream_ring',
     'rendezvous_channel', 'taskpool', 'nebr',
   ];
   const LFQ_FAMILY_SET = new Set(LOCKFREE_FAMILY);
@@ -149,13 +158,14 @@
     nim_channel: 'nim', nim_channels: 'nim', nim_channel_sync: 'nim',
     threading_channels: 'nim', loony: 'nim',
     ctrie: 'nim', btable: 'nim', skiplist: 'nim', skiplist_set: 'nim',
+    disjoint_set: 'nim', locked_disjoint_set: 'nim',
     locked_table: 'nim', locked_set: 'nim',
-    treiber_stack: 'nim', bstack: 'nim', locked_stack: 'nim',
+    treiber_stack: 'nim', bstack: 'nim', tagged_stack: 'nim', locked_stack: 'nim',
     chase_lev_deque: 'nim', chase_lev_deque_batch: 'nim',
     bpriority_queue: 'nim', skiplist_pq: 'nim', locked_pq: 'nim',
     broadcast_ring_drop: 'nim', broadcast_ring_backoff: 'nim',
     topic_bus_drop: 'nim', topic_bus_backoff: 'nim',
-    token_bucket: 'nim', leaky_bucket: 'nim', stream_ring: 'nim',
+    token_bucket: 'nim', token_bucket64: 'nim', leaky_bucket: 'nim', leaky_bucket64: 'nim', stream_ring: 'nim',
     rendezvous_channel: 'nim',
     taskpool: 'nim', locked_task_queue: 'nim',
     nebr: 'nim', arc_atomic_rc: 'nim', mutex_guard: 'nim', deferred_mutex_free: 'nim',
@@ -181,12 +191,50 @@
   let _activeEcosystem = 'all'; // 'all' | 'nim' | 'cpp' | 'rust'
   let _activeHeroShape = null;  // null (auto) | '4p4c' | '2p2c' | '4p1c' | '1p1c'
   let _activeDisplayMode = 'absolute'; // 'absolute' | 'relative'
+  let _activeEnvironment = null; // environment ID key if multi-environment
   let _currentBmfResult = null;
   const _rebuildCallbacks = [];
 
+  function getEnvironments() {
+    if (!_currentBmfResult || !_currentBmfResult.data) return null;
+    const meta = _currentBmfResult.data.meta;
+    if (meta && meta.environments && typeof meta.environments === 'object') {
+      return meta.environments;
+    }
+    return null;
+  }
+
+  function getActiveHost() {
+    const envs = getEnvironments();
+    if (envs) {
+      if (!_activeEnvironment || !envs[_activeEnvironment]) {
+        _activeEnvironment = Object.keys(envs)[0];
+      }
+      return (envs[_activeEnvironment] && envs[_activeEnvironment].host) || {};
+    }
+    if (_currentBmfResult && _currentBmfResult.data && _currentBmfResult.data.meta) {
+      return _currentBmfResult.data.meta.host || {};
+    }
+    return {};
+  }
+
+  function getActiveBenchmarkData() {
+    const envs = getEnvironments();
+    if (envs) {
+      if (!_activeEnvironment || !envs[_activeEnvironment]) {
+        _activeEnvironment = Object.keys(envs)[0];
+      }
+      const envObj = envs[_activeEnvironment];
+      return (envObj && (envObj.benchmarks || envObj.data)) || {};
+    }
+    if (_currentBmfResult && _currentBmfResult.data) {
+      return _currentBmfResult.data;
+    }
+    return {};
+  }
+
   function matchesEcosystem(library) {
     if (_activeEcosystem === 'all') return true;
-    if (isLockfreequeues(library)) return true;
     const eco = LIBRARY_ECOSYSTEMS[library];
     return eco === _activeEcosystem;
   }
@@ -232,6 +280,8 @@
     pin_unpin: 'SMR Critical-Section Pin/Unpin',
     smr_retire_reclaim: 'SMR Retire/Reclaim + Neutralization',
     retire_reclaim: 'SMR Retire/Reclaim + Neutralization',
+    disjoint_set_find: 'DisjointSet find (Read Contention)',
+    disjoint_set_union: 'DisjointSet union & sameSet (Graph Edge Stream)',
   });
 
   function topologyLabel(topology) {
@@ -307,6 +357,11 @@
     { id: 'bench-smr-retire-reclaim',        label: 'Retire/Reclaim & Stalled-Thread Neutralization',
       includes: (topology) => topology === 'smr_retire_reclaim'
                               || topology === 'retire_reclaim' },
+    // Concurrent Disjoint-Set (Union-Find)
+    { id: 'bench-disjoint-set-find',         label: 'DisjointSet find Contention',
+      includes: (topology) => topology === 'disjoint_set_find' },
+    { id: 'bench-disjoint-set-union',        label: 'DisjointSet union & sameSet Edge Stream',
+      includes: (topology) => topology === 'disjoint_set_union' },
   ];
 
   const BENCH_SOURCE_URLS = Object.freeze({
@@ -364,6 +419,10 @@
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_smr_nebr.nim',
     'bench-smr-latency':
       'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_smr_nebr.nim',
+    'bench-disjoint-set-find':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_disjoint_set.nim',
+    'bench-disjoint-set-union':
+      'https://github.com/elijahr/lockfree/blob/main/benchmarks/nim/bench_disjoint_set.nim',
   });
 
   function buildSourceLink(panelId) {
@@ -436,6 +495,7 @@
     lockfree_spmc:           { name: 'lockfree.spmc.SPMCQueue',                 lang: 'Nim' },
     lockfree_mpsc:           { name: 'lockfree.mpsc.MPSCQueue',                 lang: 'Nim' },
     lockfree_mpmc:           { name: 'lockfree.bqueue.BQueue',                  lang: 'Nim' },
+    lockfree_bqueue128:      { name: 'lockfree.bqueue128.BQueue128',            lang: 'Nim' },
     lockfree_cabi:           { name: 'lockfree.cabi.BQueue',                    lang: 'C-ABI' },
 
     // lockfree queue family (unbounded)
@@ -467,6 +527,7 @@
     // stacks, deques & priority queues
     treiber_stack:              { name: 'lockfree.treiber_stack.TreiberStack',  lang: 'Nim' },
     bstack:                     { name: 'lockfree.bstack.BStack',               lang: 'Nim' },
+    tagged_stack:               { name: 'lockfree.stack128.TaggedStack',        lang: 'Nim' },
     locked_stack:               { name: 'std.deques.Deque (Lock)',              lang: 'Nim' },
     boost_lockfree_stack:       { name: 'boost::lockfree::stack',               lang: 'C++' },
     chase_lev_deque:            { name: 'lockfree.chase_lev.ChaseLevDeque',     lang: 'Nim' },
@@ -476,6 +537,10 @@
     bpriority_queue:            { name: 'lockfree.bpriority_queue.BPriorityQueue', lang: 'Nim' },
     skiplist_pq:                { name: 'lockfree.skiplist.SkipListPQ',         lang: 'Nim' },
     locked_pq:                  { name: 'std.heapqueue.HeapQueue (Lock)',       lang: 'Nim' },
+
+    // disjoint-set / union-find
+    disjoint_set:               { name: 'lockfree.disjoint_set.DisjointSet',    lang: 'Nim' },
+    locked_disjoint_set:        { name: 'disjoint_set.DisjointSet (Lock)',      lang: 'Nim' },
 
     // broadcast ring & topic bus
     broadcast_ring_drop:        { name: 'lockfree.broadcast.BroadcastRing (Drop)', lang: 'Nim' },
@@ -487,7 +552,9 @@
 
     // rate limiting & streaming
     token_bucket:               { name: 'lockfree.ratelimit.TokenBucket',       lang: 'Nim' },
+    token_bucket64:             { name: 'lockfree.ratelimit.TokenBucket64',     lang: 'Nim' },
     leaky_bucket:               { name: 'lockfree.ratelimit.LeakyBucket',       lang: 'Nim' },
+    leaky_bucket64:             { name: 'lockfree.ratelimit.LeakyBucket64',     lang: 'Nim' },
     governor_gcra:              { name: 'governor::RateLimiter',                lang: 'Rust' },
     stream_ring:                { name: 'lockfree.streambuffer.StreamRing',     lang: 'Nim' },
     rtrb_stream:                { name: 'rtrb::RingBuffer',                     lang: 'Rust' },
@@ -656,8 +723,9 @@
         t.style.fontWeight = '700';
       }
     }
-    const swatches = container.querySelectorAll('[class*="swatches"] span, [class*="swatch"]');
+    const swatches = container.querySelectorAll('[class*="-swatch"]');
     for (const s of swatches) {
+      if (s.className && s.className.includes('swatches')) continue;
       const raw = (s.textContent || '').trim().replace(/ \*$/, '');
       if (raw.startsWith('lockfree.') || isLockfreequeues(raw)) {
         s.style.fontWeight = '700';
@@ -671,8 +739,10 @@
     const svg = mount.querySelector('svg');
     if (!svg) return null;
 
-    const rawSwatches = Array.from(mount.querySelectorAll('[class*="swatches"] span, [class*="swatch"]'))
-      .filter((s) => s.textContent.trim().length > 0 && !s.querySelector('[class*="swatches"]'));
+    // Observable Plot generates a container with class `*-swatches` and individual items
+    // with class `*-swatch`. We strictly select individual swatches and exclude the container.
+    const rawSwatches = Array.from(mount.querySelectorAll('[class*="-swatch"]'))
+      .filter((s) => !s.className.includes('swatches') && s.textContent.trim().length > 0);
 
     if (rawSwatches.length === 0) return null;
 
@@ -681,10 +751,18 @@
       const seriesId = 's-' + idx;
       s.setAttribute('data-series-id', seriesId);
       const label = s.textContent.trim().replace(/ \*$/, '');
-      const colorIndicator = s.querySelector('svg [fill], svg path, svg circle, span[style*="background"]');
+      const svgEl = s.querySelector('svg');
       let color = null;
-      if (colorIndicator) {
-        color = colorIndicator.getAttribute('fill') || colorIndicator.style.backgroundColor;
+      if (svgEl) {
+        color = svgEl.getAttribute('fill') || svgEl.style.fill;
+        if (!color) {
+          const innerWithFill = svgEl.querySelector('[fill], path, circle');
+          if (innerWithFill) color = innerWithFill.getAttribute('fill') || innerWithFill.style.fill;
+        }
+      }
+      if (!color) {
+        const bgSpan = s.querySelector('span[style*="background"], [style*="background-color"]');
+        if (bgSpan) color = bgSpan.style.backgroundColor;
       }
       if (!color) {
         for (const [lib, meta] of Object.entries(CONTENDER_METADATA)) {
@@ -705,10 +783,15 @@
     // Tag SVG marks with matching data-series-id
     const marks = svg.querySelectorAll('g[aria-label="line"] path, g[aria-label="dot"] path, g[aria-label="dot"] circle, g[aria-label="bar"] rect, g[aria-label="bar"] path');
     for (const m of marks) {
-      const stroke = (m.getAttribute('stroke') || '').toLowerCase();
-      const fill = (m.getAttribute('fill') || '').toLowerCase();
+      const stroke = (m.getAttribute('stroke') || (m.parentElement ? m.parentElement.getAttribute('stroke') : '') || '').toLowerCase();
+      const fill = (m.getAttribute('fill') || (m.parentElement ? m.parentElement.getAttribute('fill') : '') || '').toLowerCase();
+      const titleEl = m.querySelector('title') || (m.parentElement ? m.parentElement.querySelector('title') : null);
+      const titleText = titleEl ? titleEl.textContent : '';
+
       for (const s of seriesList) {
-        if (s.color && (stroke === s.color || fill === s.color)) {
+        const colorMatch = s.color && (stroke === s.color || fill === s.color);
+        const titleMatch = s.label && titleText && titleText.startsWith(s.label);
+        if (colorMatch || titleMatch) {
           m.setAttribute('data-series-id', s.id);
           break;
         }
@@ -742,7 +825,8 @@
         }
       });
 
-      s.el.addEventListener('click', () => {
+      s.el.addEventListener('click', (e) => {
+        e.stopPropagation();
         const isHidden = s.el.classList.toggle('bench-swatch-disabled');
         const targetMarks = svg.querySelectorAll(`[data-series-id="${s.id}"]`);
         for (const tm of targetMarks) {
@@ -1806,16 +1890,100 @@
     renderLatencyPanel(document.getElementById('bench-smr-latency'), null, 'bench-smr-latency');
   }
 
-  // ── module: interactive toolbar ─────────────────────────────────────
+  // ── module: interactive toolbar & system specs ─────────────────────
+
+  function renderSystemSpecs() {
+    const host = getActiveHost();
+    const envs = getEnvironments();
+    if (!host || (!host.cpu_model && !host.os && !envs)) return null;
+
+    const wrapper = el('div', { class: 'bench-specs-container' });
+
+    // Multi-environment tabs if multiple environments exist
+    if (envs && Object.keys(envs).length > 1) {
+      const envChips = Object.entries(envs).map(([envKey, envObj]) => {
+        const isActive = _activeEnvironment === envKey;
+        const btn = el('button', {
+          class: 'bench-chip bench-env-chip' + (isActive ? ' active' : ''),
+          type: 'button',
+          'data-env': envKey,
+        }, envObj.label || (envObj.host && envObj.host.cpu_model) || envKey);
+        btn.addEventListener('click', () => {
+          if (_activeEnvironment === envKey) return;
+          _activeEnvironment = envKey;
+          const tb = document.getElementById('bench-toolbar');
+          if (tb) renderToolbar(tb);
+          rerenderCharts();
+        });
+        return btn;
+      });
+
+      const envGroup = el('div', { class: 'bench-filter-group bench-env-group' },
+        el('span', { class: 'bench-filter-label' }, 'Environment:'),
+        el('div', { class: 'bench-chip-group' }, ...envChips)
+      );
+      wrapper.appendChild(envGroup);
+    }
+
+    const card = el('div', { class: 'bench-specs-card' });
+    const items = [];
+
+    if (host.environment) {
+      items.push(el('div', { class: 'bench-spec-item' },
+        el('span', { class: 'bench-spec-k' }, 'Profile'),
+        el('span', { class: 'bench-spec-v bench-spec-badge' }, host.environment)
+      ));
+    }
+    if (host.cpu_model) {
+      items.push(el('div', { class: 'bench-spec-item' },
+        el('span', { class: 'bench-spec-k' }, 'CPU Model'),
+        el('span', { class: 'bench-spec-v' }, host.cpu_model)
+      ));
+    }
+    if (host.cores) {
+      const arch = host.arch ? ' (' + host.arch + ')' : '';
+      items.push(el('div', { class: 'bench-spec-item' },
+        el('span', { class: 'bench-spec-k' }, 'Cores'),
+        el('span', { class: 'bench-spec-v' }, host.cores + ' threads' + arch)
+      ));
+    }
+    if (host.memory_human) {
+      items.push(el('div', { class: 'bench-spec-item' },
+        el('span', { class: 'bench-spec-k' }, 'Memory'),
+        el('span', { class: 'bench-spec-v' }, host.memory_human)
+      ));
+    }
+    if (host.os) {
+      items.push(el('div', { class: 'bench-spec-item' },
+        el('span', { class: 'bench-spec-k' }, 'OS'),
+        el('span', { class: 'bench-spec-v' }, host.os + (host.arch ? ' ' + host.arch : ''))
+      ));
+    }
+
+    if (items.length > 0) {
+      card.appendChild(el('div', { class: 'bench-specs-grid' }, ...items));
+      wrapper.appendChild(card);
+    }
+
+    return wrapper;
+  }
 
   function renderToolbar(host) {
     if (!host) return;
     host.innerHTML = '';
 
-    const ecoChips = ['all', 'nim', 'cpp', 'rust'].map((eco) => {
+    const specsNode = renderSystemSpecs();
+    if (specsNode) {
+      host.appendChild(specsNode);
+    }
+
+    const controlsBar = el('div', { class: 'bench-controls-bar' });
+
+    const ecoChips = ['all', 'nim', 'cpp', 'rust', 'c'].map((eco) => {
       const label = eco === 'all' ? 'All' :
                     eco === 'nim' ? 'Nim' :
-                    eco === 'cpp' ? 'C++' : 'Rust';
+                    eco === 'cpp' ? 'C++' :
+                    eco === 'rust' ? 'Rust' : 'C';
       const btn = el('button', {
         class: 'bench-chip' + (_activeEcosystem === eco ? ' active' : ''),
         type: 'button',
@@ -1882,16 +2050,19 @@
       el('div', { class: 'bench-chip-group' }, ...shapeChips)
     );
 
-    host.appendChild(ecoGroup);
-    host.appendChild(modeGroup);
-    host.appendChild(shapeGroup);
+    controlsBar.appendChild(ecoGroup);
+    controlsBar.appendChild(modeGroup);
+    controlsBar.appendChild(shapeGroup);
+    host.appendChild(controlsBar);
   }
 
   function rerenderCharts() {
-    if (!_currentBmfResult || !_currentBmfResult.data) return;
+    if (!_currentBmfResult) return;
+    const bmfData = getActiveBenchmarkData();
+    if (!bmfData) return;
     _rebuildCallbacks.length = 0;
     const heroHost = document.getElementById('bench-hero');
-    const byTopology = groupByTopology(_currentBmfResult.data);
+    const byTopology = groupByTopology(bmfData);
     if (heroHost) renderHero(heroHost, byTopology);
 
     for (const panel of THROUGHPUT_PANELS) {
@@ -1953,19 +2124,19 @@
 
     renderLatencyPanel(
       document.getElementById('bench-latency'),
-      _currentBmfResult.data || null,
+      bmfData,
       'bench-latency',
       (t) => t === 'spsc' || t === 'spmc' || t === 'mpsc' || t === 'mpmc'
     );
     renderLatencyPanel(
       document.getElementById('bench-rendezvous-latency'),
-      _currentBmfResult.data || null,
+      bmfData,
       'bench-rendezvous-latency',
       (t) => t === 'rendezvous_rpc' || t === 'rendezvous_handoff'
     );
     renderLatencyPanel(
       document.getElementById('bench-smr-latency'),
-      _currentBmfResult.data || null,
+      bmfData,
       'bench-smr-latency',
       (t) => t === 'smr_pin_unpin' || t === 'smr_retire_reclaim' || t === 'pin_unpin' || t === 'retire_reclaim'
     );

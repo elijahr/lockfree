@@ -20,7 +20,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -28,10 +28,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -729,6 +729,34 @@
     
   
     Bounded (Vyukov)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/bqueue128/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    128-Bit DWCAS (BQueue128)
   
 
     
@@ -2663,6 +2691,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../bqueue128/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    128-Bit DWCAS Queue (BQueue128)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../queue/" class="md-nav__link">
         
   
@@ -3147,6 +3203,17 @@
     <span class="md-ellipsis">
       
         =
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#destroy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        destroy
       
     </span>
   </a>
@@ -4929,6 +4996,17 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#destroy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        destroy
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#=" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5889,21 +5967,29 @@ moved, copied, or shared across threads by value or pointer.</p>
   
 
   
-    <h4 id="=" class="doc doc-heading">
+    <h4 id="destroy" class="doc doc-heading">
       
-      <span class="doc doc-object-name doc-proc-name">=</span>
+      <span class="doc doc-object-name doc-proc-name">destroy</span>
       
-    <a href="#=" class="headerlink" title="Permanent link">¶</a></h4>
+        
+          <span class="doc-label" data-label="inline">inline</span>
+        
+      
+    <a href="#destroy" class="headerlink" title="Permanent link">¶</a></h4>
   
 
   
     <div class="doc-signature highlight">
-      <pre><code class="language-nim highlight"><span class="k">proc</span><span class="w"> </span><span class="err">=(</span><span class="nf">dest</span><span class="p">:</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="n">DisjointSet</span><span class="p">;</span><span class="w"> </span><span class="n">src</span><span class="p">:</span><span class="w"> </span><span class="n">DisjointSet</span><span class="p">)</span>
+      <pre><code class="language-nim highlight"><span class="k">proc</span><span class="w"> </span><span class="nf">destroy</span><span class="p">(</span><span class="n">self</span><span class="p">:</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="n">DisjointSet</span><span class="p">)</span>
 </code></pre>
     </div>
   
 
   <div class="doc doc-contents first">
+    
+      <div class="doc-description">
+        <p>Explicitly releases a reference to the shared disjoint set core.</p>
+      </div>
     
 
     
@@ -5912,14 +5998,8 @@ moved, copied, or shared across threads by value or pointer.</p>
         <ul>
           
             <li>
-              <code>dest</code>
+              <code>self</code>
               (<code>var DisjointSet</code>)
-              
-            </li>
-          
-            <li>
-              <code>src</code>
-              (<code>DisjointSet</code>)
               
             </li>
           
@@ -5997,8 +6077,70 @@ moved, copied, or shared across threads by value or pointer.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L149" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:149
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L143" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:143
+          </a>
+        
+      </div>
+    
+  </div>
+</div>
+      
+    
+      
+      
+        <div class="doc doc-object doc-proc">
+  
+
+  
+    <h4 id="=" class="doc doc-heading">
+      
+      <span class="doc doc-object-name doc-proc-name">=</span>
+      
+    <a href="#=" class="headerlink" title="Permanent link">¶</a></h4>
+  
+
+  
+    <div class="doc-signature highlight">
+      <pre><code class="language-nim highlight"><span class="k">proc</span><span class="w"> </span><span class="err">=(</span><span class="nf">dest</span><span class="p">:</span><span class="w"> </span><span class="kd">var</span><span class="w"> </span><span class="n">DisjointSet</span><span class="p">;</span><span class="w"> </span><span class="n">src</span><span class="p">:</span><span class="w"> </span><span class="n">DisjointSet</span><span class="p">)</span>
+</code></pre>
+    </div>
+  
+
+  <div class="doc doc-contents first">
+    
+
+    
+      <div class="doc-section doc-section-parameters">
+        <h5>Parameters</h5>
+        <ul>
+          
+            <li>
+              <code>dest</code>
+              (<code>var DisjointSet</code>)
+              
+            </li>
+          
+            <li>
+              <code>src</code>
+              (<code>DisjointSet</code>)
+              
+            </li>
+          
+        </ul>
+      </div>
+    
+
+    
+
+    
+
+    
+      <div class="doc-source">
+        <span class="doc-source-label">Source:</span>
+        
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L153" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:153
           </a>
         
       </div>
@@ -6064,8 +6206,8 @@ Raises <code>ValueError</code> if <code>size &lt; 0</code> or <code>size &gt; Ma
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L159" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:159
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L163" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:163
           </a>
         
       </div>
@@ -6133,8 +6275,8 @@ Raises <code>ValueError</code> if <code>size &lt; 0</code> or <code>size &gt; Ma
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L182" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:182
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L186" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:186
           </a>
         
       </div>
@@ -6213,8 +6355,8 @@ grandparent <code>gp != p</code>, attempts a single non-blocking CAS to swing
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L203" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:203
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L207" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:207
           </a>
         
       </div>
@@ -6289,8 +6431,8 @@ grandparent <code>gp != p</code>, attempts a single non-blocking CAS to swing
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L230" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:230
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L234" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:234
           </a>
         
       </div>
@@ -6381,8 +6523,8 @@ this call, or <code>false</code> if they were already in the same set.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L244" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:244
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L248" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:248
           </a>
         
       </div>
@@ -6468,8 +6610,8 @@ were already in the same set (useful for concurrent cycle detection).</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L322" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:322
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L326" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:326
           </a>
         
       </div>
@@ -6552,8 +6694,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L329" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:329
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L333" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:333
           </a>
         
       </div>
@@ -6635,8 +6777,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L351" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:351
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L355" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:355
           </a>
         
       </div>
@@ -6706,8 +6848,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L355" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:355
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L359" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:359
           </a>
         
       </div>
@@ -6777,8 +6919,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L361" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:361
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L365" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:365
           </a>
         
       </div>
@@ -6848,8 +6990,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L367" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:367
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L371" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:371
           </a>
         
       </div>
@@ -6925,8 +7067,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L371" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:371
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L375" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:375
           </a>
         
       </div>
@@ -7002,8 +7144,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L377" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:377
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L381" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:381
           </a>
         
       </div>
@@ -7067,8 +7209,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L383" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:383
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L387" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:387
           </a>
         
       </div>
@@ -7140,8 +7282,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L398" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:398
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L402" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:402
           </a>
         
       </div>
@@ -7213,8 +7355,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L401" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:401
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L405" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:405
           </a>
         
       </div>
@@ -7298,8 +7440,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L404" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:404
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L408" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:408
           </a>
         
       </div>
@@ -7379,8 +7521,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L407" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:407
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L411" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:411
           </a>
         
       </div>
@@ -7458,8 +7600,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L410" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:410
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L414" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:414
           </a>
         
       </div>
@@ -7537,8 +7679,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L413" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:413
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L417" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:417
           </a>
         
       </div>
@@ -7604,8 +7746,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L416" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:416
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L420" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:420
           </a>
         
       </div>
@@ -7671,8 +7813,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L419" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:419
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L423" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:423
           </a>
         
       </div>
@@ -7738,8 +7880,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L422" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:422
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L426" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:426
           </a>
         
       </div>
@@ -7811,8 +7953,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L425" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:425
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L429" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:429
           </a>
         
       </div>
@@ -7884,8 +8026,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L428" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:428
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L432" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:432
           </a>
         
       </div>
@@ -7946,8 +8088,8 @@ completes so concurrent unions cannot cause false negatives.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L431" target="_blank" rel="noopener">
-            src/lockfree/disjoint_set.nim:431
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/disjoint_set.nim#L435" target="_blank" rel="noopener">
+            src/lockfree/disjoint_set.nim:435
           </a>
         
       </div>
@@ -8057,10 +8199,10 @@ completes so concurrent unions cannot cause false negatives.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.code.annotate", "navigation.instant", "navigation.sections", "navigation.expand", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.code.annotate", "navigation.instant", "navigation.sections", "navigation.expand", "toc.follow"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="../../js/timeago.min.js"></script>
       

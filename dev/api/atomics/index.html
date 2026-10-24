@@ -20,7 +20,7 @@
       
       
       <link rel="icon" href="../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.8.0">
     
     
       
@@ -28,10 +28,10 @@
       
     
     
-      <link rel="stylesheet" href="../../assets/stylesheets/main.ec1eaa64.min.css">
+      <link rel="stylesheet" href="../../assets/stylesheets/main.57a0d79d.min.css">
       
         
-        <link rel="stylesheet" href="../../assets/stylesheets/palette.ab4e12ef.min.css">
+        <link rel="stylesheet" href="../../assets/stylesheets/palette.fb2fffe2.min.css">
       
       
 
@@ -729,6 +729,34 @@
     
   
     Bounded (Vyukov)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../guide/queues/bqueue128/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    128-Bit DWCAS (BQueue128)
   
 
     
@@ -2663,6 +2691,34 @@
   
   
     <li class="md-nav__item">
+      <a href="../bqueue128/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    128-Bit DWCAS Queue (BQueue128)
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../queue/" class="md-nav__link">
         
   
@@ -3547,6 +3603,17 @@
   
     <nav class="md-nav" aria-label="atomics">
       <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#supportsDwcas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        supportsDwcas
+      
+    </span>
+  </a>
+  
+</li>
         
           <li class="md-nav__item">
   <a href="#MemoryOrder" class="md-nav__link">
@@ -4962,6 +5029,17 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#supportsDwcas" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        supportsDwcas
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#MemoryOrder" class="md-nav__link">
     <span class="md-ellipsis">
       
@@ -5634,6 +5712,50 @@ for the verbatim MIT text.</p>
     
       
       
+        <div class="doc doc-object doc-const">
+  
+
+  <h4 id="supportsDwcas" class="doc doc-heading">
+    <code class="doc-symbol doc-symbol-heading doc-symbol-const"></code>
+    <span class="doc doc-object-name doc-const-name">supportsDwcas</span>
+  <a href="#supportsDwcas" class="headerlink" title="Permanent link">¶</a></h4>
+
+  
+    <div class="doc-signature highlight">
+      <pre><code class="language-nim highlight"><span class="k">const</span><span class="w"> </span><span class="n">supportsDwcas</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">(</span><span class="n">sizeof</span><span class="p">(</span><span class="n">pointer</span><span class="p">)</span><span class="w"> </span><span class="o">==</span><span class="w"> </span><span class="mi">8</span><span class="p">)</span><span class="w"> </span><span class="ow">and</span>
+<span class="w">    </span><span class="p">(</span><span class="n">defined</span><span class="p">(</span><span class="n">amd64</span><span class="p">)</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">defined</span><span class="p">(</span><span class="n">x86_64</span><span class="p">)</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">defined</span><span class="p">(</span><span class="n">arm64</span><span class="p">)</span><span class="w"> </span><span class="ow">or</span><span class="w"> </span><span class="n">defined</span><span class="p">(</span><span class="n">aarch64</span><span class="p">)</span><span class="w"> </span><span class="ow">or</span>
+<span class="w">    </span><span class="n">defined</span><span class="p">(</span><span class="n">vcc</span><span class="p">))</span>
+</code></pre>
+    </div>
+  
+
+  <div class="doc doc-contents">
+    
+      <div class="doc-description">
+        <p>Compile-time predicate indicating whether the target architecture and</p>
+<p>toolchain provide 128-bit hardware Double-Word Compare-And-Swap (DWCAS).</p>
+<p>True on 64-bit x86 (cmpxchg16b), 64-bit ARM (casp under FEAT_LSE or ldxp/stxp),
+and MSVC on x64/ARM64 (_InterlockedCompareExchange128).
+False on 32-bit platforms, WebAssembly, and architectures without 128-bit atomics.</p>
+      </div>
+    
+
+    
+      <div class="doc-source">
+        <span class="doc-source-label">Source:</span>
+        
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L53" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:53
+          </a>
+        
+      </div>
+    
+  </div>
+</div>
+      
+    
+      
+      
         <div class="doc doc-object doc-type">
   
 
@@ -5709,8 +5831,8 @@ directly to the builtins.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L261" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:261
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L290" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:290
           </a>
         
       </div>
@@ -5769,8 +5891,8 @@ directly to the builtins.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L288" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:288
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L317" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:317
           </a>
         
       </div>
@@ -5842,8 +5964,8 @@ lifetime of whatever a contained <code>ptr</code> points at.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L398" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:398
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L427" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:427
           </a>
         
       </div>
@@ -5907,8 +6029,8 @@ lifetime of whatever a contained <code>ptr</code> points at.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L420" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:420
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L449" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:449
           </a>
         
       </div>
@@ -5979,8 +6101,8 @@ payload sum is the real safety invariant.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L434" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:434
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L463" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:463
           </a>
         
       </div>
@@ -6042,8 +6164,8 @@ a per-size specialisation that boxes <code>T</code> in a struct with an explicit
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L496" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:496
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L525" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:525
           </a>
         
       </div>
@@ -6103,8 +6225,8 @@ a per-size specialisation that boxes <code>T</code> in a struct with an explicit
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L591" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:591
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L620" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:620
           </a>
         
       </div>
@@ -6174,8 +6296,8 @@ a per-size specialisation that boxes <code>T</code> in a struct with an explicit
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L603" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:603
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L632" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:632
           </a>
         
       </div>
@@ -6246,8 +6368,8 @@ a per-size specialisation that boxes <code>T</code> in a struct with an explicit
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L667" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:667
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L696" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:696
           </a>
         
       </div>
@@ -6323,8 +6445,8 @@ a per-size specialisation that boxes <code>T</code> in a struct with an explicit
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L786" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:786
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L815" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:815
           </a>
         
       </div>
@@ -6417,8 +6539,8 @@ a per-size specialisation that boxes <code>T</code> in a struct with an explicit
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L816" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:816
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L845" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:845
           </a>
         
       </div>
@@ -6511,8 +6633,8 @@ a per-size specialisation that boxes <code>T</code> in a struct with an explicit
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L880" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:880
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L909" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:909
           </a>
         
       </div>
@@ -6601,8 +6723,8 @@ form to spell the failure order explicitly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L906" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:906
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L935" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:935
           </a>
         
       </div>
@@ -6689,8 +6811,8 @@ form to spell the failure order explicitly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L915" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:915
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L944" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:944
           </a>
         
       </div>
@@ -6771,8 +6893,8 @@ form to spell the failure order explicitly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L922" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:922
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L951" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:951
           </a>
         
       </div>
@@ -6853,8 +6975,8 @@ form to spell the failure order explicitly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L931" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:931
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L960" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:960
           </a>
         
       </div>
@@ -6948,8 +7070,8 @@ from <code>std/atomics</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L946" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:946
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L975" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:975
           </a>
         
       </div>
@@ -7036,8 +7158,8 @@ from <code>std/atomics</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L958" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:958
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L987" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:987
           </a>
         
       </div>
@@ -7119,8 +7241,8 @@ from <code>std/atomics</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L965" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:965
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L994" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:994
           </a>
         
       </div>
@@ -7196,8 +7318,8 @@ from <code>std/atomics</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L977" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:977
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1006" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1006
           </a>
         
       </div>
@@ -7273,8 +7395,8 @@ from <code>std/atomics</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1007" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1007
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1036" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1036
           </a>
         
       </div>
@@ -7350,8 +7472,8 @@ from <code>std/atomics</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1047" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1047
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1076" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1076
           </a>
         
       </div>
@@ -7427,8 +7549,8 @@ from <code>std/atomics</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1071" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1071
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1100" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1100
           </a>
         
       </div>
@@ -7504,8 +7626,8 @@ from <code>std/atomics</code>.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1095" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1095
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1124" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1124
           </a>
         
       </div>
@@ -7611,8 +7733,8 @@ arithmetic, not to this implementation.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1141" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1141
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1170" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1170
           </a>
         
       </div>
@@ -7675,8 +7797,8 @@ arithmetic, not to this implementation.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1187" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1187
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1216" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1216
           </a>
         
       </div>
@@ -7740,8 +7862,8 @@ arithmetic, not to this implementation.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1237" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1237
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1266" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1266
           </a>
         
       </div>
@@ -7784,8 +7906,8 @@ value, so do not poke the raw uint8 directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1257" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1257
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1286" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1286
           </a>
         
       </div>
@@ -7859,8 +7981,8 @@ value, so do not poke the raw uint8 directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1262" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1262
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1291" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1291
           </a>
         
       </div>
@@ -7930,8 +8052,8 @@ value, so do not poke the raw uint8 directly.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1276" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1276
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1305" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1305
           </a>
         
       </div>
@@ -8007,8 +8129,8 @@ and for callers that have already validated the order policy externally.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1381" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1381
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1410" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1410
           </a>
         
       </div>
@@ -8085,8 +8207,8 @@ warning.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1456" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1456
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1485" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1485
           </a>
         
       </div>
@@ -8159,8 +8281,8 @@ warning-emitting surface.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1485" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1485
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1514" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1514
           </a>
         
       </div>
@@ -8237,8 +8359,8 @@ warning.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1587" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1587
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1616" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1616
           </a>
         
       </div>
@@ -8316,8 +8438,8 @@ warning-emitting surface.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1608" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1608
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1637" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1637
           </a>
         
       </div>
@@ -8400,8 +8522,8 @@ warning.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1689" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1689
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1718" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1718
           </a>
         
       </div>
@@ -8493,8 +8615,8 @@ warning-emitting surface.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1710" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1710
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1739" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1739
           </a>
         
       </div>
@@ -8600,8 +8722,8 @@ more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1781" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1781
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1810" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1810
           </a>
         
       </div>
@@ -8698,8 +8820,8 @@ more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1817" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1817
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1846" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1846
           </a>
         
       </div>
@@ -8790,8 +8912,8 @@ more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1838" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1838
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1867" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1867
           </a>
         
       </div>
@@ -8887,8 +9009,8 @@ warning-emitting surface.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1858" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1858
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1887" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1887
           </a>
         
       </div>
@@ -8997,8 +9119,8 @@ more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1936" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1936
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1965" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:1965
           </a>
         
       </div>
@@ -9095,8 +9217,8 @@ more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1975" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1975
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2004" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2004
           </a>
         
       </div>
@@ -9191,8 +9313,8 @@ more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L1996" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:1996
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2025" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2025
           </a>
         
       </div>
@@ -9295,8 +9417,8 @@ more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2025" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2025
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2054" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2054
           </a>
         
       </div>
@@ -9392,8 +9514,8 @@ more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2047" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2047
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2076" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2076
           </a>
         
       </div>
@@ -9484,8 +9606,8 @@ more tempting in LCRQ-style consumer code.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2067" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2067
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2096" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2096
           </a>
         
       </div>
@@ -9577,8 +9699,8 @@ an LCRQ generation tag), use an unsigned half-type.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2111" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2111
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2140" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2140
           </a>
         
       </div>
@@ -9659,8 +9781,8 @@ an LCRQ generation tag), use an unsigned half-type.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2138" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2138
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2167" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2167
           </a>
         
       </div>
@@ -9741,8 +9863,8 @@ an LCRQ generation tag), use an unsigned half-type.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2153" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2153
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2182" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2182
           </a>
         
       </div>
@@ -9823,8 +9945,8 @@ an LCRQ generation tag), use an unsigned half-type.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2169" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2169
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2198" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2198
           </a>
         
       </div>
@@ -9905,8 +10027,8 @@ an LCRQ generation tag), use an unsigned half-type.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2184" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2184
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2213" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2213
           </a>
         
       </div>
@@ -9977,8 +10099,8 @@ rationale.</p>
       <div class="doc-source">
         <span class="doc-source-label">Source:</span>
         
-          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2211" target="_blank" rel="noopener">
-            src/lockfree/atomics.nim:2211
+          <a href="https://github.com/elijahr/lockfree/blob/main/src/lockfree/atomics.nim#L2240" target="_blank" rel="noopener">
+            src/lockfree/atomics.nim:2240
           </a>
         
       </div>
@@ -10088,10 +10210,10 @@ rationale.</p>
     
       
       
-      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.code.annotate", "navigation.instant", "navigation.sections", "navigation.expand", "toc.follow"], "search": "../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
+      <script id="__config" type="application/json">{"annotate": null, "base": "../..", "features": ["content.code.copy", "content.code.annotate", "navigation.instant", "navigation.sections", "navigation.expand", "toc.follow"], "search": "../../assets/javascripts/workers/search.a7633da7.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"default": "latest", "provider": "mike"}}</script>
     
     
-      <script src="../../assets/javascripts/bundle.d7400e89.min.js"></script>
+      <script src="../../assets/javascripts/bundle.c21346df.min.js"></script>
       
         <script src="../../js/timeago.min.js"></script>
       

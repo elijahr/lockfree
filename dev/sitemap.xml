@@ -25,6 +25,10 @@
          <lastmod>2026-10-24</lastmod>
     </url>
     <url>
+         <loc>https://elijahr.github.io/lockfree/latest/api/bqueue128/</loc>
+         <lastmod>2026-10-24</lastmod>
+    </url>
+    <url>
          <loc>https://elijahr.github.io/lockfree/latest/api/broadcast/</loc>
          <lastmod>2026-10-24</lastmod>
     </url>
@@ -302,6 +306,10 @@
     </url>
     <url>
          <loc>https://elijahr.github.io/lockfree/latest/guide/queues/bounded-vyukov/</loc>
+         <lastmod>2026-10-24</lastmod>
+    </url>
+    <url>
+         <loc>https://elijahr.github.io/lockfree/latest/guide/queues/bqueue128/</loc>
          <lastmod>2026-10-24</lastmod>
     </url>
     <url>
