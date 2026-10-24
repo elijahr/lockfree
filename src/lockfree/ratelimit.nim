@@ -681,11 +681,12 @@ proc refillRate*(self: TokenBucket64): uint32 {.inline.} = self.refillRatePerSec
 proc availableAt*(self: var TokenBucket64, nowMs: uint32): uint32 =
   let st = self.state.load(moAcquire)
   let (lastTs, tokens) = unpackRateLimit64(st)
-  let elapsedMs = if nowMs >= lastTs: nowMs - lastTs else: (uint32.high - lastTs) + nowMs + 1'u32
+  let diff = int32(nowMs - lastTs)
+  let elapsedMs = if diff > 0: uint32(diff) else: 0'u32
   if self.refillRatePerSec == 0:
     return tokens
   let added = uint32((uint64(elapsedMs) * uint64(self.refillRatePerSec)) div 1000'u64)
-  min(self.capacity, tokens + added)
+  uint32(min(uint64(self.capacity), uint64(tokens) + uint64(added)))
 
 proc available*(self: var TokenBucket64): uint32 {.inline.} =
   self.availableAt(getMonotonicTimeMs())
@@ -698,13 +699,22 @@ proc tryAcquireAt*(self: var TokenBucket64, nowMs: uint32, requested: uint32 = 1
   var oldVal = self.state.load(moAcquire)
   while true:
     let (lastTs, tokens) = unpackRateLimit64(oldVal)
-    let elapsedMs = if nowMs >= lastTs: nowMs - lastTs else: (uint32.high - lastTs) + nowMs + 1'u32
+    let diff = int32(nowMs - lastTs)
+    let elapsedMs = if diff > 0: uint32(diff) else: 0'u32
     let added = if self.refillRatePerSec == 0: 0'u32 else: uint32((uint64(elapsedMs) * uint64(self.refillRatePerSec)) div 1000'u64)
-    let avail = min(self.capacity, tokens + added)
-    if avail < requested:
+    let avail = min(uint64(self.capacity), uint64(tokens) + uint64(added))
+    if avail < uint64(requested):
       return false
-    let nextTokens = avail - requested
-    let newVal = packRateLimit64(nowMs, nextTokens)
+    # Advance timestamp only by the duration that was converted to tokens,
+    # or to nowMs if at capacity, preserving fractional milliseconds.
+    let consumedMs =
+      if self.refillRatePerSec > 0 and avail < uint64(self.capacity):
+        (uint64(added) * 1000'u64) div uint64(self.refillRatePerSec)
+      else:
+        uint64(elapsedMs)
+    let nextTs = lastTs + uint32(consumedMs)
+    let nextTokens = uint32(avail - uint64(requested))
+    let newVal = packRateLimit64(nextTs, nextTokens)
     if self.state.compareExchangeWeak(oldVal, newVal, moAcquireRelease, moAcquire):
       return true
     backoffOnRetry(spins)
