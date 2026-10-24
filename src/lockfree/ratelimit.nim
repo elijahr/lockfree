@@ -729,6 +729,8 @@ proc acquireWithTimeout*(
 ): bool =
   if requested == 0: return true
   if requested > self.capacity: return false
+  if self.refillRatePerSec == 0 and self.available() < requested:
+    return false # Fail fast: tokens will never refill
   let startMs = getMonotonicTimeMs()
   while true:
     let nowMs = getMonotonicTimeMs()
@@ -778,6 +780,7 @@ proc consumeWithTimeout*(
     timeoutMs: int = -1
 ): bool =
   if weight == 0: return true
+  if self.leakRatePerSec == 0: return false # Fail fast: water level will never leak
   let startMs = getMonotonicTimeMs()
   while true:
     let nowMs = getMonotonicTimeMs()

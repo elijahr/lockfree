@@ -303,6 +303,20 @@ const cases = @[
     outcome: eoCompileFails,
     substring: "is not available for type <BQueue128>",
   ),
+  Case(
+    name:
+      "stack128 copy-safety — TaggedStack cannot be copied",
+    file: "tests/should_fail/stack128_copy_forbidden.nim",
+    outcome: eoCompileFails,
+    substring: "is not available for type <TaggedStack>",
+  ),
+  Case(
+    name:
+      "tokenbucket64 copy-safety — TokenBucket64 cannot be copied",
+    file: "tests/should_fail/tokenbucket64_copy_forbidden.nim",
+    outcome: eoCompileFails,
+    substring: "is not available for type <TokenBucket64>",
+  ),
 ]
 
 

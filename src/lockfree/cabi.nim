@@ -4264,7 +4264,12 @@ proc createBQueue128Tier[N: static int](
 ): lf_status_t {.nimcall, gcsafe, raises: [].} =
   cAbiBoundary:
     let impl = cast[ptr BQueue128Impl[N]](allocShared0(sizeof(BQueue128Impl[N])))
-    let raw = allocAlignedBQueue128[pointer, N]()
+    var raw: ptr BQueue128[pointer, N] = nil
+    try:
+      raw = allocAlignedBQueue128[pointer, N]()
+    except CatchableError, Defect:
+      deallocShared(impl)
+      return LF_ERR_FAILURE
     impl.raw = raw
     impl.base.destructor = destructor
     impl.base.userData = userData
