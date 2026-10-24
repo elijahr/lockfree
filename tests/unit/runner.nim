@@ -71,3 +71,4 @@ import ../t_flat_combiner
 import ../t_bounded_primitives
 import ../t_disjoint_set
 import ../t_bqueue128
+import ../t_stack128

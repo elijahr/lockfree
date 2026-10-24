@@ -52,6 +52,9 @@ type
     refillRatePerSec*: uint64  ## Tokens refilled per second
     scaleFactor*: uint64       ## Scaling factor (default: 10^9 for nano-tokens)
 
+  TokenBucket128* = TokenBucket
+    ## Explicit semantic alias for 128-bit hardware DWCAS token bucket.
+
   LeakyBucket* = object
     ## Lock-free GCRA (Generic Cell Rate Algorithm) traffic smoother.
     ## Enforces uniform spacing between events with bounded burst tolerance.
@@ -59,6 +62,9 @@ type
     burstToleranceNs*: uint64  ## Burst tolerance tau in nanoseconds
     leakRatePerSec*: uint64    ## Tokens leaked per second
     scaleFactor*: uint64       ## Scaling factor (default: 1)
+
+  LeakyBucket128* = LeakyBucket
+    ## Explicit semantic alias for 128-bit hardware DWCAS leaky bucket.
 
 proc `=copy`*(dest: var TokenBucket, source: TokenBucket) {.
     error: "TokenBucket/LeakyBucket contains atomic state and cannot be copied. Pass by `var` or `ptr`."
@@ -135,6 +141,15 @@ proc initTokenBucket*(
       min(result.capacity, initialTokens * result.scaleFactor)
   let now = getMonotonicTimeNs()
   result.state.store(Pair[uint64, uint64](first: now, second: initTokens))
+
+template initTokenBucket128*(
+    capacityTokens: uint64,
+    refillRatePerSec: uint64,
+    initialTokens: uint64 = uint64.high,
+    scaleFactor: uint64 = NanosPerSec
+): TokenBucket128 =
+  ## Explicit constructor for 128-bit hardware DWCAS TokenBucket.
+  initTokenBucket(capacityTokens, refillRatePerSec, initialTokens, scaleFactor)
 
 proc capacity*(self: TokenBucket): uint64 {.inline.} =
   ## Returns total capacity in unscaled integer tokens.
@@ -307,6 +322,14 @@ proc initLeakyBucket*(
   result.leakRatePerSec = leakRatePerSec
   result.scaleFactor = if scaleFactor == 0: 1'u64 else: scaleFactor
   result.state.store(Pair[uint64, uint64](first: 0'u64, second: 0'u64))
+
+template initLeakyBucket128*(
+    burstToleranceNs: uint64,
+    leakRatePerSec: uint64,
+    scaleFactor: uint64 = 1
+): LeakyBucket128 =
+  ## Explicit constructor for 128-bit hardware DWCAS LeakyBucket.
+  initLeakyBucket(burstToleranceNs, leakRatePerSec, scaleFactor)
 
 proc initLeakyBucketWithBurst*(
     burstTokens: uint64,
@@ -602,4 +625,160 @@ proc lfq_leaky_bucket_water_level*(
     bucket: ptr lf_leaky_bucket_t
 ): uint64 {.exportc: "lfq_leaky_bucket_water_level", cdecl, gcsafe, raises: [].} =
   lf_leaky_bucket_water_level(bucket)
+
+# ------------------------------------------------------------------------------
+# 5. TokenBucket64 & LeakyBucket64 (Universal 64-Bit Packed Single-Word Atomics)
+# ------------------------------------------------------------------------------
+
+type
+  TokenBucket64* = object
+    ## Universal 64-bit packed token bucket for architectures without 128-bit DWCAS
+    ## or for minimal single-word cacheline footprints.
+    ## State encoding: [High 32 bits: Timestamp ms | Low 32 bits: Tokens]
+    state* {.align: CacheLineBytes.}: Atomic[uint64]
+    capacity*: uint32
+    refillRatePerSec*: uint32
+
+  LeakyBucket64* = object
+    ## Universal 64-bit packed GCRA leaky bucket for architectures without 128-bit DWCAS.
+    ## State encoding: [High 32 bits: TAT ms | Low 32 bits: Reserved/Sequence]
+    state* {.align: CacheLineBytes.}: Atomic[uint64]
+    burstToleranceMs*: uint32
+    leakRatePerSec*: uint32
+
+proc `=copy`*(dest: var TokenBucket64, source: TokenBucket64) {.
+    error: "TokenBucket64 contains atomic state and cannot be copied. Pass by `var` or `ptr`."
+.}
+
+proc `=copy`*(dest: var LeakyBucket64, source: LeakyBucket64) {.
+    error: "LeakyBucket64 contains atomic state and cannot be copied. Pass by `var` or `ptr`."
+.}
+
+proc getMonotonicTimeMs*(): uint32 {.inline.} =
+  uint32((getMonoTime().ticks div 1_000_000'i64) and 0xFFFF_FFFF'i64)
+
+proc packRateLimit64(highWord: uint32, lowWord: uint32): uint64 {.inline.} =
+  (uint64(highWord) shl 32) or uint64(lowWord)
+
+proc unpackRateLimit64(val: uint64): (uint32, uint32) {.inline.} =
+  (uint32(val shr 32), uint32(val and 0xFFFF_FFFF'u64))
+
+proc initTokenBucket64*(
+    capacityTokens: uint32,
+    refillRatePerSec: uint32,
+    initialTokens: uint32 = uint32.high
+): TokenBucket64 =
+  ## Initializes a 64-bit packed lock-free token bucket.
+  result.capacity = capacityTokens
+  result.refillRatePerSec = refillRatePerSec
+  let initTokens = if initialTokens == uint32.high: capacityTokens else: min(capacityTokens, initialTokens)
+  let now = getMonotonicTimeMs()
+  result.state.store(packRateLimit64(now, initTokens), moRelaxed)
+
+proc capacity*(self: TokenBucket64): uint32 {.inline.} = self.capacity
+proc refillRate*(self: TokenBucket64): uint32 {.inline.} = self.refillRatePerSec
+
+proc availableAt*(self: var TokenBucket64, nowMs: uint32): uint32 =
+  let st = self.state.load(moAcquire)
+  let (lastTs, tokens) = unpackRateLimit64(st)
+  let elapsedMs = if nowMs >= lastTs: nowMs - lastTs else: (uint32.high - lastTs) + nowMs + 1'u32
+  if self.refillRatePerSec == 0:
+    return tokens
+  let added = uint32((uint64(elapsedMs) * uint64(self.refillRatePerSec)) div 1000'u64)
+  min(self.capacity, tokens + added)
+
+proc available*(self: var TokenBucket64): uint32 {.inline.} =
+  self.availableAt(getMonotonicTimeMs())
+
+proc tryAcquireAt*(self: var TokenBucket64, nowMs: uint32, requested: uint32 = 1): bool =
+  if requested == 0: return true
+  if requested > self.capacity: return false
+
+  var spins = InitialSpin
+  var oldVal = self.state.load(moAcquire)
+  while true:
+    let (lastTs, tokens) = unpackRateLimit64(oldVal)
+    let elapsedMs = if nowMs >= lastTs: nowMs - lastTs else: (uint32.high - lastTs) + nowMs + 1'u32
+    let added = if self.refillRatePerSec == 0: 0'u32 else: uint32((uint64(elapsedMs) * uint64(self.refillRatePerSec)) div 1000'u64)
+    let avail = min(self.capacity, tokens + added)
+    if avail < requested:
+      return false
+    let nextTokens = avail - requested
+    let newVal = packRateLimit64(nowMs, nextTokens)
+    if self.state.compareExchangeWeak(oldVal, newVal, moAcquireRelease, moAcquire):
+      return true
+    backoffOnRetry(spins)
+
+proc tryAcquire*(self: var TokenBucket64, requested: uint32 = 1): bool {.inline.} =
+  self.tryAcquireAt(getMonotonicTimeMs(), requested)
+
+proc acquireWithTimeout*(
+    self: var TokenBucket64,
+    requested: uint32 = 1,
+    timeoutMs: int = -1
+): bool =
+  if requested == 0: return true
+  if requested > self.capacity: return false
+  let startMs = getMonotonicTimeMs()
+  while true:
+    let nowMs = getMonotonicTimeMs()
+    if self.tryAcquireAt(nowMs, requested):
+      return true
+    if timeoutMs == 0:
+      return false
+    if timeoutMs > 0:
+      let elapsed = int(if nowMs >= startMs: nowMs - startMs else: (uint32.high - startMs) + nowMs + 1'u32)
+      if elapsed >= timeoutMs:
+        return false
+    sleepNanoseconds(500_000)
+
+proc initLeakyBucket64*(burstToleranceMs: uint32, leakRatePerSec: uint32): LeakyBucket64 =
+  ## Initializes a 64-bit packed lock-free GCRA leaky bucket.
+  result.burstToleranceMs = burstToleranceMs
+  result.leakRatePerSec = leakRatePerSec
+  let now = getMonotonicTimeMs()
+  result.state.store(packRateLimit64(now, 0), moRelaxed)
+
+proc burstTolerance*(self: LeakyBucket64): uint32 {.inline.} = self.burstToleranceMs
+proc leakRate*(self: LeakyBucket64): uint32 {.inline.} = self.leakRatePerSec
+
+proc tryConsumeAt*(self: var LeakyBucket64, nowMs: uint32, weight: uint32 = 1): bool =
+  if weight == 0: return true
+  if self.leakRatePerSec == 0: return false
+  let costMs = uint32((uint64(weight) * 1000'u64) div uint64(self.leakRatePerSec))
+  var spins = InitialSpin
+  var oldVal = self.state.load(moAcquire)
+  while true:
+    let (tatMs, _) = unpackRateLimit64(oldVal)
+    let newTat = max(nowMs, tatMs) + costMs
+    let maxTat = nowMs + self.burstToleranceMs + costMs
+    if newTat > maxTat:
+      return false
+    let newVal = packRateLimit64(newTat, 0)
+    if self.state.compareExchangeWeak(oldVal, newVal, moAcquireRelease, moAcquire):
+      return true
+    backoffOnRetry(spins)
+
+proc tryConsume*(self: var LeakyBucket64, weight: uint32 = 1): bool {.inline.} =
+  self.tryConsumeAt(getMonotonicTimeMs(), weight)
+
+proc consumeWithTimeout*(
+    self: var LeakyBucket64,
+    weight: uint32 = 1,
+    timeoutMs: int = -1
+): bool =
+  if weight == 0: return true
+  let startMs = getMonotonicTimeMs()
+  while true:
+    let nowMs = getMonotonicTimeMs()
+    if self.tryConsumeAt(nowMs, weight):
+      return true
+    if timeoutMs == 0:
+      return false
+    if timeoutMs > 0:
+      let elapsed = int(if nowMs >= startMs: nowMs - startMs else: (uint32.high - startMs) + nowMs + 1'u32)
+      if elapsed >= timeoutMs:
+        return false
+    sleepNanoseconds(500_000)
+
 

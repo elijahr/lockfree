@@ -248,6 +248,33 @@ suite "Wave 4A 128-Bit DWCAS Rate Limiters":
     check lfq_leaky_bucket_consume_timeout(nil, 1, 100) == false
     check lfq_leaky_bucket_water_level(nil) == 0
 
+  test "TokenBucket128 and LeakyBucket128 explicit constructors":
+    var tb = initTokenBucket128(capacityTokens = 50, refillRatePerSec = 10)
+    check tb.capacityTokens == 50
+    check tb.tryAcquire(25) == true
+    check tb.available == 25
+
+    var lb = initLeakyBucket128(burstToleranceNs = 50_000_000, leakRatePerSec = 20)
+    check lb.burstToleranceNs == 50_000_000
+    check lb.tryConsume(1) == true
+
+  test "TokenBucket64 and LeakyBucket64 universal single-word atomics":
+    var tb64 = initTokenBucket64(capacityTokens = 100, refillRatePerSec = 50)
+    check tb64.capacity == 100
+    check tb64.refillRate == 50
+    check tb64.available == 100
+    check tb64.tryAcquire(40) == true
+    check tb64.available == 60
+    check tb64.tryAcquire(60) == true
+    check tb64.available == 0
+    check tb64.tryAcquire(1) == false
+
+    var lb64 = initLeakyBucket64(burstToleranceMs = 50, leakRatePerSec = 20)
+    check lb64.burstTolerance == 50
+    check lb64.leakRate == 20
+    check lb64.tryConsume(1) == true
+
+
   test "Direct C99 Header Interoperability":
     let includeDir = currentSourcePath().parentDir() / ".." / "include"
     let cmd = "clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_ratelimit.h")

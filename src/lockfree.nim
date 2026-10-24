@@ -36,8 +36,12 @@ const LockfreeVersion* {.strdefine.} = "0.6.0"
 ##   - **Channel Facade** (`lockfree/channel`):
 ##     - `Channel[T]`, `Sender[T]`, `Receiver[T]` with automatic thread-local registration.
 ##   - **Rate Limiting Surface** (`lockfree/ratelimit`):
-##     - `TokenBucket`: Hardware 128-bit DWCAS burst-tolerant rate limiter with zero-drift nano-tokens.
-##     - `LeakyBucket`: Hardware 128-bit DWCAS GCRA virtual scheduling traffic smoother.
+##     - `TokenBucket` / `TokenBucket128`: Hardware 128-bit DWCAS burst-tolerant rate limiter with zero-drift nano-tokens.
+##     - `LeakyBucket` / `LeakyBucket128`: Hardware 128-bit DWCAS GCRA virtual scheduling traffic smoother.
+##     - `TokenBucket64` / `LeakyBucket64`: Universal 64-bit single-word packed atomic rate limiters for minimal cacheline overhead and non-DWCAS targets.
+##   - **Hardware 128-Bit DWCAS Surface** (`lockfree/bqueue128`, `lockfree/stack128`):
+##     - `BQueue128`: Preallocated bounded MPMC queue with 128-bit atomic slot state (64-bit turn + 64-bit payload).
+##     - `TaggedStack` / `Stack128`: MPMC LIFO stack with 128-bit atomic top (64-bit pointer + 64-bit ABA tag) and zero-SMR pooled freelist recycling.
 ##   - **Bounded Zero-SMR Surface** (`lockfree/bqueue`, `lockfree/bstack`, `lockfree/bpriority_queue`, `lockfree/btable`, `lockfree/disjoint_set`):
 ##     - `BQueue` / `BoundedQueue`: Preallocated bounded SPSC/MPSC/SPMC/MPMC FIFO queue.
 ##     - `BStack` / `BoundedStack`: Preallocated bounded SPSC/MPSC/SPMC/MPMC LIFO stack with elimination backoff.
@@ -62,8 +66,8 @@ when compileOption("threads"):
   export with_bound, constructs
 
   when supportsDwcas:
-    import ./lockfree/bqueue128
-    export bqueue128
+    import ./lockfree/[bqueue128, stack128]
+    export bqueue128, stack128
 
   when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch):
     import ./lockfree/async_bridge
@@ -73,12 +77,16 @@ else:
   # + supporting enums.
   import lockfree/atomics
   import lockfree/atomics/dsl
-  import ./lockfree/[bpriority_queue, bqueue, bqueue128, bstack, btable, cardinality, channel, disjoint_set, endpoint, queue, reclamation, stack, strategy]
+  import ./lockfree/[bpriority_queue, bqueue, bstack, btable, cardinality, channel, disjoint_set, endpoint, queue, reclamation, stack, strategy]
   import ./lockfree/internal/pinscope_stub
   import ./lockfree/typestates/with_bound
   import ./lockfree/typestates/constructs
 
   export atomics, dsl
-  export bpriority_queue, bqueue, bqueue128, bstack, btable, cardinality, channel, disjoint_set, endpoint, queue, reclamation, stack, strategy
+  export bpriority_queue, bqueue, bstack, btable, cardinality, channel, disjoint_set, endpoint, queue, reclamation, stack, strategy
   export pinscope_stub
   export with_bound, constructs
+
+  when supportsDwcas:
+    import ./lockfree/[bqueue128, stack128]
+    export bqueue128, stack128
