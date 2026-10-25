@@ -233,7 +233,7 @@ At the core of `lockfree`'s Morrison-Afek LCRQ unbounded MPMC queue and NEBR rec
 <!-- BENCHMARK_METRICS_START -->
 ## Performance Benchmarks
 
-> Continuous verification measured on standard GitHub-hosted `ubuntu-22.04` (4 vCPU x86_64).
+> Continuous verification measured on `AMD EPYC 9V45 96-Core Processor, 4 cores, linux amd64`.
 > Throughput numbers reflect 1,000,000 messages across active producer and consumer threads.
 
 ### High-Contention Throughput Matrix
