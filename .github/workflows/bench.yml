@@ -105,6 +105,10 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v4
 
+      - name: Clean workspace (clean slate)
+        run: |
+          rm -rf .tmp/ *.json benchmarks/nim/smoke/.tmp
+
       - name: Setup Nim
         uses: jiro4989/setup-nim-action@v2
         with:
@@ -198,6 +202,10 @@ jobs:
 
       - name: Checkout project
         uses: actions/checkout@v4
+
+      - name: Clean workspace (clean slate)
+        run: |
+          rm -rf .tmp/ *.json benchmarks/nim/smoke/.tmp
 
       - name: Setup Nim
         uses: jiro4989/setup-nim-action@v2
@@ -978,6 +986,10 @@ jobs:
           # the push closes the loop-prevention contract.
           token: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Clean stale artifacts & working state (clean slate)
+        run: |
+          rm -rf bmf-inputs/ merged.json
+
       - name: Download BMF artifacts
         # Pattern matches every per-binary artifact uploaded by the
         # bench matrix (`bench-bench_spsc-bmf`, `bench-bench_mpsc-bmf`,
@@ -1083,6 +1095,8 @@ jobs:
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           mkdir -p docs/assets/bench-results
+          # Clean slate: remove stale historical commit JSONs from prior runs
+          find docs/assets/bench-results/ -name '[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].json' -delete
           SHA=$(git rev-parse --short HEAD)
           cp merged.json "docs/assets/bench-results/${SHA}.json"
           cp merged.json docs/assets/bench-results/latest.json
@@ -1155,6 +1169,8 @@ jobs:
           git fetch origin "${{ github.head_ref }}":"refs/remotes/origin/${{ github.head_ref }}"
           git checkout -B "${{ github.head_ref }}" "refs/remotes/origin/${{ github.head_ref }}"
           mkdir -p docs/assets/bench-results
+          # Clean slate: remove stale historical commit JSONs from prior runs
+          find docs/assets/bench-results/ -name '[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f].json' -delete
           SHA=$(git rev-parse --short HEAD)
           cp merged.json "docs/assets/bench-results/${SHA}.json"
           cp merged.json docs/assets/bench-results/latest.json
