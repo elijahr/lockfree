@@ -55,7 +55,7 @@ requires "lockfree >= 0.1.0"
 | Dimension | Supported Matrix |
 | :--- | :--- |
 | **Nim Compiler** | `>= 2.2.10` |
-| **Memory Managers** | `orc` (default), `arc`, `atomicArc`, `refc`, `none` |
+| **Memory Managers** | `orc` (default), `arc`, `atomicArc`, `none` (`refc` retired) |
 | **Backends** | C, C++ |
 | **Threading** | `--threads:on` required (default in Nim 2.2+) |
 | **Platforms (CI-verified)** | Linux x86_64, Linux arm64, macOS arm64, Windows |

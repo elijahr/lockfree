@@ -33,7 +33,7 @@ The package provides:
 | Requirement | Supported |
 |-------------|-----------|
 | **Nim Version** | `>= 2.2.10` |
-| **Memory Managers** | `orc` (default), `arc`, `refc`, `atomicArc` |
+| **Memory Managers** | `orc` (default), `arc`, `atomicArc` (`refc` retired) |
 | **Backends** | C (`nim c`), C++ (`nim cpp`) |
 | **Threading** | `--threads:on` required (default in Nim 2.2+) |
 | **Platforms (CI-verified)** | Linux x86_64, Linux arm64, macOS Apple Silicon (arm64) |

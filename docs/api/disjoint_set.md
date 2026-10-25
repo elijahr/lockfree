@@ -7,7 +7,7 @@ Wait-free and lock-free concurrent Disjoint-Set Union (DSU / Union-Find) data st
 - **Module**: `lockfree/disjoint_set`
 - **Aliases**: `UnionFind`
 - **Progress**: `find` and `sameSet` are wait-free; `union` is lock-free.
-- **Safety**: Fully compatible with ARC, ORC, refc, and C++ memory management models.
+- **Safety**: Fully compatible with ARC, ORC, and C++ memory management models.
 
 ## API Reference
 
