@@ -85,7 +85,8 @@ proc runParallel(
   backend: string = "c",
   nimcacheDir: string = "",
   isRelease: bool = false,
-  isDanger: bool = false
+  isDanger: bool = false,
+  timeoutSec: float = 180.0
 ): int =
   var running: seq[RunningProcess] = @[]
   var results: seq[TestResult] = @[]
@@ -159,7 +160,29 @@ proc runParallel(
           styledWriteLine(stdout, fgRed, "  [FAIL] ", fgDefault, relName, " (exit ", $code, ")")
           echo outStr
       else:
-        inc i
+        let dur = epochTime() - running[i].t0
+        if timeoutSec > 0 and dur > timeoutSec:
+          drainProcessOutput(running[i])
+          running[i].p.terminate()
+          sleep(50)
+          drainProcessOutput(running[i])
+          running[i].p.kill()
+          let testPath = running[i].path
+          var outStr = running[i].output
+          running[i].p.close()
+          running.delete(i)
+          inc completed
+          if outStr.len == 0:
+            outStr = "[TIMEOUT] Test subprocess exceeded timeout of " & $int(timeoutSec) & "s and was terminated.\n"
+          else:
+            outStr.add("\n[TIMEOUT] Test subprocess exceeded timeout of " & $int(timeoutSec) & "s and was terminated.\n")
+          let res = TestResult(path: testPath, duration: dur, exitCode: 124, output: outStr)
+          results.add(res)
+          let relName = testPath.extractFilename()
+          styledWriteLine(stdout, fgRed, "  [TIMEOUT] ", fgDefault, relName, " (exceeded ", $int(timeoutSec), "s)")
+          echo outStr
+        else:
+          inc i
 
     sleep(5)
 
@@ -195,6 +218,13 @@ when isMainModule:
   var nimcacheDir = ""
   var isRelease = false
   var isDanger = false
+  var timeoutSec = 180.0
+  let envTimeout = getEnv("LFQ_TEST_TIMEOUT", getEnv("LFQ_TEST_TIMEOUT_SEC", ""))
+  if envTimeout.len > 0:
+    try:
+      timeoutSec = parseFloat(envTimeout)
+    except ValueError:
+      discard
 
   for param in commandLineParams():
     if param == "--concurrency" or param == "-c":
@@ -224,6 +254,8 @@ when isMainModule:
       backend = param.split(":")[1]
     elif param.startsWith("--workers:"):
       workers = parseInt(param.split(":")[1])
+    elif param.startsWith("--timeout:"):
+      timeoutSec = parseFloat(param.split(":")[1])
     elif param.startsWith("--nimcache:"):
       nimcacheDir = param.split(":")[1]
     elif param.startsWith("--filter:") or param.startsWith("-f:"):
@@ -262,5 +294,5 @@ when isMainModule:
 
   let optLabel = if isDanger: ", Danger" elif isRelease: ", Release" else: ", Debug"
   echo "Running ", uniqueTests.len, " test suites across ", workers, " worker threads [MM: ", mm, ", Backend: ", backend, optLabel, "]..."
-  let code = runParallel(uniqueTests, workers, mm = mm, backend = backend, nimcacheDir = nimcacheDir, isRelease = isRelease, isDanger = isDanger)
+  let code = runParallel(uniqueTests, workers, mm = mm, backend = backend, nimcacheDir = nimcacheDir, isRelease = isRelease, isDanger = isDanger, timeoutSec = timeoutSec)
   quit(code)

@@ -56,19 +56,25 @@ name: ci
 
 # yamllint disable rule:truthy
 on:
-  pull_request:
+  push:
+    branches:
+      - main
+      - devel
     paths-ignore:
       - '*.md'
-  push:
+  pull_request:
+    branches:
+      - main
+      - devel
     paths-ignore:
       - '*.md'
   workflow_dispatch:
 # yamllint enable rule:truthy
 
-# Cancel superseded runs on the same ref so a force-push or rapid
-# successive pushes don't burn matrix-minutes on stale revisions.
+# Cancel superseded runs on the same ref/PR so rapid successive pushes
+# don't burn matrix-minutes on stale revisions.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 env:
