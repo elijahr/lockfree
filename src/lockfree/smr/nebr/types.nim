@@ -138,7 +138,7 @@ proc initDebraManager*[
     result.threads[i].epoch.store(0'u64, moRelaxed)
     result.threads[i].pinned.store(false, moRelaxed)
     result.threads[i].neutralized.store(false, moRelaxed)
-    result.threads[i].threadId.store(InvalidThreadId, moRelaxed)
+    result.threads[i].threadId.store(invalidThreadId, moRelaxed)
     result.threads[i].currentBag = nil
     result.threads[i].limboBagTail = nil
     result.threads[i].advanceCounter = 0'u64

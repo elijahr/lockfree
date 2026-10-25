@@ -74,7 +74,7 @@ suite "UnboundedMpsc threaded":
     # and the consumer thread each register on their own thread (via
     # attach() / attachConsumer()).
     var queue = newUnboundedMpscQueue[int, stEager, 8, MaxThreads]()
-    var lfqConsumer = queue.bindConsumer()
+    discard queue.bindConsumer()
 
     var prodContexts: array[ProducerCount, ProducerContext[stEager, 8]]
     for i in 0 ..< ProducerCount:

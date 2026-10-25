@@ -30,7 +30,6 @@
 
 import std/options
 import std/cpuinfo
-import std/os
 import lockfree/atomics
 import lockfree/atomics/backoff
 import lockfree/backoff
@@ -96,13 +95,16 @@ type
   ConcurrentTaskPool* = TaskPool
 
 proc shutdown*(pool: var TaskPool, wait: bool = true) {.gcsafe.}
-proc freeCore(core: ptr TaskPoolCore) {.gcsafe.}
+proc freeCore(core: ptr TaskPoolCore) {.gcsafe, raises: [].}
 
 proc `=destroy`*(pool: var TaskPool) {.gcsafe.} =
   if pool.core != nil:
     if pool.core.rc.fetchSub(1, moRelease) == 1:
       threadFence(moAcquire)
-      pool.shutdown(wait = true)
+      try:
+        pool.shutdown(wait = true)
+      except Exception:
+        discard
       freeCore(pool.core)
     pool.core = nil
 
@@ -726,7 +728,7 @@ proc join*(pool: var TaskPool) {.inline.} =
   ## Waits for all pending tasks and shuts down the pool.
   pool.shutdown(wait = true)
 
-proc freeCore(core: ptr TaskPoolCore) {.gcsafe.} =
+proc freeCore(core: ptr TaskPoolCore) {.gcsafe, raises: [].} =
   if core != nil:
     deinitParker(core.callerParker)
     if core.workers != nil:

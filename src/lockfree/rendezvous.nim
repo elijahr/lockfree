@@ -485,7 +485,10 @@ proc freeChannelCore[T](core: ptr RendezvousChannelCore[T]) =
     if tagState(tag) == rsWaiting and tagMode(tag) == wmSender:
       let vb = curr.vbox.exchange(nil, moRelaxed)
       if vb != nil:
-        decRef(vb)
+        try:
+          decRef(vb)
+        except CatchableError, Defect:
+          discard
     deinitParker(curr.parker)
     freeSharedAligned(curr)
     curr = nextNode
@@ -511,7 +514,10 @@ proc `=destroy`*[T](self: var RendezvousChannel[T]) =
   if self.core != nil:
     if self.core.rc.fetchSub(1, moRelease) == 1:
       threadFence(moAcquire)
-      freeChannelCore(self.core)
+      try:
+        freeChannelCore(self.core)
+      except:
+        discard
     self.core = nil
 
 proc `=copy`*[T](dest: var RendezvousChannel[T], src: RendezvousChannel[T]) =

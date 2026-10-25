@@ -36,7 +36,6 @@
 {.experimental: "strictEffects".}
 
 import ./internal/typestates_dsl
-import std/typedthreads
 
 import ./endpoint_types
 export endpoint_types

@@ -2157,11 +2157,11 @@ when sizeof(pointer) == 8:
     ## `{.push overflowChecks: off.}`. For counters that must never trap (e.g.
     ## an LCRQ generation tag), use an unsigned half-type.
     enforceDwcasConstraints(A, B)
-    var prev = load(loc, moRelaxed)
+    var prev = load(loc, moSequentiallyConsistent)
     while true:
       let next =
         Pair[A, B](first: prev.first + delta.first, second: prev.second + delta.second)
-      if compareExchangeWeak(loc, prev, next, order, moRelaxed):
+      if compareExchangeWeak(loc, prev, next, order, moSequentiallyConsistent):
         return prev
 
   proc fetchSub*[A, B: SomeInteger](
@@ -2172,11 +2172,11 @@ when sizeof(pointer) == 8:
     ## Componentwise atomic subtract. See `fetchAdd` for transactional semantics
     ## and overflow behavior.
     enforceDwcasConstraints(A, B)
-    var prev = load(loc, moRelaxed)
+    var prev = load(loc, moSequentiallyConsistent)
     while true:
       let next =
         Pair[A, B](first: prev.first - delta.first, second: prev.second - delta.second)
-      if compareExchangeWeak(loc, prev, next, order, moRelaxed):
+      if compareExchangeWeak(loc, prev, next, order, moSequentiallyConsistent):
         return prev
 
   proc fetchAnd*[A, B: SomeInteger](
@@ -2187,12 +2187,12 @@ when sizeof(pointer) == 8:
     ## Componentwise atomic bitwise AND. See `fetchAdd` for transactional
     ## semantics.
     enforceDwcasConstraints(A, B)
-    var prev = load(loc, moRelaxed)
+    var prev = load(loc, moSequentiallyConsistent)
     while true:
       let next = Pair[A, B](
         first: prev.first and mask.first, second: prev.second and mask.second
       )
-      if compareExchangeWeak(loc, prev, next, order, moRelaxed):
+      if compareExchangeWeak(loc, prev, next, order, moSequentiallyConsistent):
         return prev
 
   proc fetchOr*[A, B: SomeInteger](
@@ -2203,11 +2203,11 @@ when sizeof(pointer) == 8:
     ## Componentwise atomic bitwise OR. See `fetchAdd` for transactional
     ## semantics.
     enforceDwcasConstraints(A, B)
-    var prev = load(loc, moRelaxed)
+    var prev = load(loc, moSequentiallyConsistent)
     while true:
       let next =
         Pair[A, B](first: prev.first or mask.first, second: prev.second or mask.second)
-      if compareExchangeWeak(loc, prev, next, order, moRelaxed):
+      if compareExchangeWeak(loc, prev, next, order, moSequentiallyConsistent):
         return prev
 
   proc fetchXor*[A, B: SomeInteger](
@@ -2218,12 +2218,12 @@ when sizeof(pointer) == 8:
     ## Componentwise atomic bitwise XOR. See `fetchAdd` for transactional
     ## semantics.
     enforceDwcasConstraints(A, B)
-    var prev = load(loc, moRelaxed)
+    var prev = load(loc, moSequentiallyConsistent)
     while true:
       let next = Pair[A, B](
         first: prev.first xor mask.first, second: prev.second xor mask.second
       )
-      if compareExchangeWeak(loc, prev, next, order, moRelaxed):
+      if compareExchangeWeak(loc, prev, next, order, moSequentiallyConsistent):
         return prev
 
   {.pop.}

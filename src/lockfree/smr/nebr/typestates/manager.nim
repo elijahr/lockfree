@@ -56,7 +56,7 @@ proc initialize*[MaxThreads: static int, CC: static PinScopeCardinality](
     mgr.threads[i].epoch.store(0'u64, moRelaxed)
     mgr.threads[i].pinned.store(false, moRelaxed)
     mgr.threads[i].neutralized.store(false, moRelaxed)
-    mgr.threads[i].threadId.store(InvalidThreadId, moRelaxed)
+    mgr.threads[i].threadId.store(invalidThreadId, moRelaxed)
     mgr.threads[i].currentBag = nil
     mgr.threads[i].limboBagTail = nil
   ManagerReady[MaxThreads, CC](ManagerContext[MaxThreads, CC](manager: mgr))

@@ -16,6 +16,10 @@ import unittest2
 import lockfree/ratelimit
 import lockfree/atomics
 import std/os
+from lockfree/cabi import lfq_token_bucket_t, lfq_token_bucket_init, lfq_token_bucket_available,
+  lfq_token_bucket_try_acquire, lfq_token_bucket_acquire_timeout, lfq_leaky_bucket_t,
+  lfq_leaky_bucket_init, lfq_leaky_bucket_try_consume, lfq_leaky_bucket_water_level,
+  lfq_leaky_bucket_consume_timeout
 
 const NanosPerSec: uint64 = 1_000_000_000'u64
 

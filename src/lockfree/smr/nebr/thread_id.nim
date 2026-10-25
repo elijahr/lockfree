@@ -97,10 +97,13 @@ when defined(windows):
     ## compiling unchanged.
     tid*: uint32
 
-  let InvalidThreadId* = ThreadId(tid: 0'u32)
+  let invalidThreadId* = ThreadId(tid: 0'u32)
     ## Sentinel value representing no thread. The Win32 thread-ID space starts
     ## at 4 (the kernel allocates DWORDs in multiples of 4, skipping 0); zero is
     ## guaranteed never to alias a real thread.
+  {.push hint[Name]: off.}
+  template InvalidThreadId*: ThreadId = invalidThreadId
+  {.pop.}
 
   proc currentThreadId*(): ThreadId {.raises: [].} =
     ## Get the ThreadId of the current thread.
@@ -165,11 +168,14 @@ else:
   type ThreadId* = object ## Platform-abstracted thread identifier (POSIX arm).
     handle: Pthread
 
-  let InvalidThreadId* = ThreadId(handle: cast[Pthread](0))
+  let invalidThreadId* = ThreadId(handle: cast[Pthread](0))
     ## Sentinel value representing no thread. `cast` (rather than `Pthread(0)`)
     ## is required because on some POSIX platforms (e.g. macOS) `Pthread` is an
     ## opaque struct pointer, and the C++ backend rejects integer-to-pointer
     ## conversions outside of a cast.
+  {.push hint[Name]: off.}
+  template InvalidThreadId*: ThreadId = invalidThreadId
+  {.pop.}
 
   proc currentThreadId*(): ThreadId =
     ## Get the ThreadId of the current thread.

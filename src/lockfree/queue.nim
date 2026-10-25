@@ -61,13 +61,10 @@ import ./exceptions
 from lockfree/smr/nebr import
   DebraManager, ThreadHandle, PinnedScope, Destructor, initDebraManager, registerThread,
   bindClient, unbindClient, unpinned, pinScope, advanceEvery, reclaimNow,
-  DebraRegistrationError, ThreadId, `==`
-
-from lockfree/smr/nebr import retireOnCAS, retireOnPublish
+  DebraRegistrationError, ThreadId, `==`, retireOnCAS, retireOnPublish
 
 import ./endpoint_types
 import ./role_tags
-from lockfree/smr/nebr import pinScope, unpinned, advanceEvery, reclaimNow
 
 when defined(debug):
   import std/typedthreads
@@ -688,7 +685,10 @@ proc segmentDestructor[T; ccProd, ccCons: static PinScopeCardinality, S: static 
       # not fire, so this branch is reachable only for ref / string / seq.
       when (T is ref or T is string or T is seq) or not supportsCopyMem(T):
         for i in 0 ..< S:
-          var cellPair = load(seg.cells[i], moRelaxed)
+          # 128-bit atomic cell load. Single-threaded segment disposal would
+          # conceptually suffice with relaxed, but hardware 16-byte atomics are
+          # inherently seq_cst at instruction level.
+          var cellPair = load(seg.cells[i], moSequentiallyConsistent)
           # Disposing on a zero-bits slot (never published or already claimed)
           # is a no-op per disposeSlotEncoded contract.
           disposeSlotEncoded[T](cellPair.second)

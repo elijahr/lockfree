@@ -206,14 +206,14 @@ suite "Cycle 4 — Gemini critical-finding deterministic repros":
     # Reset cells, tail, prevConsumerIdx to the crafted scenario.
     curSegPtr.prevConsumerIdx.store(-1, moRelaxed)
     # cells[0] = CLOSED_BIT (close sentinel, empty payload)
-    store(curSegPtr.cells[0], Pair[uint, int](first: CLOSED_BIT, second: 0), moRelaxed)
+    store(curSegPtr.cells[0], Pair[uint, int](first: CLOSED_BIT, second: 0), moSequentiallyConsistent)
     # cells[1..3] = published values 42, 43, 44
-    store(curSegPtr.cells[1], Pair[uint, int](first: 1'u, second: 42), moRelaxed)
-    store(curSegPtr.cells[2], Pair[uint, int](first: 1'u, second: 43), moRelaxed)
-    store(curSegPtr.cells[3], Pair[uint, int](first: 1'u, second: 44), moRelaxed)
+    store(curSegPtr.cells[1], Pair[uint, int](first: 1'u, second: 42), moSequentiallyConsistent)
+    store(curSegPtr.cells[2], Pair[uint, int](first: 1'u, second: 43), moSequentiallyConsistent)
+    store(curSegPtr.cells[3], Pair[uint, int](first: 1'u, second: 44), moSequentiallyConsistent)
     # cells[4..7] = empty
     for i in 4 ..< S:
-      store(curSegPtr.cells[i], Pair[uint, int](first: 0'u, second: 0), moRelaxed)
+      store(curSegPtr.cells[i], Pair[uint, int](first: 0'u, second: 0), moSequentiallyConsistent)
     # tail = 4 (slots 0..3 reserved by producers)
     curSegPtr.tail.store(4, moRelaxed)
 
@@ -232,7 +232,7 @@ suite "Cycle 4 — Gemini critical-finding deterministic repros":
       # Reset slots 4..7 to empty again so the crafted scenario
       # holds.
       for i in 4 ..< S:
-        store(curSegPtr.cells[i], Pair[uint, int](first: 0'u, second: 0), moRelaxed)
+        store(curSegPtr.cells[i], Pair[uint, int](first: 0'u, second: 0), moSequentiallyConsistent)
       # And ensure tail is 4 (the producer may have advanced it).
       curSegPtr.tail.store(4, moRelaxed)
       # Reset prevConsumerIdx since the next-seg producer didn't
@@ -245,9 +245,9 @@ suite "Cycle 4 — Gemini critical-finding deterministic repros":
     let nextSegPtr = cast[SegPtr](nextSegRaw)
     # Reset successor to a known state: single value at slot 0.
     nextSegPtr.prevConsumerIdx.store(-1, moRelaxed)
-    store(nextSegPtr.cells[0], Pair[uint, int](first: 1'u, second: 99), moRelaxed)
+    store(nextSegPtr.cells[0], Pair[uint, int](first: 1'u, second: 99), moSequentiallyConsistent)
     for i in 1 ..< S:
-      store(nextSegPtr.cells[i], Pair[uint, int](first: 0'u, second: 0), moRelaxed)
+      store(nextSegPtr.cells[i], Pair[uint, int](first: 0'u, second: 0), moSequentiallyConsistent)
     nextSegPtr.tail.store(1, moRelaxed)
 
     # Now run 5 pops. Pre-fix expects: some(99), then none x4

@@ -16,7 +16,7 @@
 import ../managed_ref
 import ../managed_slice
 
-template SlotEncoding*(TargetType: typedesc): typedesc =
+template slotEncoding*(TargetType: typedesc): typedesc =
   ## Map a user-facing payload type ``TargetType`` to its slot-encoded wire type.
   ##
   ## Type-extraction grammar (verified under Nim 2.2.10):
@@ -30,3 +30,8 @@ template SlotEncoding*(TargetType: typedesc): typedesc =
     ManagedSlice[typeof(default(TargetType)[0])]
   else:
     TargetType
+
+{.push hint[Name]: off.}
+template SlotEncoding*(TargetType: typedesc): typedesc =
+  slotEncoding(TargetType)
+{.pop.}

@@ -26,10 +26,10 @@ import lockfree/atomics
 proc storeCell[T](cell: var LCRQCell[T], seqVal: uint, payload: T) =
   ## Single-threaded direct store of (seq, payload). Used to install
   ## test pre-conditions; production code goes through the primitives.
-  store(cell, Pair[uint, T](first: seqVal, second: payload), moRelaxed)
+  store(cell, Pair[uint, T](first: seqVal, second: payload), moSequentiallyConsistent)
 
 proc readCell[T](cell: var LCRQCell[T]): Pair[uint, T] =
-  load(cell, moRelaxed)
+  load(cell, moSequentiallyConsistent)
 
 suite "tryPublish / tryClaim / tryCloseOnEmpty cell primitives":
   # ------------------------------------------------------------------
