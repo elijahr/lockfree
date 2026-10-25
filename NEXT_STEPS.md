@@ -19,6 +19,9 @@ just test
 
 # 3. Check formatting and linter
 just lint
+
+# 4. Check for committed secrets
+just check-secrets
 ```
 ---
 
