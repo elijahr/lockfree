@@ -2161,7 +2161,7 @@ when sizeof(pointer) == 8:
     while true:
       let next =
         Pair[A, B](first: prev.first + delta.first, second: prev.second + delta.second)
-      if compareExchangeWeak(loc, prev, next, order, moSequentiallyConsistent):
+      if compareExchangeWeak(loc, prev, next, order, moRelaxed):
         return prev
 
   proc fetchSub*[A, B: SomeInteger](
@@ -2176,7 +2176,7 @@ when sizeof(pointer) == 8:
     while true:
       let next =
         Pair[A, B](first: prev.first - delta.first, second: prev.second - delta.second)
-      if compareExchangeWeak(loc, prev, next, order, moSequentiallyConsistent):
+      if compareExchangeWeak(loc, prev, next, order, moRelaxed):
         return prev
 
   proc fetchAnd*[A, B: SomeInteger](
@@ -2192,7 +2192,7 @@ when sizeof(pointer) == 8:
       let next = Pair[A, B](
         first: prev.first and mask.first, second: prev.second and mask.second
       )
-      if compareExchangeWeak(loc, prev, next, order, moSequentiallyConsistent):
+      if compareExchangeWeak(loc, prev, next, order, moRelaxed):
         return prev
 
   proc fetchOr*[A, B: SomeInteger](
@@ -2207,7 +2207,7 @@ when sizeof(pointer) == 8:
     while true:
       let next =
         Pair[A, B](first: prev.first or mask.first, second: prev.second or mask.second)
-      if compareExchangeWeak(loc, prev, next, order, moSequentiallyConsistent):
+      if compareExchangeWeak(loc, prev, next, order, moRelaxed):
         return prev
 
   proc fetchXor*[A, B: SomeInteger](
@@ -2223,7 +2223,7 @@ when sizeof(pointer) == 8:
       let next = Pair[A, B](
         first: prev.first xor mask.first, second: prev.second xor mask.second
       )
-      if compareExchangeWeak(loc, prev, next, order, moSequentiallyConsistent):
+      if compareExchangeWeak(loc, prev, next, order, moRelaxed):
         return prev
 
   {.pop.}

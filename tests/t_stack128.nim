@@ -138,3 +138,68 @@ suite "TaggedStack / Stack128 (128-Bit DWCAS)":
     check s.isEmpty == true
     check s.len == 0
 
+  test "concurrent multi-producer multi-consumer tryPush and peek stress":
+    var s = initTaggedStack[int]()
+    let sPtr = addr s
+    const NumThreads = 4
+    const ItemsPerThread = 5000
+
+    type
+      WorkerArg = object
+        idx: int
+        stack: ptr TaggedStack[int]
+
+    var poppedCounts {.global.}: array[NumThreads, int]
+    var doneProducers {.global.}: Atomic[int]
+    doneProducers.store(0, moRelaxed)
+
+    proc tryPushProducerWorker(arg: WorkerArg) {.thread, nimcall.} =
+      let startVal = arg.idx * ItemsPerThread
+      for i in 0 ..< ItemsPerThread:
+        var val = startVal + i
+        var spins = InitialSpin
+        while not arg.stack[].tryPush(val):
+          backoffOnRetry(spins)
+
+    proc peekAndPopConsumerWorker(arg: WorkerArg) {.thread, nimcall.} =
+      var count = 0
+      var val: int
+      while true:
+        discard arg.stack[].peek() # Optimistic read concurrent with pop
+        if arg.stack[].tryPop(val):
+          inc count
+        else:
+          if doneProducers.load(moAcquire) == NumThreads and arg.stack[].isEmpty:
+            while arg.stack[].tryPop(val):
+              inc count
+            break
+          cpuPause()
+      poppedCounts[arg.idx] = count
+
+    var prodThreads: array[NumThreads, Thread[WorkerArg]]
+    var consThreads: array[NumThreads, Thread[WorkerArg]]
+
+    for i in 0 ..< NumThreads:
+      createThread(consThreads[i], peekAndPopConsumerWorker, WorkerArg(idx: i, stack: sPtr))
+
+    for i in 0 ..< NumThreads:
+      createThread(prodThreads[i], tryPushProducerWorker, WorkerArg(idx: i, stack: sPtr))
+
+    for i in 0 ..< NumThreads:
+      joinThread(prodThreads[i])
+    doneProducers.store(NumThreads, moRelease)
+
+    for i in 0 ..< NumThreads:
+      joinThread(consThreads[i])
+
+    var totalPopped = 0
+    for i in 0 ..< NumThreads:
+      totalPopped += poppedCounts[i]
+
+    let remaining = s.drain()
+    totalPopped += remaining.len
+
+    check totalPopped == NumThreads * ItemsPerThread
+    check s.isEmpty == true
+    check s.len == 0
+

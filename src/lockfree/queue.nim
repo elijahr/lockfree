@@ -47,6 +47,7 @@ import ./typestates/slot_state
 # `./typestates.nim` re-export module.
 import lockfree/atomics
 import ./backoff
+import ./constants
 import options
 import std/typetraits
 
@@ -934,7 +935,7 @@ proc initQueue*[
     ccProd, ccCons: static PinScopeCardinality,
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](
     _: typedesc[Queue[T, ccProd, ccCons, ST, S, MaxThreads]]
 ): Queue[T, ccProd, ccCons, ST, S, MaxThreads] {.inline.} =
@@ -946,7 +947,7 @@ proc initQueue*[
     ccProd, ccCons: static PinScopeCardinality,
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): Queue[T, ccProd, ccCons, ST, S, MaxThreads] {.inline.} =
   ## Initializes an unbounded Queue value object with sensible defaults (S=64, MaxThreads=128).
   newQueue(Queue[T, ccProd, ccCons, ST, S, MaxThreads])
@@ -956,7 +957,7 @@ proc newQueue*[
     ccProd, ccCons: static PinScopeCardinality,
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): Queue[T, ccProd, ccCons, ST, S, MaxThreads] {.inline.} =
   ## Smart constructor alias for initQueue.
   initQueue[T, ccProd, ccCons, ST, S, MaxThreads]()
@@ -1233,7 +1234,7 @@ proc initUnboundedSpscQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): Queue[T, ccSingle, ccSingle, ST, S, MaxThreads] {.inline.} =
   ## Unbounded SPSC (`ccSingle × ccSingle`) auto-create constructor.
   ## Skips manager allocation (SPSC has no debra integration).
@@ -1243,7 +1244,7 @@ proc newUnboundedSpscQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): Queue[T, ccSingle, ccSingle, ST, S, MaxThreads] {.inline.} =
   ## Unbounded SPSC (`ccSingle × ccSingle`) auto-create smart-constructor.
   initUnboundedSpscQueue[T, ST, S, MaxThreads]()
@@ -1252,7 +1253,7 @@ proc initUnboundedMpscQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](
     manager: ptr DebraManager[MaxThreads, nebr.ccSingle]
 ): Queue[T, ccMulti, ccSingle, ST, S, MaxThreads] {.inline.} =
@@ -1263,7 +1264,7 @@ proc newUnboundedMpscQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](
     manager: ptr DebraManager[MaxThreads, nebr.ccSingle]
 ): Queue[T, ccMulti, ccSingle, ST, S, MaxThreads] {.inline.} =
@@ -1274,7 +1275,7 @@ proc initUnboundedMpscQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): Queue[T, ccMulti, ccSingle, ST, S, MaxThreads] {.inline.} =
   ## Unbounded mpsc-equivalent (`ccMulti × ccSingle`) auto-create constructor.
   newQueue(Queue[T, ccMulti, ccSingle, ST, S, MaxThreads])
@@ -1283,7 +1284,7 @@ proc newUnboundedMpscQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): Queue[T, ccMulti, ccSingle, ST, S, MaxThreads] {.inline.} =
   ## Unbounded mpsc-equivalent (`ccMulti × ccSingle`) auto-create smart-constructor.
   initUnboundedMpscQueue[T, ST, S, MaxThreads]()
@@ -1292,7 +1293,7 @@ proc initUnboundedSpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](
     manager: ptr DebraManager[MaxThreads, nebr.ccMulti]
 ): Queue[T, ccSingle, ccMulti, ST, S, MaxThreads] {.inline.} =
@@ -1303,7 +1304,7 @@ proc newUnboundedSpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](
     manager: ptr DebraManager[MaxThreads, nebr.ccMulti]
 ): Queue[T, ccSingle, ccMulti, ST, S, MaxThreads] {.inline.} =
@@ -1314,7 +1315,7 @@ proc initUnboundedSpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): Queue[T, ccSingle, ccMulti, ST, S, MaxThreads] {.inline.} =
   ## Unbounded spmc-equivalent (`ccSingle × ccMulti`) auto-create constructor.
   newQueue(Queue[T, ccSingle, ccMulti, ST, S, MaxThreads])
@@ -1323,7 +1324,7 @@ proc newUnboundedSpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): Queue[T, ccSingle, ccMulti, ST, S, MaxThreads] {.inline.} =
   ## Unbounded spmc-equivalent (`ccSingle × ccMulti`) auto-create smart-constructor.
   initUnboundedSpmcQueue[T, ST, S, MaxThreads]()
@@ -1332,7 +1333,7 @@ proc initUnboundedMpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](
     manager: ptr DebraManager[MaxThreads, nebr.ccMulti]
 ): Queue[T, ccMulti, ccMulti, ST, S, MaxThreads] {.inline.} =
@@ -1343,7 +1344,7 @@ proc newUnboundedMpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](
     manager: ptr DebraManager[MaxThreads, nebr.ccMulti]
 ): Queue[T, ccMulti, ccMulti, ST, S, MaxThreads] {.inline.} =
@@ -1354,7 +1355,7 @@ proc initUnboundedMpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): Queue[T, ccMulti, ccMulti, ST, S, MaxThreads] {.inline.} =
   ## Unbounded mpmc-equivalent (`ccMulti × ccMulti`) auto-create constructor.
   newQueue(Queue[T, ccMulti, ccMulti, ST, S, MaxThreads])
@@ -1363,7 +1364,7 @@ proc newUnboundedMpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): Queue[T, ccMulti, ccMulti, ST, S, MaxThreads] {.inline.} =
   ## Unbounded mpmc-equivalent (`ccMulti × ccMulti`) auto-create smart-constructor.
   initUnboundedMpmcQueue[T, ST, S, MaxThreads]()
@@ -1373,7 +1374,7 @@ proc initUnboundedQueue*[
     ccProd, ccCons: static PinScopeCardinality,
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): UnboundedQueue[T, ccProd, ccCons, ST, S, MaxThreads] {.inline.} =
   ## Generic constructor for UnboundedQueue.
   newQueue(Queue[T, ccProd, ccCons, ST, S, MaxThreads])
@@ -1383,7 +1384,7 @@ proc newUnboundedQueue*[
     ccProd, ccCons: static PinScopeCardinality,
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): UnboundedQueue[T, ccProd, ccCons, ST, S, MaxThreads] {.inline.} =
   ## Generic smart constructor for UnboundedQueue.
   initUnboundedQueue[T, ccProd, ccCons, ST, S, MaxThreads]()
@@ -1392,7 +1393,7 @@ proc initSpscQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): SpscQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Initializes an unbounded SpscQueue (Single-Producer Single-Consumer).
   initUnboundedSpscQueue[T, ST, S, MaxThreads]()
@@ -1401,7 +1402,7 @@ proc newSpscQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): SpscQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Smart constructor for SpscQueue (Single-Producer Single-Consumer Unbounded).
   initSpscQueue[T, ST, S, MaxThreads]()
@@ -1410,7 +1411,7 @@ proc initMpscQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](
     manager: ptr DebraManager[MaxThreads, nebr.ccSingle]
 ): MpscQueue[T, ST, S, MaxThreads] {.inline.} =
@@ -1421,7 +1422,7 @@ proc newMpscQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](
     manager: ptr DebraManager[MaxThreads, nebr.ccSingle]
 ): MpscQueue[T, ST, S, MaxThreads] {.inline.} =
@@ -1432,7 +1433,7 @@ proc initMpscQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): MpscQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Initializes an unbounded MpscQueue (Multi-Producer Single-Consumer).
   initUnboundedMpscQueue[T, ST, S, MaxThreads]()
@@ -1441,7 +1442,7 @@ proc newMpscQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): MpscQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Smart constructor for MpscQueue (Multi-Producer Single-Consumer Unbounded).
   initMpscQueue[T, ST, S, MaxThreads]()
@@ -1450,7 +1451,7 @@ proc initSpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](
     manager: ptr DebraManager[MaxThreads, nebr.ccMulti]
 ): SpmcQueue[T, ST, S, MaxThreads] {.inline.} =
@@ -1461,7 +1462,7 @@ proc newSpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](
     manager: ptr DebraManager[MaxThreads, nebr.ccMulti]
 ): SpmcQueue[T, ST, S, MaxThreads] {.inline.} =
@@ -1472,7 +1473,7 @@ proc initSpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): SpmcQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Initializes an unbounded SpmcQueue (Single-Producer Multi-Consumer).
   initUnboundedSpmcQueue[T, ST, S, MaxThreads]()
@@ -1481,7 +1482,7 @@ proc newSpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): SpmcQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Smart constructor for SpmcQueue (Single-Producer Multi-Consumer Unbounded).
   initSpmcQueue[T, ST, S, MaxThreads]()
@@ -1490,7 +1491,7 @@ proc initMpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](
     manager: ptr DebraManager[MaxThreads, nebr.ccMulti]
 ): MpmcQueue[T, ST, S, MaxThreads] {.inline.} =
@@ -1501,7 +1502,7 @@ proc newMpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](
     manager: ptr DebraManager[MaxThreads, nebr.ccMulti]
 ): MpmcQueue[T, ST, S, MaxThreads] {.inline.} =
@@ -1512,7 +1513,7 @@ proc initMpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): MpmcQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Initializes an unbounded MpmcQueue (Multi-Producer Multi-Consumer).
   initUnboundedMpmcQueue[T, ST, S, MaxThreads]()
@@ -1521,7 +1522,7 @@ proc newMpmcQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): MpmcQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Smart constructor for MpmcQueue (Multi-Producer Multi-Consumer Unbounded).
   initMpmcQueue[T, ST, S, MaxThreads]()
@@ -1530,7 +1531,7 @@ proc initSpscUnboundedQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): SpscQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Initializes an SpscQueue (Single-Producer Single-Consumer Unbounded).
   initUnboundedSpscQueue[T, ST, S, MaxThreads]()
@@ -1539,7 +1540,7 @@ proc newSpscUnboundedQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): SpscQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Smart constructor for SpscQueue (Single-Producer Single-Consumer Unbounded).
   initSpscUnboundedQueue[T, ST, S, MaxThreads]()
@@ -1548,7 +1549,7 @@ proc initMpscUnboundedQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): MpscQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Initializes an MpscQueue (Multi-Producer Single-Consumer Unbounded).
   initUnboundedMpscQueue[T, ST, S, MaxThreads]()
@@ -1557,7 +1558,7 @@ proc newMpscUnboundedQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): MpscQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Smart constructor for MpscQueue (Multi-Producer Single-Consumer Unbounded).
   initMpscUnboundedQueue[T, ST, S, MaxThreads]()
@@ -1566,7 +1567,7 @@ proc initSpmcUnboundedQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): SpmcQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Initializes an SpmcQueue (Single-Producer Multi-Consumer Unbounded).
   initUnboundedSpmcQueue[T, ST, S, MaxThreads]()
@@ -1575,7 +1576,7 @@ proc newSpmcUnboundedQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): SpmcQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Smart constructor for SpmcQueue (Single-Producer Multi-Consumer Unbounded).
   initSpmcUnboundedQueue[T, ST, S, MaxThreads]()
@@ -1584,7 +1585,7 @@ proc initMpmcUnboundedQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): MpmcQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Initializes an MpmcQueue (Multi-Producer Multi-Consumer Unbounded).
   initUnboundedMpmcQueue[T, ST, S, MaxThreads]()
@@ -1593,7 +1594,7 @@ proc newMpmcUnboundedQueue*[
     T;
     ST: static DeallocationStrategy = DefaultDeallocationStrategy,
     S: static int = 64,
-    MaxThreads: static int = 128,
+    MaxThreads: static int = DefaultMaxThreads,
 ](): MpmcQueue[T, ST, S, MaxThreads] {.inline.} =
   ## Smart constructor for MpmcQueue (Multi-Producer Multi-Consumer Unbounded).
   initMpmcUnboundedQueue[T, ST, S, MaxThreads]()

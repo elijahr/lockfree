@@ -80,7 +80,7 @@ proc tryClaim*[N, C: static int, T](
   # on the hot path - negligible vs the CAS that follows.
   let slot = initRawN[N](int(pos mod uint64(N))).validate().index()
   let s = queue.cells.seqLoad(slot, moAcquire) # P2
-  let diff = cast[int64](s) - cast[int64](pos)
+  let diff = cast[int64](s - pos)
   if diff == 0:
     # Defensive CAS: contract says sole producer, but Nim doesn't enforce it.
     # CAS catches accidental two-thread mis-use as benign retry.

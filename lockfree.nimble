@@ -51,6 +51,9 @@ task testRelease, "Runs fast Tier 1 unit tests in release mode (-d:release --opt
 task testThreadedRelease, "Runs Tier 2 multithreaded concurrency tests in release mode (-d:release --opt:speed)":
   exec "nim r --hints:off --warnings:off tests/test_runner.nim --concurrency --release"
 
+task testChronos, "Runs Chronos async adapter tests (-d:lockfreeChronos)":
+  exec "nim c -r --hints:off --warnings:off -d:lockfreeChronos tests/t_chronos.nim"
+
 task buildLib, "Builds optimized release C-ABI shared and static library in lib/":
   mkDir "lib"
   let ext = when defined(macosx): "dylib" elif defined(windows): "dll" else: "so"

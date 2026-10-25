@@ -74,7 +74,7 @@ proc tryClaim*[N, P: static int, T](
   # for rationale on the double-mod.
   let slot = initRawN[N](int(pos mod uint64(N))).validate().index()
   let s = queue.cells.seqLoad(slot, moAcquire) # C2
-  let diff = cast[int64](s) - cast[int64](pos + 1)
+  let diff = cast[int64](s - (pos + 1))
   if diff == 0:
     # Defensive CAS: contract says sole consumer, but Nim doesn't enforce it.
     # CAS catches accidental two-thread mis-use as benign retry.

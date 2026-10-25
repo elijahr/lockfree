@@ -21,6 +21,7 @@ import ./endpoint
 import ./strategy
 import ./role_tags
 import ./typestates/with_bound
+import ./constants
 import ./exceptions
 
 export with_bound
@@ -43,7 +44,7 @@ proc defaultChannelConfig*(kind: ChannelKind = ckBounded): ChannelConfig =
     kind: kind,
     capacity: 1024,
     segmentSize: 64,
-    maxThreads: 128,
+    maxThreads: DefaultMaxThreads,
     eagerReclaim: true
   )
 
@@ -395,17 +396,17 @@ proc newChannel*[T](capacity: int): tuple[tx: Sender[T], rx: Receiver[T]] {.inli
 
 proc newUnboundedChannel*[T, S: static int](): tuple[tx: Sender[T], rx: Receiver[T]] {.inline.} =
   ## Creates an unbounded lock-free channel with exact static segment size S.
-  newUnboundedChannelImpl[T, stEager, S, 128]()
+  newUnboundedChannelImpl[T, stEager, S, DefaultMaxThreads]()
 
 proc newUnboundedChannel*[T](segmentSize: static int = 64): tuple[tx: Sender[T], rx: Receiver[T]] {.inline.} =
   ## Creates an unbounded lock-free channel with static segment size (defaults
   ## to 64).
-  newUnboundedChannelImpl[T, stEager, segmentSize, 128]()
+  newUnboundedChannelImpl[T, stEager, segmentSize, DefaultMaxThreads]()
 
 proc newUnboundedChannel*[T](segmentSize: int): tuple[tx: Sender[T], rx: Receiver[T]] =
   ## Creates an unbounded lock-free channel with 1 standard tier (64).
   discard segmentSize
-  newUnboundedChannelImpl[T, stEager, 64, 128]()
+  newUnboundedChannelImpl[T, stEager, 64, DefaultMaxThreads]()
 
 proc newChannel*[T](config: ChannelConfig): tuple[tx: Sender[T], rx: Receiver[T]] =
   ## Creates a channel configured via `ChannelConfig`.

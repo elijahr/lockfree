@@ -140,13 +140,14 @@ proc tryPush*[T](self: var TaggedStack[T], item: var T): bool =
   ## Returns `false` and leaves `item` completely unmodified on contention.
   let node = self.popFreeNode()
   let freshNode = if node != nil: node else: allocAligned[TaggedStackNode[T]]()
+  freshNode.data = move(item)
   var oldTop = self.top.load(moSequentiallyConsistent)
   freshNode.next.store(cast[ptr TaggedStackNode[T]](oldTop.first), moRelease)
   let newTop = Pair[uint64, uint64](first: cast[uint64](freshNode), second: oldTop.second + 1'u64)
   if self.top.compareExchangeWeak(oldTop, newTop, moSequentiallyConsistent, moSequentiallyConsistent):
-    freshNode.data = move(item)
     discard self.count.fetchAdd(1, moRelaxed)
     return true
+  item = move(freshNode.data)
   self.pushFreeNode(freshNode)
   return false
 
@@ -201,13 +202,23 @@ proc pop*[T](self: var TaggedStack[T]): Option[T] =
   return none(T)
 
 proc peek*[T](self: var TaggedStack[T]): Option[T] =
-  ## Returns a copy of the item at the top of the stack without removing it,
-  ## or `none(T)` if empty. Note that concurrent pops may race with peek.
-  let oldTop = self.top.load(moSequentiallyConsistent)
-  if oldTop.first == 0'u64:
-    return none(T)
-  let node = cast[ptr TaggedStackNode[T]](oldTop.first)
-  return some(node.data)
+  ## Returns a snapshot copy of the item at the top of the stack without removing it,
+  ## or `none(T)` if empty.
+  ##
+  ## Thread-safe: uses optimistic validation to ensure concurrent pops cannot
+  ## cause data tearing or read-after-free.
+  var spins = InitialSpin
+  while true:
+    let oldTop = self.top.load(moSequentiallyConsistent)
+    if oldTop.first == 0'u64:
+      return none(T)
+    let node = cast[ptr TaggedStackNode[T]](oldTop.first)
+    let val = node.data
+    # Re-verify top has not changed while reading payload:
+    let currentTop = self.top.load(moSequentiallyConsistent)
+    if currentTop == oldTop:
+      return some(val)
+    backoffOnRetry(spins)
 
 proc peek*[T](self: TaggedStack[T]): Option[T] {.inline.} =
   cast[ptr TaggedStack[T]](unsafeAddr self)[].peek()

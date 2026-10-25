@@ -32,6 +32,7 @@
 ##   compared to cache-padded cell structures.
 
 import ./atomics
+import ./backoff
 import ./internal/aligned_alloc
 import std/options
 
@@ -118,7 +119,7 @@ proc tryPush*[T: uint64 | int64 | pointer | int, N: static int](
   while true:
     let cell = addr self.cells[pos and mask]
     var observed: Pair[uint64, T] = load(cell[], moSequentiallyConsistent)
-    let diff = int64(observed.first) - int64(pos)
+    let diff = cast[int64](observed.first - pos)
     if diff == 0:
       if self.tail.compareExchangeWeak(pos, pos + 1, moRelaxed, moRelaxed):
         var expected = observed
@@ -127,10 +128,14 @@ proc tryPush*[T: uint64 | int64 | pointer | int, N: static int](
         desired.second = val
         # 128-bit hardware CAS is always sequentially consistent at instruction level.
         while not compareExchangeWeak(cell[], expected, desired):
-          discard
+          backoffOnPeerWait()
         return true
     elif diff < 0:
-      return false # Queue is full
+      # Slot has not yet been freed by consumer. Verify whether queue is genuinely full.
+      let head = self.head.load(moRelaxed)
+      if pos >= head + uint64(N):
+        return false # Queue is genuinely full
+      backoffOnPeerWait()
     else:
       pos = self.tail.load(moRelaxed)
 
@@ -150,7 +155,7 @@ proc tryPop*[T: uint64 | int64 | pointer | int, N: static int](
   while true:
     let cell = addr self.cells[pos and mask]
     var observed: Pair[uint64, T] = load(cell[], moSequentiallyConsistent)
-    let diff = int64(observed.first) - int64(pos + 1)
+    let diff = cast[int64](observed.first - (pos + 1))
     if diff == 0:
       if self.head.compareExchangeWeak(pos, pos + 1, moRelaxed, moRelaxed):
         var expected = observed
@@ -159,11 +164,15 @@ proc tryPop*[T: uint64 | int64 | pointer | int, N: static int](
         desired.second = default(T)
         # 128-bit hardware CAS is always sequentially consistent at instruction level.
         while not compareExchangeWeak(cell[], expected, desired):
-          discard
+          backoffOnPeerWait()
         val = observed.second
         return true
     elif diff < 0:
-      return false # Queue is empty
+      # Slot has not yet been published by producer. Verify whether queue is genuinely empty.
+      let tail = self.tail.load(moRelaxed)
+      if tail <= pos:
+        return false # Queue is genuinely empty
+      backoffOnPeerWait()
     else:
       pos = self.head.load(moRelaxed)
 

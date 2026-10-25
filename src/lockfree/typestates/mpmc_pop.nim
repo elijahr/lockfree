@@ -69,7 +69,7 @@ proc tryClaim*[N, P, C: static int, T](
   # for rationale on the double-mod.
   let slot = initRawN[N](int(pos mod uint64(N))).validate().index()
   let s = queue.cells.seqLoad(slot, moAcquire) # C2
-  let diff = cast[int64](s) - cast[int64](pos + 1)
+  let diff = cast[int64](s - (pos + 1))
   if diff == 0:
     var expected = pos
     if queue.head.compareExchangeWeak(expected, pos + 1, moRelaxed, moRelaxed):

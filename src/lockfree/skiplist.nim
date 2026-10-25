@@ -566,6 +566,7 @@ proc put*[K, V; MaxThreads, MaxLevel: static int](
         let newBox = newVBox(val)
         var oldBox = existingNode.valPtr.load(moAcquire)
         var updated = false
+        var spins = InitialSpin
         while true:
           if isMarked(existingNode.next[0].load(moAcquire)):
             freeVBox(newBox)
@@ -575,6 +576,7 @@ proc put*[K, V; MaxThreads, MaxLevel: static int](
             handle.advanceEvery(32)
             updated = true
             break
+          backoffOnRetry(spins)
         if updated:
           return false
         continue

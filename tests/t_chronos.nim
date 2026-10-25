@@ -22,21 +22,13 @@
 ## (silent skip on missing optional dep). In CI the chronos cell
 ## installs chronos so the gate opens.
 
-when not defined(lockfreeChronos) or not (compiles do:
-  import chronos
-):
-  # LOUD skip marker: chronos is NOT in lockfree.nimble requires, so the
-  # default build env has no chronos and this entire adapter suite
-  # compiles to a no-op with ZERO assertions. A green umbrella run does
-  # NOT imply the chronos adapter was tested. The banner below makes that
-  # explicit so the absence of coverage is never mistaken for passing
-  # coverage. CI must install chronos in a dedicated lane to exercise the
-  # real assertions in the `when (compiles ...)` branch below.
-  echo "================================================================"
-  echo "SKIPPED [t_chronos]: chronos adapter NOT TESTED (chronos not on " &
-    "the Nim path or -d:lockfreeChronos not set). 0 assertions ran. " &
-    "Install chronos and pass -d:lockfreeChronos to exercise lockfree/chronos."
-  echo "================================================================"
+when defined(lockfreeChronos):
+  when not (compiles do:
+    import chronos
+  ):
+    {.error: "-d:lockfreeChronos was passed, but the `chronos` package could not be imported. Install chronos via nimble to run t_chronos.".}
+else:
+  echo "SKIPPED [t_chronos]: chronos adapter NOT TARGETED (-d:lockfreeChronos flag omitted)."
 
 when defined(lockfreeChronos) and (compiles do:
   import chronos

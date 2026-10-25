@@ -53,7 +53,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
 
   import ./constants
   import ./atomics
-  import ./atomics/backoff
+  import ./backoff
   import ./bqueue
   import ./queue
   import ./rendezvous
@@ -118,6 +118,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     while curr != nil:
       let nxt = curr.next
       GC_unref(curr.fut)
+      curr.fut = nil
       deallocShared(curr)
       curr = nxt
 
@@ -161,6 +162,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       let nxt = rev.next
       let f = rev.fut
       GC_unref(f)
+      rev.fut = nil
       deallocShared(rev)
       result.add(f)
       rev = nxt
@@ -186,6 +188,7 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
         let done = f.finished
       if done or (removeTarget != nil and f == removeTarget):
         GC_unref(f)
+        rev.fut = nil
         deallocShared(rev)
       else:
         while true:
@@ -1312,13 +1315,14 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     ## `moSequentiallyConsistent` barrier with `pushBottom` so zero wakeups can
     ## be lost. Returns `none(T)` only if the deque is closed and empty.
     while true:
+      var spins1 = InitialSpin
       while not self.deque.isEmpty:
         let v1 = self.deque.steal()
         if v1.isSome:
           if not self.deque.isEmpty and self.waitingThieves.load(moSeqCst) > 0:
             self.notifyThieves()
           return v1
-        cpuPause()
+        backoffOnRetry(spins1)
 
       if self.closed.load(moAcquire):
         return self.deque.steal()
@@ -1330,13 +1334,14 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       threadFence(moSeqCst)
 
       try:
+        var spins2 = InitialSpin
         while not self.deque.isEmpty:
           let v2 = self.deque.steal()
           if v2.isSome:
             if not self.deque.isEmpty and self.waitingThieves.load(moSeqCst) > 1:
               self.notifyThieves()
             return v2
-          cpuPause()
+          backoffOnRetry(spins2)
 
         if self.closed.load(moAcquire):
           return self.deque.steal()
@@ -1356,13 +1361,14 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     ## order). Suspends when empty and wakes on `pushBottom`. If items remain
     ## after the batch steal, cascades wakeup to any remaining parked thieves.
     while true:
+      var spins1 = InitialSpin
       while not self.deque.isEmpty:
         let b1 = self.deque.stealBatch(maxItems)
         if b1.len > 0:
           if not self.deque.isEmpty and self.waitingThieves.load(moSeqCst) > 0:
             self.notifyThieves()
           return b1
-        cpuPause()
+        backoffOnRetry(spins1)
 
       if self.closed.load(moAcquire):
         return self.deque.stealBatch(maxItems)
@@ -1374,13 +1380,14 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       threadFence(moSeqCst)
 
       try:
+        var spins2 = InitialSpin
         while not self.deque.isEmpty:
           let b2 = self.deque.stealBatch(maxItems)
           if b2.len > 0:
             if not self.deque.isEmpty and self.waitingThieves.load(moSeqCst) > 1:
               self.notifyThieves()
             return b2
-          cpuPause()
+          backoffOnRetry(spins2)
 
         if self.closed.load(moAcquire):
           return self.deque.stealBatch(maxItems)

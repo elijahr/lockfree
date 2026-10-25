@@ -179,7 +179,7 @@ when not defined(windows):
     # reader could observe a fresh `globalManagerPtr` paired with stale
     # stride/header from a previous manager (or vice versa) — exactly the
     # publish-ordering hazard the surrounding comments claim to prevent.
-    let mgrPtr = globalManagerPtr.load(moAcquire)
+    let mgrPtr = if threadLocalManager != nil: threadLocalManager else: globalManagerPtr.load(moAcquire)
     if mgrPtr != nil:
       let basePtr = cast[ptr UncheckedArray[byte]](mgrPtr)
 
@@ -371,7 +371,7 @@ proc neutralizeRemoteSlot*(tid: ThreadId, slot: int) =
       # Windows the scanner runs this from its own context (not the target's),
       # so `threadLocalIdx` is the SCANNER's slot index, not the target's — we
       # use the explicit `slot` argument instead.
-      let mgrPtr = globalManagerPtr.load(moAcquire)
+      let mgrPtr = if threadLocalManager != nil: threadLocalManager else: globalManagerPtr.load(moAcquire)
       if mgrPtr != nil:
         let basePtr = cast[ptr UncheckedArray[byte]](mgrPtr)
         let headerSize = threadsArrayOffsetBytes.load(moAcquire)

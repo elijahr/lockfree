@@ -131,6 +131,9 @@ proc initDebraManager*[
   ##
   ## The global epoch starts at 1 (not 0) so that epoch 0 can represent "never
   ## observed" in thread state.
+  static:
+    doAssert MaxThreads <= 64,
+      "DebraManager requires MaxThreads <= 64 because activeThreadMask is a 64-bit word (uint64)"
   result.globalEpoch.store(1'u64, moRelaxed)
   result.activeThreadMask.store(0'u64, moRelaxed)
   result.boundClients.store(0, moRelaxed)

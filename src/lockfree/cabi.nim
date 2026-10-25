@@ -690,10 +690,10 @@ proc lf_unbounded_mpmc_create*(
       q = createUnboundedInstance[32, 32](destructor, user_data, th, th)
     elif seg <= 64 and th <= 64:
       q = createUnboundedInstance[64, 64](destructor, user_data, th, th)
-    elif seg <= 128 and th <= 128:
-      q = createUnboundedInstance[128, 128](destructor, user_data, th, th)
-    elif seg <= 256 and th <= 256:
-      q = createUnboundedInstance[256, 256](destructor, user_data, th, th)
+    elif seg <= 128 and th <= 64:
+      q = createUnboundedInstance[128, 64](destructor, user_data, th, th)
+    elif seg <= 256 and th <= 64:
+      q = createUnboundedInstance[256, 64](destructor, user_data, th, th)
     else:
       return LF_ERR_UNSUPPORTED
 
