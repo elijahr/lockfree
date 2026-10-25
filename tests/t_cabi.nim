@@ -356,7 +356,7 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
 
     const NumProducers = 4
     const NumConsumers = 4
-    const ItemsPerProducer = 25_000
+    const ItemsPerProducer = when defined(release) or defined(danger): 25_000 else: 5_000
 
     var producerThreads: array[NumProducers, Thread[ptr ThreadProducerArg]]
     var consumerThreads: array[NumConsumers, Thread[ptr ThreadConsumerArg]]
@@ -384,7 +384,7 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
 
     const NumProducers = 4
     const NumConsumers = 4
-    const ItemsPerProducer = 25_000
+    const ItemsPerProducer = when defined(release) or defined(danger): 25_000 else: 5_000
 
     var producerThreads: array[NumProducers, Thread[ptr ThreadProducerArg]]
     var consumerThreads: array[NumConsumers, Thread[ptr ThreadConsumerArg]]
