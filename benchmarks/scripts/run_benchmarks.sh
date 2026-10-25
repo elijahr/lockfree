@@ -12,6 +12,10 @@ flags=""
 
 if [ "${FORCE_SKIP_LOONY:-}" != "1" ]; then
   flags="$flags -d:adapter_loony_available"
+  loony_dir=$(find ~/.nimble/pkgs2 ~/.nimble/pkgs -maxdepth 1 -type d -name "loony-*" 2>/dev/null | sort -V | tail -n 1 || true)
+  if [ -n "$loony_dir" ]; then
+    flags="$flags --path:${loony_dir}"
+  fi
 fi
 if [ "${FORCE_SKIP_MOODYCAMEL:-}" != "1" ]; then
   flags="$flags -d:adapter_moodycamel_available"
@@ -19,6 +23,10 @@ if [ "${FORCE_SKIP_MOODYCAMEL:-}" != "1" ]; then
 fi
 if [ "${FORCE_SKIP_THREADING_CHANNELS:-}" != "1" ]; then
   flags="$flags -d:adapter_threading_channels_available"
+  threading_dir=$(find ~/.nimble/pkgs2 ~/.nimble/pkgs -maxdepth 1 -type d -name "threading-*" 2>/dev/null | sort -V | tail -n 1 || true)
+  if [ -n "$threading_dir" ]; then
+    flags="$flags --path:${threading_dir}"
+  fi
 fi
 if [ "${FORCE_SKIP_NIM_CHANNEL:-}" != "1" ]; then
   flags="$flags -d:adapter_nim_channel_available"
