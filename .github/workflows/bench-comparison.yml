@@ -784,9 +784,10 @@ jobs:
         if: |
           github.event_name == 'push' &&
           (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')
+        env:
+          TARGET_BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          TARGET_BRANCH="${{ github.ref_name }}"
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           mkdir -p docs/assets/bench-results
