@@ -733,10 +733,28 @@
     }
   }
 
+  function normalizeColor(c) {
+    if (!c) return '';
+    c = c.trim().toLowerCase();
+    const m = c.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (m) {
+      const r = parseInt(m[1], 10).toString(16).padStart(2, '0');
+      const g = parseInt(m[2], 10).toString(16).padStart(2, '0');
+      const b = parseInt(m[3], 10).toString(16).padStart(2, '0');
+      return '#' + r + g + b;
+    }
+    if (/^#[0-9a-f]{3}$/.test(c)) {
+      return '#' + c[1] + c[1] + c[2] + c[2] + c[3] + c[3];
+    }
+    return c;
+  }
+
   // Interactive Legend: hover highlighting, click-to-toggle, and hide-all / show-all
   function wireInteractivePlot(mount) {
     if (!mount) return null;
-    const svg = mount.querySelector('svg');
+    // Find the actual chart SVG (skip any mini icon SVGs inside legend swatches)
+    const svgs = Array.from(mount.querySelectorAll('svg'));
+    const svg = svgs.find((s) => !s.closest('[class*="-swatch"]'));
     if (!svg) return null;
 
     // Observable Plot generates a container with class `*-swatches` and individual items
@@ -755,18 +773,18 @@
       let color = null;
       if (svgEl) {
         color = svgEl.getAttribute('fill') || svgEl.style.fill;
-        if (!color) {
-          const innerWithFill = svgEl.querySelector('[fill], path, circle');
+        if (!color || color === 'none' || color === 'currentColor') {
+          const innerWithFill = svgEl.querySelector('[fill], path, circle, rect');
           if (innerWithFill) color = innerWithFill.getAttribute('fill') || innerWithFill.style.fill;
         }
       }
-      if (!color) {
+      if (!color || color === 'none' || color === 'currentColor') {
         const bgSpan = s.querySelector('span[style*="background"], [style*="background-color"]');
         if (bgSpan) color = bgSpan.style.backgroundColor;
       }
       if (!color) {
         for (const [lib, meta] of Object.entries(CONTENDER_METADATA)) {
-          if (meta.name && label.startsWith(meta.name)) {
+          if (meta.name && (label === meta.name || label.startsWith(meta.name + ' ') || label.startsWith(meta.name + '—'))) {
             color = getColor(lib);
             break;
           }
@@ -775,22 +793,44 @@
       seriesList.push({
         id: seriesId,
         label: label,
-        color: (color || '').toLowerCase(),
+        color: normalizeColor(color),
         el: s,
       });
     });
 
-    // Tag SVG marks with matching data-series-id
-    const marks = svg.querySelectorAll('g[aria-label="line"] path, g[aria-label="dot"] path, g[aria-label="dot"] circle, g[aria-label="bar"] rect, g[aria-label="bar"] path');
+    // Tag SVG marks with matching data-series-id.
+    // Exclude axis and grid elements so only real series data elements are tagged.
+    const candidateMarks = Array.from(
+      svg.querySelectorAll(
+        'g[aria-label="line"] path, g[aria-label="dot"] path, g[aria-label="dot"] circle, ' +
+        'g[aria-label="bar"] rect, g[aria-label="bar"] path, g[aria-label="area"] path'
+      )
+    );
+    const marks = (candidateMarks.length > 0
+      ? candidateMarks
+      : Array.from(svg.querySelectorAll('path, circle, rect'))
+    ).filter((m) => !m.closest('g[aria-label*="axis"], g[aria-label*="grid"]'));
+
     for (const m of marks) {
-      const stroke = (m.getAttribute('stroke') || (m.parentElement ? m.parentElement.getAttribute('stroke') : '') || '').toLowerCase();
-      const fill = (m.getAttribute('fill') || (m.parentElement ? m.parentElement.getAttribute('fill') : '') || '').toLowerCase();
+      let stroke = normalizeColor(m.getAttribute('stroke') || '');
+      let fill = normalizeColor(m.getAttribute('fill') || '');
+      if (!stroke && m.parentElement) stroke = normalizeColor(m.parentElement.getAttribute('stroke') || '');
+      if (!fill && m.parentElement) fill = normalizeColor(m.parentElement.getAttribute('fill') || '');
+
       const titleEl = m.querySelector('title') || (m.parentElement ? m.parentElement.querySelector('title') : null);
-      const titleText = titleEl ? titleEl.textContent : '';
+      const titleText = (titleEl ? titleEl.textContent : '').trim();
 
       for (const s of seriesList) {
-        const colorMatch = s.color && (stroke === s.color || fill === s.color);
-        const titleMatch = s.label && titleText && titleText.startsWith(s.label);
+        const colorMatch = s.color && (
+          (stroke && stroke === s.color) ||
+          (fill && fill === s.color)
+        );
+        const titleMatch = s.label && titleText && (
+          titleText.startsWith(s.label + ' —') ||
+          titleText.startsWith(s.label + ' ') ||
+          titleText.startsWith(s.label + '\n') ||
+          titleText === s.label
+        );
         if (colorMatch || titleMatch) {
           m.setAttribute('data-series-id', s.id);
           break;
@@ -801,6 +841,7 @@
     // Attach hover and click to each swatch
     for (const s of seriesList) {
       s.el.addEventListener('mouseenter', () => {
+        if (s.el.classList.contains('bench-swatch-disabled')) return;
         mount.classList.add('bench-has-highlight');
         const targetMarks = svg.querySelectorAll(`[data-series-id="${s.id}"]`);
         for (const tm of targetMarks) {
