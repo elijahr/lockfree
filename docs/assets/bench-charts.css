@@ -202,8 +202,12 @@
   opacity: 1 !important;
 }
 
-.bench-chart-plot svg .bench-series-hidden {
+.bench-chart-plot svg .bench-series-hidden,
+.bench-chart-plot svg [data-series-id].bench-series-hidden {
   display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
 }
 
 .bench-toggle-all-btn {

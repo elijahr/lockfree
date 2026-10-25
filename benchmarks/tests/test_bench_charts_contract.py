@@ -970,6 +970,36 @@ class ChartContractTests(unittest.TestCase):
             "expected design/design_rendezvous_channel.md to appear once in mkdocs.yml",
         )
 
+    def test_interactive_legend_wiring_invariants(self) -> None:
+        """Verifies interactive legend toggles hide chart elements in SVG:
+        - Chart SVG selection ignores 15x15 icon SVGs inside swatches
+        - Marks are tagged with data-series-id excluding axis and grid
+        - Color normalization handles both RGB and hex strings
+        - Hidden series marks are suppressed via bench-series-hidden in CSS
+        """
+        js_src = (REPO_ROOT / "docs" / "assets" / "bench-charts.js").read_text()
+        css_src = (REPO_ROOT / "docs" / "assets" / "bench-charts.css").read_text()
+
+        # Chart SVG selector must filter out swatch icon SVGs
+        self.assertIn("function wireInteractivePlot(", js_src)
+        self.assertIn("!s.closest('[class*=\"-swatch\"]')", js_src)
+
+        # Marks query must exclude axis and grid
+        self.assertIn("g[aria-label*=\"axis\"]", js_src)
+        self.assertIn("g[aria-label*=\"grid\"]", js_src)
+
+        # Color normalization helper
+        self.assertIn("function normalizeColor(", js_src)
+
+        # Toggling and disabled state handling
+        self.assertIn("bench-swatch-disabled", js_src)
+        self.assertIn("bench-series-hidden", js_src)
+
+        # CSS hides both general and series-id tagged elements
+        self.assertIn(".bench-series-hidden", css_src)
+        self.assertIn("[data-series-id].bench-series-hidden", css_src)
+        self.assertIn("display: none !important;", css_src)
+
     def test_harness_cardinality_and_adapter_completeness(self) -> None:
         """Verifies Task A harness cardinality, adapter completeness, and canonical slug invariants."""
         for fname in ("latest.json", "example.json"):
