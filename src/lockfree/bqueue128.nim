@@ -196,7 +196,7 @@ proc tryPeek*[T: uint64 | int64 | pointer | int, N: static int](
   let pos = (unsafeAddr self.head)[].load(moAcquire)
   let cell = unsafeAddr self.cells[pos and mask]
   var observed: Pair[uint64, T] = load(cell[], moSequentiallyConsistent)
-  if int64(observed.first) == int64(pos + 1):
+  if observed.first == pos + 1'u64:
     val = observed.second
     return true
   return false

@@ -119,6 +119,27 @@ suite "64-bit DWCAS (128-bit) Atomics Verification":
     check cur.first == 0'u64
     check cur.second == 0'u64
 
+  test "DWCAS fetch ops with varied memory orders (FIND-D1-02 regression)":
+    var a: Atomic[Pair[uint64, uint64]]
+    store(a, makePair(100'u64, 100'u64), moRelaxed)
+
+    # fetchAdd with moRelaxed and moRelease
+    discard fetchAdd(a, makePair(10'u64, 20'u64), moRelaxed)
+    check load(a, moRelaxed) == makePair(110'u64, 120'u64)
+    discard fetchAdd(a, makePair(5'u64, 5'u64), moRelease)
+    check load(a, moAcquire) == makePair(115'u64, 125'u64)
+
+    # fetchSub with moAcquire and moAcquireRelease
+    discard fetchSub(a, makePair(15'u64, 25'u64), moAcquire)
+    check load(a, moRelaxed) == makePair(100'u64, 100'u64)
+    discard fetchSub(a, makePair(10'u64, 10'u64), moAcquireRelease)
+    check load(a, moRelaxed) == makePair(90'u64, 90'u64)
+
+    # fetchAnd / fetchOr / fetchXor with moRelaxed
+    discard fetchOr(a, makePair(0x0F'u64, 0x0F'u64), moRelaxed)
+    discard fetchAnd(a, makePair(0xFF'u64, 0xFF'u64), moRelaxed)
+    discard fetchXor(a, makePair(0x05'u64, 0x05'u64), moRelaxed)
+
 var dwcasContentionVar: Atomic[Pair[uint64, uint64]]
 
 proc dwcasContentionWorker() {.thread.} =

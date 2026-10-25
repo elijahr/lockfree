@@ -317,6 +317,13 @@ const cases = @[
     outcome: eoCompileFails,
     substring: "is not available for type <TokenBucket64>",
   ),
+  Case(
+    name:
+      "FIND-D1-04 regression: DebraManager rejects MaxThreads > 64",
+    file: "tests/should_fail/debra_maxthreads_exceeded.nim",
+    outcome: eoCompileFails,
+    substring: "DebraManager requires MaxThreads <= 64",
+  ),
 ]
 
 

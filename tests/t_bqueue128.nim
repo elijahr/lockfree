@@ -5,7 +5,7 @@ discard """
 
 import unittest2
 import std/options
-import std/atomics as std_atomics
+import lockfree/atomics
 import lockfree/bqueue128
 import lockfree/constants
 
@@ -60,6 +60,32 @@ suite "BQueue128 (128-Bit DWCAS Bounded MPMC Queue)":
     check q.isEmpty
     check q.len == 0
 
+  test "FIND-D2-01 regression: Counter wraparound across uint64.high without RangeDefect":
+    const Cap = 8
+    var q = initBQueue128[uint64, Cap]()
+    # Advance state to just before uint64 overflow:
+    let startPos = uint64.high - 4'u64
+    store(q.head, startPos, moRelaxed)
+    store(q.tail, startPos, moRelaxed)
+    for i in 0 ..< Cap:
+      let slotPos = startPos + uint64(i)
+      var p: Pair[uint64, uint64]
+      p.first = slotPos
+      p.second = 0'u64
+      store(q.cells[slotPos and uint64(Cap - 1)], p, moRelaxed)
+
+    # Perform pushes, peeks, and pops across the uint64.high boundary (wraps around to 0)
+    for i in 1'u64 .. 20'u64:
+      check q.tryPush(i * 100)
+      var peekVal: uint64
+      check q.tryPeek(peekVal)
+      check peekVal == i * 100
+      var val: uint64
+      check q.tryPop(val)
+      check val == i * 100
+
+    check q.isEmpty
+
   test "Drain and clear operations":
     const Cap = 32
     var q = initBQueue128[int, Cap]()
@@ -102,11 +128,11 @@ suite "BQueue128 (128-Bit DWCAS Bounded MPMC Queue)":
 
     type SpscCtx = object
       qPtr: ptr BQueue128[int, Cap]
-      consumerSum: std_atomics.Atomic[int64]
+      consumerSum: Atomic[int64]
 
     var ctx: SpscCtx
     ctx.qPtr = addr q
-    ctx.consumerSum.store(0)
+    store(ctx.consumerSum, 0'i64)
 
     proc producer(c: ptr SpscCtx) {.thread.} =
       for i in 1 .. Count:
@@ -121,7 +147,7 @@ suite "BQueue128 (128-Bit DWCAS Bounded MPMC Queue)":
         if c.qPtr[].tryPop(val):
           total += val
           inc popped
-      c.consumerSum.store(total)
+      store(c.consumerSum, total)
 
     var prodThread: Thread[ptr SpscCtx]
     var consThread: Thread[ptr SpscCtx]
@@ -133,7 +159,7 @@ suite "BQueue128 (128-Bit DWCAS Bounded MPMC Queue)":
     joinThread(consThread)
 
     let expectedSum = (int64(Count) * int64(Count + 1)) div 2
-    check ctx.consumerSum.load() == expectedSum
+    check load(ctx.consumerSum) == expectedSum
     check q.isEmpty
 
   test "Multi-threaded MPMC: 4 Producers, 4 Consumers":
@@ -147,13 +173,13 @@ suite "BQueue128 (128-Bit DWCAS Bounded MPMC Queue)":
 
     type MpmcCtx = object
       qPtr: ptr BQueue128[int, Cap]
-      itemsConsumed: std_atomics.Atomic[int]
-      totalConsumedSum: std_atomics.Atomic[int64]
+      itemsConsumed: Atomic[int]
+      totalConsumedSum: Atomic[int64]
 
     var ctx: MpmcCtx
     ctx.qPtr = addr q
-    ctx.itemsConsumed.store(0)
-    ctx.totalConsumedSum.store(0)
+    store(ctx.itemsConsumed, 0)
+    store(ctx.totalConsumedSum, 0'i64)
 
     proc producerWorker(c: ptr MpmcCtx) {.thread.} =
       for i in 1 .. ItemsPerProducer:
@@ -173,8 +199,8 @@ suite "BQueue128 (128-Bit DWCAS Bounded MPMC Queue)":
           elif count > TotalItems:
             break
         else:
-          if c.itemsConsumed.load() >= TotalItems:
-            discard c.totalConsumedSum.fetchAdd(localSum)
+          if load(c.itemsConsumed) >= TotalItems:
+            discard fetchAdd(c.totalConsumedSum, localSum)
             break
 
     var prodThreads: array[NumProducers, Thread[ptr MpmcCtx]]
@@ -193,6 +219,6 @@ suite "BQueue128 (128-Bit DWCAS Bounded MPMC Queue)":
       joinThread(consThreads[i])
 
     let expectedSum = int64(NumProducers) * ((int64(ItemsPerProducer) * int64(ItemsPerProducer + 1)) div 2)
-    check ctx.itemsConsumed.load() == TotalItems
-    check ctx.totalConsumedSum.load() == expectedSum
+    check load(ctx.itemsConsumed) == TotalItems
+    check load(ctx.totalConsumedSum) == expectedSum
     check q.isEmpty
