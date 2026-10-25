@@ -117,9 +117,7 @@ proc tryPush*[T: uint64 | int64 | pointer | int, N: static int](
   var pos = self.tail.load(moRelaxed)
   while true:
     let cell = addr self.cells[pos and mask]
-    var observed: Pair[uint64, T]
-    dwcasOrderRelaxedCAS:
-      observed = load(cell[], moSequentiallyConsistent)
+    var observed: Pair[uint64, T] = load(cell[], moSequentiallyConsistent)
     let diff = int64(observed.first) - int64(pos)
     if diff == 0:
       if self.tail.compareExchangeWeak(pos, pos + 1, moRelaxed, moRelaxed):
@@ -127,9 +125,9 @@ proc tryPush*[T: uint64 | int64 | pointer | int, N: static int](
         var desired: Pair[uint64, T]
         desired.first = pos + 1
         desired.second = val
-        dwcasOrderRelaxedCAS:
-          while not compareExchangeWeak(cell[], expected, desired, moRelease, moRelaxed):
-            discard
+        # 128-bit hardware CAS is always sequentially consistent at instruction level.
+        while not compareExchangeWeak(cell[], expected, desired):
+          discard
         return true
     elif diff < 0:
       return false # Queue is full
@@ -151,9 +149,7 @@ proc tryPop*[T: uint64 | int64 | pointer | int, N: static int](
   var pos = self.head.load(moRelaxed)
   while true:
     let cell = addr self.cells[pos and mask]
-    var observed: Pair[uint64, T]
-    dwcasOrderRelaxedCAS:
-      observed = load(cell[], moSequentiallyConsistent)
+    var observed: Pair[uint64, T] = load(cell[], moSequentiallyConsistent)
     let diff = int64(observed.first) - int64(pos + 1)
     if diff == 0:
       if self.head.compareExchangeWeak(pos, pos + 1, moRelaxed, moRelaxed):
@@ -161,9 +157,9 @@ proc tryPop*[T: uint64 | int64 | pointer | int, N: static int](
         var desired: Pair[uint64, T]
         desired.first = pos + uint64(N)
         desired.second = default(T)
-        dwcasOrderRelaxedCAS:
-          while not compareExchangeWeak(cell[], expected, desired, moRelease, moRelaxed):
-            discard
+        # 128-bit hardware CAS is always sequentially consistent at instruction level.
+        while not compareExchangeWeak(cell[], expected, desired):
+          discard
         val = observed.second
         return true
     elif diff < 0:
@@ -190,9 +186,7 @@ proc tryPeek*[T: uint64 | int64 | pointer | int, N: static int](
   const mask = uint64(N - 1)
   let pos = (unsafeAddr self.head)[].load(moAcquire)
   let cell = unsafeAddr self.cells[pos and mask]
-  var observed: Pair[uint64, T]
-  dwcasOrderRelaxedCAS:
-    observed = load(cell[], moSequentiallyConsistent)
+  var observed: Pair[uint64, T] = load(cell[], moSequentiallyConsistent)
   if int64(observed.first) == int64(pos + 1):
     val = observed.second
     return true

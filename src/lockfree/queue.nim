@@ -151,10 +151,8 @@ type LCRQCell*[T] = Atomic[Pair[uint, T]]
 # Strict-LCRQ cell primitives.
 #
 # Three pure DWCAS primitives on `LCRQCell[T]`. Each is a single
-# `compareExchangeStrong` wrapped in `dwcasOrderRelaxedCAS` to silence the nebr
-# `validCasFailureOrder` warning that fires for the `success=moRelease,
-# failure=moRelaxed` pair on DWCAS sites where the seq_cst-upgrade would be a
-# perf footgun.
+# `compareExchangeStrong`. 128-bit hardware atomics are inherently sequentially
+# consistent at the instruction level on x86_64 and ARM64.
 #
 # Memory ordering (C11-strict, no upgrades): tryPublish: success = moRelease,
 # failure = moRelaxed tryClaim: success = moAcquireRelease, failure = moRelaxed
@@ -204,8 +202,8 @@ proc tryPublish*[T](
   # On CAS failure, debra writes the observed pair into `prev`; we don't re-read
   # it — escalation re-loads via fresh cell.load at the call site (queue.nim
   # push/pop). Required for the degenerate-R encoding.
-  dwcasOrderRelaxedCAS:
-    result = compareExchangeStrong(cell, prev, desired, moRelease, moRelaxed)
+  # Note: 128-bit hardware CAS is always sequentially consistent at instruction level.
+  result = compareExchangeStrong(cell, prev, desired)
   when not supportsCopyMem(T):
     wasMoved(desired.second)
     wasMoved(prev.second)
@@ -224,11 +222,11 @@ proc tryClaim*[T](cell: var LCRQCell[T], expectedSeq: uint): Option[T] {.inline.
     return none(T)
   var desired: Pair[uint, T]
   desired.first = prev.first
-  dwcasOrderRelaxedCAS:
-    if compareExchangeStrong(cell, prev, desired, moAcquireRelease, moRelaxed):
-      when not supportsCopyMem(T):
-        wasMoved(desired.second)
-      return some(move(prev.second))
+  # Note: 128-bit hardware CAS is always sequentially consistent at instruction level.
+  if compareExchangeStrong(cell, prev, desired):
+    when not supportsCopyMem(T):
+      wasMoved(desired.second)
+    return some(move(prev.second))
   when not supportsCopyMem(T):
     wasMoved(prev.second)
     wasMoved(desired.second)
@@ -245,8 +243,8 @@ proc tryCloseOnEmpty*[T](cell: var LCRQCell[T], expectedSeq: uint): bool {.inlin
   # On CAS failure, debra writes the observed pair into `prev`; we don't re-read
   # it — escalation re-loads via fresh cell.load at the call site (queue.nim
   # push/pop). Required for the degenerate-R encoding.
-  dwcasOrderRelaxedCAS:
-    result = compareExchangeStrong(cell, prev, desired, moRelease, moRelaxed)
+  # Note: 128-bit hardware CAS is always sequentially consistent at instruction level.
+  result = compareExchangeStrong(cell, prev, desired)
   when not supportsCopyMem(T):
     wasMoved(prev.second)
     wasMoved(desired.second)
@@ -1194,7 +1192,10 @@ proc `=destroy`*[
         # are caught here).
         when (T is ref or T is string or T is seq) or not supportsCopyMem(T):
           for i in 0 ..< S:
-            var cellPair = load(seg.cells[i], moRelaxed)
+            # 128-bit atomic cell load. Single-threaded teardown would conceptually
+            # suffice with relaxed, but hardware (x86/ARM64) 16-byte atomics are
+            # inherently seq_cst at instruction level.
+            var cellPair = load(seg.cells[i], moSequentiallyConsistent)
             disposeSlotEncoded[T](cellPair.second)
       elif ccProd == ccMulti:
         # MPSC: legacy committed+data overlay; data holds SlotEncoding(T).

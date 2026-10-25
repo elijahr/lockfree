@@ -7,8 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-24
+
 ### Added
 
+- **128-Bit DWCAS Treiber Stack (`TaggedStack` / `Stack128`) (`src/lockfree/stack.nim`, `src/lockfree/tagged_stack.nim`)**:
+  - 128-bit hardware Double-Word Compare-And-Swap Treiber stack for 64-bit scalar types and raw pointers (`uint64`, `int64`, `pointer`, `int`).
+  - Couples the top node pointer with a 64-bit monotonic ABA sequence counter in a single 16-byte atomic `Pair[pointer, uint64]`, providing complete ABA immunity with zero SMR epoch registration or deferred reclamation overhead.
+  - Achieves 12.8M ops/sec under 2P x 2C high-contention multithreaded workloads.
 - **128-Bit DWCAS Bounded MPMC Queue (`BQueue128`) (`src/lockfree/bqueue128.nim`, `include/lockfree_bqueue128.h`)**:
   - High-performance bounded MPMC queue for 64-bit scalar types and raw pointers (`uint64`, `int64`, `pointer`, `int`) using 128-bit hardware Double-Word Compare-And-Swap (`CMPXCHG16B` / `CASP`).
   - Fuses monotonic sequence turn counter and payload into a single 16-byte atomic `Pair[uint64, T]` word (`BQueue128Slot[T]`).
@@ -17,6 +23,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Achieves 114.8M ops/sec on 1P x 1C (+235% / 3.35x faster than classical `BQueue`).
   - Complete FFI/C-ABI bindings via `include/lockfree_bqueue128.h` (`lf_bqueue128_*` and legacy `lfq_bqueue128_*`).
   - Full documentation (`docs/guide/queues/bqueue128.md`, `docs/api/bqueue128.md`) and comparative benchmarks (`benchmarks/nim/bench_bqueue128.nim`).
+- **Dual 64-Bit Word and 128-Bit DWCAS Rate Limiters (`TokenBucket64`, `LeakyBucket64`) (`src/lockfree/ratelimit.nim`)**:
+  - Universal single-word 64-bit atomic rate limiters packing 32-bit millisecond timestamps and 32-bit token counters into a single 64-bit atomic word.
+  - Runs on all architectures supporting standard 64-bit atomics without requiring 128-bit DWCAS hardware support.
+  - Achieves 50.6M acquisitions/sec (`TokenBucket64`) and 66.8M acquisitions/sec (`LeakyBucket64`).
+- **Complete Benchmark Coverage Expansion & Interactive Multi-Arch Panels**:
+  - Added benchmarks for `TaggedStack`, `TokenBucket64`, `LeakyBucket64`, and `DisjointSet` (`benchmarks/nim/bench_stacks_deques.nim`, `benchmarks/nim/bench_ratelimit_streaming.nim`, `benchmarks/nim/bench_disjoint_set.nim`).
+  - Dynamic system spec detection and environment switcher tabs (e.g. Apple Silicon M4 vs Linux CI Runner) without hardcoded values.
+  - Ecosystem filter fix ensuring strict separation when filtering across Rust, C, and Nim libraries.
+  - 43/43 contract tests passing in `benchmarks/tests/test_bench_charts_contract.py`.
+
+### Changed
+
+- **DWCAS Memory Ordering Hardware Realism (`src/lockfree/queue.nim`, `src/lockfree/bqueue128.nim`)**:
+  - Replaced artificial `dwcasOrderRelaxedCAS` wrappers and invalid relaxed teardown loads with direct `moSequentiallyConsistent` in `Queue` (LCRQ) and `BQueue128` cell operations, accurately reflecting 128-bit hardware microarchitecture invariants on x86_64 (`lock cmpxchg16b`) and ARM64 (`casp`), eliminating compiler warnings.
+- **Typestates Linearity Alignment (`src/lockfree/endpoint.nim`, `lockfree.nimble`)**:
+  - Updated dependency requirement to `typestates >= 0.14.0`.
+  - Aligned endpoint state transitions with upstream linearity rules (`sink` parameters, explicit `consumeOnTransition = false` where applicable), resolving compilation issues with modern typestates.
 
 ### Fixed
 
@@ -25,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Guarantees strict 64-byte / 128-byte cache-line isolation and eliminates false sharing caused by unaligned heap baselines.
 - **Vyukov BQueue Documentation Correction (`docs/guide/queues/bounded-vyukov.md`)**:
   - Corrected erroneous claim that `BQueue` was copyable; documented the strict non-copyable `=copy {.error.}` invariant and pass-by-`var`/`ptr` requirements.
+- **BQueue128 and Rate Limiter Hardening**:
+  - Guarded `bqueue128` allocation failures in C-ABI.
+  - Added two's-complement circular cast for `TokenBucket64` timestamp delta wrap-around.
+  - Fail-fast validation against zero capacity / fill rate in rate limiters.
 
 ## [0.6.0] - 2026-10-21
 
