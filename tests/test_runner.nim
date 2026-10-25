@@ -44,7 +44,9 @@ proc runParallel(
   maxWorkers: int,
   mm: string = "orc",
   backend: string = "c",
-  nimcacheDir: string = ""
+  nimcacheDir: string = "",
+  isRelease: bool = false,
+  isDanger: bool = false
 ): int =
   var pending = tests
   var running: seq[tuple[path: string, p: Process, t0: float]] = @[]
@@ -71,6 +73,16 @@ proc runParallel(
         "--hints:off",
         "--warnings:off"
       ]
+      if isDanger:
+        args.add("-d:danger")
+        args.add("-u:debug")
+        args.add("--opt:speed")
+      elif isRelease:
+        args.add("-d:release")
+        args.add("-u:debug")
+        args.add("--opt:speed")
+        args.add("--assertions:on")
+
       if nimcacheDir.len > 0:
         let testBase = testPath.extractFilename().changeFileExt("")
         args.add("--nimcache:" & (nimcacheDir / testBase))
@@ -135,6 +147,8 @@ when isMainModule:
   var mm = "orc"
   var backend = "c"
   var nimcacheDir = ""
+  var isRelease = false
+  var isDanger = false
 
   for param in commandLineParams():
     if param == "--concurrency" or param == "-c":
@@ -152,6 +166,10 @@ when isMainModule:
       runSync = true
     elif param == "--primitives" or param == "-p":
       runPrimitives = true
+    elif param == "--release" or param == "-d:release":
+      isRelease = true
+    elif param == "--danger" or param == "-d:danger":
+      isDanger = true
     elif param == "--cpp":
       backend = "cpp"
     elif param.startsWith("--mm:"):
@@ -196,6 +214,7 @@ when isMainModule:
     echo "No matching tests found."
     quit(0)
 
-  echo "Running ", uniqueTests.len, " test suites across ", workers, " worker threads [MM: ", mm, ", Backend: ", backend, "]..."
-  let code = runParallel(uniqueTests, workers, mm = mm, backend = backend, nimcacheDir = nimcacheDir)
+  let optLabel = if isDanger: ", Danger" elif isRelease: ", Release" else: ", Debug"
+  echo "Running ", uniqueTests.len, " test suites across ", workers, " worker threads [MM: ", mm, ", Backend: ", backend, optLabel, "]..."
+  let code = runParallel(uniqueTests, workers, mm = mm, backend = backend, nimcacheDir = nimcacheDir, isRelease = isRelease, isDanger = isDanger)
   quit(code)

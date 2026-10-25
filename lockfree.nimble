@@ -45,6 +45,18 @@ task testSync, "Runs concurrency & synchronization unit tests":
 task testPrimitives, "Runs atomics & memory primitive unit tests":
   exec "nim r --hints:off --warnings:off tests/test_runner.nim --primitives"
 
+task testRelease, "Runs fast Tier 1 unit tests in release mode (-d:release --opt:speed)":
+  exec "nim r --hints:off --warnings:off tests/test_runner.nim --unit --release"
+
+task testThreadedRelease, "Runs Tier 2 multithreaded concurrency tests in release mode (-d:release --opt:speed)":
+  exec "nim r --hints:off --warnings:off tests/test_runner.nim --concurrency --release"
+
+task buildLib, "Builds optimized release C-ABI shared and static library in lib/":
+  mkDir "lib"
+  let ext = when defined(macosx): "dylib" elif defined(windows): "dll" else: "so"
+  exec "nim c --app:lib -d:release --opt:speed --threads:on -o:lib/liblockfree." & ext & " src/lockfree/cabi.nim"
+  exec "nim c --app:staticlib -d:release --opt:speed --threads:on -o:lib/liblockfree.a src/lockfree/cabi.nim"
+
 task test, "Runs the test suite":
   # Compile-fail negative controls. Runs first so a
   # regression in the (γ) bounded-asymmetry guard or Strategy/cardinality
