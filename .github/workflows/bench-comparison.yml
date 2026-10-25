@@ -802,10 +802,6 @@ jobs:
                   for k in list(comp.keys()):
                       if k != "meta":
                           base.pop(k, None)
-                  if "meta" in comp and "meta" in base and isinstance(base["meta"], dict):
-                      base["meta"].setdefault("adapters", {}).update(
-                          comp["meta"].get("adapters", {})
-                      )
                   with open(".tmp_base_disjoint.json", "w", encoding="utf-8") as fh:
                       json.dump(base, fh, indent=2, sort_keys=True)
                   subprocess.run(
