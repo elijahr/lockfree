@@ -56,43 +56,43 @@
   <text x="32" y="38" class="title">Contention Throughput at 4P:4C (Ops / ms)</text>
   <text x="32" y="58" class="subtitle">1,000,000 operations under 8-thread saturation (AMD EPYC 9V45 96-Core Processor, 4 cores, linux amd64)</text>
   <line x1="367.5" y1="70" x2="367.5" y2="412" class="grid" />
-  <text x="367.5" y="427" class="axis-label">9,571 ops/ms</text>
+  <text x="367.5" y="427" class="axis-label">10,264 ops/ms</text>
   <line x1="470.0" y1="70" x2="470.0" y2="412" class="grid" />
-  <text x="470.0" y="427" class="axis-label">19,142 ops/ms</text>
+  <text x="470.0" y="427" class="axis-label">20,529 ops/ms</text>
   <line x1="572.5" y1="70" x2="572.5" y2="412" class="grid" />
-  <text x="572.5" y="427" class="axis-label">28,713 ops/ms</text>
+  <text x="572.5" y="427" class="axis-label">30,793 ops/ms</text>
   <line x1="675.0" y1="70" x2="675.0" y2="412" class="grid" />
-  <text x="675.0" y="427" class="axis-label">38,284 ops/ms</text>
+  <text x="675.0" y="427" class="axis-label">41,057 ops/ms</text>
   <text x="250" y="94" class="label">lockfree BQueue (Bounded MPMC)</text>
   <text x="250" y="106" class="label-desc">Nim • 4 producers, 4 consumers (4P:4C)</text>
-  <rect x="265" y="80" width="188.4" height="28" rx="5" fill="url(#grad-lfq)"   />
-  <text x="463.4" y="98" class="val">17,591.7 ops/ms</text>
-  <rect x="595.3956260388533" y="84" width="54" height="20" class="badge-rect" />
-  <text x="622.3956260388533" y="98" class="badge-text">9.5x</text>
+  <rect x="265" y="80" width="175.7" height="28" rx="5" fill="url(#grad-lfq)"   />
+  <text x="450.7" y="98" class="val">17,591.7 ops/ms</text>
+  <rect x="582.6709714951133" y="84" width="54" height="20" class="badge-rect" />
+  <text x="609.6709714951133" y="98" class="badge-text">9.5x</text>
   <text x="250" y="140" class="label">lockfree Queue (Unbounded MPMC)</text>
   <text x="250" y="152" class="label-desc">Nim • LCRQ DWCAS + NEBR SMR (4P:4C)</text>
-  <rect x="265" y="126" width="102.2" height="28" rx="5" fill="url(#grad-lfq)"   />
-  <text x="377.2" y="144" class="val">9,541.5 ops/ms</text>
-  <rect x="501.1831275947988" y="130" width="54" height="20" class="badge-rect" />
-  <text x="528.1831275947989" y="144" class="badge-text">5.2x</text>
+  <rect x="265" y="126" width="95.3" height="28" rx="5" fill="url(#grad-lfq)"   />
+  <text x="370.3" y="144" class="val">9,541.5 ops/ms</text>
+  <rect x="494.28145463040335" y="130" width="54" height="20" class="badge-rect" />
+  <text x="521.2814546304033" y="144" class="badge-text">5.2x</text>
   <text x="250" y="186" class="label">MoodyCamel ConcurrentQueue</text>
   <text x="250" y="198" class="label-desc">C++ • Unbounded (4P:4C)</text>
-  <rect x="265" y="172" width="132.4" height="28" rx="5" fill="url(#grad-alt)"   />
-  <text x="407.4" y="190" class="val">12,361.3 ops/ms</text>
+  <rect x="265" y="172" width="123.4" height="28" rx="5" fill="url(#grad-alt)"   />
+  <text x="398.4" y="190" class="val">12,361.3 ops/ms</text>
   <text x="250" y="232" class="label">Boost.LockFree Queue</text>
   <text x="250" y="244" class="label-desc">C++ • Bounded (4P:4C)</text>
-  <rect x="265" y="218" width="21.7" height="28" rx="5" fill="url(#grad-alt)"   />
-  <text x="296.7" y="236" class="val">2,025.8 ops/ms</text>
+  <rect x="265" y="218" width="20.2" height="28" rx="5" fill="url(#grad-alt)"   />
+  <text x="295.2" y="236" class="val">2,025.8 ops/ms</text>
   <text x="250" y="278" class="label">Crossbeam SegQueue</text>
   <text x="250" y="290" class="label-desc">Rust • Unbounded (4P:4C)</text>
   <rect x="265" y="264" width="379.6" height="28" rx="5" fill="url(#grad-alt)"   />
-  <text x="654.6" y="282" class="val">35,448.5 ops/ms</text>
+  <text x="654.6" y="282" class="val">38,016.2 ops/ms</text>
   <text x="250" y="324" class="label">Crossbeam ArrayQueue</text>
   <text x="250" y="336" class="label-desc">Rust • Bounded (4P:4C)</text>
-  <rect x="265" y="310" width="129.3" height="28" rx="5" fill="url(#grad-alt)"   />
-  <text x="404.3" y="328" class="val">12,071.3 ops/ms</text>
+  <rect x="265" y="310" width="111.0" height="28" rx="5" fill="url(#grad-alt)"   />
+  <text x="386.0" y="328" class="val">11,111.3 ops/ms</text>
   <text x="250" y="370" class="label">Nim system/Channel</text>
   <text x="250" y="382" class="label-desc">Nim Stdlib • Blocking channel (4P:4C)</text>
-  <rect x="265" y="356" width="19.7" height="28" rx="5" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="4 2" opacity="0.8" />
-  <text x="294.7" y="374" class="val">1,842.9 ops/ms</text>
+  <rect x="265" y="356" width="18.4" height="28" rx="5" fill="none" stroke="var(--text-muted)" stroke-width="1.5" stroke-dasharray="4 2" opacity="0.8" />
+  <text x="293.4" y="374" class="val">1,842.9 ops/ms</text>
 </svg>
