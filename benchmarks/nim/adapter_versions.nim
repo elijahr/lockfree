@@ -226,13 +226,15 @@ const
 # `liblfds711/inc/liblfds711/lfds711_misc.h`.
 when defined(adapter_liblfds_available):
   const LiblfdsAdapterPresent = true
+  const LiblfdsVendorDir =
+    currentSourcePath().parentDir.parentDir & "/vendor/liblfds"
+  {.passC: "-I" & LiblfdsVendorDir.}
   # We `#include` the umbrella header rather than `lfds711_misc.h`
   # directly: `lfds711_misc.h` depends on the porting-abstraction-layer
   # headers (compiler / OS / processor) being included first, and only
   # the umbrella header pulls them in in the right order. The macro
   # `LFDS711_MISC_VERSION_STRING` is defined transitively via this
-  # include. Path is relative to the `-I<vendor>/liblfds` flag emitted
-  # by `liblfds_adapter.nim`.
+  # include.
   {.
     emit: """/*INCLUDESECTION*/
 #if defined(__APPLE__) && !defined(__linux__)

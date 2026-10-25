@@ -41,7 +41,7 @@ fi
 
 LIBLFDS_LIB_DIR="$REPO_ROOT/benchmarks/vendor/liblfds/liblfds711/bin"
 if [ -f "$LIBLFDS_LIB_DIR/liblfds711.a" ]; then
-  flags="$flags -d:adapter_liblfds_available --passL:-L${LIBLFDS_LIB_DIR} --passL:-llfds711"
+  flags="$flags -d:adapter_liblfds_available --cincludes:${REPO_ROOT}/benchmarks/vendor/liblfds --passL:-L${LIBLFDS_LIB_DIR} --passL:-llfds711"
 fi
 
 RUST_FFI_LIB_DIR="$REPO_ROOT/benchmarks/rust/bench-ffi-crossbeam/target/release"
