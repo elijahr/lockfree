@@ -64,7 +64,7 @@ proc start*[N: static int](): SPSCPushStart[N] {.inline.} =
   SPSCPushStart[N]()
 
 proc loadPointers*[N: static int, T](
-    op: SPSCPushStart[N], queue: var SpscBase[N, T]
+    op: sink SPSCPushStart[N], queue: var SpscBase[N, T]
 ): SPSCPushPointersLoaded[N] {.inline, transition.} =
   ## Load head and tail atomically.
   let tail = loadAcquireN1[N](queue.tail).validate()
@@ -72,7 +72,7 @@ proc loadPointers*[N: static int, T](
   SPSCPushPointersLoaded[N](head: head, tail: tail)
 
 proc checkFull*[N: static int](
-    op: SPSCPushPointersLoaded[N]
+    op: sink SPSCPushPointersLoaded[N]
 ): SPSCFullCheck[N] {.inline, transition.} =
   ## Check if queue is full. Returns branch type.
   if fullN1(op.head, op.tail):
@@ -82,7 +82,7 @@ proc checkFull*[N: static int](
     SPSCFullCheck[N] -> SPSCPushNotFull[N](tail: op.tail, slot: slot)
 
 proc writeData*[N: static int, T](
-    op: SPSCPushNotFull[N], queue: var SpscBase[N, T], item: sink T
+    op: sink SPSCPushNotFull[N], queue: var SpscBase[N, T], item: sink T
 ): SPSCPushDataWritten[N] {.inline, transition.} =
   ## Write item to the slot.
   queue.storage[op.slot] = item

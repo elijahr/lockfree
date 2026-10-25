@@ -49,7 +49,7 @@ proc start*[N: static int](): SPSCPopStart[N] {.inline.} =
   SPSCPopStart[N]()
 
 proc loadPointers*[N: static int, T](
-    op: SPSCPopStart[N], queue: var SpscBase[N, T]
+    op: sink SPSCPopStart[N], queue: var SpscBase[N, T]
 ): SPSCPopPointersLoaded[N] {.inline, transition.} =
   ## Load head and tail atomically.
   let head = loadAcquireN1[N](queue.head).validate()
@@ -57,7 +57,7 @@ proc loadPointers*[N: static int, T](
   SPSCPopPointersLoaded[N](head: head, tail: tail)
 
 proc checkEmpty*[N: static int](
-    op: SPSCPopPointersLoaded[N]
+    op: sink SPSCPopPointersLoaded[N]
 ): SPSCEmptyCheck[N] {.inline, transition.} =
   ## Check if queue is empty. Returns branch type.
   if emptyN1(op.head, op.tail):
