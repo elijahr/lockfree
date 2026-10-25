@@ -364,11 +364,20 @@ def build_markdown_section(
         ],
     ) or 29399.0
 
+    host = data.get("meta", {}).get("host", {})
+    if host and host.get("cpu_model"):
+        cores_str = f"{host.get('cores')} cores" if host.get("cores") else ""
+        os_arch = f"{host.get('os', '')} {host.get('arch', '')}".strip()
+        host_summary = ", ".join(filter(None, [host.get("cpu_model"), cores_str, os_arch]))
+        env_note = f"> Continuous verification measured on `{host_summary}`."
+    else:
+        env_note = "> Continuous verification measured on dedicated benchmarking hardware."
+
     lines = [
         "<!-- BENCHMARK_METRICS_START -->",
         "## Performance Benchmarks",
         "",
-        "> Continuous verification measured on standard GitHub-hosted `ubuntu-22.04` (4 vCPU x86_64).",
+        env_note,
         "> Throughput numbers reflect 1,000,000 messages across active producer and consumer threads.",
         "",
         f'<p align="center">',
@@ -507,10 +516,19 @@ def main() -> None:
         }
     )
 
+    host_info = data.get("meta", {}).get("host", {})
+    if host_info and host_info.get("cpu_model"):
+        cores_str = f"{host_info.get('cores')} cores" if host_info.get("cores") else ""
+        os_arch = f"{host_info.get('os', '')} {host_info.get('arch', '')}".strip()
+        host_summary = ", ".join(filter(None, [host_info.get("cpu_model"), cores_str, os_arch]))
+        subtitle_text = f"1,000,000 operations under 8-thread saturation ({host_summary})"
+    else:
+        subtitle_text = "1,000,000 operations under 8-thread saturation"
+
     hero_svg_content = generate_hero_svg(
         hero_items,
         title="Contention Throughput at 4P:4C (Ops / ms)",
-        subtitle="1,000,000 operations under 8-thread saturation (ubuntu-22.04, 4 vCPU x86_64)",
+        subtitle=subtitle_text,
     )
 
     # 2. Prepare Latency Ladder SVG

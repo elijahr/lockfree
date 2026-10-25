@@ -72,6 +72,8 @@ env:
   FORCE_SKIP_MOODYCAMEL: ${{ inputs.force_skip_moodycamel && '1' || '' }}
   FORCE_SKIP_THREADING_CHANNELS: ${{ inputs.force_skip_threading_channels && '1' || '' }}
   FORCE_SKIP_NIM_CHANNEL: ${{ inputs.force_skip_nim_channel && '1' || '' }}
+  CPATH: /opt/homebrew/include
+  LIBRARY_PATH: /opt/homebrew/lib
 
 jobs:
   bench-tests:
@@ -91,13 +93,11 @@ jobs:
     # (not `main`) for deterministic CI; bump in lockstep with
     # build.yml/bench.yml's `benchmark` job and lockfree.nimble's
     # `requires`.
-    name: bench-tests (ubuntu-22.04)
-    # Pinned to ubuntu-22.04 (not ubuntu-latest) so bench wall-clock
-    # numbers stay reproducible across runs. The GitHub-hosted
-    # `ubuntu-latest` pointer rolls forward and the resulting kernel /
-    # glibc / scheduler delta produces apparent throughput shifts that
-    # have no relationship to a code change.
-    runs-on: ubuntu-22.04
+    name: bench-tests (macOS-m4-pro)
+    # Target dedicated self-hosted bare-metal macOS ARM64 runner
+    # (Apple M4 Pro) to eliminate cloud hypervisor jitter, noisy neighbors,
+    # and CPU oversubscription.
+    runs-on: [self-hosted, macOS, ARM64]
     if: github.actor != 'github-actions[bot]'
     timeout-minutes: 10
 
@@ -111,6 +111,7 @@ jobs:
           nim-version: 'stable'
 
       - name: Install build deps (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update -q -y
           sudo apt-get -qq install -y clang
@@ -147,10 +148,11 @@ jobs:
     # arrived, and the docs charts get partial coverage rather than no
     # coverage. Per-binary `-d:` overrides are tuned to fit each
     # variant's CI budget; see design 2.5 for the override table.
-    name: ${{ matrix.binary }} (ubuntu-22.04)
-    # Pinned to ubuntu-22.04 for bench-result reproducibility (see the
-    # bench-tests job above for the rationale).
-    runs-on: ubuntu-22.04
+    name: ${{ matrix.binary }} (macOS-m4-pro)
+    # Target dedicated self-hosted bare-metal macOS ARM64 runner
+    # (Apple M4 Pro) to eliminate cloud hypervisor jitter, noisy neighbors,
+    # and CPU oversubscription.
+    runs-on: [self-hosted, macOS, ARM64]
     # Two combined gates:
     #   1. Same-repo only — fork PRs are skipped to keep the bench
     #      surface contained to maintainer pushes / merges.
@@ -203,6 +205,7 @@ jobs:
           nim-version: 'stable'
 
       - name: Install build deps (Linux)
+        if: runner.os == 'Linux'
         run: |
           sudo apt-get update -q -y
           sudo apt-get -qq install -y clang
@@ -241,7 +244,11 @@ jobs:
            matrix.binary == 'bench_ratelimit_streaming')
         continue-on-error: true
         run: |
-          sudo apt-get install -qq -y libboost-dev
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            sudo apt-get install -qq -y libboost-dev
+          elif [ "$RUNNER_OS" = "macOS" ]; then
+            brew list boost &>/dev/null || brew install boost
+          fi
 
       - name: Smoke boost adapters
         id: smoke-boost
@@ -928,8 +935,8 @@ jobs:
     # Merges per-binary BMF artifacts into a single JSON and snapshots
     # the result into docs/assets/bench-results/ so the docs charts
     # always point at the most recent run.
-    name: Merge BMF + docs snapshot (ubuntu-latest)
-    runs-on: ubuntu-latest
+    name: Merge BMF + docs snapshot (macOS-m4-pro)
+    runs-on: [self-hosted, macOS, ARM64]
     # Two combined gates:
     #   1. `always()` — a single matrix-leg failure (e.g. one binary
     #      timed out) must not skip the merge+snapshot; the docs still
