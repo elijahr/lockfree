@@ -2858,11 +2858,7 @@
     }
   },
   "meta": {
-    "absent_adapters": [
-      "boost_lockfree",
-      "loony",
-      "threading"
-    ],
+    "absent_adapters": [],
     "adapters": {
       "atomic_queue": {
         "fingerprint": "sha1:a06e168c1af7a98e4934c9c391f2148d5f97902f",
@@ -2871,10 +2867,10 @@
         "version": null
       },
       "boost_lockfree": {
+        "captured_from": "boost/version.hpp@BOOST_LIB_VERSION",
         "fingerprint": null,
         "kind": "system-package",
-        "status": "build-without-boost",
-        "version": null
+        "version": "1_90"
       },
       "bus": {
         "captured_from": "bench_ffi_crossbeam_bus_version()",
@@ -2962,8 +2958,7 @@
       "loony": {
         "fingerprint": null,
         "kind": "nimble-resolved",
-        "status": "absent",
-        "version": null
+        "version": "0.3.1"
       },
       "moodycamel": {
         "fingerprint": "sha1:5d4020413ced2b29af5e99cec3f3d0fd54bae38c",
@@ -3003,8 +2998,7 @@
       "threading": {
         "fingerprint": null,
         "kind": "nimble-resolved",
-        "status": "absent",
-        "version": null
+        "version": "0.2.1"
       },
       "tokio": {
         "captured_from": "bench_ffi_crossbeam_tokio_version()",
