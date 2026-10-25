@@ -216,7 +216,7 @@ when isMainModule:
   var mm = "orc"
   var backend = "c"
   var nimcacheDir = ""
-  var isRelease = false
+  var isRelease = not (existsEnv("LFQ_DEBUG") and getEnv("LFQ_DEBUG") in ["1", "true", "yes", "on"])
   var isDanger = false
   var timeoutSec = 300.0
   let envTimeout = getEnv("LFQ_TEST_TIMEOUT", getEnv("LFQ_TEST_TIMEOUT_SEC", ""))
@@ -244,6 +244,8 @@ when isMainModule:
       runPrimitives = true
     elif param == "--release" or param == "-d:release":
       isRelease = true
+    elif param == "--debug" or param == "-d:debug":
+      isRelease = false
     elif param == "--danger" or param == "-d:danger":
       isDanger = true
     elif param == "--cpp":

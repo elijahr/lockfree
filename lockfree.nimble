@@ -77,7 +77,7 @@ task test, "Runs the test suite":
 
   proc runArc =
     exec "nim r --hints:off --warnings:off tests/test_runner.nim --all --mm:arc"
-    exec "nim c --hints:off --warnings:off --mm:arc --threads:on -r tests/smr/debra-legacy/t_nebr_all.nim"
+    exec "nim c --hints:off --warnings:off -d:release --opt:speed --mm:arc --threads:on -r tests/smr/debra-legacy/t_nebr_all.nim"
 
   case variant
   of "all":
@@ -165,9 +165,9 @@ task testStress, "Runs the high-volume (100k) bounded-queue stress suite":
   # every umbrella lane would dominate wall-clock. This dedicated task runs
   # it on its own. Two MM lanes: orc (default) and arc.
   let nimcacheBase = getHomeDir() / ".cache" / "nim"
-  exec "nim c --threads:on --path:src " &
+  exec "nim c -d:release --opt:speed --threads:on --path:src " &
     "--nimcache:" & (nimcacheBase / "t_stress_orc") & " -r tests/stress/runner.nim"
-  exec "nim c --mm:arc --threads:on --path:src " &
+  exec "nim c -d:release --opt:speed --mm:arc --threads:on --path:src " &
     "--nimcache:" & (nimcacheBase / "t_stress_arc") & " -r tests/stress/runner.nim"
 
 
@@ -195,16 +195,16 @@ task testASan, "Runs the test suite under AddressSanitizer (ASAN)":
 
 task examples, "Runs the examples":
   # Bounded queue examples
-  exec "nim c --threads:on -r examples/spsc.nim"
-  exec "nim c --threads:on -r examples/spmc.nim"
-  exec "nim c --threads:on -r examples/mpsc.nim"
-  exec "nim c --threads:on -r examples/mpmc.nim"
-  exec "nim c --threads:on -r examples/bqueue128.nim"
+  exec "nim c -d:release --opt:speed --threads:on -r examples/spsc.nim"
+  exec "nim c -d:release --opt:speed --threads:on -r examples/spmc.nim"
+  exec "nim c -d:release --opt:speed --threads:on -r examples/mpsc.nim"
+  exec "nim c -d:release --opt:speed --threads:on -r examples/mpmc.nim"
+  exec "nim c -d:release --opt:speed --threads:on -r examples/bqueue128.nim"
   # Advanced examples
-  exec "nim c --threads:on -r examples/audio_buffer.nim"
-  exec "nim c --threads:on -r examples/task_fanout.nim"
-  exec "nim c --threads:on -r examples/event_collector.nim"
-  exec "nim c --threads:on -r examples/job_scheduler.nim"
+  exec "nim c -d:release --opt:speed --threads:on -r examples/audio_buffer.nim"
+  exec "nim c -d:release --opt:speed --threads:on -r examples/task_fanout.nim"
+  exec "nim c -d:release --opt:speed --threads:on -r examples/event_collector.nim"
+  exec "nim c -d:release --opt:speed --threads:on -r examples/job_scheduler.nim"
 
 task benchmarks, "Runs the benchmark suite":
   # PR 2 (bench-rollup) replaced bench_throughput.nim with topology-
@@ -271,13 +271,13 @@ task benchtests, "Runs the bench harness test suite":
   # adapter round-trip behavior. Single MM (orc default) is sufficient
   # because the bench harness itself is the system under test, not the
   # queue MM matrix.
-  exec "nim c --threads:on -r tests/t_bench_common.nim"
-  exec "nim c --threads:on -r tests/t_bench_latency.nim"
-  exec "nim c --threads:on -r tests/t_bench_adapters.nim"
+  exec "nim c -d:release --opt:speed --threads:on -r tests/t_bench_common.nim"
+  exec "nim c -d:release --opt:speed --threads:on -r tests/t_bench_latency.nim"
+  exec "nim c -d:release --opt:speed --threads:on -r tests/t_bench_adapters.nim"
 
 
 task benchToggleSmoke, "Verify LFQ_BENCH_HARNESS_BACKOFF=0 toggle is observed at module init":
-  exec "nim c --threads:on -o:.tmp/bench_toggle_smoke tests/bench_toggle_smoke_driver.nim"
+  exec "nim c -d:release --opt:speed --threads:on -o:.tmp/bench_toggle_smoke tests/bench_toggle_smoke_driver.nim"
   exec "sh -c 'LFQ_BENCH_HARNESS_BACKOFF=0 .tmp/bench_toggle_smoke | grep -q true || (echo FAIL && exit 1)'"
   exec "sh -c 'LFQ_BENCH_HARNESS_BACKOFF=1 .tmp/bench_toggle_smoke | grep -q false || (echo FAIL && exit 1)'"
   exec "sh -c '.tmp/bench_toggle_smoke | grep -q false || (echo FAIL && exit 1)'"

@@ -538,6 +538,8 @@ jobs:
           set -o pipefail
           echo "::group::chronos adapter (-d:lockfreeChronos, mm:arc)"
           nim c \
+            -d:release \
+            --opt:speed \
             --threads:on \
             --mm:arc \
             -d:lockfreeChronos \
@@ -667,6 +669,8 @@ jobs:
           set -o pipefail
           echo "::group::standard Nim arc baseline"
           nim c \
+            -d:release \
+            --opt:speed \
             --threads:on \
             --mm:arc \
             --path:src \
@@ -987,7 +991,7 @@ jobs:
           echo "::endgroup::"
 
           echo "::group::Verify 64-bit DWCAS (128-bit atomics) on Windows"
-          nim c --cc:${{ matrix.compiler }} --threads:on -r tests/t_dwcas.nim
+          nim c -d:release --opt:speed --cc:${{ matrix.compiler }} --threads:on -r tests/t_dwcas.nim
           echo "::endgroup::"
 
           echo "::group::Run test suite on Windows (compiler=${{ matrix.compiler }}, mm=${{ matrix.mm }})"
