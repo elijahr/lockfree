@@ -30,6 +30,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Boost Lockfree Benchmark Adapters (`benchmarks/nim/adapters/boost_lockfree_*_adapter.nim`)**:
+  - Eliminated heap smashing and `SIGABRT` crashes by allocating Boost C++ queues via native C++ `new` and `delete` expressions instead of under-sized Nim `allocAligned` buffers.
+- **DisjointSet Benchmark Multi-Threading Safety (`benchmarks/nim/bench_disjoint_set.nim`)**:
+  - Eliminated `SIGSEGV` during high-concurrency benchmarks by replacing cross-thread Nim `ref object` instances with thread-safe shared heap pointers (`allocShared0` / `createShared`).
+- **Benchmark CI Pipeline & Concurrency (`.github/workflows/bench.yml`, `benchmarks/scripts/run_benchmarks.sh`)**:
+  - Consolidated the 16-job matrix and multi-stage uploads into a single sequential job executed directly on the bare-metal runner, eliminating job scheduling deadlocks.
+  - Added `concurrency.cancel-in-progress: true` to instantly cancel stale benchmark runs when new commits are pushed to `main`/`devel`.
+  - Removed high-overhead `~/.cache` GitHub Actions tarball transfers.
+- **Continuous Documentation Versioning from `main` (`.github/workflows/docs.yml`)**:
+  - Updated documentation deployment pipeline so pushes to `main` and `devel` deploy to `dev` and update the `latest` alias and default redirect, ensuring the live docs site reflects unreleased features and up-to-date benchmarks while preserving version switching for tagged releases.
+- **README Performance Benchmarks Cleanup (`README.md`, `benchmarks/scripts/generate_readme_benchmarks.py`)**:
+  - Removed outdated static SVG benchmark figures in favor of the clean markdown throughput matrix and direct link to the interactive visualization portal.
 - **Interactive Benchmark Chart Legend Toggle (`docs/assets/bench-charts.js`, `docs/assets/bench-charts.css`)**:
   - Fixed interactive legend clicking to hide series marks (lines, dots, bars, areas) directly in the chart SVG instead of only crossing out the label.
   - Scoped SVG selection to ignore swatch icon SVGs and excluded axis/grid marks from series attribution.

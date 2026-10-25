@@ -51,6 +51,7 @@ NIM_BINARIES = (
     "bench_rendezvous",
     "bench_taskpool",
     "bench_smr_nebr",
+    "bench_disjoint_set",
 )
 
 
@@ -301,6 +302,10 @@ def build_nim(quick: bool = False):
                 cmd.append("-d:adapter_crossbeam_array_queue_available")
             if quick:
                 cmd.extend(["-d:BenchSmrRuns=1", "-d:BenchSmrWarmup=1", "-d:BenchPinOpsPerThread=50000", "-d:BenchRetireOpsPerThread=10000"])
+
+        elif bin_name == "bench_disjoint_set":
+            if quick:
+                cmd.extend(["-d:BenchDSRuns=1", "-d:BenchDSWarmup=1", "-d:BenchDSOpsCount=50000"])
 
         cmd.append(str(src))
         print(f"  -> {bin_name}")

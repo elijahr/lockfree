@@ -206,17 +206,17 @@ jobs:
         run: |
           git fetch origin gh-pages --depth=1 || true
 
-      - name: Deploy docs (versioned)
+      - name: Deploy docs (versioned release)
         if: startsWith(github.ref, 'refs/tags/v')
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
-          mike deploy --push --update-aliases "$VERSION" latest
-          mike set-default --push latest
+          mike deploy --push "$VERSION"
 
-      - name: Deploy docs (dev)
+      - name: Deploy docs (main / unreleased as latest)
         if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/devel'
         run: |
-          mike deploy --push dev
+          mike deploy --push --update-aliases dev latest
+          mike set-default --push latest
 
       # NOTE: `latest.json` freshness is bench.yml's concern, not docs.yml's.
       # bench-upload commits the snapshot to docs/assets/bench-results/ and
