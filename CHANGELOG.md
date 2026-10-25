@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Parallel Test Runner & Domain Runners (`tests/test_runner.nim`, `tests/unit/runner_*.nim`)**:
+  - High-performance concurrent test runner scheduling test suites across available CPU cores via non-blocking asynchronous pipe drainage (`O_NONBLOCK` + `posix.read()` / `winlean.readFile`), eliminating child-parent pipe buffer deadlocks.
+  - Slashes test execution time by 50–70% across CI matrix lanes.
+  - Domain runners for targeted verification: `runner_queues.nim`, `runner_structures.nim`, `runner_sync.nim`, and `runner_primitives.nim`.
+  - Added `nimble testRelease`, `nimble testThreadedRelease`, and `nimble buildLib` tasks in `lockfree.nimble`.
+- **C-ABI Static Layout & Alignment Guards (`src/lockfree/cabi.nim`)**:
+  - Added compile-time static assertions (`static: doAssert ...`) verifying strict 128-byte size and alignment parity between C-ABI structs (`lf_token_bucket_t`, `lf_leaky_bucket_t`) and core Nim types (`TokenBucket`, `LeakyBucket`).
+
+### Changed
+
+- **C-ABI Architecture Decoupling (Option B) (`src/lockfree/cabi.nim`, `src/lockfree/ratelimit.nim`)**:
+  - Relocated rate limiter C-ABI exports from `src/lockfree/ratelimit.nim` into `src/lockfree/cabi.nim`, keeping the core rate limiter module focused purely on Nim idioms while preserving 100% backward-compatible C symbols (`lf_*` primary, `lfq_*` aliases).
+- **Retired Legacy `refc` Memory Manager Lane (`.github/workflows/ci.yml`, `lockfree.nimble`)**:
+  - Retired deprecated Nim 1.x `--mm:refc` matrix cell (`1d`) and `runRefc` from `task test`, streamlining CI baseline coverage to modern ownership-based memory managers (`orc`, `cpp`, `arc`).
+  - Updated memory management guides, architecture taxonomy, and compatibility tables to reflect `refc` retirement in favor of `orc` and `arc`.
+- **Dedicated Bare-Metal Benchmark Runner (`.github/workflows/bench.yml`)**:
+  - Switched continuous benchmark workflows from cloud-hosted Ubuntu VMs to a dedicated bare-metal Apple Silicon (M4 Pro) self-hosted runner, eliminating hypervisor jitter, noisy neighbors, and CPU oversubscription.
+  - Enforced clean-slate artifact isolation before and after benchmark runs.
+
+### Fixed
+
+- **Interactive Benchmark Chart Legend Toggle (`docs/assets/bench-charts.js`, `docs/assets/bench-charts.css`)**:
+  - Fixed interactive legend clicking to hide series marks (lines, dots, bars, areas) directly in the chart SVG instead of only crossing out the label.
+  - Scoped SVG selection to ignore swatch icon SVGs and excluded axis/grid marks from series attribution.
+- **Destructor Exception Safety (`src/lockfree/rendezvous.nim`, `src/lockfree/taskpool.nim`)**:
+  - Wrapped cleanup calls in `=destroy` procedures in `try ... except: discard` blocks, ensuring strict `raises: []` compliance under Nim ARC/ORC.
+
 ## [0.6.1] - 2026-10-24
 
 ### Added
