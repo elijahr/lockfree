@@ -1,0 +1,44 @@
+name: Dependabot Configuration Verification
+
+on:
+  push:
+    paths:
+      - ".github/dependabot.yml"
+      - ".github/workflows/dependabot-verify.yml"
+  pull_request:
+    paths:
+      - ".github/dependabot.yml"
+      - ".github/workflows/dependabot-verify.yml"
+
+jobs:
+  validate:
+    name: Validate Dependabot Configuration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install --quiet pyyaml
+
+      - name: Validate dependabot.yml schema & syntax
+        run: |
+          python3 -c '
+          import yaml
+          with open(".github/dependabot.yml", "r") as f:
+              data = yaml.safe_load(f)
+          ver = data.get("version")
+          assert ver == 2, f"Expected version 2, got {ver}"
+          beta = data.get("enable-beta-ecosystems")
+          assert beta is True, f"enable-beta-ecosystems must be true, got {beta}"
+          updates = data.get("updates", [])
+          assert len(updates) >= 2, f"Expected at least 2 update ecosystems, got {len(updates)}"
+          ecosystems = [u["package-ecosystem"] for u in updates]
+          assert "nimble" in ecosystems, f"Missing nimble ecosystem: {ecosystems}"
+          assert "github-actions" in ecosystems, f"Missing github-actions ecosystem: {ecosystems}"
+          print("Dependabot configuration validated successfully with ecosystems:", ecosystems)
+          '

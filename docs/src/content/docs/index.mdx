@@ -1,0 +1,37 @@
+---
+title: lockfree
+description: Production-grade project built with Axiomantic standards.
+template: splash
+hero:
+  tagline: Production-grade project built with Axiomantic standards.
+  image:
+    html: "⚡"
+  actions:
+    - text: Quick Start
+      link: ./guide/getting-started/
+      icon: right-arrow
+      variant: primary
+    - text: API Reference
+      link: ./api/
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+## Highlights
+
+<CardGrid stagger>
+  <Card title="Zero Overhead" icon="rocket">
+    Native C performance with expressive Nim syntax and compile-time guarantees.
+  </Card>
+  <Card title="Modern CI & Tooling" icon="seti:pipeline">
+    Pre-commit gates, automated dependency management via Renimble, and Momus AI reviews.
+  </Card>
+  <Card title="Interactive Documentation" icon="document">
+    Built-in Mermaid flowcharts, Expressive Code syntax highlighting, and offline Pagefind search.
+  </Card>
+  <Card title="Versioned Releases" icon="seti:git">
+    Automated version snapshots, release notes extraction, and idempotent GitHub releases.
+  </Card>
+</CardGrid>

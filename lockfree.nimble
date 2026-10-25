@@ -340,3 +340,7 @@ task async_bridge, "Builds and runs the AsyncBridge test suite":
 # The MM lane matrix (5 lanes × 240 tests, plus TSan/ASan sanitizers
 # under `nimble test`) provides the primary concurrency-correctness
 # signal.
+
+
+task docgen, "Generate API documentation for Starlight":
+  exec "nim c -r tools/docgen.nim"
