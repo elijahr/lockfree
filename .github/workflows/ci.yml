@@ -14,7 +14,6 @@
 #  1a   Baseline orc                        ubuntu-latest stable      orc   gcc    LFQ_TEST_VARIANT=orc  (+ nimble examples)
 #  1b   Baseline cpp                        ubuntu-latest stable      orc   gcc    LFQ_TEST_VARIANT=cpp  (nim cpp backend)
 #  1c   Baseline arc + nebr aggregator      ubuntu-latest stable      arc   gcc    LFQ_TEST_VARIANT=arc
-#  1d   Baseline refc                       ubuntu-latest stable      refc  gcc    LFQ_TEST_VARIANT=refc
 #  12   chronos Tier 3 adapter              ubuntu-latest stable      arc   gcc   -d:lockfreeChronos
 #  15   stress (100k bounded, orc+arc)      ubuntu-latest stable      orc+arc gcc  testStress task (not in umbrella)
 #  13   Multi-Nim (2.2.10, 2.2.12, devel)   ubuntu-latest multi-ver   orc   gcc   single-runner toolchain switching
@@ -31,6 +30,7 @@
 #  17b  Windows + MinGW                     windows-latest stable     orc   gcc    LFQ_CC=gcc
 #
 # Deleted cells (per audit §3 green-mirage analysis):
+#   1d (refc) — deprecated legacy GC retired; production targets strictly orc/arc.
 #   2 (arc), 3 (refc), 4 (atomicArc), 5 (mm:none) — `LOCKFREE_MM` env var
 #       is never consumed by lockfree.nimble or any source; these cells
 #       produced signal identical to cell 1.
@@ -178,17 +178,18 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # --- Cell 1a/1b/1c/1d: Baseline matrix --------------------------------
-          # Previously cell 1 ran orc/cpp/arc/refc sequentially inside one
-          # `nimble test` invocation; wall clock = sum of all four lanes
-          # (~28 min). Splitting each MM lane into its own matrix cell lets
+          # --- Cell 1a/1b/1c: Baseline matrix --------------------------------
+          # Previously cell 1 ran orc/cpp/arc sequentially inside one
+          # `nimble test` invocation; wall clock = sum of all lanes.
+          # Splitting each MM lane into its own matrix cell lets
           # GHA run them in parallel — wall clock now collapses to
-          # max-of-lanes (~7 min cold, faster warm). Each cell sets
+          # max-of-lanes (~4-6 min). Each cell sets
           # LFQ_TEST_VARIANT so `nimble test` only executes its assigned
           # lane, and each cell uses a per-variant `cache-tag` so cells
           # don't clobber each other's nimcache state. Cell 1a (orc) also
           # runs `nimble examples` — examples have no MM variants, so
           # only one cell needs to cover them.
+          # Note: Legacy refc (cell 1d) has been retired.
           - cell: '1a'
             label: 'baseline orc/gcc/linux'
             runs-on: ubuntu-latest
@@ -225,19 +226,6 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'no'
             cache-tag: 'arc'
-            continue-on-error: 'false'
-            timeout: 60
-
-          - cell: '1d'
-            label: 'baseline refc/gcc/linux'
-            runs-on: ubuntu-latest
-            nim-version: 'stable'
-            variant: 'refc'
-            mm: 'refc'
-            backend: 'c'
-            sanitize-threads: 'no'
-            sanitize-address: 'no'
-            cache-tag: 'refc'
             continue-on-error: 'false'
             timeout: 60
 
@@ -718,9 +706,9 @@ jobs:
     env:
       LOCKFREE_NIM_FROM_IMAGE: ${{ matrix.nim-from-image }}
       # Platform cells (10 arm64, 11 macOS, 17a/17b Windows) give PLATFORM coverage
-      # on the default MM only; the full orc/cpp/arc/refc matrix is already
-      # covered by the fast Linux baseline cells (1a-d). Without this, their
-      # `nimble test` compiled all four lanes cold and overran the timeout.
+      # on the default MM only; the full orc/cpp/arc matrix is already
+      # covered by the fast Linux baseline cells (1a-c). Without this, their
+      # `nimble test` compiled all lanes cold and overran the timeout.
       # Cells 6/7 use the dedicated testTSan/testASan tasks and ignore it.
       LFQ_TEST_VARIANT: ${{ matrix.mm }}
       LFQ_CC: ${{ matrix.compiler || '' }}

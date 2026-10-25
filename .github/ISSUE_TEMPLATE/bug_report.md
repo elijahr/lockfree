@@ -18,7 +18,7 @@ A clear and concise description of what the bug is.
 **Environment & Setup**
 - OS: [e.g. Linux x86_64, macOS Apple Silicon, Windows]
 - Nim Version: [e.g. 2.2.10]
-- Memory Manager: [e.g. `--mm:orc`, `--mm:arc`, `--mm:atomicArc`, `--mm:refc`]
+- Memory Manager: [e.g. `--mm:orc`, `--mm:arc`, `--mm:atomicArc`]
 - Backend: [e.g. C, C++]
 - Compiler Flags: [e.g. `-d:release`, `--threads:on`]
 
