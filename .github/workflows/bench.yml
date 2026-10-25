@@ -84,6 +84,7 @@ jobs:
       - name: Install dependencies from nimble registry
         run: |
           nimble install -dy
+          nimble install -y threading loony
           nimble setup
           for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
