@@ -27,15 +27,23 @@ task should_fail, "Verifies compile-fail negative controls":
   # nebr 0.8.0's `tests/should_fail/runner.nim` harness.
   exec "nim r --hints:off --warnings:off --path:src tests/should_fail/runner.nim"
 
-task testUnit, "Runs fast Tier 1 behavioral and unit tests (<15s)":
-  let nimcacheBase = getHomeDir() / ".cache" / "nim"
-  exec "nim c --mm:orc --threads:on --path:src " &
-       "--nimcache:" & (nimcacheBase / "test_unit_orc") & " -r tests/unit/runner.nim"
+task testUnit, "Runs fast Tier 1 behavioral and unit tests in parallel (<15s)":
+  exec "nim r --hints:off --warnings:off tests/test_runner.nim --unit"
 
-task testThreaded, "Runs Tier 2 multithreaded concurrency tests":
-  let nimcacheBase = getHomeDir() / ".cache" / "nim"
-  exec "nim c --mm:orc --threads:on --path:src " &
-       "--nimcache:" & (nimcacheBase / "test_threaded_orc") & " -r tests/concurrency/runner.nim"
+task testThreaded, "Runs Tier 2 multithreaded concurrency tests in parallel":
+  exec "nim r --hints:off --warnings:off tests/test_runner.nim --concurrency"
+
+task testQueues, "Runs queue unit tests":
+  exec "nim r --hints:off --warnings:off tests/test_runner.nim --queues"
+
+task testStructures, "Runs data structure unit tests":
+  exec "nim r --hints:off --warnings:off tests/test_runner.nim --structures"
+
+task testSync, "Runs concurrency & synchronization unit tests":
+  exec "nim r --hints:off --warnings:off tests/test_runner.nim --sync"
+
+task testPrimitives, "Runs atomics & memory primitive unit tests":
+  exec "nim r --hints:off --warnings:off tests/test_runner.nim --primitives"
 
 task test, "Runs the test suite":
   # Compile-fail negative controls. Runs first so a
@@ -44,34 +52,20 @@ task test, "Runs the test suite":
   # masks it with downstream noise.
   exec "nim r --hints:off --warnings:off --path:src tests/should_fail/runner.nim"
 
-  # Per-lane nimcache subdirs prevent the 4 MM lanes from clobbering
-  # each other's .c.o files.
-  # LFQ_TEST_VARIANT env var (default "all") selects which MM lane to run.
-  let nimcacheBase = getHomeDir() / ".cache" / "nim"
   let variant = getEnv("LFQ_TEST_VARIANT", "orc")
-  let ccEnv = getEnv("LFQ_CC", "")
-  let ccFlag = if ccEnv.len > 0: " --cc:" & ccEnv else: ""
 
   proc runOrc =
-    # C with default MM (orc)
-    exec "nim c" & ccFlag & " --mm:orc --threads:on --path:src --nimcache:" & (nimcacheBase / "test_unit_orc") & " -r tests/unit/runner.nim"
-    exec "nim c" & ccFlag & " --mm:orc --threads:on --path:src --nimcache:" & (nimcacheBase / "test_threaded_orc") & " -r tests/concurrency/runner.nim"
+    exec "nim r --hints:off --warnings:off tests/test_runner.nim --all --mm:orc"
 
   proc runCpp =
-    # C++
-    exec "nim cpp --mm:orc --threads:on --path:src --nimcache:" & (nimcacheBase / "test_unit_cpp") & " -r tests/unit/runner.nim"
-    exec "nim cpp --mm:orc --threads:on --path:src --nimcache:" & (nimcacheBase / "test_threaded_cpp") & " -r tests/concurrency/runner.nim"
+    exec "nim r --hints:off --warnings:off tests/test_runner.nim --all --cpp"
 
   proc runArc =
-    # Test with arc MM
-    exec "nim c" & ccFlag & " --mm:arc --threads:on --path:src --nimcache:" & (nimcacheBase / "test_unit_arc") & " -r tests/unit/runner.nim"
-    exec "nim c" & ccFlag & " --mm:arc --threads:on --path:src --nimcache:" & (nimcacheBase / "test_threaded_arc") & " -r tests/concurrency/runner.nim"
-    # NEBR (nebr) lifted test suite.
-    exec "nim c" & ccFlag & " --mm:arc --threads:on --nimcache:" & (nimcacheBase / "nebr_aggregator_arc") & " -r tests/smr/debra-legacy/t_nebr_all.nim"
+    exec "nim r --hints:off --warnings:off tests/test_runner.nim --all --mm:arc"
+    exec "nim c --mm:arc --threads:on -r tests/smr/debra-legacy/t_nebr_all.nim"
 
   proc runRefc =
-    # Test with refc MM
-    exec "nim c" & ccFlag & " --mm:refc --threads:on --path:src --nimcache:" & (nimcacheBase / "test_unit_refc") & " -r tests/unit/runner.nim"
+    exec "nim r --hints:off --warnings:off tests/test_runner.nim --unit --mm:refc"
 
   case variant
   of "all":

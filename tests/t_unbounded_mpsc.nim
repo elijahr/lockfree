@@ -12,20 +12,20 @@ suite "UnboundedMpsc":
   test "newUnboundedMpscQueue creates valid instance":
     var manager = initDebraManager[4]()
     var queue = newUnboundedMpscQueue[int, stEager, 16, 4](addr manager)
-    var lfqConsumer = queue.bindConsumer()
+    discard queue.bindConsumer()
     check(queue.segmentCount == 1)
 
   test "getProducer returns valid producer":
     var manager = initDebraManager[4]()
     var queue = newUnboundedMpscQueue[int, stEager, 16, 4](addr manager)
-    var lfqConsumer = queue.bindConsumer()
+    discard queue.bindConsumer()
     var producer = queue.getProducerHere()
     check(producer.idx >= 0)
 
   test "producer push single item":
     var manager = initDebraManager[4]()
     var queue = newUnboundedMpscQueue[int, stEager, 16, 4](addr manager)
-    var lfqConsumer = queue.bindConsumer()
+    discard queue.bindConsumer()
     var producer = queue.getProducerHere()
 
     producer.push(42)
@@ -34,7 +34,7 @@ suite "UnboundedMpsc":
   test "producer push multiple items":
     var manager = initDebraManager[4]()
     var queue = newUnboundedMpscQueue[int, stEager, 16, 4](addr manager)
-    var lfqConsumer = queue.bindConsumer()
+    discard queue.bindConsumer()
     var producer = queue.getProducerHere()
 
     for i in 1 .. 10:

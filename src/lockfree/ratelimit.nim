@@ -473,13 +473,13 @@ type
 proc lf_token_bucket_init*(
     bucket: ptr lf_token_bucket_t,
     capacity: uint64,
-    refill_rate: uint64
+    refillRate: uint64
 ): cint {.exportc: "lf_token_bucket_init", cdecl, gcsafe, raises: [].} =
   if unlikely(bucket == nil):
     return -1
   try:
     let tb = cast[ptr TokenBucket](bucket)
-    tb[] = initTokenBucket(capacity, refill_rate)
+    tb[] = initTokenBucket(capacity, refillRate)
     0
   except:
     -1
@@ -487,9 +487,9 @@ proc lf_token_bucket_init*(
 proc lfq_token_bucket_init*(
     bucket: ptr lf_token_bucket_t,
     capacity: uint64,
-    refill_rate: uint64
+    refillRate: uint64
 ): cint {.exportc: "lfq_token_bucket_init", cdecl, gcsafe, raises: [].} =
-  lf_token_bucket_init(bucket, capacity, refill_rate)
+  lf_token_bucket_init(bucket, capacity, refillRate)
 
 proc lf_token_bucket_try_acquire*(
     bucket: ptr lf_token_bucket_t,
@@ -518,22 +518,22 @@ proc waterLevel*(self: ptr LeakyBucket): uint64 {.inline.} =
 proc lf_token_bucket_acquire_timeout*(
     bucket: ptr lf_token_bucket_t,
     tokens: uint64,
-    timeout_ns: int64
+    timeoutNs: int64
 ): bool {.exportc: "lf_token_bucket_acquire_timeout", cdecl, gcsafe, raises: [].} =
   if unlikely(bucket == nil):
     return false
   try:
     let tb = cast[ptr TokenBucket](bucket)
-    tb[].acquireWithTimeout(tokens, timeout_ns)
+    tb[].acquireWithTimeout(tokens, timeoutNs)
   except:
     false
 
 proc lfq_token_bucket_acquire_timeout*(
     bucket: ptr lf_token_bucket_t,
     tokens: uint64,
-    timeout_ns: int64
+    timeoutNs: int64
 ): bool {.exportc: "lfq_token_bucket_acquire_timeout", cdecl, gcsafe, raises: [].} =
-  lf_token_bucket_acquire_timeout(bucket, tokens, timeout_ns)
+  lf_token_bucket_acquire_timeout(bucket, tokens, timeoutNs)
 
 proc lf_token_bucket_available*(
     bucket: ptr lf_token_bucket_t
@@ -553,24 +553,24 @@ proc lfq_token_bucket_available*(
 
 proc lf_leaky_bucket_init*(
     bucket: ptr lf_leaky_bucket_t,
-    burst_tolerance_ns: uint64,
-    leak_rate: uint64
+    burstToleranceNs: uint64,
+    leakRate: uint64
 ): cint {.exportc: "lf_leaky_bucket_init", cdecl, gcsafe, raises: [].} =
   if unlikely(bucket == nil):
     return -1
   try:
     let lb = cast[ptr LeakyBucket](bucket)
-    lb[] = initLeakyBucket(burst_tolerance_ns, leak_rate)
+    lb[] = initLeakyBucket(burstToleranceNs, leakRate)
     0
   except:
     -1
 
 proc lfq_leaky_bucket_init*(
     bucket: ptr lf_leaky_bucket_t,
-    burst_tolerance_ns: uint64,
-    leak_rate: uint64
+    burstToleranceNs: uint64,
+    leakRate: uint64
 ): cint {.exportc: "lfq_leaky_bucket_init", cdecl, gcsafe, raises: [].} =
-  lf_leaky_bucket_init(bucket, burst_tolerance_ns, leak_rate)
+  lf_leaky_bucket_init(bucket, burstToleranceNs, leakRate)
 
 proc lf_leaky_bucket_try_consume*(
     bucket: ptr lf_leaky_bucket_t,
@@ -593,22 +593,22 @@ proc lfq_leaky_bucket_try_consume*(
 proc lf_leaky_bucket_consume_timeout*(
     bucket: ptr lf_leaky_bucket_t,
     weight: uint64,
-    timeout_ns: int64
+    timeoutNs: int64
 ): bool {.exportc: "lf_leaky_bucket_consume_timeout", cdecl, gcsafe, raises: [].} =
   if unlikely(bucket == nil):
     return false
   try:
     let lb = cast[ptr LeakyBucket](bucket)
-    lb[].consumeWithTimeout(weight, timeout_ns)
+    lb[].consumeWithTimeout(weight, timeoutNs)
   except:
     false
 
 proc lfq_leaky_bucket_consume_timeout*(
     bucket: ptr lf_leaky_bucket_t,
     weight: uint64,
-    timeout_ns: int64
+    timeoutNs: int64
 ): bool {.exportc: "lfq_leaky_bucket_consume_timeout", cdecl, gcsafe, raises: [].} =
-  lf_leaky_bucket_consume_timeout(bucket, weight, timeout_ns)
+  lf_leaky_bucket_consume_timeout(bucket, weight, timeoutNs)
 
 proc lf_leaky_bucket_water_level*(
     bucket: ptr lf_leaky_bucket_t

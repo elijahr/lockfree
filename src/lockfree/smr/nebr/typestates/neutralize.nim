@@ -9,7 +9,6 @@ import ../../../atomics
 import typestates
 
 import ../types
-import ../../../constants
 import ../thread_id
 import ../signal
 

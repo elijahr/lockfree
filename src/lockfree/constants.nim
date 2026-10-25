@@ -15,8 +15,14 @@ when defined(windows):
   # for the Windows arm of the protocol). `QuiescentSignal` is retained as a
   # compile-time-only stub so call sites that pass it to platform-neutral
   # helpers compile, but it has no signal-delivery meaning on Windows.
-  const QuiescentSignal*: cint = 0
+  const quiescentSignal*: cint = 0
     ## Windows stub — see module comment. Not a real signal number.
+  {.push hint[Name]: off.}
+  const QuiescentSignal*: cint = quiescentSignal
+  {.pop.}
 else:
   import std/posix
-  let QuiescentSignal* = SIGUSR1 ## POSIX signal used for thread neutralization.
+  let quiescentSignal* = SIGUSR1 ## POSIX signal used for thread neutralization.
+  {.push hint[Name]: off.}
+  template QuiescentSignal*: cint = quiescentSignal
+  {.pop.}

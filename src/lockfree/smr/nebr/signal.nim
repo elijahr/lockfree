@@ -228,7 +228,7 @@ when not defined(windows):
     discard sigemptyset(sa.sa_mask)
     sa.sa_flags = 0 # No SA_RESTART - we want operations to be interrupted
 
-    if sigaction(QuiescentSignal, sa, nil) == 0:
+    if sigaction(quiescentSignal, sa, nil) == 0:
       signalHandlerInstalled.store(true, moRelease)
 
   proc isSignalHandlerInstalled*(): bool =
@@ -248,7 +248,7 @@ when not defined(windows):
     sa.sa_handler = neutralizationHandler
     discard sigemptyset(sa.sa_mask)
     sa.sa_flags = 0
-    if sigaction(QuiescentSignal, sa, nil) == 0:
+    if sigaction(quiescentSignal, sa, nil) == 0:
       signalHandlerInstalled.store(true, moRelease)
 
 else:
@@ -413,7 +413,7 @@ proc neutralizeRemoteSlot*(tid: ThreadId, slot: int) =
       discard closeHandle(h)
   else:
     discard slot # POSIX path ignores the slot — handler reads threadLocalIdx
-    discard tid.sendSignal(QuiescentSignal)
+    discard tid.sendSignal(quiescentSignal)
 
 proc setGlobalManager*[
     MaxThreads: static int, CC: static PinScopeCardinality = ccSingle

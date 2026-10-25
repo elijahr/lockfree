@@ -17,9 +17,6 @@ import lockfree/endpoint
 import lockfree/role_tags
 import lockfree/strategy
 
-type Foo = object
-  v: int
-
 suite "drain iterator — bounded":
   test "spsc bounded — string drain yields in FIFO order":
     var q = newBQueue[string, ccSingle, ccSingle, 16, 0, 0]()

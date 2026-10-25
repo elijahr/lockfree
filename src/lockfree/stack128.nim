@@ -30,7 +30,6 @@ import std/options
 export options
 
 import ./atomics
-import ./atomics/backoff
 import ./backoff
 import ./internal/aligned_alloc
 

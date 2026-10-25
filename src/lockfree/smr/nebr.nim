@@ -171,7 +171,7 @@ proc unregisterThread*[
       "tryReclaim (until it reclaims nothing) before unregistering — otherwise " &
       "a reused slot would walk this thread's pending retires (UAF/double-free)"
 
-  manager.threads[handle.idx].threadId.store(InvalidThreadId, moRelease)
+  manager.threads[handle.idx].threadId.store(invalidThreadId, moRelease)
 
   # Reset the slot to its `initDebraManager` clean state so a subsequent
   # `register` re-claiming this index starts from init values rather than

@@ -50,6 +50,8 @@ import lockfree/bqueue128
 export bqueue128
 import std/options
 
+{.push hint[Name]: off.}
+
 # ------------------------------------------------------------------------------
 # Status Codes & Callback Types
 # ------------------------------------------------------------------------------
@@ -5736,5 +5738,7 @@ proc lfq_bqueue128_is_full*(
     queue: ptr lfq_bqueue128_t
 ): bool {.exportc: "lfq_bqueue128_is_full", cdecl, gcsafe, raises: [].} =
   lf_bqueue128_is_full(queue)
+
+{.pop.}
 
 

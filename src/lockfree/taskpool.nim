@@ -30,7 +30,6 @@
 
 import std/options
 import std/cpuinfo
-import std/os
 import lockfree/atomics
 import lockfree/atomics/backoff
 import lockfree/backoff
