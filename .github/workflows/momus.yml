@@ -24,6 +24,8 @@ jobs:
       event_name: ${{ github.event_name }}
       trigger_command: /ai-review
       trigger_mention: "@axiomantic-momus[bot]"
+      model: deepseek/deepseek-v4-flash
+      base_url: https://openrouter.ai/api/v1
     secrets:
       LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
       MOMUS_APP_ID: ${{ secrets.MOMUS_APP_ID }}

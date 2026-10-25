@@ -46,3 +46,7 @@ docs-build:
 clean:
     rm -rf nimcache htmldocs site docs/dist docs/.astro tools/docgen
     find . -name '*.exe' -delete
+
+# 9. Upstream Template Synchronization
+update-template:
+    uvx copier update --trust
