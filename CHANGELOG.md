@@ -7,8 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-10-25
+
 ### Added
 
+- **CAS Typestate Runtime Coverage (`tests/t_cas.nim`, PR #3)**:
+  - Added dedicated runtime unit tests verifying `prepareCAS` and `executeCAS` transitions under `typestates >= 0.14.0`, covering both successful atomic publication and mismatched expected value branches.
 - **Parallel Test Runner & Domain Runners (`tests/test_runner.nim`, `tests/unit/runner_*.nim`)**:
   - High-performance concurrent test runner scheduling test suites across available CPU cores via non-blocking asynchronous pipe drainage (`O_NONBLOCK` + `posix.read()` / `winlean.readFile`), eliminating child-parent pipe buffer deadlocks.
   - Slashes test execution time by 50–70% across CI matrix lanes.

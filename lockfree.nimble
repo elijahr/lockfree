@@ -1,7 +1,7 @@
 import os
 
 # Package
-version        = "0.6.1"
+version        = "0.6.2"
 author         = "Elijah Shaw-Rutschman"
 description    = "Lock-free concurrency toolkit for Nim & C99: MPMC Queues, SkipLists, Ctries, Broadcast Rings, Flat Combining, Work-Stealing TaskPools, 128-bit DWCAS Atomics, and NEBR SMR."
 license        = "MIT"
