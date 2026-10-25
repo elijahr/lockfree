@@ -29,7 +29,7 @@ import lockfree/strategy
 import lockfree/internal/pinscope_stub
 import lockfree/smr/nebr as debra_mod
 from lockfree/smr/nebr import DebraManager, initDebraManager
-from lockfree/atomics import load, moRelaxed, Pair
+from lockfree/atomics import load, moSequentiallyConsistent, Pair
 
 suite "MPMC newSegment cell-init contract (design §2.5.1)":
   test "every cell of a fresh MPMC segment is (seq=0, default(T)=0) for T=int":
@@ -38,7 +38,7 @@ suite "MPMC newSegment cell-init contract (design §2.5.1)":
     let segPtr = cast[ptr Segment[int, pinscope_stub.ccMulti, pinscope_stub.ccMulti, 16]](queue.headSegmentForTest())
     check segPtr != nil
     for i in 0 ..< 16:
-      let observed = load(segPtr.cells[i], moRelaxed)
+      let observed = load(segPtr.cells[i], moSequentiallyConsistent)
       check observed.first == 0'u
       check observed.second == 0
 
@@ -51,6 +51,6 @@ suite "MPMC newSegment cell-init contract (design §2.5.1)":
     check segPtr != nil
     let nilPtr: ptr int = nil
     for i in 0 ..< 16:
-      let observed = load(segPtr.cells[i], moRelaxed)
+      let observed = load(segPtr.cells[i], moSequentiallyConsistent)
       check observed.first == 0'u
       check observed.second == nilPtr

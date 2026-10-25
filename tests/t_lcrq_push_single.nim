@@ -22,7 +22,7 @@ import lockfree/endpoint
 import lockfree/internal/pinscope_stub
 import lockfree/smr/nebr as debra_mod
 from lockfree/smr/nebr import DebraManager, initDebraManager
-from lockfree/atomics import load, moRelaxed, Pair
+from lockfree/atomics import load, moSequentiallyConsistent, Pair
 
 suite "MPMC producer publish writes to LCRQ cell (design §2.5.1, §4)":
   test "single push transitions cell[0] from (0, 0) to (1, 42) for T=int":
@@ -33,7 +33,7 @@ suite "MPMC producer publish writes to LCRQ cell (design §2.5.1, §4)":
 
     # Empty-cell precondition: every slot is (seq=0, default(T)=0).
     for i in 0 ..< 16:
-      let observed = load(segPtr.cells[i], moRelaxed)
+      let observed = load(segPtr.cells[i], moSequentiallyConsistent)
       check observed.first == 0'u
       check observed.second == 0
 
@@ -42,13 +42,13 @@ suite "MPMC producer publish writes to LCRQ cell (design §2.5.1, §4)":
 
     # Slot 0 is the first claimed slot under single-producer push.
     # Post-publish: (seq=1, value=42) per design §2.5.1.
-    let after = load(segPtr.cells[0], moRelaxed)
+    let after = load(segPtr.cells[0], moSequentiallyConsistent)
     check after.first == 1'u
     check after.second == 42
 
     # Every other slot remains untouched.
     for i in 1 ..< 16:
-      let other = load(segPtr.cells[i], moRelaxed)
+      let other = load(segPtr.cells[i], moSequentiallyConsistent)
       check other.first == 0'u
       check other.second == 0
 
@@ -64,11 +64,11 @@ suite "MPMC producer publish writes to LCRQ cell (design §2.5.1, §4)":
 
     # Cells 0..3 each hold (seq=1, value=i+1); cells 4..15 untouched.
     for i in 0 ..< 4:
-      let observed = load(segPtr.cells[i], moRelaxed)
+      let observed = load(segPtr.cells[i], moSequentiallyConsistent)
       check observed.first == 1'u
       check observed.second == i + 1
 
     for i in 4 ..< 16:
-      let observed = load(segPtr.cells[i], moRelaxed)
+      let observed = load(segPtr.cells[i], moSequentiallyConsistent)
       check observed.first == 0'u
       check observed.second == 0
