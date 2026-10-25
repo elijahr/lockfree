@@ -1,0 +1,541 @@
+/* lockfree bench chart styling — paired with bench-charts.js.
+ * Charts are rendered as pure SVG figures by Observable Plot
+ * (@observablehq/plot + D3) and inherit Material for MkDocs CSS
+ * custom properties for instant light/dark theme switching.
+ */
+
+/* ── panel layout ─────────────────────────────────────────────────── */
+.bench-panel {
+  width: 100%;
+  max-width: 100%;
+  margin: 1.75em 0 2.5em 0;
+  padding: 1.25em 1.4em 1.4em 1.4em;
+  background: var(--md-code-bg-color, rgba(128, 128, 128, 0.03));
+  border: 1px solid var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.16));
+  border-radius: 8px;
+  box-sizing: border-box;
+}
+
+.bench-panel-title {
+  margin: 0 0 0.75em 0;
+  padding-bottom: 0.5em;
+  font-size: 1.1em;
+  font-weight: 700;
+  border-bottom: 1px solid var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.14));
+}
+
+/* Source-code link injected next to panel/section headings. */
+.bench-source-link {
+  margin-left: 0.6em;
+  font-size: 0.72em;
+  font-weight: 400;
+  color: var(--md-default-fg-color--light, #aaaaaa);
+  text-decoration: none;
+  vertical-align: middle;
+  letter-spacing: 0;
+}
+
+.bench-source-link:hover,
+.bench-source-link:focus {
+  color: var(--md-accent-fg-color, #6366f1);
+  text-decoration: underline;
+}
+
+#bench-chart,
+#bench-hero,
+#bench-throughput-spsc,
+#bench-throughput-mpsc,
+#bench-throughput-mpmc-bounded,
+#bench-throughput-mpmc-unbounded,
+#bench-latency {
+  width: 100%;
+  max-width: 100%;
+  margin: 1.5em 0;
+  box-sizing: border-box;
+}
+
+/* ── controls / Observable Plot SVG mount ─────────────────────────── */
+.bench-chart-controls {
+  display: flex;
+  gap: 1em;
+  align-items: center;
+  margin-bottom: 0.5em;
+  font-size: 0.9em;
+  flex-wrap: wrap;
+}
+
+.bench-chart-controls label {
+  cursor: pointer;
+  user-select: none;
+  margin-left: 0.25em;
+}
+
+.bench-chart-plot {
+  position: relative;
+  width: 100%;
+  max-width: 100%;
+  min-height: 220px;
+  box-sizing: border-box;
+  color: var(--md-default-fg-color, #1f2937);
+  --plot-background: var(--md-default-bg-color, #ffffff);
+  font-family: var(--md-text-font-family, system-ui, -apple-system, sans-serif);
+}
+
+.bench-chart-plot-hero {
+  min-height: 220px;
+}
+
+/* Observable Plot figure, SVG, and automatic flow-legend styling */
+.bench-chart-plot figure {
+  margin: 0;
+  width: 100%;
+  max-width: 100%;
+  color: var(--md-default-fg-color, currentColor);
+  font-family: var(--md-text-font-family, inherit);
+}
+
+.bench-chart-plot svg {
+  max-width: 100%;
+  height: auto;
+  overflow: visible;
+  color: var(--md-default-fg-color, currentColor);
+  font-family: var(--md-text-font-family, inherit);
+  font-size: 11.5px;
+}
+
+.bench-chart-plot svg [aria-label="x-grid"] line,
+.bench-chart-plot svg [aria-label="y-grid"] line {
+  stroke: var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.22));
+}
+
+.bench-chart-plot svg [aria-label="x-axis tick"] line,
+.bench-chart-plot svg [aria-label="y-axis tick"] line,
+.bench-chart-plot svg [aria-label="fx-axis tick"] line {
+  stroke: var(--md-default-fg-color--light, rgba(128, 128, 128, 0.55));
+}
+
+.bench-chart-plot [class*="swatches"] {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45em 1em;
+  margin: 0.4em 0 1em 0;
+  padding: 0.55em 0.85em;
+  background: var(--md-default-bg-color, #ffffff);
+  border: 1px solid var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.16));
+  border-radius: 6px;
+  font-family: var(--md-code-font-family, var(--md-text-font-family, monospace));
+  font-size: 0.8em;
+  color: var(--md-default-fg-color, currentColor);
+}
+
+/* Interactive legend items */
+.bench-chart-plot [class*="swatches"] span,
+.bench-chart-plot [class*="swatch"] {
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.15s ease, background 0.15s ease;
+  padding: 0.15em 0.35em;
+  border-radius: 4px;
+}
+
+.bench-chart-plot [class*="swatches"] span:hover,
+.bench-chart-plot [class*="swatch"]:hover {
+  background: var(--md-accent-fg-color--transparent, rgba(99, 102, 241, 0.12));
+}
+
+.bench-chart-plot [class*="-swatch"]:not([class*="-swatches"]).bench-swatch-disabled,
+.bench-chart-plot .bench-swatch-disabled:not([class*="-swatches"]) {
+  opacity: 0.32 !important;
+  text-decoration: line-through;
+}
+
+/* Observable Plot Tooltip: inherit Material for MkDocs theme variables */
+.bench-chart-plot svg [aria-label="tip"] path,
+.bench-chart-plot svg g[aria-label*="tip"] path {
+  fill: var(--md-default-bg-color, #ffffff) !important;
+  stroke: var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.4)) !important;
+  stroke-width: 1px !important;
+}
+
+.bench-chart-plot svg [aria-label="tip"] text,
+.bench-chart-plot svg g[aria-label*="tip"] text {
+  fill: var(--md-default-fg-color, #1f2937) !important;
+}
+
+[data-md-color-scheme="slate"] .bench-chart-plot svg [aria-label="tip"] path,
+[data-md-color-scheme="slate"] .bench-chart-plot svg g[aria-label*="tip"] path {
+  fill: #1e2129 !important;
+  stroke: rgba(255, 255, 255, 0.22) !important;
+}
+
+[data-md-color-scheme="slate"] .bench-chart-plot svg [aria-label="tip"] text,
+[data-md-color-scheme="slate"] .bench-chart-plot svg g[aria-label*="tip"] text {
+  fill: #e6edf3 !important;
+}
+
+.bench-chart-plot .plot-tip,
+.plot-tip {
+  background: var(--md-default-bg-color, #ffffff) !important;
+  color: var(--md-default-fg-color, #1f2937) !important;
+  border-color: var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.35)) !important;
+}
+
+[data-md-color-scheme="slate"] .bench-chart-plot .plot-tip,
+[data-md-color-scheme="slate"] .plot-tip {
+  background: #1e2129 !important;
+  color: #e6edf3 !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+/* SVG dimming / highlighting transitions */
+.bench-chart-plot svg path,
+.bench-chart-plot svg circle,
+.bench-chart-plot svg rect {
+  transition: opacity 0.15s ease, stroke-width 0.15s ease;
+}
+
+.bench-chart-plot.bench-has-highlight svg [data-series-id]:not(.bench-highlighted) {
+  opacity: 0.12 !important;
+}
+
+.bench-chart-plot.bench-has-highlight svg [data-series-id].bench-highlighted {
+  opacity: 1 !important;
+}
+
+.bench-chart-plot svg .bench-series-hidden {
+  display: none !important;
+}
+
+.bench-toggle-all-btn {
+  background: var(--md-default-bg-color, #ffffff);
+  border: 1px solid var(--md-default-fg-color--lightest, rgba(128, 128, 128, 0.3));
+  border-radius: 4px;
+  padding: 0.2em 0.65em;
+  font-size: 0.8em;
+  font-family: inherit;
+  color: var(--md-default-fg-color, inherit);
+  cursor: pointer;
+  margin-left: auto;
+  user-select: none;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.bench-toggle-all-btn:hover {
+  background: var(--md-accent-fg-color--transparent, rgba(99, 102, 241, 0.1));
+  border-color: var(--md-accent-fg-color, #6366f1);
+}
+
+.bench-chart-error {
+  padding: 1em;
+  border: 1px dashed var(--md-default-fg-color--lightest, #555);
+  border-radius: 4px;
+  color: var(--md-default-fg-color--light, #aaa);
+  font-style: italic;
+  text-align: center;
+}
+
+.bench-chart-empty {
+  padding: 1em;
+  color: var(--md-default-fg-color--light, #aaa);
+  font-style: italic;
+  text-align: center;
+}
+
+/* ── hero panel ───────────────────────────────────────────────────── */
+.bench-panel-hero {
+  background: var(--md-code-bg-color, rgba(0, 0, 0, 0.05));
+  padding: 1em;
+  border-radius: 8px;
+}
+
+.bench-hero-heading {
+  margin: 0 0 0.75em 0;
+  font-size: 1.05em;
+  font-weight: 600;
+}
+
+.bench-hero-footnote {
+  font-size: 0.8em;
+  color: var(--md-default-fg-color--light, #aaa);
+  margin-top: 0.5em;
+}
+
+.bench-hero-empty {
+  padding: 1em 0;
+  color: var(--md-default-fg-color--light, #aaa);
+  font-style: italic;
+}
+
+/* ── hero DOM-bar fallback (only when Plot global is missing) ─────── */
+.bench-hero-bars {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bench-hero-row {
+  display: grid;
+  grid-template-columns: 200px 1fr 100px;
+  align-items: center;
+  gap: 0.5em;
+  padding: 0.25em 0;
+}
+
+.bench-hero-label {
+  font-family: var(--md-code-font, monospace);
+  font-size: 0.85em;
+}
+
+.bench-hero-bar {
+  height: 1.2em;
+  border-radius: 2px;
+  min-width: 2px;
+}
+
+.bench-hero-bar-blocking {
+  background: transparent !important;
+  border: 2px dotted currentColor;
+  box-sizing: border-box;
+}
+
+.bench-hero-value {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85em;
+}
+
+.bench-hero-axis-caption {
+  margin: 0.4em 0 0.6em 0;
+  font-size: 0.8em;
+  color: var(--md-default-fg-color--light, #aaa);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── status banner ────────────────────────────────────────────────── */
+.bench-status {
+  margin-bottom: 1em;
+  padding: 0.75em 1em;
+  font-style: italic;
+  border-left: 4px solid var(--md-default-fg-color--lightest, #888);
+}
+
+.bench-status[data-status="fixture"] {
+  border-left-color: #fbc02d;
+  background: rgba(251, 192, 45, 0.08);
+}
+
+.bench-status[data-status="error"] {
+  border-left-color: #e53935;
+  background: rgba(229, 57, 53, 0.08);
+}
+
+.bench-status p {
+  margin: 0;
+}
+
+/* ── responsive breakpoints ───────────────────────────────────────── */
+@media (max-width: 767px) {
+  .bench-panel { font-size: 0.875em; }
+  .bench-chart-plot { min-height: 220px; }
+  .bench-hero-row {
+    grid-template-columns: 1fr;
+    gap: 0.1em;
+  }
+  .bench-hero-value { text-align: left; }
+}
+
+@media (max-width: 374px) {
+  .bench-chart-plot {
+    overflow-x: auto;
+    min-width: 320px;
+  }
+}
+
+/* ── interactive toolbar & filter chips ──────────────────────────── */
+.bench-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85em;
+  align-items: stretch;
+  background: var(--md-code-bg-color, rgba(0, 0, 0, 0.04));
+  border: 1px solid var(--md-default-fg-color--lightest, rgba(0, 0, 0, 0.1));
+  border-radius: 8px;
+  padding: 0.85em 1.1em;
+  margin-bottom: 1.25em;
+}
+
+.bench-controls-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25em;
+  align-items: center;
+}
+
+/* ── system specs & environment switcher ────────────────────────── */
+.bench-specs-container {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6em;
+}
+
+.bench-env-group {
+  margin-bottom: 0.2em;
+}
+
+.bench-env-chip.active {
+  background: var(--md-primary-fg-color, #4f46e5) !important;
+  color: #fff !important;
+  font-weight: 600;
+}
+
+.bench-specs-card {
+  width: 100%;
+  background: var(--md-default-bg-color, #ffffff);
+  border: 1px solid var(--md-default-fg-color--lightest, rgba(0, 0, 0, 0.12));
+  border-radius: 6px;
+  padding: 0.55em 0.85em;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+[data-md-color-scheme="slate"] .bench-specs-card {
+  background: #1e2129;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.bench-specs-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25em 2em;
+  align-items: center;
+}
+
+.bench-spec-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15em;
+}
+
+.bench-spec-k {
+  font-size: 0.68em;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+  color: var(--md-default-fg-color--light, #888);
+}
+
+.bench-spec-v {
+  font-size: 0.84em;
+  font-weight: 600;
+  color: var(--md-default-fg-color, #222);
+}
+
+[data-md-color-scheme="slate"] .bench-spec-v {
+  color: #f0f6fc;
+}
+
+.bench-spec-badge {
+  color: var(--md-accent-fg-color, #6366f1);
+}
+
+.bench-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  font-size: 0.85em;
+}
+
+.bench-filter-label {
+  font-weight: 600;
+  color: var(--md-default-fg-color--light, #888);
+  margin-right: 0.25em;
+}
+
+.bench-chip-group {
+  display: inline-flex;
+  background: var(--md-default-bg-color, #fff);
+  border: 1px solid var(--md-default-fg-color--lightest, #ddd);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.bench-chip {
+  background: transparent;
+  border: none;
+  padding: 0.3em 0.7em;
+  font-size: 0.85em;
+  font-family: inherit;
+  cursor: pointer;
+  color: var(--md-default-fg-color, #333);
+  transition: background 0.15s ease, color 0.15s ease;
+  user-select: none;
+}
+
+.bench-chip:not(:last-child) {
+  border-right: 1px solid var(--md-default-fg-color--lightest, #ddd);
+}
+
+.bench-chip:hover {
+  background: var(--md-accent-fg-color--transparent, rgba(99, 102, 241, 0.08));
+}
+
+.bench-chip.active {
+  background: var(--md-accent-fg-color, #6366f1);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* ── panel header row & directionality badges ─────────────────────── */
+.bench-panel-header-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75em;
+  margin-bottom: 0.6em;
+}
+
+.bench-panel-header-row .bench-hero-heading {
+  margin: 0;
+}
+
+.bench-direction-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  padding: 0.2em 0.65em;
+  border-radius: 999px;
+  font-size: 0.78em;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+}
+
+.bench-direction-higher {
+  background: rgba(99, 102, 241, 0.14);
+  color: #6366f1;
+  border: 1px solid rgba(99, 102, 241, 0.35);
+}
+
+[data-md-color-scheme="slate"] .bench-direction-higher {
+  background: rgba(99, 102, 241, 0.22);
+  color: #818cf8;
+  border-color: rgba(129, 140, 248, 0.45);
+}
+
+.bench-direction-lower {
+  background: rgba(16, 185, 129, 0.14);
+  color: #059669;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+
+[data-md-color-scheme="slate"] .bench-direction-lower {
+  background: rgba(16, 185, 129, 0.22);
+  color: #34d399;
+  border-color: rgba(52, 211, 153, 0.45);
+}
+
+.bench-latency-mode-group {
+  margin-right: 0.5em;
+}
