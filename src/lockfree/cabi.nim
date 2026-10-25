@@ -2171,6 +2171,16 @@ type
     scale_factor*: uint64
   lfq_leaky_bucket_t* = lf_leaky_bucket_t
 
+static:
+  doAssert sizeof(lf_token_bucket_t) == sizeof(TokenBucket),
+    "lf_token_bucket_t size mismatch with TokenBucket"
+  doAssert alignof(lf_token_bucket_t) == alignof(TokenBucket),
+    "lf_token_bucket_t alignment mismatch with TokenBucket"
+  doAssert sizeof(lf_leaky_bucket_t) == sizeof(LeakyBucket),
+    "lf_leaky_bucket_t size mismatch with LeakyBucket"
+  doAssert alignof(lf_leaky_bucket_t) == alignof(LeakyBucket),
+    "lf_leaky_bucket_t alignment mismatch with LeakyBucket"
+
 proc lf_token_bucket_init*(
     bucket: ptr lf_token_bucket_t,
     capacity: uint64,

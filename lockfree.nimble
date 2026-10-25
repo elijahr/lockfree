@@ -74,7 +74,7 @@ task test, "Runs the test suite":
 
   proc runArc =
     exec "nim r --hints:off --warnings:off tests/test_runner.nim --all --mm:arc"
-    exec "nim c --mm:arc --threads:on -r tests/smr/debra-legacy/t_nebr_all.nim"
+    exec "nim c --hints:off --warnings:off --mm:arc --threads:on -r tests/smr/debra-legacy/t_nebr_all.nim"
 
   proc runRefc =
     exec "nim r --hints:off --warnings:off tests/test_runner.nim --unit --mm:refc"

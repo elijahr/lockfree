@@ -1,7 +1,16 @@
 ## High-Performance Parallel Test Runner for lockfree
 ## Runs test files concurrently across CPU cores, bypassing monolithic AST bloat.
 
-import std/[os, osproc, strutils, times, terminal, streams]
+import std/[os, osproc, strutils, times, terminal]
+
+when defined(posix):
+  import std/posix
+elif defined(windows):
+  import std/winlean
+  proc peekNamedPipe(hPipe: Handle, lpBuffer: pointer, nBufferSize: int32,
+                     lpBytesRead: ptr int32, lpTotalBytesAvail: ptr int32,
+                     lpBytesLeftThisMessage: ptr int32): WINBOOL {.
+      stdcall, dynlib: "kernel32", importc: "PeekNamedPipe".}
 
 type
   TestResult = object
@@ -9,6 +18,36 @@ type
     duration: float
     exitCode: int
     output: string
+
+  RunningProcess = object
+    path: string
+    p: Process
+    t0: float
+    output: string
+
+proc drainProcessOutput(rp: var RunningProcess) =
+  when defined(posix):
+    let fd = rp.p.outputHandle.cint
+    var buf: array[4096, char]
+    while true:
+      let n = posix.read(fd, addr buf[0], buf.len)
+      if n > 0:
+        let oldLen = rp.output.len
+        rp.output.setLen(oldLen + n)
+        copyMem(addr rp.output[oldLen], addr buf[0], n)
+      else:
+        break
+  elif defined(windows):
+    let h = cast[Handle](rp.p.outputHandle)
+    var avail: int32 = 0
+    if peekNamedPipe(h, nil, 0, nil, addr avail, nil) != 0 and avail > 0:
+      var buf: array[4096, char]
+      var bytesRead: int32 = 0
+      let toRead = min(avail, int32(buf.len))
+      if winlean.readFile(h, addr buf[0], toRead, addr bytesRead, nil) != 0 and bytesRead > 0:
+        let oldLen = rp.output.len
+        rp.output.setLen(oldLen + int(bytesRead))
+        copyMem(addr rp.output[oldLen], addr buf[0], int(bytesRead))
 
 proc parseImportsFrom(runnerRelPath: string): seq[string] =
   let runnerFile = currentSourcePath().parentDir() / runnerRelPath
@@ -48,19 +87,19 @@ proc runParallel(
   isRelease: bool = false,
   isDanger: bool = false
 ): int =
-  var pending = tests
-  var running: seq[tuple[path: string, p: Process, t0: float]] = @[]
+  var running: seq[RunningProcess] = @[]
   var results: seq[TestResult] = @[]
   let total = tests.len
+  var nextIdx = 0
   var completed = 0
 
   let startTime = epochTime()
 
-  while pending.len > 0 or running.len > 0:
+  while nextIdx < total or running.len > 0:
     # Fill worker pool
-    while running.len < maxWorkers and pending.len > 0:
-      let testPath = pending[0]
-      pending.delete(0)
+    while running.len < maxWorkers and nextIdx < total:
+      let testPath = tests[nextIdx]
+      inc nextIdx
       let t0 = epochTime()
       let cmd = "nim"
       var args: seq[string] = @[
@@ -90,17 +129,24 @@ proc runParallel(
       args.add(testPath)
 
       let p = startProcess(cmd, args = args, options = {poStdErrToStdOut, poUsePath})
-      running.add((testPath, p, t0))
+      when defined(posix):
+        let fd = p.outputHandle.cint
+        let flags = fcntl(fd, F_GETFL, 0)
+        discard fcntl(fd, F_SETFL, flags or O_NONBLOCK)
 
-    # Poll running processes
+      running.add(RunningProcess(path: testPath, p: p, t0: t0, output: ""))
+
+    # Poll running processes and drain pipes continuously to prevent deadlocks
     var i = 0
     while i < running.len:
-      let (testPath, p, t0) = running[i]
-      let code = p.peekExitCode()
+      drainProcessOutput(running[i])
+      let code = running[i].p.peekExitCode()
       if code != -1:
-        let dur = epochTime() - t0
-        let outStr = p.outputStream.readAll()
-        p.close()
+        drainProcessOutput(running[i])
+        let dur = epochTime() - running[i].t0
+        let testPath = running[i].path
+        let outStr = running[i].output
+        running[i].p.close()
         running.delete(i)
         inc completed
         let res = TestResult(path: testPath, duration: dur, exitCode: code, output: outStr)
@@ -115,7 +161,7 @@ proc runParallel(
       else:
         inc i
 
-    sleep(10)
+    sleep(5)
 
   let totalDuration = epochTime() - startTime
   var failedCount = 0
