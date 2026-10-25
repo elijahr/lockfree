@@ -949,7 +949,7 @@ proc initQueue*[
     S: static int = 64,
     MaxThreads: static int = DefaultMaxThreads,
 ](): Queue[T, ccProd, ccCons, ST, S, MaxThreads] {.inline.} =
-  ## Initializes an unbounded Queue value object with sensible defaults (S=64, MaxThreads=128).
+  ## Initializes an unbounded Queue value object with sensible defaults (S=64, MaxThreads=64).
   newQueue(Queue[T, ccProd, ccCons, ST, S, MaxThreads])
 
 proc newQueue*[

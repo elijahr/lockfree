@@ -165,7 +165,9 @@ suite "TaggedStack / Stack128 (128-Bit DWCAS)":
       var count = 0
       var val: int
       while true:
-        discard arg.stack[].peek() # Optimistic read concurrent with pop
+        let peekOpt = arg.stack[].peek() # Optimistic read concurrent with pop
+        if peekOpt.isSome:
+          doAssert peekOpt.get() >= 0 and peekOpt.get() < NumThreads * ItemsPerThread
         if arg.stack[].tryPop(val):
           inc count
         else:
