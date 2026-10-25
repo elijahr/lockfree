@@ -82,7 +82,7 @@ threaded variants in `*_threaded.nim` files. Tests use `unittest2`.
 The `test` task in `lockfree.nimble` runs the suite under every
 relevant combination:
 
-- C backend with default MM (`orc`) and explicit `arc`, `refc`.
+- C backend with default MM (`orc`) and explicit `arc`.
 - C++ backend with default MM.
 - ThreadSanitizer on `clang` + `atomicArc` (gated by
   `SANITIZE_THREADS=no` to skip on machines without a working clang

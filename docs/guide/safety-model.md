@@ -136,7 +136,7 @@ CI runs the full suite across:
 
 - Runners: `ubuntu-24.04` (x86_64), `ubuntu-24.04-arm` (native arm64),
   `macos-latest` (arm64).
-- Memory managers: `arc`, `orc`, `refc`, `atomicArc`.
+- Memory managers: `arc`, `orc`, `atomicArc`.
 - Backends: C and C++.
 - Sanitisers: ThreadSanitizer (TSAN) under `atomicArc`, AddressSanitizer (ASAN).
 

@@ -34,7 +34,6 @@ when defined(adapter_boost_lockfree_queue_available):
   import std/typetraits
   import ../bench_common
   import ../adapter
-  import lockfree/internal/aligned_alloc
 
   # Header search paths. Order: explicit override -> brew arm64 -> brew/macports
   # x86_64 / FreeBSD ports -> Linux apt default.
@@ -102,15 +101,10 @@ when defined(adapter_boost_lockfree_queue_available):
     ## guarantees ``alignof(max_align_t)`` (typically 16 bytes), which can
     ## leave Boost's per-cache-line atomics straddling line boundaries.
     result.capacity = capacity
-    result.queue = allocAligned[BoostQueueRaw]()
-    # Placement-construct the C++ object in the alloc'd storage. Going via
-    # an importcpp constructor proc keeps Nim from emitting a Nim-level
-    # constructor call.
     {.
       emit: [
-        "new (",
         result.queue,
-        ") boost::lockfree::queue<unsigned long long>(",
+        " = new boost::lockfree::queue<unsigned long long>(",
         csize_t(capacity),
         ");",
       ]
@@ -118,19 +112,13 @@ when defined(adapter_boost_lockfree_queue_available):
 
   proc cleanup*[T](a: var BoostLockfreeQueueAdapter[T]) =
     if a.queue != nil:
-      # Invoke the C++ destructor explicitly. The destructor must be
-      # named by a *type-name*, not the template-name `queue`; a bare
-      # `~queue()` is ill-formed C++. Introduce a local type-alias so the
-      # pseudo-destructor call names a type. Element type matches the
-      # `boost::lockfree::queue<unsigned long long>` used above.
       {.
         emit: [
-          "using TQueue = boost::lockfree::queue<unsigned long long>; ",
+          "delete ",
           a.queue,
-          "->~TQueue();",
+          ";",
         ]
       .}
-      freeAligned(a.queue)
       a.queue = nil
 
   proc push*[T](a: var BoostLockfreeQueueAdapter[T], item: T): PushResult =

@@ -22,18 +22,21 @@ const
 # Locked Disjoint-Set Baseline
 # -----------------------------------------------------------------------------
 type
-  LockedDisjointSet = ref object
+  LockedDisjointSetObj = object
     lock: Lock
-    parent: seq[int]
-    rank: seq[int]
+    parent: ptr UncheckedArray[int]
+    rank: ptr UncheckedArray[int]
     setCount: int
+    size: int
+  LockedDisjointSet = ptr LockedDisjointSetObj
 
 proc newLockedDisjointSet(size: int): LockedDisjointSet =
-  new(result)
+  result = createShared(LockedDisjointSetObj)
   initLock(result.lock)
-  result.parent = newSeq[int](size)
-  result.rank = newSeq[int](size)
+  result.parent = cast[ptr UncheckedArray[int]](allocShared0(sizeof(int) * size))
+  result.rank = cast[ptr UncheckedArray[int]](allocShared0(sizeof(int) * size))
   result.setCount = size
+  result.size = size
   for i in 0 ..< size:
     result.parent[i] = i
     result.rank[i] = 0
@@ -41,6 +44,11 @@ proc newLockedDisjointSet(size: int): LockedDisjointSet =
 proc destroyLockedDisjointSet(ds: LockedDisjointSet) =
   if ds != nil:
     deinitLock(ds.lock)
+    if ds.parent != nil:
+      deallocShared(ds.parent)
+    if ds.rank != nil:
+      deallocShared(ds.rank)
+    freeShared(ds)
 
 proc find(ds: LockedDisjointSet, x: int): int =
   withLock(ds.lock):

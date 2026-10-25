@@ -15,12 +15,12 @@ For the manager-by-manager defects fixed in v0.1.0, see the
 | `orc` | Deferred reference counting | Yes | Yes (default in 2.2+) |
 | `arc` | Deferred reference counting | No | Yes |
 | `atomicArc` | Atomic reference counting | No | Yes |
-| `refc` | Mark-and-sweep + ref counting | Yes | Yes |
+| `refc` *(Retired)* | Mark-and-sweep + ref counting | Yes | Yes (Legacy 1.x) |
 | `none` | No automatic management | No | Yes |
 
 `orc` and `arc` are the modern defaults; `atomicArc` is the
-sanitizer-friendly variant; `refc` is the legacy manager kept for
-compatibility; `none` is for real-time work where the runtime cannot
+sanitizer-friendly variant; `refc` is the deprecated legacy manager
+retired from CI testing; `none` is for real-time work where the runtime cannot
 allocate.
 
 ## What the queue does with payloads
@@ -106,20 +106,11 @@ nim c --threads:on --mm:atomicArc -r myprog.nim
 refcount op is an atomic RMW), but is the right call for highly
 shared `ref` payloads under sanitizer.
 
-### `--mm:refc`
+### `--mm:refc` (Legacy / Retired)
 
-`refc` is the legacy mark-and-sweep manager. `lockfree` supports it
-for compatibility, but it is not the recommended default for new code.
-The Path-C wrappers route through refc's `nimGCRefNoCycle` /
-`nimGCUnrefNoCycle` for `ref T` payloads and a per-arm `=destroy`
-for `string` / `seq[T]`.
+`refc` is the legacy thread-local mark-and-sweep manager from Nim 1.x. It is **deprecated in modern Nim** and has been **retired from active CI testing** in `lockfree`.
 
-```sh
-nim c --threads:on --mm:refc -r myprog.nim
-```
-
-If you are starting fresh, prefer `orc` over `refc`. `refc` is
-maintained for downstream projects that have not migrated.
+Because `refc` relies on thread-local GC heaps rather than unified shared memory, cross-thread operations on managed reference types cannot be safely driven without deep copying. While low-level fallback shims remain in Path-C, all modern `lockfree` development, multi-threaded SMR/NEBR, and next-generation Nim compilers (Nimony) target `--mm:orc` and `--mm:arc`. New projects should strictly use `orc` or `arc`.
 
 ### `--mm:none` {: #-mm-none }
 

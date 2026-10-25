@@ -76,22 +76,17 @@ task test, "Runs the test suite":
     exec "nim r --hints:off --warnings:off tests/test_runner.nim --all --mm:arc"
     exec "nim c --hints:off --warnings:off --mm:arc --threads:on -r tests/smr/debra-legacy/t_nebr_all.nim"
 
-  proc runRefc =
-    exec "nim r --hints:off --warnings:off tests/test_runner.nim --unit --mm:refc"
-
   case variant
   of "all":
     runOrc()
     runCpp()
     runArc()
-    runRefc()
   of "orc": runOrc()
   of "cpp": runCpp()
   of "arc": runArc()
-  of "refc": runRefc()
   else:
     quit "Unknown LFQ_TEST_VARIANT: " & variant &
-      " (expected: all, orc, cpp, arc, refc)"
+      " (expected: all, orc, cpp, arc)"
 
 
 task testTSan, "Runs Tier 2 concurrency tests under ThreadSanitizer (TSAN)":

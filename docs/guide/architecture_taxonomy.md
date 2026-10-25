@@ -168,7 +168,7 @@ Unbounded and dynamically resized structures cannot recycle heap nodes immediate
 | **ORC** *(Default)* | `--mm:orc` | Reference counting with cycle collector. Fully supported across all primitives. |
 | **ARC** | `--mm:arc` | Deterministic scope-based reference counting without cycle collector. Lowest latency overhead for non-cyclic payloads. |
 | **Atomic ARC** | `--mm:atomicArc` | Uses atomic reference count adjustments on managed strings/seqs/refs. **Required when running ThreadSanitizer (`-fsanitize=thread`)** so compiler-generated refcount updates are atomic. |
-| **Refc** *(Legacy)* | `--mm:refc` | Thread-local mark-and-sweep GC. Supported for primitive scalar/value types. |
+| **Refc** *(Retired)* | `--mm:refc` | Retired from CI. Deprecated Nim 1.x thread-local GC. Not recommended for modern concurrent queues. |
 
 ### 6.2 Path-C Payload & Destructor Safety Rules
 1. **Immediate Slot Reset on Eviction**: Every bounded and unbounded container in `lockfree` moves the payload out of its slot/node (`outVal = move(slot.data)`) and calls `reset(slot.data)` before releasing the slot or retiring the node. This guarantees that ARC/ORC destructors (`=destroy`) run deterministically on the consuming/clearing thread and prevents cross-thread double-free or memory leaks.

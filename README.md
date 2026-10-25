@@ -33,7 +33,7 @@ The package provides:
 | Requirement | Supported |
 |-------------|-----------|
 | **Nim Version** | `>= 2.2.10` |
-| **Memory Managers** | `orc` (default), `arc`, `refc`, `atomicArc` |
+| **Memory Managers** | `orc` (default), `arc`, `atomicArc` (`refc` retired) |
 | **Backends** | C (`nim c`), C++ (`nim cpp`) |
 | **Threading** | `--threads:on` required (default in Nim 2.2+) |
 | **Platforms (CI-verified)** | Linux x86_64, Linux arm64, macOS Apple Silicon (arm64) |
@@ -236,10 +236,6 @@ At the core of `lockfree`'s Morrison-Afek LCRQ unbounded MPMC queue and NEBR rec
 > Continuous verification measured on standard GitHub-hosted `ubuntu-22.04` (4 vCPU x86_64).
 > Throughput numbers reflect 1,000,000 messages across active producer and consumer threads.
 
-<p align="center">
-  <img src="docs/assets/bench-results/hero-throughput.svg" alt="Lock-Free Throughput vs Alternatives" width="100%">
-</p>
-
 ### High-Contention Throughput Matrix
 
 | Topology | Engine | Shape | Throughput (ops/ms) | Throughput (ops/sec) | vs Nim stdlib `system/Channel` |
@@ -248,12 +244,6 @@ At the core of `lockfree`'s Morrison-Afek LCRQ unbounded MPMC queue and NEBR rec
 | **SPMC** | `BQueue` (Bounded) | 1 producer, 2 consumers | **37,111 ops/ms** | **37,111,307 ops/s** | — *(stdlib has no SPMC)* |
 | **MPSC** | `BQueue` (Bounded) | 4 producers, 1 consumer | **21,142 ops/ms** | **21,142,009 ops/s** | **5.9x faster** (3,565 ops/ms) |
 | **SPSC** | `Queue` (Unbounded) | 1 producer, 1 consumer | **26,962 ops/ms** | **26,961,618 ops/s** | — *(stdlib has no SPSC)* |
-
-### Ping-Pong Round-Trip Latency
-
-<p align="center">
-  <img src="docs/assets/bench-results/latency-ladder.svg" alt="Ping-Pong Latency Percentiles" width="100%">
-</p>
 
 *Run benchmarks locally with `nimble benchmarks` or explore multi-language comparisons, interactive filters, and latency curves on the [Interactive Benchmarks Portal](https://elijahr.github.io/lockfree/latest/guide/queues/benchmarks/).*
 <!-- BENCHMARK_METRICS_END -->

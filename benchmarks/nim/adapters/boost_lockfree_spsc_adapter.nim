@@ -27,7 +27,6 @@ when defined(adapter_boost_lockfree_spsc_available):
   import std/typetraits
   import ../bench_common
   import ../adapter
-  import lockfree/internal/aligned_alloc
 
   when boostIncludeDir.len > 0:
     {.passC: "-I" & boostIncludeDir.}
@@ -71,15 +70,10 @@ when defined(adapter_boost_lockfree_spsc_available):
     when sizeof(T) != sizeof(uint64):
       {.error: "BoostLockfreeSpscAdapter[T] requires sizeof(T) == 8; the C++ cell is uint64 and a mismatched T would truncate or sign-extend silently.".}
     result.capacity = capacity
-    # `allocAligned` (cache-line aligned, zeroed) instead of `alloc0` so the
-    # placement-constructed Boost spsc_queue gets the alignment its internal
-    # padding pragmas expect; matches the bounded `lockfree::queue` adapter.
-    result.queue = allocAligned[BoostSpscRaw]()
     {.
       emit: [
-        "new (",
         result.queue,
-        ") boost::lockfree::spsc_queue<unsigned long long>(",
+        " = new boost::lockfree::spsc_queue<unsigned long long>(",
         csize_t(capacity),
         ");",
       ]
@@ -87,18 +81,13 @@ when defined(adapter_boost_lockfree_spsc_available):
 
   proc cleanup*[T](a: var BoostLockfreeSpscAdapter[T]) =
     if a.queue != nil:
-      # Invoke the C++ destructor explicitly via a type-alias. A bare
-      # `~spsc_queue()` names the template, not a type, and is ill-formed
-      # C++. Element type matches the
-      # `boost::lockfree::spsc_queue<unsigned long long>` used above.
       {.
         emit: [
-          "using TSpscQueue = boost::lockfree::spsc_queue<unsigned long long>; ",
+          "delete ",
           a.queue,
-          "->~TSpscQueue();",
+          ";",
         ]
       .}
-      freeAligned(a.queue)
       a.queue = nil
 
   proc push*[T](a: var BoostLockfreeSpscAdapter[T], item: T): PushResult =
