@@ -47,7 +47,7 @@ just docs-build
 
 ## 3. GitHub Secrets & CI Automation
 ### Momus AI PR Review (`.github/workflows/momus.yml`)
-Momus provides automated, noise-filtered AI code reviews on pull requests using `deepseek/deepseek-v4-flash` via `https://openrouter.ai/api/v1`.
+Momus provides automated, noise-filtered AI code reviews on pull requests using `~anthropic/claude-sonnet-latest` via `https://openrouter.ai/api/v1`.
 
 - **Required Secret**:
   - `LLM_API_KEY`: Your OpenRouter (or provider-specific) API key.

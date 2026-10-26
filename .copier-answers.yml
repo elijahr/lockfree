@@ -9,7 +9,7 @@ flavor: pure_nim
 github_owner: axiomantic
 license: MIT
 momus_base_url: https://openrouter.ai/api/v1
-momus_model: deepseek/deepseek-v4-flash
+momus_model: ~anthropic/claude-sonnet-latest
 package_name: lockfree
 project_name: lockfree
 repo_name: lockfree
