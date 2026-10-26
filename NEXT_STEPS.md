@@ -50,9 +50,10 @@ just docs-build
 Momus provides automated, noise-filtered AI code reviews on pull requests using `deepseek/deepseek-v4-flash` via `https://openrouter.ai/api/v1`.
 
 - **Required Secret**:
-  - Go to **Settings > Secrets and variables > Actions > New repository secret**.
-  - Name: `LLM_API_KEY`
-  - Value: Your OpenRouter (or provider-specific) API key.
+  - `LLM_API_KEY`: Your OpenRouter (or provider-specific) API key.
+  - You can configure this either as:
+    - A **Repository secret**: Go to **Settings > Secrets and variables > Actions > New repository secret**, or
+    - An **Environment secret**: Go to **Settings > Environments > New environment**, create an environment named `code-review`, and add `LLM_API_KEY` under Environment secrets. The workflow uses `environment: code-review` and `secrets: inherit` by default.
 - **Optional GitHub App Integration**:
   - If you wish Momus to post formal `APPROVE` reviews rather than `COMMENT`, configure:
     - `MOMUS_APP_ID`: Your GitHub App ID.

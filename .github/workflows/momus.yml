@@ -46,7 +46,5 @@ jobs:
       model: deepseek/deepseek-v4-flash
       base_url: https://openrouter.ai/api/v1
       only_collaborators: true
-    secrets:
-      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
-      MOMUS_APP_ID: ${{ secrets.MOMUS_APP_ID }}
-      MOMUS_APP_PRIVATE_KEY: ${{ secrets.MOMUS_APP_PRIVATE_KEY }}
+      environment: code-review
+    secrets: inherit
