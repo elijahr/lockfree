@@ -223,3 +223,23 @@ suite "BQueue128 (128-Bit DWCAS Bounded MPMC Queue)":
       check val == i * 100
 
     check q.isEmpty
+
+  test "In-flight slot publication bounded spin-wait (diff < 0)":
+    const Cap = 4
+    var q = initBQueue128[int, Cap]()
+    # Advance tail simulating a producer claiming slot 0 but not yet CAS-publishing cell 0
+    # head = 0, tail = 1
+    # cell 0 seq = 0 (unwritten, so diff for consumer looking for seq 1 is 0 - 1 = -1 < 0)
+    q.tail.store(1'u64, moRelaxed)
+
+    # Consumer should see tail > pos, spin until budget exhausted, and return false
+    var val: int = 0
+    check not q.tryPop(val)
+
+    # Now complete the simulated in-flight publication
+    q.cells[0].store(Pair[uint64, int](first: 1'u64, second: 42))
+
+    # Consumer should now succeed
+    check q.tryPop(val)
+    check val == 42
+    check q.isEmpty

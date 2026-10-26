@@ -138,6 +138,7 @@ proc tryPush*[T: uint64 | int64 | pointer | int, N: static int](
         while not compareExchangeWeak(cell[], expected, desired):
           discard
         return true
+      waitSpins = 0 # Ring position advanced by peer; reset spin budget
     elif diff < 0:
       let h = self.head.load(moRelaxed)
       if (pos - h) >= uint64(N) or waitSpins >= BQueue128MaxWaitForPublishSpins:
@@ -146,6 +147,7 @@ proc tryPush*[T: uint64 | int64 | pointer | int, N: static int](
       inc waitSpins
     else:
       pos = self.tail.load(moRelaxed)
+      waitSpins = 0
 
 template push*[T, N](self: var BQueue128[T, N], val: T): bool =
   ## Convenience alias for `tryPush`.
@@ -176,6 +178,7 @@ proc tryPop*[T: uint64 | int64 | pointer | int, N: static int](
           discard
         val = observed.second
         return true
+      waitSpins = 0 # Ring position advanced by peer; reset spin budget
     elif diff < 0:
       let t = self.tail.load(moRelaxed)
       if t <= pos or waitSpins >= BQueue128MaxWaitForPublishSpins:
@@ -184,6 +187,7 @@ proc tryPop*[T: uint64 | int64 | pointer | int, N: static int](
       inc waitSpins
     else:
       pos = self.head.load(moRelaxed)
+      waitSpins = 0
 
 proc pop*[T: uint64 | int64 | pointer | int, N: static int](
     self: var BQueue128[T, N]
