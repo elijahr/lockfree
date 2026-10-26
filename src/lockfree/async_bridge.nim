@@ -1312,13 +1312,11 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     ## `moSequentiallyConsistent` barrier with `pushBottom` so zero wakeups can
     ## be lost. Returns `none(T)` only if the deque is closed and empty.
     while true:
-      while not self.deque.isEmpty:
-        let v1 = self.deque.steal()
-        if v1.isSome:
-          if not self.deque.isEmpty and self.waitingThieves.load(moSeqCst) > 0:
-            self.notifyThieves()
-          return v1
-        cpuPause()
+      let v1 = self.deque.steal()
+      if v1.isSome:
+        if not self.deque.isEmpty and self.waitingThieves.load(moSeqCst) > 0:
+          self.notifyThieves()
+        return v1
 
       if self.closed.load(moAcquire):
         return self.deque.steal()
@@ -1330,13 +1328,11 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       threadFence(moSeqCst)
 
       try:
-        while not self.deque.isEmpty:
-          let v2 = self.deque.steal()
-          if v2.isSome:
-            if not self.deque.isEmpty and self.waitingThieves.load(moSeqCst) > 1:
-              self.notifyThieves()
-            return v2
-          cpuPause()
+        let v2 = self.deque.steal()
+        if v2.isSome:
+          if not self.deque.isEmpty and self.waitingThieves.load(moSeqCst) > 1:
+            self.notifyThieves()
+          return v2
 
         if self.closed.load(moAcquire):
           return self.deque.steal()
@@ -1356,13 +1352,11 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
     ## order). Suspends when empty and wakes on `pushBottom`. If items remain
     ## after the batch steal, cascades wakeup to any remaining parked thieves.
     while true:
-      while not self.deque.isEmpty:
-        let b1 = self.deque.stealBatch(maxItems)
-        if b1.len > 0:
-          if not self.deque.isEmpty and self.waitingThieves.load(moSeqCst) > 0:
-            self.notifyThieves()
-          return b1
-        cpuPause()
+      let b1 = self.deque.stealBatch(maxItems)
+      if b1.len > 0:
+        if not self.deque.isEmpty and self.waitingThieves.load(moSeqCst) > 0:
+          self.notifyThieves()
+        return b1
 
       if self.closed.load(moAcquire):
         return self.deque.stealBatch(maxItems)
@@ -1374,13 +1368,11 @@ when defined(lockfreeChronos) or defined(lockfreeAsyncdispatch) or compileOption
       threadFence(moSeqCst)
 
       try:
-        while not self.deque.isEmpty:
-          let b2 = self.deque.stealBatch(maxItems)
-          if b2.len > 0:
-            if not self.deque.isEmpty and self.waitingThieves.load(moSeqCst) > 1:
-              self.notifyThieves()
-            return b2
-          cpuPause()
+        let b2 = self.deque.stealBatch(maxItems)
+        if b2.len > 0:
+          if not self.deque.isEmpty and self.waitingThieves.load(moSeqCst) > 1:
+            self.notifyThieves()
+          return b2
 
         if self.closed.load(moAcquire):
           return self.deque.stealBatch(maxItems)

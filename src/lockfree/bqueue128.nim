@@ -32,11 +32,19 @@
 ##   compared to cache-padded cell structures.
 
 import ./atomics
+import ./atomics/backoff
 import ./internal/aligned_alloc
 import std/options
 
 when not supportsDwcas:
   {.error: "BQueue128 requires 128-bit hardware DWCAS support (x86_64 with -mcx16, aarch64 with LSE, or 64-bit vcc).".}
+
+const BQueue128MaxWaitForPublishSpins* {.intdefine.}: int = 1024
+  ## Bounded spin budget for a consumer waiting on an in-flight producer that has
+  ## claimed the slot turn (tail advanced past pos) but has not yet completed its
+  ## 128-bit atomic slot publication (or vice versa for a producer waiting on an
+  ## in-flight consumer). After this many cpuPause spins, the operation surrenders
+  ## and returns false to prevent deadlocking on preempted peers.
 
 type
   BQueue128Slot*[T] = Atomic[Pair[uint64, T]]
@@ -115,10 +123,11 @@ proc tryPush*[T: uint64 | int64 | pointer | int, N: static int](
   ## the slot turn and publish the payload in a single instruction.
   const mask = uint64(N - 1)
   var pos = self.tail.load(moRelaxed)
+  var waitSpins = 0
   while true:
     let cell = addr self.cells[pos and mask]
     var observed: Pair[uint64, T] = load(cell[], moSequentiallyConsistent)
-    let diff = int64(observed.first) - int64(pos)
+    let diff = cast[int64](observed.first - pos)
     if diff == 0:
       if self.tail.compareExchangeWeak(pos, pos + 1, moRelaxed, moRelaxed):
         var expected = observed
@@ -130,7 +139,11 @@ proc tryPush*[T: uint64 | int64 | pointer | int, N: static int](
           discard
         return true
     elif diff < 0:
-      return false # Queue is full
+      let h = self.head.load(moRelaxed)
+      if (pos - h) >= uint64(N) or waitSpins >= BQueue128MaxWaitForPublishSpins:
+        return false # Truly full, or consumer descheduled past spin budget
+      cpuPause()
+      inc waitSpins
     else:
       pos = self.tail.load(moRelaxed)
 
@@ -147,10 +160,11 @@ proc tryPop*[T: uint64 | int64 | pointer | int, N: static int](
   ## Returns `false` immediately if the queue is empty.
   const mask = uint64(N - 1)
   var pos = self.head.load(moRelaxed)
+  var waitSpins = 0
   while true:
     let cell = addr self.cells[pos and mask]
     var observed: Pair[uint64, T] = load(cell[], moSequentiallyConsistent)
-    let diff = int64(observed.first) - int64(pos + 1)
+    let diff = cast[int64](observed.first - (pos + 1))
     if diff == 0:
       if self.head.compareExchangeWeak(pos, pos + 1, moRelaxed, moRelaxed):
         var expected = observed
@@ -163,7 +177,11 @@ proc tryPop*[T: uint64 | int64 | pointer | int, N: static int](
         val = observed.second
         return true
     elif diff < 0:
-      return false # Queue is empty
+      let t = self.tail.load(moRelaxed)
+      if t <= pos or waitSpins >= BQueue128MaxWaitForPublishSpins:
+        return false # Truly empty, or producer descheduled past spin budget
+      cpuPause()
+      inc waitSpins
     else:
       pos = self.head.load(moRelaxed)
 
@@ -187,7 +205,7 @@ proc tryPeek*[T: uint64 | int64 | pointer | int, N: static int](
   let pos = (unsafeAddr self.head)[].load(moAcquire)
   let cell = unsafeAddr self.cells[pos and mask]
   var observed: Pair[uint64, T] = load(cell[], moSequentiallyConsistent)
-  if int64(observed.first) == int64(pos + 1):
+  if observed.first == pos + 1:
     val = observed.second
     return true
   return false

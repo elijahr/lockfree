@@ -5,7 +5,7 @@ discard """
 
 import unittest2
 import std/options
-import std/atomics as std_atomics
+import lockfree/atomics
 import lockfree/bqueue128
 import lockfree/constants
 
@@ -102,7 +102,7 @@ suite "BQueue128 (128-Bit DWCAS Bounded MPMC Queue)":
 
     type SpscCtx = object
       qPtr: ptr BQueue128[int, Cap]
-      consumerSum: std_atomics.Atomic[int64]
+      consumerSum: Atomic[int64]
 
     var ctx: SpscCtx
     ctx.qPtr = addr q
@@ -147,8 +147,8 @@ suite "BQueue128 (128-Bit DWCAS Bounded MPMC Queue)":
 
     type MpmcCtx = object
       qPtr: ptr BQueue128[int, Cap]
-      itemsConsumed: std_atomics.Atomic[int]
-      totalConsumedSum: std_atomics.Atomic[int64]
+      itemsConsumed: Atomic[int]
+      totalConsumedSum: Atomic[int64]
 
     var ctx: MpmcCtx
     ctx.qPtr = addr q
@@ -195,4 +195,31 @@ suite "BQueue128 (128-Bit DWCAS Bounded MPMC Queue)":
     let expectedSum = int64(NumProducers) * ((int64(ItemsPerProducer) * int64(ItemsPerProducer + 1)) div 2)
     check ctx.itemsConsumed.load() == TotalItems
     check ctx.totalConsumedSum.load() == expectedSum
+    check q.isEmpty
+
+  test "Sequence generation rollover past 2^63 (no RangeDefect)":
+    const Cap = 4
+    var q = initBQueue128[uint64, Cap]()
+    # Set head and tail past 2^63 to verify modular diff (no RangeDefect on cast[int64])
+    const HighPos = (1'u64 shl 63) + 128'u64
+    q.head.store(HighPos, moRelaxed)
+    q.tail.store(HighPos, moRelaxed)
+    for i in 0 ..< Cap:
+      q.cells[i].store(Pair[uint64, uint64](first: HighPos + uint64(i), second: 0'u64))
+
+    for i in 1'u64 .. 4'u64:
+      check q.tryPush(i * 100)
+
+    check q.isFull
+    check not q.tryPush(999'u64)
+
+    var peekVal: uint64 = 0
+    check q.tryPeek(peekVal)
+    check peekVal == 100'u64
+
+    for i in 1'u64 .. 4'u64:
+      var val: uint64 = 0
+      check q.tryPop(val)
+      check val == i * 100
+
     check q.isEmpty
