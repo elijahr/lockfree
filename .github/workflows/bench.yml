@@ -190,12 +190,14 @@ jobs:
           github.event_name == 'pull_request' &&
           github.actor != 'github-actions[bot]' &&
           github.event.pull_request.head.repo.fork == false
+        env:
+          HEAD_REF: ${{ github.head_ref }}
         run: |
           set -euo pipefail
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git fetch origin "${{ github.head_ref }}":"refs/remotes/origin/${{ github.head_ref }}"
-          git checkout -B "${{ github.head_ref }}" "refs/remotes/origin/${{ github.head_ref }}"
+          git fetch origin "$HEAD_REF":"refs/remotes/origin/$HEAD_REF"
+          git checkout -B "$HEAD_REF" "refs/remotes/origin/$HEAD_REF"
           mkdir -p docs/assets/bench-results
           find docs/assets/bench-results/ -type f -name '*.json' ! -name 'example.json' ! -name 'latest.json' -delete
           SHA=$(git rev-parse --short HEAD)
@@ -214,12 +216,12 @@ jobs:
           fi
           git commit -m "chore(bench): refresh snapshot for PR [skip ci]"
           for attempt in 1 2 3; do
-            if git push origin "HEAD:${{ github.head_ref }}"; then
+            if git push origin "HEAD:$HEAD_REF"; then
               exit 0
             fi
-            echo "::notice::PR-branch push attempt $attempt rejected; rebasing onto origin/${{ github.head_ref }} and retrying."
-            git fetch origin "${{ github.head_ref }}"
-            if ! git rebase "origin/${{ github.head_ref }}"; then
+            echo "::notice::PR-branch push attempt $attempt rejected; rebasing onto origin/$HEAD_REF and retrying."
+            git fetch origin "$HEAD_REF"
+            if ! git rebase "origin/$HEAD_REF"; then
               git rebase --abort || true
               echo "::warning::PR-branch rebase attempt $attempt failed; aborted and continuing retry loop."
             fi
@@ -233,9 +235,10 @@ jobs:
             (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')) ||
             (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel'))
           ) && (steps.merge.outcome == 'failure' || steps.merge.outcome == 'cancelled')
+        env:
+          TARGET_BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          TARGET_BRANCH="${{ github.ref_name }}"
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
           mkdir -p docs/assets/bench-results

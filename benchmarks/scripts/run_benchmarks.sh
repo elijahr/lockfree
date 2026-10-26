@@ -16,6 +16,10 @@ if [ "${FORCE_SKIP_LOONY:-}" != "1" ]; then
   if [ -n "$loony_dir" ]; then
     flags="$flags --path:${loony_dir}"
   fi
+  arc_dir=$(find ~/.nimble/pkgs2 ~/.nimble/pkgs -maxdepth 1 -type d -name "arc-*" 2>/dev/null | sort -V | tail -n 1 || true)
+  if [ -n "$arc_dir" ]; then
+    flags="$flags --path:${arc_dir}"
+  fi
 fi
 if [ "${FORCE_SKIP_MOODYCAMEL:-}" != "1" ]; then
   flags="$flags -d:adapter_moodycamel_available"

@@ -1,2860 +1,3041 @@
 {
   "arc_atomic_rc/smr_pin_unpin/1t": {
     "latency_max_ns": {
-      "value": 13.1875
+      "value": 13.0625
     },
     "latency_p50_ns": {
-      "value": 6.25
+      "value": 2.625
     },
     "latency_p95_ns": {
-      "value": 6.875
+      "value": 5.25
     },
     "latency_p999_ns": {
-      "value": 13.1875
+      "value": 12.618874999999747
     },
     "latency_p99_ns": {
-      "value": 6.9375
+      "value": 7.8125
     },
     "throughput_ops_ms": {
-      "lower_value": 172506.45344344474,
-      "upper_value": 198712.6533390138,
-      "value": 185609.55339122927
+      "lower_value": 252126.9288543179,
+      "upper_value": 255357.61247740293,
+      "value": 253742.27066586041
     }
   },
   "arc_atomic_rc/smr_pin_unpin/2t": {
     "throughput_ops_ms": {
-      "lower_value": 42987.801208771685,
-      "upper_value": 45627.126083982024,
-      "value": 44307.463646376855
+      "lower_value": 110902.92151110183,
+      "upper_value": 130947.47357312209,
+      "value": 120925.19754211196
     }
   },
   "arc_atomic_rc/smr_pin_unpin/4t": {
     "throughput_ops_ms": {
-      "lower_value": 26114.779419918603,
-      "upper_value": 26823.800800839694,
-      "value": 26469.29011037915
+      "lower_value": 31477.40806117246,
+      "upper_value": 54739.604437650196,
+      "value": 43108.50624941133
     }
   },
   "arc_atomic_rc/smr_pin_unpin/8t": {
     "throughput_ops_ms": {
-      "lower_value": 26392.888991013853,
-      "upper_value": 32596.22639421792,
-      "value": 29494.557692615886
+      "lower_value": 27249.726781791956,
+      "upper_value": 30244.99756979599,
+      "value": 28747.362175793973
     }
   },
   "atomic_queue/mpmc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 9240.067417263539,
-      "upper_value": 10153.307665147235,
-      "value": 9696.687541205387
+      "lower_value": 16021.982645442495,
+      "upper_value": 17771.738127134387,
+      "value": 16896.86038628844
     }
   },
   "atomic_queue/mpmc/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 9868.570309470377,
-      "upper_value": 10341.756661491827,
-      "value": 10105.163485481102
+      "lower_value": 9935.125105343608,
+      "upper_value": 11576.585658360591,
+      "value": 10755.8553818521
     }
   },
   "atomic_queue/mpmc/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 7813.594714341929,
-      "upper_value": 8440.361917924354,
-      "value": 8126.978316133142
+      "lower_value": 6205.370996087519,
+      "upper_value": 7383.033376057693,
+      "value": 6794.202186072606
     }
   },
   "atomic_queue/mpmc/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 10873.108516568916,
-      "upper_value": 10898.511656908324,
-      "value": 10885.81008673862
+      "lower_value": 11450.56131917393,
+      "upper_value": 12608.636715607254,
+      "value": 12029.599017390592
     }
   },
   "atomic_queue/mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 7918.596559147445,
-      "upper_value": 11334.972637997165,
-      "value": 9626.784598572305
+      "lower_value": 8711.38151709827,
+      "upper_value": 9654.382729267523,
+      "value": 9182.882123182897
     }
   },
   "atomic_queue/mpmc/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 8194.23789104761,
-      "upper_value": 9549.151115887871,
-      "value": 8871.694503467741
+      "lower_value": 4827.163882747743,
+      "upper_value": 5751.291662340572,
+      "value": 5289.227772544157
     }
   },
   "atomic_queue/mpmc/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 4672.61137195567,
-      "upper_value": 5684.37871536645,
-      "value": 5178.49504366106
+      "lower_value": 6129.226625724613,
+      "upper_value": 6421.3408774441405,
+      "value": 6275.283751584377
     }
   },
   "atomic_queue/mpmc/4p2c": {
     "throughput_ops_ms": {
-      "lower_value": 6452.016211685644,
-      "upper_value": 6723.983328157962,
-      "value": 6587.999769921803
+      "lower_value": 4730.490344059715,
+      "upper_value": 5745.1889675988,
+      "value": 5237.839655829258
     }
   },
   "atomic_queue/mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 6895.9935183604175,
-      "upper_value": 8350.803054048498,
-      "value": 7623.398286204458
+      "lower_value": 3306.22990771742,
+      "upper_value": 3537.423975972883,
+      "value": 3421.8269418451514
     }
   },
   "atomic_queue/mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 7181.593297446355,
-      "upper_value": 9859.204027234453,
-      "value": 8520.398662340403
+      "lower_value": 1524.16767767902,
+      "upper_value": 1555.8065968399437,
+      "value": 1539.9871372594819
     }
   },
   "atomic_queue/spsc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 8910.805059476797,
-      "upper_value": 10385.516769506847,
-      "value": 9648.160914491822
+      "lower_value": 17380.499810848643,
+      "upper_value": 17669.676217634125,
+      "value": 17525.088014241384
+    }
+  },
+  "boost_concurrent_flat_map/balanced/1t": {
+    "throughput_ops_ms": {
+      "lower_value": 43927.206860140046,
+      "upper_value": 45988.87580820782,
+      "value": 44958.04133417393
+    }
+  },
+  "boost_concurrent_flat_map/balanced/2t": {
+    "throughput_ops_ms": {
+      "lower_value": 70159.39637691928,
+      "upper_value": 72374.50472403316,
+      "value": 71266.95055047622
+    }
+  },
+  "boost_concurrent_flat_map/balanced/4t": {
+    "throughput_ops_ms": {
+      "lower_value": 109141.23351053166,
+      "upper_value": 111780.96898007221,
+      "value": 110461.10124530194
+    }
+  },
+  "boost_concurrent_flat_map/balanced/8t": {
+    "throughput_ops_ms": {
+      "lower_value": 35951.6612091136,
+      "upper_value": 53987.39706466311,
+      "value": 44969.529136888355
+    }
+  },
+  "boost_concurrent_flat_map/read_heavy/1t": {
+    "throughput_ops_ms": {
+      "lower_value": 57020.151387881604,
+      "upper_value": 59744.38168335169,
+      "value": 58382.26653561665
+    }
+  },
+  "boost_concurrent_flat_map/read_heavy/2t": {
+    "throughput_ops_ms": {
+      "lower_value": 100048.45980594032,
+      "upper_value": 104049.86191579913,
+      "value": 102049.16086086973
+    }
+  },
+  "boost_concurrent_flat_map/read_heavy/4t": {
+    "throughput_ops_ms": {
+      "lower_value": 180317.0513073083,
+      "upper_value": 184879.0592169282,
+      "value": 182598.05526211826
+    }
+  },
+  "boost_concurrent_flat_map/read_heavy/8t": {
+    "throughput_ops_ms": {
+      "lower_value": 55905.275431046255,
+      "upper_value": 58330.05727320286,
+      "value": 57117.66635212456
+    }
+  },
+  "boost_concurrent_flat_map/write_heavy/1t": {
+    "throughput_ops_ms": {
+      "lower_value": 41556.761638011594,
+      "upper_value": 42349.62214223365,
+      "value": 41953.19189012262
+    }
+  },
+  "boost_concurrent_flat_map/write_heavy/2t": {
+    "throughput_ops_ms": {
+      "lower_value": 56916.95862057695,
+      "upper_value": 57801.19915549787,
+      "value": 57359.07888803741
+    }
+  },
+  "boost_concurrent_flat_map/write_heavy/4t": {
+    "throughput_ops_ms": {
+      "lower_value": 82077.70269508967,
+      "upper_value": 82650.40328865506,
+      "value": 82364.05299187236
+    }
+  },
+  "boost_concurrent_flat_map/write_heavy/8t": {
+    "throughput_ops_ms": {
+      "lower_value": 25971.70106694175,
+      "upper_value": 53265.858927688765,
+      "value": 39618.77999731526
+    }
+  },
+  "boost_concurrent_flat_set/set_mixed/1t": {
+    "throughput_ops_ms": {
+      "lower_value": 53008.14233823437,
+      "upper_value": 62015.657724509634,
+      "value": 57511.900031372
+    }
+  },
+  "boost_concurrent_flat_set/set_mixed/2t": {
+    "throughput_ops_ms": {
+      "lower_value": 92028.47875234889,
+      "upper_value": 96920.3398784326,
+      "value": 94474.40931539075
+    }
+  },
+  "boost_concurrent_flat_set/set_mixed/4t": {
+    "throughput_ops_ms": {
+      "lower_value": 149526.16032150338,
+      "upper_value": 150924.33052235385,
+      "value": 150225.24542192862
+    }
+  },
+  "boost_concurrent_flat_set/set_mixed/8t": {
+    "throughput_ops_ms": {
+      "lower_value": 41603.66204716844,
+      "upper_value": 95179.92221329288,
+      "value": 68391.79213023066
     }
   },
   "boost_lockfree_queue/mpmc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 6016.6,
-      "upper_value": 7353.6,
-      "value": 6685.1
+      "lower_value": 8785.35066302751,
+      "upper_value": 8976.616112860274,
+      "value": 8880.983387943892
     }
   },
   "boost_lockfree_queue/mpmc/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 3211.2,
-      "upper_value": 3924.8,
-      "value": 3568.0
+      "lower_value": 7087.811041675737,
+      "upper_value": 7286.885284983771,
+      "value": 7187.348163329754
     }
   },
   "boost_lockfree_queue/mpmc/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 2172.2,
-      "upper_value": 2654.9,
-      "value": 2413.5
+      "lower_value": 3398.067071182821,
+      "upper_value": 4328.514372307445,
+      "value": 3863.290721745133
     }
   },
   "boost_lockfree_queue/mpmc/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 4613.5,
-      "upper_value": 5638.7,
-      "value": 5126.1
+      "lower_value": 6183.224471557249,
+      "upper_value": 6650.322353521837,
+      "value": 6416.773412539543
     }
   },
   "boost_lockfree_queue/mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 3790.5,
-      "upper_value": 4632.9,
-      "value": 4211.7
+      "lower_value": 5413.550976476563,
+      "upper_value": 6244.924465278096,
+      "value": 5829.23772087733
     }
   },
   "boost_lockfree_queue/mpmc/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 2509.2,
-      "upper_value": 3066.8,
-      "value": 2788.0
+      "lower_value": 3075.5918769754358,
+      "upper_value": 3366.657832522568,
+      "value": 3221.1248547490018
     }
   },
   "boost_lockfree_queue/mpmc/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 2644.2,
-      "upper_value": 3231.8,
-      "value": 2938.0
+      "lower_value": 2945.485892218133,
+      "upper_value": 3177.490113208677,
+      "value": 3061.488002713405
     }
   },
   "boost_lockfree_queue/mpmc/4p2c": {
     "throughput_ops_ms": {
-      "lower_value": 2415.0,
-      "upper_value": 2951.6,
-      "value": 2683.3
+      "lower_value": 3052.207685452527,
+      "upper_value": 3331.325723209469,
+      "value": 3191.766704330998
     }
   },
   "boost_lockfree_queue/mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 1823.2,
-      "upper_value": 2228.4,
-      "value": 2025.8
+      "lower_value": 1732.7976716746325,
+      "upper_value": 1949.8014256291967,
+      "value": 1841.2995486519146
     }
   },
   "boost_lockfree_queue/mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 1371.5,
-      "upper_value": 1676.3,
-      "value": 1523.9
+      "lower_value": 1235.5719315933231,
+      "upper_value": 1245.9920999599292,
+      "value": 1240.7820157766262
+    }
+  },
+  "boost_lockfree_spsc/spsc/1p1c": {
+    "throughput_ops_ms": {
+      "lower_value": 16664.529801742647,
+      "upper_value": 20242.410280259915,
+      "value": 18453.47004100128
+    }
+  },
+  "boost_lockfree_stack/stack_mpmc/1p1c": {
+    "throughput_ops_ms": {
+      "lower_value": 7951.545013115686,
+      "upper_value": 8396.37703264979,
+      "value": 8173.961022882738
+    }
+  },
+  "boost_lockfree_stack/stack_mpmc/2p2c": {
+    "throughput_ops_ms": {
+      "lower_value": 3463.727754902888,
+      "upper_value": 4384.403379151739,
+      "value": 3924.0655670273136
+    }
+  },
+  "boost_lockfree_stack/stack_mpmc/4p4c": {
+    "throughput_ops_ms": {
+      "lower_value": 1794.5622409560058,
+      "upper_value": 1987.8084015993006,
+      "value": 1891.1853212776532
+    }
+  },
+  "boost_lockfree_stack/stack_mpmc/8p8c": {
+    "throughput_ops_ms": {
+      "lower_value": 1183.524242029437,
+      "upper_value": 1221.73158238872,
+      "value": 1202.6279122090784
+    }
+  },
+  "boost_spsc_stream/spsc_chunk/4kb": {
+    "bandwidth_mb_s": {
+      "lower_value": 26805.279973517525,
+      "upper_value": 27594.558573557882,
+      "value": 27199.919273537704
+    },
+    "throughput_ops_ms": {
+      "lower_value": 6862.1516732204855,
+      "upper_value": 7064.206994830818,
+      "value": 6963.179334025652
+    }
+  },
+  "boost_spsc_stream/spsc_chunk/512b": {
+    "bandwidth_mb_s": {
+      "lower_value": 6283.9003753838915,
+      "upper_value": 6380.808435717381,
+      "value": 6332.354405550636
+    },
+    "throughput_ops_ms": {
+      "lower_value": 12869.427968786213,
+      "upper_value": 13067.8956763492,
+      "value": 12968.661822567707
+    }
+  },
+  "boost_spsc_stream/spsc_chunk/64b": {
+    "bandwidth_mb_s": {
+      "lower_value": 1100.929863115562,
+      "upper_value": 1230.4186469001197,
+      "value": 1165.6742550078409
+    },
+    "throughput_ops_ms": {
+      "lower_value": 18037.634877285367,
+      "upper_value": 20159.179110811565,
+      "value": 19098.406994048466
+    }
+  },
+  "boost_spsc_stream/spsc_chunk/64kb": {
+    "bandwidth_mb_s": {
+      "lower_value": 48339.63656543526,
+      "upper_value": 53859.13242907612,
+      "value": 51099.38449725569
+    },
+    "throughput_ops_ms": {
+      "lower_value": 773.4341850469642,
+      "upper_value": 861.7461188652179,
+      "value": 817.5901519560911
     }
   },
   "bpriority_queue/pqueue_mpmc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 4097.787702419554,
-      "upper_value": 4365.181959893903,
-      "value": 4231.484831156728
+      "lower_value": 11219.966566870256,
+      "upper_value": 11765.046607878287,
+      "value": 11492.506587374271
     }
   },
   "bpriority_queue/pqueue_mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 3519.472691449915,
-      "upper_value": 3939.1707116760626,
-      "value": 3729.321701562989
+      "lower_value": 9176.042547813864,
+      "upper_value": 9927.481853662455,
+      "value": 9551.76220073816
     }
   },
   "bpriority_queue/pqueue_mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 2461.103104894951,
-      "upper_value": 3327.1110064109725,
-      "value": 2894.1070556529617
+      "lower_value": 5989.202846564225,
+      "upper_value": 8317.830353933652,
+      "value": 7153.516600248939
     }
   },
   "bpriority_queue/pqueue_mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 1327.8879028929714,
-      "upper_value": 1772.01167548274,
-      "value": 1549.9497891878557
+      "lower_value": 4165.751482194923,
+      "upper_value": 4906.720655451822,
+      "value": 4536.236068823372
     }
   },
   "broadcast_ring_backoff/fanout/1p16c": {
     "throughput_ops_ms": {
-      "lower_value": 9003.651503488407,
-      "upper_value": 16374.180707786461,
-      "value": 12688.916105637434
+      "lower_value": 6950.476377302673,
+      "upper_value": 15406.615297989507,
+      "value": 11178.54583764609
     }
   },
   "broadcast_ring_backoff/fanout/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 16254.149679036696,
-      "upper_value": 16769.5260421584,
-      "value": 16511.83786059755
+      "lower_value": 16835.992704895092,
+      "upper_value": 24783.738381605304,
+      "value": 20809.8655432502
     }
   },
   "broadcast_ring_backoff/fanout/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 8949.079318417394,
-      "upper_value": 9014.569461296122,
-      "value": 8981.824389856758
+      "lower_value": 28489.66893786264,
+      "upper_value": 28736.32348352406,
+      "value": 28612.99621069335
     }
   },
   "broadcast_ring_backoff/fanout/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 16810.207565381574,
-      "upper_value": 16937.437369998883,
-      "value": 16873.82246769023
+      "lower_value": 12085.140987802173,
+      "upper_value": 12407.736582692214,
+      "value": 12246.438785247194
     }
   },
   "broadcast_ring_backoff/fanout/1p8c": {
     "throughput_ops_ms": {
-      "lower_value": 16850.08987895799,
-      "upper_value": 23436.501097170058,
-      "value": 20143.295488064025
+      "lower_value": 18889.47812630729,
+      "upper_value": 19626.26937013015,
+      "value": 19257.87374821872
     }
   },
   "broadcast_ring_drop/fanout/1p16c": {
     "throughput_ops_ms": {
-      "lower_value": 8287.63694458779,
-      "upper_value": 13962.94334950265,
-      "value": 11125.29014704522
+      "lower_value": 56895.311950200565,
+      "upper_value": 57135.09769749674,
+      "value": 57015.20482384865
     }
   },
   "broadcast_ring_drop/fanout/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 5461.902971158589,
-      "upper_value": 17195.21389130883,
-      "value": 11328.55843123371
+      "lower_value": 11378.446109425628,
+      "upper_value": 22554.986887232488,
+      "value": 16966.716498329057
     }
   },
   "broadcast_ring_drop/fanout/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 11233.276836029967,
-      "upper_value": 21047.750692128382,
-      "value": 16140.513764079175
+      "lower_value": 22108.74412045281,
+      "upper_value": 27007.76617897704,
+      "value": 24558.255149714925
     }
   },
   "broadcast_ring_drop/fanout/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 7853.986652359895,
-      "upper_value": 17535.604316318757,
-      "value": 12694.795484339325
+      "lower_value": 20734.14130858822,
+      "upper_value": 23659.528073130477,
+      "value": 22196.83469085935
     }
   },
   "broadcast_ring_drop/fanout/1p8c": {
     "throughput_ops_ms": {
-      "lower_value": 12783.696390022138,
-      "upper_value": 14777.985052300333,
-      "value": 13780.840721161236
+      "lower_value": 41649.261891879825,
+      "upper_value": 42181.75636725995,
+      "value": 41915.50912956989
     }
   },
   "bstack/stack_mpmc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 6559.536209769832,
-      "upper_value": 7178.058452694067,
-      "value": 6868.797331231949
+      "lower_value": 6955.44409020407,
+      "upper_value": 8091.461872462345,
+      "value": 7523.452981333207
     }
   },
   "bstack/stack_mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 5614.3447613320905,
-      "upper_value": 5638.632967982413,
-      "value": 5626.488864657252
+      "lower_value": 3247.8969850480844,
+      "upper_value": 6470.278796473307,
+      "value": 4859.087890760696
     }
   },
   "bstack/stack_mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 5410.890111487689,
-      "upper_value": 7456.039092730923,
-      "value": 6433.464602109306
+      "lower_value": 1918.3353454764674,
+      "upper_value": 2055.8043680553037,
+      "value": 1987.0698567658856
     }
   },
   "bstack/stack_mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 4593.204467439504,
-      "upper_value": 4760.76919799096,
-      "value": 4676.986832715232
+      "lower_value": 1357.0293865005276,
+      "upper_value": 1404.0906439357293,
+      "value": 1380.5600152181285
     }
   },
   "btable/balanced/1t": {
     "throughput_ops_ms": {
-      "lower_value": 21349.05075111402,
-      "upper_value": 22334.509047039883,
-      "value": 21841.77989907695
+      "lower_value": 34971.747914474334,
+      "upper_value": 35662.563549170336,
+      "value": 35317.155731822335
     }
   },
   "btable/balanced/2t": {
     "throughput_ops_ms": {
-      "lower_value": 9919.88499505947,
-      "upper_value": 10172.072599570947,
-      "value": 10045.978797315209
+      "lower_value": 15211.171170476362,
+      "upper_value": 15832.017790413021,
+      "value": 15521.594480444692
     }
   },
   "btable/balanced/4t": {
     "throughput_ops_ms": {
-      "lower_value": 12558.646565852927,
-      "upper_value": 12853.891341002662,
-      "value": 12706.268953427794
+      "lower_value": 20264.575380768103,
+      "upper_value": 20727.303534893195,
+      "value": 20495.93945783065
     }
   },
   "btable/balanced/8t": {
     "throughput_ops_ms": {
-      "lower_value": 6133.036531806811,
-      "upper_value": 7712.284212163413,
-      "value": 6922.660371985112
+      "lower_value": 13462.028926300167,
+      "upper_value": 13736.27976321495,
+      "value": 13599.154344757559
     }
   },
   "btable/read_heavy/1t": {
     "throughput_ops_ms": {
-      "lower_value": 23186.592503036736,
-      "upper_value": 26120.155846691792,
-      "value": 24653.374174864264
+      "lower_value": 38550.6180784879,
+      "upper_value": 40135.763300999075,
+      "value": 39343.19068974349
     }
   },
   "btable/read_heavy/2t": {
     "throughput_ops_ms": {
-      "lower_value": 11082.362261008488,
-      "upper_value": 11426.850425264589,
-      "value": 11254.606343136538
+      "lower_value": 17522.04892266274,
+      "upper_value": 17969.604936547876,
+      "value": 17745.826929605308
     }
   },
   "btable/read_heavy/4t": {
     "throughput_ops_ms": {
-      "lower_value": 13706.740786716839,
-      "upper_value": 13824.544226397857,
-      "value": 13765.642506557348
+      "lower_value": 22403.726006625362,
+      "upper_value": 22725.067601661398,
+      "value": 22564.39680414338
     }
   },
   "btable/read_heavy/8t": {
     "throughput_ops_ms": {
-      "lower_value": 6695.635809904401,
-      "upper_value": 10503.371369786732,
-      "value": 8599.503589845566
+      "lower_value": 15398.959255578575,
+      "upper_value": 15658.084628401644,
+      "value": 15528.52194199011
     }
   },
   "btable/snapshot_iter/1t": {
     "latency_p99_ns": {
-      "lower_value": 11439.722013154827,
-      "upper_value": 32227.837986845156,
-      "value": 21833.77999999999
+      "lower_value": 9058.669680953873,
+      "upper_value": 26800.896985712785,
+      "value": 17929.78333333333
     },
     "throughput_ops_ms": {
-      "lower_value": 214012.4041441131,
-      "upper_value": 243075.3634138546,
-      "value": 228543.88377898384
+      "lower_value": 321572.2730477379,
+      "upper_value": 360791.02165172424,
+      "value": 341181.64734973107
     }
   },
   "btable/snapshot_iter/2t": {
     "latency_p99_ns": {
-      "lower_value": 1627326.3835957753,
-      "upper_value": 2116075.4164042217,
-      "value": 1871700.8999999985
+      "lower_value": 15705539.526565097,
+      "upper_value": 126752828.33343482,
+      "value": 71229183.92999996
     },
     "throughput_ops_ms": {
-      "lower_value": 12505.09404806892,
-      "upper_value": 18556.099031015467,
-      "value": 15530.596539542194
+      "lower_value": -13.98057600542461,
+      "upper_value": 945.6553412530938,
+      "value": 465.83738262383457
     }
   },
   "btable/snapshot_iter/4t": {
     "latency_p99_ns": {
-      "lower_value": 65833.15009440648,
-      "upper_value": 149900.4899055935,
-      "value": 107866.81999999999
+      "lower_value": 0.0,
+      "upper_value": 160787616.94068515,
+      "value": 59531925.383333325
     },
     "throughput_ops_ms": {
-      "lower_value": 131360.84867476654,
-      "upper_value": 165590.3876814383,
-      "value": 148475.61817810242
+      "lower_value": -43957.86391494915,
+      "upper_value": 305674.8822192525,
+      "value": 130858.5091521517
     }
   },
   "btable/snapshot_iter/8t": {
     "latency_p99_ns": {
-      "lower_value": 264275.640869573,
-      "upper_value": 391515.89913042577,
-      "value": 327895.7699999994
+      "lower_value": 44725860.351090044,
+      "upper_value": 463692478.45557487,
+      "value": 254209169.40333244
     },
     "throughput_ops_ms": {
-      "lower_value": 89921.64209270282,
-      "upper_value": 198738.13414898238,
-      "value": 144329.8881208426
+      "lower_value": -22.688720210159545,
+      "upper_value": 3075.919580654526,
+      "value": 1526.615430222183
     }
   },
   "btable/write_heavy/1t": {
     "throughput_ops_ms": {
-      "lower_value": 22276.9891645217,
-      "upper_value": 23181.200811867035,
-      "value": 22729.094988194367
+      "lower_value": 34707.60947842496,
+      "upper_value": 34937.2032618417,
+      "value": 34822.40637013333
     }
   },
   "btable/write_heavy/2t": {
     "throughput_ops_ms": {
-      "lower_value": 10447.323490263532,
-      "upper_value": 10588.73916387521,
-      "value": 10518.031327069371
+      "lower_value": 16325.860797236555,
+      "upper_value": 16752.960920078716,
+      "value": 16539.410858657637
     }
   },
   "btable/write_heavy/4t": {
     "throughput_ops_ms": {
-      "lower_value": 7985.790942268055,
-      "upper_value": 14780.130799315835,
-      "value": 11382.960870791945
+      "lower_value": 21124.382426122625,
+      "upper_value": 21798.884786607312,
+      "value": 21461.63360636497
     }
   },
   "btable/write_heavy/8t": {
     "throughput_ops_ms": {
-      "lower_value": 8033.452763023084,
-      "upper_value": 9874.618965234331,
-      "value": 8954.035864128708
+      "lower_value": 14446.797276025654,
+      "upper_value": 15103.323844846802,
+      "value": 14775.060560436228
     }
   },
   "chase_lev_deque/work_stealing/1w1t": {
     "throughput_ops_ms": {
-      "lower_value": 28419.63058343022,
-      "upper_value": 30699.549515337312,
-      "value": 29559.590049383765
+      "lower_value": 28015.74396415983,
+      "upper_value": 30111.564524111545,
+      "value": 29063.654244135687
     }
   },
   "chase_lev_deque/work_stealing/1w2t": {
     "throughput_ops_ms": {
-      "lower_value": 20177.795508361647,
-      "upper_value": 20369.32182979065,
-      "value": 20273.55866907615
+      "lower_value": 28470.696090934263,
+      "upper_value": 28672.6370484795,
+      "value": 28571.666569706882
     }
   },
   "chase_lev_deque/work_stealing/1w4t": {
     "throughput_ops_ms": {
-      "lower_value": 14757.798678205585,
-      "upper_value": 16067.193943877352,
-      "value": 15412.496311041468
+      "lower_value": 7369.5598106761345,
+      "upper_value": 7480.346437509305,
+      "value": 7424.95312409272
     }
   },
   "chase_lev_deque/work_stealing/1w8t": {
     "throughput_ops_ms": {
-      "lower_value": 8966.381930212317,
-      "upper_value": 16769.69460349174,
-      "value": 12868.038266852027
+      "lower_value": 4152.568683907238,
+      "upper_value": 4997.763049286362,
+      "value": 4575.1658665968
     }
   },
   "chase_lev_deque_batch/work_stealing/1w1t": {
     "throughput_ops_ms": {
-      "lower_value": 27789.30619126961,
-      "upper_value": 28267.759559111084,
-      "value": 28028.532875190347
+      "lower_value": 31266.04081915818,
+      "upper_value": 33630.7510150729,
+      "value": 32448.39591711554
     }
   },
   "chase_lev_deque_batch/work_stealing/1w2t": {
     "throughput_ops_ms": {
-      "lower_value": 24470.25547012772,
-      "upper_value": 26704.386265361565,
-      "value": 25587.320867744642
+      "lower_value": 23636.100265273213,
+      "upper_value": 27183.10876286408,
+      "value": 25409.604514068647
     }
   },
   "chase_lev_deque_batch/work_stealing/1w4t": {
     "throughput_ops_ms": {
-      "lower_value": 23996.381258590613,
-      "upper_value": 25835.398860827678,
-      "value": 24915.890059709145
+      "lower_value": 11500.93039560292,
+      "upper_value": 13901.461027200983,
+      "value": 12701.195711401951
     }
   },
   "chase_lev_deque_batch/work_stealing/1w8t": {
     "throughput_ops_ms": {
-      "lower_value": 24890.716704836967,
-      "upper_value": 25598.13883810673,
-      "value": 25244.42777147185
+      "lower_value": 10737.17855541082,
+      "upper_value": 13428.48066217725,
+      "value": 12082.829608794034
     }
   },
   "crossbeam_array_queue/mpmc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 11826.00264782215,
-      "upper_value": 13840.564316369715,
-      "value": 12833.283482095932
+      "lower_value": 110876.99380854385,
+      "upper_value": 211833.9526000297,
+      "value": 161355.47320428677
     }
   },
   "crossbeam_array_queue/mpmc/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 13893.651328027388,
-      "upper_value": 16251.18205236292,
-      "value": 15072.416690195154
+      "lower_value": 85599.90437948357,
+      "upper_value": 91119.72024680447,
+      "value": 88359.81231314402
     }
   },
   "crossbeam_array_queue/mpmc/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 12409.304953468907,
-      "upper_value": 12715.084404624233,
-      "value": 12562.19467904657
+      "lower_value": 19297.85926411875,
+      "upper_value": 21656.99497772954,
+      "value": 20477.427120924145
     }
   },
   "crossbeam_array_queue/mpmc/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 13243.792902214345,
-      "upper_value": 13309.465028680292,
-      "value": 13276.628965447318
+      "lower_value": 225899.76190582212,
+      "upper_value": 228960.23972692774,
+      "value": 227430.00081637493
     }
   },
   "crossbeam_array_queue/mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 13591.676453989036,
-      "upper_value": 13781.438245087069,
-      "value": 13686.557349538052
+      "lower_value": 130319.10621416432,
+      "upper_value": 143361.288637427,
+      "value": 136840.19742579566
     }
   },
   "crossbeam_array_queue/mpmc/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 13678.498903275231,
-      "upper_value": 13846.843098888032,
-      "value": 13762.671001081631
+      "lower_value": 18638.486741712408,
+      "upper_value": 36128.51938048941,
+      "value": 27383.503061100906
     }
   },
   "crossbeam_array_queue/mpmc/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 8585.988829867745,
-      "upper_value": 9021.881541602206,
-      "value": 8803.935185734976
+      "lower_value": 21340.40301579583,
+      "upper_value": 27631.502535473253,
+      "value": 24485.95277563454
     }
   },
   "crossbeam_array_queue/mpmc/4p2c": {
     "throughput_ops_ms": {
-      "lower_value": 9296.374255650244,
-      "upper_value": 10467.270700564648,
-      "value": 9881.822478107446
+      "lower_value": 28222.227090156743,
+      "upper_value": 33425.79506898357,
+      "value": 30824.011079570155
     }
   },
   "crossbeam_array_queue/mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 10940.31115798439,
-      "upper_value": 13202.36135863794,
-      "value": 12071.336258311165
+      "lower_value": 12426.703803098606,
+      "upper_value": 18940.502394964617,
+      "value": 15683.603099031612
     }
   },
   "crossbeam_array_queue/mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 11602.92319520395,
-      "upper_value": 12637.25214538483,
-      "value": 12120.08767029439
+      "lower_value": 34606.56882560367,
+      "upper_value": 81496.75045773816,
+      "value": 58051.659641670914
     }
   },
   "crossbeam_deque/work_stealing/1w1t": {
     "throughput_ops_ms": {
-      "lower_value": 31187.933177710227,
-      "upper_value": 36550.57319823634,
-      "value": 33869.253187973285
+      "lower_value": 86103.80787311698,
+      "upper_value": 87274.21352451545,
+      "value": 86689.01069881622
     }
   },
   "crossbeam_deque/work_stealing/1w2t": {
     "throughput_ops_ms": {
-      "lower_value": 20837.648371700703,
-      "upper_value": 21377.388920706286,
-      "value": 21107.518646203494
+      "lower_value": 35655.658547479245,
+      "upper_value": 38541.60463028582,
+      "value": 37098.631588882534
     }
   },
   "crossbeam_deque/work_stealing/1w4t": {
     "throughput_ops_ms": {
-      "lower_value": 13157.462607435122,
-      "upper_value": 14441.799670629873,
-      "value": 13799.631139032497
+      "lower_value": 7592.877700044236,
+      "upper_value": 7813.293419816392,
+      "value": 7703.085559930314
     }
   },
   "crossbeam_deque/work_stealing/1w8t": {
     "throughput_ops_ms": {
-      "lower_value": 12386.749009389374,
-      "upper_value": 13990.363073440249,
-      "value": 13188.556041414811
+      "lower_value": 3363.3091107109694,
+      "upper_value": 4719.099355914903,
+      "value": 4041.204233312936
     }
   },
   "crossbeam_deque_batch/work_stealing/1w1t": {
     "throughput_ops_ms": {
-      "lower_value": 43443.1504320273,
-      "upper_value": 46697.04040093028,
-      "value": 45070.09541647879
+      "lower_value": 72417.38064687759,
+      "upper_value": 81634.19814949574,
+      "value": 77025.78939818667
     }
   },
   "crossbeam_deque_batch/work_stealing/1w2t": {
     "throughput_ops_ms": {
-      "lower_value": 19979.79027396045,
-      "upper_value": 23193.744072169826,
-      "value": 21586.76717306514
+      "lower_value": 58917.27847902332,
+      "upper_value": 59702.37516676699,
+      "value": 59309.82682289516
     }
   },
   "crossbeam_deque_batch/work_stealing/1w4t": {
     "throughput_ops_ms": {
-      "lower_value": 15911.940348529824,
-      "upper_value": 17686.753943400152,
-      "value": 16799.347145964988
+      "lower_value": 7248.610340965195,
+      "upper_value": 7402.613803405051,
+      "value": 7325.612072185123
     }
   },
   "crossbeam_deque_batch/work_stealing/1w8t": {
     "throughput_ops_ms": {
-      "lower_value": 7785.673004761798,
-      "upper_value": 15666.923931465544,
-      "value": 11726.298468113671
+      "lower_value": 3650.6699642060858,
+      "upper_value": 3690.4235754632937,
+      "value": 3670.5467698346897
     }
   },
   "crossbeam_epoch/smr_pin_unpin/1t": {
     "latency_max_ns": {
-      "value": 259.8125
+      "value": 54.6875
     },
     "latency_p50_ns": {
-      "value": 4.375
+      "value": 2.625
     },
     "latency_p95_ns": {
-      "value": 5.625
+      "value": 2.625
     },
     "latency_p999_ns": {
-      "value": 206.453125
+      "value": 53.43750000000114
     },
     "latency_p99_ns": {
-      "value": 6.28125
+      "value": 5.224999999999994
     },
     "throughput_ops_ms": {
-      "lower_value": 235163.5031334684,
-      "upper_value": 285056.20182329253,
-      "value": 260109.85247838046
+      "lower_value": 330167.05871665245,
+      "upper_value": 484731.80004802253,
+      "value": 407449.4293823375
     }
   },
   "crossbeam_epoch/smr_pin_unpin/2t": {
     "throughput_ops_ms": {
-      "lower_value": 348846.4262068148,
-      "upper_value": 367731.3486562234,
-      "value": 358288.8874315191
+      "lower_value": 430242.59851686313,
+      "upper_value": 460529.400976874,
+      "value": 445385.99974686856
     }
   },
   "crossbeam_epoch/smr_pin_unpin/4t": {
     "throughput_ops_ms": {
-      "lower_value": 322210.5896764062,
-      "upper_value": 379663.0282797558,
-      "value": 350936.808978081
+      "lower_value": 545041.0459676377,
+      "upper_value": 564459.1783007235,
+      "value": 554750.1121341806
     }
   },
   "crossbeam_epoch/smr_pin_unpin/8t": {
     "throughput_ops_ms": {
-      "lower_value": 270255.05372760794,
-      "upper_value": 409032.11188262503,
-      "value": 339643.5828051165
+      "lower_value": 800041.9152603678,
+      "upper_value": 825081.0795910005,
+      "value": 812561.4974256841
     }
   },
   "crossbeam_epoch/smr_retire_reclaim/1t": {
     "throughput_ops_ms": {
-      "lower_value": 20437.72884726487,
-      "upper_value": 22376.363576365937,
-      "value": 21407.046211815403
+      "lower_value": 35510.60536829275,
+      "upper_value": 36816.20064603679,
+      "value": 36163.40300716477
     }
   },
   "crossbeam_epoch/smr_retire_reclaim/2t": {
     "throughput_ops_ms": {
-      "lower_value": 13951.124081872005,
-      "upper_value": 15077.948223581016,
-      "value": 14514.53615272651
+      "lower_value": 43390.51733270853,
+      "upper_value": 44596.935636080925,
+      "value": 43993.72648439473
     }
   },
   "crossbeam_epoch/smr_retire_reclaim/4t": {
     "throughput_ops_ms": {
-      "lower_value": 18724.651702423096,
-      "upper_value": 19416.80818244113,
-      "value": 19070.729942432114
+      "lower_value": 32626.91720831185,
+      "upper_value": 55309.78465790088,
+      "value": 43968.35093310636
     }
   },
   "crossbeam_epoch/smr_retire_reclaim/8t": {
     "throughput_ops_ms": {
-      "lower_value": 15287.99642605117,
-      "upper_value": 16926.019697726133,
-      "value": 16107.008061888651
+      "lower_value": 43892.304589586645,
+      "upper_value": 44866.76890646856,
+      "value": 44379.5367480276
     }
   },
   "crossbeam_rendezvous/rendezvous_handoff/1p1c": {
     "latency_max_ns": {
-      "value": 56008.333333333336
+      "value": 14097.333333333334
     },
     "latency_p50_ns": {
-      "value": 19834.0
+      "value": 3334.0
     },
     "latency_p95_ns": {
-      "value": 24265.333333333332
+      "value": 5639.0
     },
     "latency_p999_ns": {
-      "value": 45077.666666666664
+      "value": 9916.666666666666
     },
     "latency_p99_ns": {
-      "value": 34317.333333333336
+      "value": 7750.0
     },
     "throughput_ops_ms": {
-      "lower_value": 114.73222482160912,
-      "upper_value": 115.4876773843418,
-      "value": 115.10995110297546
+      "lower_value": 524.6422352857699,
+      "upper_value": 601.4662278029898,
+      "value": 563.0542315443798
     }
   },
   "crossbeam_rendezvous/rendezvous_handoff/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 154.66841680778174,
-      "upper_value": 223.10888090858293,
-      "value": 188.88864885818234
+      "lower_value": 475.33615019518,
+      "upper_value": 609.9615566223042,
+      "value": 542.6488534087421
     }
   },
   "crossbeam_rendezvous/rendezvous_handoff/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 189.81905235300707,
-      "upper_value": 229.41537558840866,
-      "value": 209.61721397070787
+      "lower_value": 259.0218421937879,
+      "upper_value": 267.8871344347894,
+      "value": 263.45448831428865
     }
   },
   "crossbeam_rendezvous/rendezvous_handoff/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 230.1161997638356,
-      "upper_value": 243.49738408460587,
-      "value": 236.80679192422073
+      "lower_value": 248.148214997908,
+      "upper_value": 264.26097476864214,
+      "value": 256.2045948832751
     }
   },
   "crossbeam_rendezvous/rendezvous_rpc/1p1c": {
     "latency_max_ns": {
-      "value": 56008.333333333336
+      "value": 14097.333333333334
     },
     "latency_p50_ns": {
-      "value": 19834.0
+      "value": 3334.0
     },
     "latency_p95_ns": {
-      "value": 24265.333333333332
+      "value": 5639.0
     },
     "latency_p999_ns": {
-      "value": 45077.666666666664
+      "value": 9916.666666666666
     },
     "latency_p99_ns": {
-      "value": 34317.333333333336
+      "value": 7750.0
     },
     "throughput_ops_ms": {
-      "lower_value": 44.65455054185435,
-      "upper_value": 55.709726648885805,
-      "value": 50.18213859537008
+      "lower_value": 246.5796260053533,
+      "upper_value": 250.94419665645523,
+      "value": 248.76191133090427
     }
   },
   "crossbeam_seg_queue/mpmc_unbounded/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 43565.97787401693,
-      "upper_value": 46089.96880564859,
-      "value": 44827.97333983276
+      "lower_value": 103892.22180981962,
+      "upper_value": 111618.46446387017,
+      "value": 107755.3431368449
     }
   },
   "crossbeam_seg_queue/mpmc_unbounded/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 23313.44779812672,
-      "upper_value": 41394.656813180256,
-      "value": 32354.052305653488
+      "lower_value": 120268.64953906424,
+      "upper_value": 123795.8796606081,
+      "value": 122032.26459983617
     }
   },
   "crossbeam_seg_queue/mpmc_unbounded/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 15367.734248986897,
-      "upper_value": 36825.39204453125,
-      "value": 26096.563146759072
+      "lower_value": 33799.94294383201,
+      "upper_value": 112831.04669540665,
+      "value": 73315.49481961933
     }
   },
   "crossbeam_seg_queue/mpmc_unbounded/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 36714.40633508016,
-      "upper_value": 38315.2885018947,
-      "value": 37514.84741848743
+      "lower_value": 69947.18562042851,
+      "upper_value": 78730.64468117447,
+      "value": 74338.91515080149
     }
   },
   "crossbeam_seg_queue/mpmc_unbounded/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 37279.09763669603,
-      "upper_value": 40855.43789662539,
-      "value": 39067.26776666071
+      "lower_value": 50152.62567705826,
+      "upper_value": 136992.2204274387,
+      "value": 93572.42305224849
     }
   },
   "crossbeam_seg_queue/mpmc_unbounded/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 35753.59740725889,
-      "upper_value": 41404.29000430243,
-      "value": 38578.94370578066
+      "lower_value": 67634.38758863049,
+      "upper_value": 98765.3332647908,
+      "value": 83199.86042671064
     }
   },
   "crossbeam_seg_queue/mpmc_unbounded/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 36177.780697413895,
-      "upper_value": 38064.59217717446,
-      "value": 37121.18643729418
+      "lower_value": 32268.005331025495,
+      "upper_value": 38868.05495490252,
+      "value": 35568.03014296401
     }
   },
   "crossbeam_seg_queue/mpmc_unbounded/4p2c": {
     "throughput_ops_ms": {
-      "lower_value": 32935.63285062888,
-      "upper_value": 37067.85684102591,
-      "value": 35001.744845827394
+      "lower_value": 87695.53113484109,
+      "upper_value": 92891.30913135901,
+      "value": 90293.42013310005
     }
   },
   "crossbeam_seg_queue/mpmc_unbounded/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 32928.34549640584,
-      "upper_value": 37968.605817804775,
-      "value": 35448.47565710531
+      "lower_value": 88209.23499203881,
+      "upper_value": 92087.18793431675,
+      "value": 90148.21146317778
     }
   },
   "crossbeam_seg_queue/mpmc_unbounded/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 36651.23241872936,
-      "upper_value": 40493.94422376212,
-      "value": 38572.58832124574
+      "lower_value": 68479.56938151967,
+      "upper_value": 69454.91346331006,
+      "value": 68967.24142241487
     }
   },
   "crossbeam_skipmap/balanced/1t": {
     "throughput_ops_ms": {
-      "lower_value": 2556.3931159321714,
-      "upper_value": 2644.9508550182704,
-      "value": 2600.671985475221
+      "lower_value": 4934.00172345867,
+      "upper_value": 5013.823771422496,
+      "value": 4973.912747440583
     }
   },
   "crossbeam_skipmap/balanced/2t": {
     "throughput_ops_ms": {
-      "lower_value": 4339.097385222514,
-      "upper_value": 4516.616898872007,
-      "value": 4427.857142047261
+      "lower_value": 8294.465387502214,
+      "upper_value": 8461.504195292733,
+      "value": 8377.984791397474
     }
   },
   "crossbeam_skipmap/balanced/4t": {
     "throughput_ops_ms": {
-      "lower_value": 6676.044539100301,
-      "upper_value": 6908.210267859884,
-      "value": 6792.127403480093
+      "lower_value": 13803.965790636816,
+      "upper_value": 13923.142063178504,
+      "value": 13863.55392690766
     }
   },
   "crossbeam_skipmap/balanced/8t": {
     "throughput_ops_ms": {
-      "lower_value": 5257.055923482308,
-      "upper_value": 5999.0310129383515,
-      "value": 5628.04346821033
+      "lower_value": 14347.602028163263,
+      "upper_value": 14771.073649226397,
+      "value": 14559.33783869483
     }
   },
   "crossbeam_skipmap/read_heavy/1t": {
     "throughput_ops_ms": {
-      "lower_value": 3333.4857908918802,
-      "upper_value": 3444.0237005717045,
-      "value": 3388.7547457317924
+      "lower_value": 7133.33513263418,
+      "upper_value": 7173.743799173715,
+      "value": 7153.5394659039475
     }
   },
   "crossbeam_skipmap/read_heavy/2t": {
     "throughput_ops_ms": {
-      "lower_value": 6310.8700614247255,
-      "upper_value": 6446.58677238214,
-      "value": 6378.728416903433
+      "lower_value": 12978.465702889163,
+      "upper_value": 13071.668513993605,
+      "value": 13025.067108441384
     }
   },
   "crossbeam_skipmap/read_heavy/4t": {
     "throughput_ops_ms": {
-      "lower_value": 9824.357632391455,
-      "upper_value": 10404.307939144472,
-      "value": 10114.332785767963
+      "lower_value": 24100.575251716822,
+      "upper_value": 24325.466032061857,
+      "value": 24213.02064188934
     }
   },
   "crossbeam_skipmap/read_heavy/8t": {
     "throughput_ops_ms": {
-      "lower_value": 8385.091883703772,
-      "upper_value": 8894.559522290132,
-      "value": 8639.825702996952
+      "lower_value": 33796.68796293082,
+      "upper_value": 36349.53064025958,
+      "value": 35073.1093015952
     }
   },
   "crossbeam_skipmap/write_heavy/1t": {
     "throughput_ops_ms": {
-      "lower_value": 2134.775336908541,
-      "upper_value": 2213.7646916601184,
-      "value": 2174.2700142843296
+      "lower_value": 3793.86881374005,
+      "upper_value": 4025.225953952289,
+      "value": 3909.5473838461694
     }
   },
   "crossbeam_skipmap/write_heavy/2t": {
     "throughput_ops_ms": {
-      "lower_value": 3512.0565193345747,
-      "upper_value": 3663.2003805049935,
-      "value": 3587.628449919784
+      "lower_value": 6218.4186913884805,
+      "upper_value": 6271.758657564007,
+      "value": 6245.088674476244
     }
   },
   "crossbeam_skipmap/write_heavy/4t": {
     "throughput_ops_ms": {
-      "lower_value": 4843.055336462552,
-      "upper_value": 5051.03511450837,
-      "value": 4947.045225485461
+      "lower_value": 10323.832342656664,
+      "upper_value": 10407.44899837358,
+      "value": 10365.640670515122
     }
   },
   "crossbeam_skipmap/write_heavy/8t": {
     "throughput_ops_ms": {
-      "lower_value": 4200.9573052910755,
-      "upper_value": 4468.89652577779,
-      "value": 4334.926915534433
+      "lower_value": 9216.074700418005,
+      "upper_value": 9248.579121064442,
+      "value": 9232.326910741223
     }
   },
   "crossbeam_skipset/set_mixed/1t": {
     "throughput_ops_ms": {
-      "lower_value": 3142.6197430250536,
-      "upper_value": 3796.3136634777543,
-      "value": 3469.466703251404
+      "lower_value": 7225.6368200869765,
+      "upper_value": 7304.029329157516,
+      "value": 7264.833074622246
     }
   },
   "crossbeam_skipset/set_mixed/2t": {
     "throughput_ops_ms": {
-      "lower_value": 6299.314492962639,
-      "upper_value": 6429.395205587415,
-      "value": 6364.354849275027
+      "lower_value": 12854.60730554546,
+      "upper_value": 13350.85166767609,
+      "value": 13102.729486610775
     }
   },
   "crossbeam_skipset/set_mixed/4t": {
     "throughput_ops_ms": {
-      "lower_value": 10139.941095296426,
-      "upper_value": 10229.320700456572,
-      "value": 10184.6308978765
+      "lower_value": 23482.120959887274,
+      "upper_value": 24188.164523911124,
+      "value": 23835.1427418992
     }
   },
   "crossbeam_skipset/set_mixed/8t": {
     "throughput_ops_ms": {
-      "lower_value": 8377.040013836095,
-      "upper_value": 8695.918637247394,
-      "value": 8536.479325541744
+      "lower_value": 35212.247900901166,
+      "upper_value": 35322.07012079817,
+      "value": 35267.15901084967
     }
   },
   "ctrie/balanced/1t": {
     "throughput_ops_ms": {
-      "lower_value": 2901.144366435655,
-      "upper_value": 3671.7782084687005,
-      "value": 3286.4612874521777
+      "lower_value": 9370.494107663046,
+      "upper_value": 9608.830011016806,
+      "value": 9489.662059339926
     }
   },
   "ctrie/balanced/2t": {
     "throughput_ops_ms": {
-      "lower_value": 6726.463008372136,
-      "upper_value": 8026.343005341395,
-      "value": 7376.403006856765
+      "lower_value": 16384.85686820869,
+      "upper_value": 16502.45702585663,
+      "value": 16443.65694703266
     }
   },
   "ctrie/balanced/4t": {
     "throughput_ops_ms": {
-      "lower_value": 8900.013560649599,
-      "upper_value": 10291.298964628944,
-      "value": 9595.656262639272
+      "lower_value": 26269.976767737724,
+      "upper_value": 27457.101603430354,
+      "value": 26863.53918558404
     }
   },
   "ctrie/balanced/8t": {
     "throughput_ops_ms": {
-      "lower_value": 8449.411659509573,
-      "upper_value": 9710.046189772944,
-      "value": 9079.728924641258
+      "lower_value": 24822.027412183666,
+      "upper_value": 25276.711827521805,
+      "value": 25049.369619852736
     }
   },
   "ctrie/read_heavy/1t": {
     "throughput_ops_ms": {
-      "lower_value": 5930.551462145049,
-      "upper_value": 6339.387882173427,
-      "value": 6134.969672159238
+      "lower_value": 15926.424717262293,
+      "upper_value": 16544.957126571833,
+      "value": 16235.690921917063
     }
   },
   "ctrie/read_heavy/2t": {
     "throughput_ops_ms": {
-      "lower_value": 10705.85054381511,
-      "upper_value": 11091.927275052663,
-      "value": 10898.888909433887
+      "lower_value": 29240.80590570849,
+      "upper_value": 30100.040686150605,
+      "value": 29670.423295929548
     }
   },
   "ctrie/read_heavy/4t": {
     "throughput_ops_ms": {
-      "lower_value": 17750.98085501445,
-      "upper_value": 19922.196642818264,
-      "value": 18836.588748916358
+      "lower_value": 55119.15594108294,
+      "upper_value": 55829.11991445175,
+      "value": 55474.13792776735
     }
   },
   "ctrie/read_heavy/8t": {
     "throughput_ops_ms": {
-      "lower_value": 16376.952909995889,
-      "upper_value": 17716.629080020008,
-      "value": 17046.79099500795
+      "lower_value": 46492.27993762593,
+      "upper_value": 71169.61332523271,
+      "value": 58830.94663142932
     }
   },
   "ctrie/snapshot_iter/1t": {
     "latency_p99_ns": {
-      "lower_value": 31688.021163339927,
-      "upper_value": 45337.6655033267,
-      "value": 38512.843333333316
+      "lower_value": 13768.704782780695,
+      "upper_value": 14025.268550552633,
+      "value": 13896.986666666664
     },
     "throughput_ops_ms": {
-      "lower_value": 171349.79615835453,
-      "upper_value": 187114.60474080188,
-      "value": 179232.2004495782
+      "lower_value": 338854.6518796077,
+      "upper_value": 345848.27156120527,
+      "value": 342351.4617204065
     }
   },
   "ctrie/snapshot_iter/2t": {
     "latency_p99_ns": {
-      "lower_value": 36916.953392109936,
-      "upper_value": 49742.913274556704,
-      "value": 43329.93333333332
+      "lower_value": 14140.862431670666,
+      "upper_value": 14410.624234995994,
+      "value": 14275.74333333333
     },
     "throughput_ops_ms": {
-      "lower_value": 90137.96256406678,
-      "upper_value": 180035.63472478572,
-      "value": 135086.79864442625
+      "lower_value": 242909.59101165476,
+      "upper_value": 278897.56643424695,
+      "value": 260903.57872295086
     }
   },
   "ctrie/snapshot_iter/4t": {
     "latency_p99_ns": {
-      "lower_value": 56193.52163509157,
-      "upper_value": 710374.5250315743,
-      "value": 383284.02333333297
+      "lower_value": 15286.956068450108,
+      "upper_value": 23330.290598216558,
+      "value": 19308.623333333333
     },
     "throughput_ops_ms": {
-      "lower_value": 77898.0617975716,
-      "upper_value": 205326.8116159105,
-      "value": 141612.43670674105
+      "lower_value": 531789.2197973541,
+      "upper_value": 538622.0457161068,
+      "value": 535205.6327567304
     }
   },
   "ctrie/snapshot_iter/8t": {
     "latency_p99_ns": {
-      "lower_value": 2736.4752490276296,
-      "upper_value": 284748.0980843009,
-      "value": 143742.28666666427
+      "lower_value": 63377.1938264208,
+      "upper_value": 125447.09284024486,
+      "value": 94412.14333333283
     },
     "throughput_ops_ms": {
-      "lower_value": 4685.798653620703,
-      "upper_value": 378968.4602429637,
-      "value": 191827.1294482922
+      "lower_value": 551566.3861286509,
+      "upper_value": 933137.444791098,
+      "value": 742351.9154598744
     }
   },
   "ctrie/write_heavy/1t": {
     "throughput_ops_ms": {
-      "lower_value": 2267.1582439079316,
-      "upper_value": 2429.405780229859,
-      "value": 2348.2820120688953
+      "lower_value": 5969.948131947545,
+      "upper_value": 6681.0820971141,
+      "value": 6325.515114530823
     }
   },
   "ctrie/write_heavy/2t": {
     "throughput_ops_ms": {
-      "lower_value": 3862.4508790566492,
-      "upper_value": 4078.161265589761,
-      "value": 3970.306072323205
+      "lower_value": 10658.345599744,
+      "upper_value": 11243.224024179799,
+      "value": 10950.7848119619
     }
   },
   "ctrie/write_heavy/4t": {
     "throughput_ops_ms": {
-      "lower_value": 6040.0092921445475,
-      "upper_value": 7529.691954481451,
-      "value": 6784.850623312999
+      "lower_value": 9863.599467727865,
+      "upper_value": 16813.99972599854,
+      "value": 13338.799596863202
     }
   },
   "ctrie/write_heavy/8t": {
     "throughput_ops_ms": {
-      "lower_value": 5514.724458707035,
-      "upper_value": 6137.067126785997,
-      "value": 5825.895792746516
+      "lower_value": 14748.559040850856,
+      "upper_value": 14990.103665448563,
+      "value": 14869.33135314971
     }
   },
   "dashmap/balanced/1t": {
     "throughput_ops_ms": {
-      "lower_value": 17797.636324886724,
-      "upper_value": 18039.83303574753,
-      "value": 17918.734680317128
+      "lower_value": 34511.42296782774,
+      "upper_value": 36838.81735931234,
+      "value": 35675.12016357004
     }
   },
   "dashmap/balanced/2t": {
     "throughput_ops_ms": {
-      "lower_value": 22261.265232074868,
-      "upper_value": 23036.99301360416,
-      "value": 22649.129122839513
+      "lower_value": 59715.99535220927,
+      "upper_value": 60744.060948542945,
+      "value": 60230.02815037611
     }
   },
   "dashmap/balanced/4t": {
     "throughput_ops_ms": {
-      "lower_value": 34706.53494392485,
-      "upper_value": 35497.02309980862,
-      "value": 35101.779021866736
+      "lower_value": 94453.17830070444,
+      "upper_value": 102442.44707067007,
+      "value": 98447.81268568725
     }
   },
   "dashmap/balanced/8t": {
     "throughput_ops_ms": {
-      "lower_value": 30122.68298553206,
-      "upper_value": 35880.98882432095,
-      "value": 33001.835904926505
+      "lower_value": 66015.79961808813,
+      "upper_value": 66763.24876607327,
+      "value": 66389.5241920807
     }
   },
   "dashmap/read_heavy/1t": {
     "throughput_ops_ms": {
-      "lower_value": 16847.032341172544,
-      "upper_value": 19964.959502028145,
-      "value": 18405.995921600344
+      "lower_value": 37027.06686371998,
+      "upper_value": 40094.00092188335,
+      "value": 38560.533892801664
     }
   },
   "dashmap/read_heavy/2t": {
     "throughput_ops_ms": {
-      "lower_value": 25840.724470683836,
-      "upper_value": 26178.64902030794,
-      "value": 26009.68674549589
+      "lower_value": 56409.87298799342,
+      "upper_value": 64312.142564748814,
+      "value": 60361.007776371116
     }
   },
   "dashmap/read_heavy/4t": {
     "throughput_ops_ms": {
-      "lower_value": 40513.7417397915,
-      "upper_value": 40819.10554722426,
-      "value": 40666.42364350788
+      "lower_value": 93875.30080122531,
+      "upper_value": 98160.48130937213,
+      "value": 96017.89105529872
     }
   },
   "dashmap/read_heavy/8t": {
     "throughput_ops_ms": {
-      "lower_value": 32145.683243828706,
-      "upper_value": 35011.163785681245,
-      "value": 33578.42351475498
+      "lower_value": 88457.62993162763,
+      "upper_value": 88924.02605859752,
+      "value": 88690.82799511257
     }
   },
   "dashmap/snapshot_iter/1t": {
     "latency_p99_ns": {
-      "lower_value": 72382.61711115825,
-      "upper_value": 82301.98955550838,
-      "value": 77342.30333333332
+      "lower_value": 45441.25463324179,
+      "upper_value": 45874.41203342484,
+      "value": 45657.833333333314
     },
     "throughput_ops_ms": {
-      "lower_value": 61507.91926436095,
-      "upper_value": 62341.57969853996,
-      "value": 61924.74948145045
+      "lower_value": 165819.34763865272,
+      "upper_value": 172180.41745460057,
+      "value": 168999.88254662664
     }
   },
   "dashmap/snapshot_iter/2t": {
     "latency_p99_ns": {
-      "lower_value": 78644.81344025032,
-      "upper_value": 87100.5932264163,
-      "value": 82872.70333333331
+      "lower_value": 44444.05446582392,
+      "upper_value": 46584.79220084271,
+      "value": 45514.42333333332
     },
     "throughput_ops_ms": {
-      "lower_value": 57455.504385455504,
-      "upper_value": 59251.031153094715,
-      "value": 58353.26776927511
+      "lower_value": 141003.39960243623,
+      "upper_value": 148426.0320020115,
+      "value": 144714.71580222386
     }
   },
   "dashmap/snapshot_iter/4t": {
     "latency_p99_ns": {
-      "lower_value": 96035.90432161733,
-      "upper_value": 109271.84234504934,
-      "value": 102653.87333333334
+      "lower_value": 53084.998383713835,
+      "upper_value": 57175.92161628616,
+      "value": 55130.46
     },
     "throughput_ops_ms": {
-      "lower_value": 99637.76298454875,
-      "upper_value": 100832.28655115463,
-      "value": 100235.02476785169
+      "lower_value": 172048.88278634858,
+      "upper_value": 240207.67144323594,
+      "value": 206128.27711479226
     }
   },
   "dashmap/snapshot_iter/8t": {
     "latency_p99_ns": {
-      "lower_value": 99676.00711567371,
-      "upper_value": 122966.23288432616,
-      "value": 111321.11999999994
+      "lower_value": 57759.108248664474,
+      "upper_value": 70022.15175133546,
+      "value": 63890.62999999997
     },
     "throughput_ops_ms": {
-      "lower_value": 123842.91831949922,
-      "upper_value": 205113.08983896568,
-      "value": 164478.00407923246
+      "lower_value": 262119.53332788718,
+      "upper_value": 297529.7229451869,
+      "value": 279824.62813653704
     }
   },
   "dashmap/write_heavy/1t": {
     "throughput_ops_ms": {
-      "lower_value": 18891.19186631216,
-      "upper_value": 18978.66955135468,
-      "value": 18934.93070883342
+      "lower_value": 34349.370665740156,
+      "upper_value": 40769.16340570333,
+      "value": 37559.26703572174
     }
   },
   "dashmap/write_heavy/2t": {
     "throughput_ops_ms": {
-      "lower_value": 22287.188198717908,
-      "upper_value": 22853.97565460357,
-      "value": 22570.58192666074
+      "lower_value": 55013.93929417201,
+      "upper_value": 64060.82913496723,
+      "value": 59537.38421456962
     }
   },
   "dashmap/write_heavy/4t": {
     "throughput_ops_ms": {
-      "lower_value": 32446.716379364807,
-      "upper_value": 33417.378040903335,
-      "value": 32932.04721013407
+      "lower_value": 96726.75373975532,
+      "upper_value": 108508.21675026273,
+      "value": 102617.48524500903
     }
   },
   "dashmap/write_heavy/8t": {
     "throughput_ops_ms": {
-      "lower_value": 27088.859898633495,
-      "upper_value": 30857.84875219913,
-      "value": 28973.354325416312
+      "lower_value": 56062.67382651663,
+      "upper_value": 56238.46494026061,
+      "value": 56150.56938338862
     }
   },
   "deferred_mutex_free/smr_retire_reclaim/1t": {
     "throughput_ops_ms": {
-      "lower_value": 30102.72331965792,
-      "upper_value": 45963.26159126026,
-      "value": 38032.99245545909
+      "lower_value": 94710.75163294772,
+      "upper_value": 97678.63671202677,
+      "value": 96194.69417248724
     }
   },
   "deferred_mutex_free/smr_retire_reclaim/2t": {
     "throughput_ops_ms": {
-      "lower_value": 18017.98048459227,
-      "upper_value": 18639.945272779245,
-      "value": 18328.962878685757
+      "lower_value": 53334.00433234559,
+      "upper_value": 56157.0427613488,
+      "value": 54745.523546847195
     }
   },
   "deferred_mutex_free/smr_retire_reclaim/4t": {
     "throughput_ops_ms": {
-      "lower_value": 12647.828077696679,
-      "upper_value": 13342.392832057787,
-      "value": 12995.110454877233
+      "lower_value": 30301.162974125076,
+      "upper_value": 31526.121853384324,
+      "value": 30913.6424137547
     }
   },
   "deferred_mutex_free/smr_retire_reclaim/8t": {
     "throughput_ops_ms": {
-      "lower_value": 1307.8698895379825,
-      "upper_value": 3034.75398783836,
-      "value": 2171.3119386881713
+      "lower_value": 15712.207487118298,
+      "upper_value": 16306.17714135914,
+      "value": 16009.192314238719
+    }
+  },
+  "disjoint_set/disjoint_set_find/16t": {
+    "throughput_ops_ms": {
+      "lower_value": 315264.60804685886,
+      "upper_value": 319281.54329811834,
+      "value": 317273.0756724886
     }
   },
   "disjoint_set/disjoint_set_find/1t": {
     "throughput_ops_ms": {
-      "lower_value": 55575.0,
-      "upper_value": 61425.0,
-      "value": 58500.0
+      "lower_value": 37802.40455078623,
+      "upper_value": 60821.78715079668,
+      "value": 49312.095850791455
     }
   },
   "disjoint_set/disjoint_set_find/2t": {
     "throughput_ops_ms": {
-      "lower_value": 68400.0,
-      "upper_value": 75600.0,
-      "value": 72000.0
+      "lower_value": 100215.83483947544,
+      "upper_value": 100874.77319576788,
+      "value": 100545.30401762166
     }
   },
   "disjoint_set/disjoint_set_find/4t": {
     "throughput_ops_ms": {
-      "lower_value": 94050.0,
-      "upper_value": 103950.0,
-      "value": 99000.0
+      "lower_value": 160773.98453382193,
+      "upper_value": 206903.7182677191,
+      "value": 183838.8514007705
     }
   },
   "disjoint_set/disjoint_set_find/8t": {
     "throughput_ops_ms": {
-      "lower_value": 145350.0,
-      "upper_value": 160650.0,
-      "value": 153000.0
+      "lower_value": 261204.16785841392,
+      "upper_value": 275520.74899575906,
+      "value": 268362.4584270865
+    }
+  },
+  "disjoint_set/disjoint_set_union/16t": {
+    "throughput_ops_ms": {
+      "lower_value": 37203.19340355562,
+      "upper_value": 39757.595598054584,
+      "value": 38480.3945008051
     }
   },
   "disjoint_set/disjoint_set_union/1t": {
     "throughput_ops_ms": {
-      "lower_value": 30780.0,
-      "upper_value": 34020.0,
-      "value": 32400.0
+      "lower_value": 46993.63329834274,
+      "upper_value": 47924.78044707066,
+      "value": 47459.2068727067
     }
   },
   "disjoint_set/disjoint_set_union/2t": {
     "throughput_ops_ms": {
-      "lower_value": 35910.0,
-      "upper_value": 39690.0,
-      "value": 37800.0
+      "lower_value": 66057.4945176906,
+      "upper_value": 67910.73037595364,
+      "value": 66984.11244682212
     }
   },
   "disjoint_set/disjoint_set_union/4t": {
     "throughput_ops_ms": {
-      "lower_value": 46170.0,
-      "upper_value": 51030.0,
-      "value": 48600.0
+      "lower_value": 44133.16151508317,
+      "upper_value": 93497.19986495725,
+      "value": 68815.1806900202
     }
   },
   "disjoint_set/disjoint_set_union/8t": {
     "throughput_ops_ms": {
-      "lower_value": 66690.0,
-      "upper_value": 73710.0,
-      "value": 70200.0
+      "lower_value": 37698.811248289,
+      "upper_value": 48114.278575199394,
+      "value": 42906.5449117442
     }
   },
   "flume/mpmc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 5263.670101762863,
-      "upper_value": 5360.032967889317,
-      "value": 5311.85153482609
+      "lower_value": 365.8852619508623,
+      "upper_value": 467.150474939417,
+      "value": 416.51786844513964
     }
   },
   "flume/mpmc/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 3956.453210229677,
-      "upper_value": 4129.826680707367,
-      "value": 4043.139945468522
+      "lower_value": 21214.296809115884,
+      "upper_value": 21968.095543558877,
+      "value": 21591.19617633738
     }
   },
   "flume/mpmc/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 2850.938495323842,
-      "upper_value": 3721.1221861669114,
-      "value": 3286.0303407453766
+      "lower_value": 8912.624057800926,
+      "upper_value": 9151.905557925193,
+      "value": 9032.26480786306
     }
   },
   "flume/mpmc/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 2487.4735560561408,
-      "upper_value": 6328.657859133975,
-      "value": 4408.065707595058
+      "lower_value": 19186.768833458103,
+      "upper_value": 20732.198267122156,
+      "value": 19959.48355029013
     }
   },
   "flume/mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 6078.119913890243,
-      "upper_value": 6514.576556093114,
-      "value": 6296.3482349916785
+      "lower_value": 15057.991318036906,
+      "upper_value": 15488.94872805292,
+      "value": 15273.470023044913
     }
   },
   "flume/mpmc/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 4604.055723018475,
-      "upper_value": 5357.17363883289,
-      "value": 4980.6146809256825
+      "lower_value": 12097.492553040482,
+      "upper_value": 12578.505318565765,
+      "value": 12337.998935803123
     }
   },
   "flume/mpmc/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 1949.9932106045444,
-      "upper_value": 2040.824472927578,
-      "value": 1995.4088417660612
+      "lower_value": 7882.331677001735,
+      "upper_value": 8119.455902155911,
+      "value": 8000.893789578823
     }
   },
   "flume/mpmc/4p2c": {
     "throughput_ops_ms": {
-      "lower_value": 3608.4874632790156,
-      "upper_value": 4201.681733605214,
-      "value": 3905.084598442115
+      "lower_value": 11635.843861776513,
+      "upper_value": 11844.609677060089,
+      "value": 11740.226769418301
     }
   },
   "flume/mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 5663.797909101348,
-      "upper_value": 6313.26138036771,
-      "value": 5988.529644734529
+      "lower_value": 16928.21733435001,
+      "upper_value": 17485.455956502585,
+      "value": 17206.836645426298
     }
   },
   "flume/mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 5334.47721887373,
-      "upper_value": 5949.323384518713,
-      "value": 5641.9003016962215
+      "lower_value": 17171.052426055354,
+      "upper_value": 18014.120255485086,
+      "value": 17592.58634077022
     }
   },
   "flume_rendezvous/rendezvous_handoff/1p1c": {
     "latency_max_ns": {
-      "value": 113452.0
+      "value": 15166.666666666666
     },
     "latency_p50_ns": {
-      "value": 17102.0
+      "value": 4680.666666666667
     },
     "latency_p95_ns": {
-      "value": 21537.0
+      "value": 7097.333333333333
     },
     "latency_p999_ns": {
-      "value": 45034.0
+      "value": 10902.666666666666
     },
     "latency_p99_ns": {
-      "value": 33522.666666666664
+      "value": 8222.0
     },
     "throughput_ops_ms": {
-      "lower_value": 107.79498836505826,
-      "upper_value": 117.51000796431373,
-      "value": 112.652498164686
+      "lower_value": 456.5311152444336,
+      "upper_value": 479.8826870596575,
+      "value": 468.20690115204553
     }
   },
   "flume_rendezvous/rendezvous_handoff/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 194.30035813531092,
-      "upper_value": 212.7667836679337,
-      "value": 203.5335709016223
+      "lower_value": 519.9429458558354,
+      "upper_value": 642.429096815225,
+      "value": 581.1860213355302
     }
   },
   "flume_rendezvous/rendezvous_handoff/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 233.3702412740573,
-      "upper_value": 248.47164369978336,
-      "value": 240.92094248692032
+      "lower_value": 315.01112775265517,
+      "upper_value": 316.4367528195239,
+      "value": 315.72394028608954
     }
   },
   "flume_rendezvous/rendezvous_handoff/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 218.48240691777139,
-      "upper_value": 230.07215533264772,
-      "value": 224.27728112520956
+      "lower_value": 322.77651524747563,
+      "upper_value": 330.484044046096,
+      "value": 326.6302796467858
     }
   },
   "flume_rendezvous/rendezvous_rpc/1p1c": {
     "latency_max_ns": {
-      "value": 113452.0
+      "value": 15166.666666666666
     },
     "latency_p50_ns": {
-      "value": 17102.0
+      "value": 4680.666666666667
     },
     "latency_p95_ns": {
-      "value": 21537.0
+      "value": 7097.333333333333
     },
     "latency_p999_ns": {
-      "value": 45034.0
+      "value": 10902.666666666666
     },
     "latency_p99_ns": {
-      "value": 33522.666666666664
+      "value": 8222.0
     },
     "throughput_ops_ms": {
-      "lower_value": 51.40110804446792,
-      "upper_value": 57.12866088960648,
-      "value": 54.2648844670372
+      "lower_value": 207.85984095996736,
+      "upper_value": 221.11583805404808,
+      "value": 214.48783950700772
     }
   },
   "flume_unbounded/mpmc_unbounded/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 14173.008365724632,
-      "upper_value": 14737.970761530822,
-      "value": 14455.489563627727
+      "lower_value": 5120.238898753377,
+      "upper_value": 6380.05908286306,
+      "value": 5750.1489908082185
     }
   },
   "flume_unbounded/mpmc_unbounded/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 4042.15227866397,
-      "upper_value": 7322.481517551708,
-      "value": 5682.316898107839
+      "lower_value": 19653.011924958573,
+      "upper_value": 21059.593942261494,
+      "value": 20356.302933610034
     }
   },
   "flume_unbounded/mpmc_unbounded/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 2477.8607972208224,
-      "upper_value": 3630.7418206747857,
-      "value": 3054.301308947804
+      "lower_value": 8565.877793942762,
+      "upper_value": 8739.96542810554,
+      "value": 8652.92161102415
     }
   },
   "flume_unbounded/mpmc_unbounded/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 10070.61840504534,
-      "upper_value": 10813.158165195042,
-      "value": 10441.88828512019
+      "lower_value": 20777.625230785503,
+      "upper_value": 23306.565984377215,
+      "value": 22042.09560758136
     }
   },
   "flume_unbounded/mpmc_unbounded/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 7325.538653768119,
-      "upper_value": 7426.1095814278615,
-      "value": 7375.82411759799
+      "lower_value": 14423.377590805887,
+      "upper_value": 18111.75459376916,
+      "value": 16267.566092287525
     }
   },
   "flume_unbounded/mpmc_unbounded/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 4963.108822135022,
-      "upper_value": 6849.193428212864,
-      "value": 5906.151125173943
+      "lower_value": 12343.24052357455,
+      "upper_value": 13933.37701666265,
+      "value": 13138.3087701186
     }
   },
   "flume_unbounded/mpmc_unbounded/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 9844.110742091852,
-      "upper_value": 10908.217463353569,
-      "value": 10376.16410272271
+      "lower_value": 19751.55545681676,
+      "upper_value": 27328.86352369749,
+      "value": 23540.209490257126
     }
   },
   "flume_unbounded/mpmc_unbounded/4p2c": {
     "throughput_ops_ms": {
-      "lower_value": 7490.165896877877,
-      "upper_value": 7519.55021062709,
-      "value": 7504.858053752483
+      "lower_value": 19586.633622089736,
+      "upper_value": 21482.409110421882,
+      "value": 20534.52136625581
     }
   },
   "flume_unbounded/mpmc_unbounded/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 7336.606174743166,
-      "upper_value": 7922.118860138779,
-      "value": 7629.362517440973
+      "lower_value": 18375.898502265787,
+      "upper_value": 20587.27278450715,
+      "value": 19481.58564338647
     }
   },
   "flume_unbounded/mpmc_unbounded/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 7442.287341404247,
-      "upper_value": 7521.307754873117,
-      "value": 7481.797548138682
+      "lower_value": 19248.881844697247,
+      "upper_value": 20999.286820109857,
+      "value": 20124.084332403552
     }
   },
   "flurry/balanced/1t": {
     "throughput_ops_ms": {
-      "lower_value": 8963.278223344163,
-      "upper_value": 9008.345356324791,
-      "value": 8985.811789834477
+      "lower_value": 20767.673120983476,
+      "upper_value": 21659.620552940512,
+      "value": 21213.646836961994
     }
   },
   "flurry/balanced/2t": {
     "throughput_ops_ms": {
-      "lower_value": 13264.211537321771,
-      "upper_value": 13969.119383505691,
-      "value": 13616.665460413731
+      "lower_value": 34329.76609203399,
+      "upper_value": 35268.30365210957,
+      "value": 34799.03487207178
     }
   },
   "flurry/balanced/4t": {
     "throughput_ops_ms": {
-      "lower_value": 18130.804488039812,
-      "upper_value": 19128.808760031705,
-      "value": 18629.80662403576
+      "lower_value": 59601.76907141205,
+      "upper_value": 61769.023530928,
+      "value": 60685.396301170025
     }
   },
   "flurry/balanced/8t": {
     "throughput_ops_ms": {
-      "lower_value": 16989.662381534305,
-      "upper_value": 17905.81588928788,
-      "value": 17447.73913541109
+      "lower_value": 45693.96968092561,
+      "upper_value": 50381.07684911645,
+      "value": 48037.52326502103
     }
   },
   "flurry/read_heavy/1t": {
     "throughput_ops_ms": {
-      "lower_value": 11553.597448332532,
-      "upper_value": 11613.80452116962,
-      "value": 11583.700984751076
+      "lower_value": 30230.169151005397,
+      "upper_value": 31782.218051066277,
+      "value": 31006.193601035837
     }
   },
   "flurry/read_heavy/2t": {
     "throughput_ops_ms": {
-      "lower_value": 21867.631942780077,
-      "upper_value": 22879.07304082819,
-      "value": 22373.352491804133
+      "lower_value": 53677.1271030699,
+      "upper_value": 57856.41469644931,
+      "value": 55766.770899759606
     }
   },
   "flurry/read_heavy/4t": {
     "throughput_ops_ms": {
-      "lower_value": 29463.93655486735,
-      "upper_value": 32496.17492251946,
-      "value": 30980.055738693405
+      "lower_value": 98897.92918263374,
+      "upper_value": 101171.46970693981,
+      "value": 100034.69944478678
     }
   },
   "flurry/read_heavy/8t": {
     "throughput_ops_ms": {
-      "lower_value": 22670.443919739268,
-      "upper_value": 25373.213444532714,
-      "value": 24021.82868213599
+      "lower_value": 127921.09572666488,
+      "upper_value": 131100.80629455313,
+      "value": 129510.951010609
     }
   },
   "flurry/write_heavy/1t": {
     "throughput_ops_ms": {
-      "lower_value": 6606.744818525583,
-      "upper_value": 6691.009212575679,
-      "value": 6648.877015550631
+      "lower_value": 17630.27020943462,
+      "upper_value": 18677.290693689767,
+      "value": 18153.780451562194
     }
   },
   "flurry/write_heavy/2t": {
     "throughput_ops_ms": {
-      "lower_value": 10014.223166788372,
-      "upper_value": 11956.155371115798,
-      "value": 10985.189268952085
+      "lower_value": 30621.98180429895,
+      "upper_value": 31417.059418375582,
+      "value": 31019.520611337266
     }
   },
   "flurry/write_heavy/4t": {
     "throughput_ops_ms": {
-      "lower_value": 13778.181671520531,
-      "upper_value": 15071.533553777685,
-      "value": 14424.857612649108
+      "lower_value": 44736.124955157145,
+      "upper_value": 46969.28766997407,
+      "value": 45852.706312565606
     }
   },
   "flurry/write_heavy/8t": {
     "throughput_ops_ms": {
-      "lower_value": 10567.308880317361,
-      "upper_value": 11050.377235898746,
-      "value": 10808.843058108054
+      "lower_value": 29161.452257975765,
+      "upper_value": 32879.10801662896,
+      "value": 31020.280137302365
     }
   },
   "governor_gcra/contention/16t": {
     "throughput_ops_ms": {
-      "lower_value": 14278.850443734224,
-      "upper_value": 15129.1586174582,
-      "value": 14704.004530596212
+      "lower_value": 2324.5899207969933,
+      "upper_value": 2440.6059206100917,
+      "value": 2382.5979207035425
     }
   },
   "governor_gcra/contention/1t": {
     "throughput_ops_ms": {
-      "lower_value": 64718.51886518589,
-      "upper_value": 67569.46953439723,
-      "value": 66143.99419979156
+      "lower_value": 248079.1447217393,
+      "upper_value": 254363.37297197586,
+      "value": 251221.25884685759
     }
   },
   "governor_gcra/contention/2t": {
     "throughput_ops_ms": {
-      "lower_value": 19855.077775096168,
-      "upper_value": 20147.237761752443,
-      "value": 20001.157768424306
+      "lower_value": 117503.71886916712,
+      "upper_value": 119572.55613026262,
+      "value": 118538.13749971487
     }
   },
   "governor_gcra/contention/4t": {
     "throughput_ops_ms": {
-      "lower_value": 13631.666852431,
-      "upper_value": 13785.748700013723,
-      "value": 13708.707776222362
+      "lower_value": 22650.117167064716,
+      "upper_value": 25647.711293756212,
+      "value": 24148.914230410464
     }
   },
   "governor_gcra/contention/8t": {
     "throughput_ops_ms": {
-      "lower_value": 13613.975062157793,
-      "upper_value": 15624.531221795392,
-      "value": 14619.253141976593
+      "lower_value": 5916.9706224026995,
+      "upper_value": 7953.659467191992,
+      "value": 6935.315044797346
     }
   },
   "kanal/mpmc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 6173.033112887732,
-      "upper_value": 7048.2261466317605,
-      "value": 6610.629629759746
+      "lower_value": 15367.742340951567,
+      "upper_value": 41398.84417834537,
+      "value": 28383.293259648468
     }
   },
   "kanal/mpmc/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 9042.503542473045,
-      "upper_value": 10781.155135824993,
-      "value": 9911.829339149019
+      "lower_value": 12359.631580606983,
+      "upper_value": 26353.393919186878,
+      "value": 19356.51274989693
     }
   },
   "kanal/mpmc/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 9383.94625469545,
-      "upper_value": 10464.073915457233,
-      "value": 9924.010085076341
+      "lower_value": 10032.47673207738,
+      "upper_value": 12651.94690317082,
+      "value": 11342.2118176241
     }
   },
   "kanal/mpmc/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 8051.951598726361,
-      "upper_value": 8528.33766914382,
-      "value": 8290.144633935091
+      "lower_value": 17894.04687804108,
+      "upper_value": 26966.526919981545,
+      "value": 22430.286899011313
     }
   },
   "kanal/mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 7555.760492702673,
-      "upper_value": 10616.301955021394,
-      "value": 9086.031223862034
+      "lower_value": 15279.494529878444,
+      "upper_value": 17975.63084944625,
+      "value": 16627.562689662347
     }
   },
   "kanal/mpmc/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 8907.605985755341,
-      "upper_value": 10265.397804937315,
-      "value": 9586.501895346328
+      "lower_value": 9571.203755188008,
+      "upper_value": 13028.953259148422,
+      "value": 11300.078507168215
     }
   },
   "kanal/mpmc/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 3730.6215709636253,
-      "upper_value": 4347.961193496556,
-      "value": 4039.2913822300907
+      "lower_value": 9294.884076747054,
+      "upper_value": 12016.412675026666,
+      "value": 10655.64837588686
     }
   },
   "kanal/mpmc/4p2c": {
     "throughput_ops_ms": {
-      "lower_value": 5296.496754956061,
-      "upper_value": 6353.02077711279,
-      "value": 5824.758766034425
+      "lower_value": 11315.547333905928,
+      "upper_value": 14329.54205632842,
+      "value": 12822.544695117174
     }
   },
   "kanal/mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 6938.467310655244,
-      "upper_value": 8076.563829218359,
-      "value": 7507.5155699368015
+      "lower_value": 8330.366723123996,
+      "upper_value": 12296.231648787136,
+      "value": 10313.299185955566
     }
   },
   "kanal/mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 7785.315939457315,
-      "upper_value": 9553.392474486282,
-      "value": 8669.354206971799
+      "lower_value": 8980.218261386539,
+      "upper_value": 11381.293286037015,
+      "value": 10180.755773711777
     }
   },
   "kanal/spsc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 6398.17013530752,
-      "upper_value": 7756.43111436667,
-      "value": 7077.300624837095
+      "lower_value": 18402.38349061459,
+      "upper_value": 40038.104036800316,
+      "value": 29220.24376370745
     }
   },
   "kanal_rendezvous/rendezvous_handoff/1p1c": {
     "latency_max_ns": {
-      "value": 25421.0
+      "value": 9499.666666666666
     },
     "latency_p50_ns": {
-      "value": 1045.3333333333333
+      "value": 250.0
     },
     "latency_p95_ns": {
-      "value": 1897.3333333333333
+      "value": 334.0
     },
     "latency_p999_ns": {
-      "value": 12951.0
+      "value": 2097.3333333333335
     },
     "latency_p99_ns": {
-      "value": 1913.6666666666667
+      "value": 403.0
     },
     "throughput_ops_ms": {
-      "lower_value": 1572.974858322959,
-      "upper_value": 1738.4271081292006,
-      "value": 1655.7009832260799
+      "lower_value": 7709.405722838083,
+      "upper_value": 8562.206048264825,
+      "value": 8135.805885551454
     }
   },
   "kanal_rendezvous/rendezvous_handoff/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 2401.0993761912196,
-      "upper_value": 2638.504414479412,
-      "value": 2519.8018953353157
+      "lower_value": 3725.1390213084223,
+      "upper_value": 5338.007946778628,
+      "value": 4531.573484043525
     }
   },
   "kanal_rendezvous/rendezvous_handoff/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 1067.8317944133405,
-      "upper_value": 1255.683709610601,
-      "value": 1161.7577520119708
+      "lower_value": 1576.3239499361403,
+      "upper_value": 2627.84480991166,
+      "value": 2102.0843799239
     }
   },
   "kanal_rendezvous/rendezvous_handoff/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 1251.6247252151932,
-      "upper_value": 1344.1151407695759,
-      "value": 1297.8699329923845
+      "lower_value": 1070.223891954021,
+      "upper_value": 1896.3305366343875,
+      "value": 1483.2772142942042
     }
   },
   "kanal_rendezvous/rendezvous_rpc/1p1c": {
     "latency_max_ns": {
-      "value": 25421.0
+      "value": 9499.666666666666
     },
     "latency_p50_ns": {
-      "value": 1045.3333333333333
+      "value": 250.0
     },
     "latency_p95_ns": {
-      "value": 1897.3333333333333
+      "value": 334.0
     },
     "latency_p999_ns": {
-      "value": 12951.0
+      "value": 2097.3333333333335
     },
     "latency_p99_ns": {
-      "value": 1913.6666666666667
+      "value": 403.0
     },
     "throughput_ops_ms": {
-      "lower_value": 769.5870214348223,
-      "upper_value": 773.3949274223054,
-      "value": 771.4909744285638
+      "lower_value": 3249.9498328680647,
+      "upper_value": 3455.474435320715,
+      "value": 3352.71213409439
     }
   },
   "kanal_unbounded/mpmc_unbounded/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 40788.093380474624,
-      "upper_value": 41638.7391760704,
-      "value": 41213.41627827251
+      "lower_value": 28266.69217400863,
+      "upper_value": 28338.44589452843,
+      "value": 28302.56903426853
     }
   },
   "kanal_unbounded/mpmc_unbounded/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 27923.88917445195,
-      "upper_value": 29482.298915165207,
-      "value": 28703.09404480858
+      "lower_value": 14770.288139085771,
+      "upper_value": 15010.680858997059,
+      "value": 14890.484499041415
     }
   },
   "kanal_unbounded/mpmc_unbounded/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 19022.236746209473,
-      "upper_value": 21850.631701592913,
-      "value": 20436.434223901193
+      "lower_value": 5083.087441497292,
+      "upper_value": 5114.430131523678,
+      "value": 5098.758786510485
     }
   },
   "kanal_unbounded/mpmc_unbounded/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 34542.82364396054,
-      "upper_value": 39336.60419422513,
-      "value": 36939.713919092836
+      "lower_value": 6281.5055032259925,
+      "upper_value": 15410.517860926251,
+      "value": 10846.011682076121
     }
   },
   "kanal_unbounded/mpmc_unbounded/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 27120.349390853946,
-      "upper_value": 27350.376895640053,
-      "value": 27235.363143247
+      "lower_value": 6278.325164533426,
+      "upper_value": 10440.908607599953,
+      "value": 8359.61688606669
     }
   },
   "kanal_unbounded/mpmc_unbounded/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 19271.983113592527,
-      "upper_value": 21383.275567518867,
-      "value": 20327.629340555697
+      "lower_value": 5314.693812437205,
+      "upper_value": 10625.144831842303,
+      "value": 7969.9193221397545
     }
   },
   "kanal_unbounded/mpmc_unbounded/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 33400.38964274647,
-      "upper_value": 34095.12539307388,
-      "value": 33747.75751791018
+      "lower_value": 6152.15876588939,
+      "upper_value": 15935.879237300196,
+      "value": 11044.019001594794
     }
   },
   "kanal_unbounded/mpmc_unbounded/4p2c": {
     "throughput_ops_ms": {
-      "lower_value": 22218.38215529136,
-      "upper_value": 28703.71224403571,
-      "value": 25461.047199663535
+      "lower_value": 7376.49644790152,
+      "upper_value": 10415.953484119336,
+      "value": 8896.224966010428
     }
   },
   "kanal_unbounded/mpmc_unbounded/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 16901.17633342058,
-      "upper_value": 20950.49414641933,
-      "value": 18925.835239919954
+      "lower_value": 5795.263969377653,
+      "upper_value": 7897.802869940673,
+      "value": 6846.533419659163
     }
   },
   "kanal_unbounded/mpmc_unbounded/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 17072.600214695754,
-      "upper_value": 18344.702601600147,
-      "value": 17708.65140814795
+      "lower_value": 3755.086990842075,
+      "upper_value": 4484.103553184762,
+      "value": 4119.595272013418
     }
   },
   "leaky_bucket/contention/16t": {
     "throughput_ops_ms": {
-      "lower_value": 19528.350051977573,
-      "upper_value": 19818.042746482333,
-      "value": 19673.196399229953
+      "lower_value": 28842.048921006957,
+      "upper_value": 35969.2454374072,
+      "value": 32405.647179207077
     }
   },
   "leaky_bucket/contention/1t": {
     "throughput_ops_ms": {
-      "lower_value": 25222.58161359769,
-      "upper_value": 25465.31779120366,
-      "value": 25343.949702400674
+      "lower_value": 78318.6942781707,
+      "upper_value": 79807.24489549236,
+      "value": 79062.96958683153
     }
   },
   "leaky_bucket/contention/2t": {
     "throughput_ops_ms": {
-      "lower_value": 24990.783331778406,
-      "upper_value": 25137.36164709921,
-      "value": 25064.072489438808
+      "lower_value": 68171.39615973343,
+      "upper_value": 74455.01670825698,
+      "value": 71313.2064339952
     }
   },
   "leaky_bucket/contention/4t": {
     "throughput_ops_ms": {
-      "lower_value": 22185.996914032785,
-      "upper_value": 22525.18664949342,
-      "value": 22355.5917817631
+      "lower_value": 51933.514592536776,
+      "upper_value": 67374.84702439331,
+      "value": 59654.18080846505
     }
   },
   "leaky_bucket/contention/8t": {
     "throughput_ops_ms": {
-      "lower_value": 21056.236815090124,
-      "upper_value": 21300.037856143987,
-      "value": 21178.137335617055
+      "lower_value": 30705.355577626226,
+      "upper_value": 31227.216456435282,
+      "value": 30966.286017030754
     }
   },
   "leaky_bucket64/contention/16t": {
     "throughput_ops_ms": {
-      "lower_value": 30729.319861225413,
-      "upper_value": 31155.214277892563,
-      "value": 30942.267069558988
+      "lower_value": 15462.06035558979,
+      "upper_value": 17051.254894879494,
+      "value": 16256.657625234642
     }
   },
   "leaky_bucket64/contention/1t": {
     "throughput_ops_ms": {
-      "lower_value": 25621.997130978303,
-      "upper_value": 25936.556239397487,
-      "value": 25779.276685187895
+      "lower_value": 75149.98220576023,
+      "upper_value": 75328.22745344054,
+      "value": 75239.10482960039
     }
   },
   "leaky_bucket64/contention/2t": {
     "throughput_ops_ms": {
-      "lower_value": 34017.639877393165,
-      "upper_value": 34102.677620498864,
-      "value": 34060.158748946014
+      "lower_value": 14846.261412137266,
+      "upper_value": 15169.884712558434,
+      "value": 15008.07306234785
     }
   },
   "leaky_bucket64/contention/4t": {
     "throughput_ops_ms": {
-      "lower_value": 28740.982346861245,
-      "upper_value": 28972.483696423944,
-      "value": 28856.733021642594
+      "lower_value": 33936.084816049006,
+      "upper_value": 34022.501076891705,
+      "value": 33979.292946470356
     }
   },
   "leaky_bucket64/contention/8t": {
     "throughput_ops_ms": {
-      "lower_value": 29926.886918392247,
-      "upper_value": 34031.11729341998,
-      "value": 31979.00210590611
+      "lower_value": 22794.08085975077,
+      "upper_value": 22832.30375603078,
+      "value": 22813.192307890775
     }
   },
   "liblfds/mpmc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 15736.936559522897,
-      "upper_value": 19151.557939738694,
-      "value": 17444.247249630796
+      "lower_value": 47214.41950352849,
+      "upper_value": 57294.92503477423,
+      "value": 52254.67226915136
     }
   },
   "liblfds/mpmc/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 17199.73853043676,
-      "upper_value": 18359.73197689909,
-      "value": 17779.735253667925
+      "lower_value": 21030.17486362482,
+      "upper_value": 32007.603923613588,
+      "value": 26518.889393619203
     }
   },
   "liblfds/mpmc/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 8836.086204433857,
-      "upper_value": 11472.371428289662,
-      "value": 10154.22881636176
+      "lower_value": 29448.89139430515,
+      "upper_value": 30300.140786079948,
+      "value": 29874.51609019255
     }
   },
   "liblfds/mpmc/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 17411.783064205185,
-      "upper_value": 18440.518764994762,
-      "value": 17926.150914599973
+      "lower_value": 22562.864181901612,
+      "upper_value": 26239.73951485927,
+      "value": 24401.30184838044
     }
   },
   "liblfds/mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 12436.187423049207,
-      "upper_value": 12824.205600120058,
-      "value": 12630.196511584632
+      "lower_value": 19673.786773869913,
+      "upper_value": 23458.05171828864,
+      "value": 21565.919246079276
     }
   },
   "liblfds/mpmc/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 7204.372686010511,
-      "upper_value": 9065.836716901716,
-      "value": 8135.104701456114
+      "lower_value": 18839.93298046856,
+      "upper_value": 19772.31185296305,
+      "value": 19306.122416715803
     }
   },
   "liblfds/mpmc/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 10748.822325075162,
-      "upper_value": 12445.648674944467,
-      "value": 11597.235500009814
+      "lower_value": 23537.232286980532,
+      "upper_value": 30190.028084138507,
+      "value": 26863.63018555952
     }
   },
   "liblfds/mpmc/4p2c": {
     "throughput_ops_ms": {
-      "lower_value": 10746.514081627083,
-      "upper_value": 13782.184642675948,
-      "value": 12264.349362151515
+      "lower_value": 13875.050645326486,
+      "upper_value": 14266.127221181745,
+      "value": 14070.588933254116
     }
   },
   "liblfds/mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 7157.460248778825,
-      "upper_value": 11548.424061801292,
-      "value": 9352.942155290059
+      "lower_value": 16694.009617716263,
+      "upper_value": 19176.589534064056,
+      "value": 17935.29957589016
     }
   },
   "liblfds/mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 3366.607486556002,
-      "upper_value": 5143.614960255882,
-      "value": 4255.111223405942
+      "lower_value": 7405.126361271627,
+      "upper_value": 14495.390384887325,
+      "value": 10950.258373079476
     }
   },
   "liblfds/spsc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 13389.62340642024,
-      "upper_value": 13497.39103364592,
-      "value": 13443.50722003308
+      "lower_value": 23992.439729888698,
+      "upper_value": 30223.231335057113,
+      "value": 27107.835532472905
+    }
+  },
+  "locked_disjoint_set/disjoint_set_find/16t": {
+    "throughput_ops_ms": {
+      "lower_value": 13785.850421604035,
+      "upper_value": 15640.067167739904,
+      "value": 14712.95879467197
     }
   },
   "locked_disjoint_set/disjoint_set_find/1t": {
     "throughput_ops_ms": {
-      "lower_value": 14820.0,
-      "upper_value": 16380.0,
-      "value": 15600.0
+      "lower_value": 69638.71143644469,
+      "upper_value": 72711.76422018718,
+      "value": 71175.23782831593
     }
   },
   "locked_disjoint_set/disjoint_set_find/2t": {
     "throughput_ops_ms": {
-      "lower_value": 18240.0,
-      "upper_value": 20160.0,
-      "value": 19200.0
+      "lower_value": 53497.84436036663,
+      "upper_value": 55838.759458336404,
+      "value": 54668.30190935152
     }
   },
   "locked_disjoint_set/disjoint_set_find/4t": {
     "throughput_ops_ms": {
-      "lower_value": 25080.0,
-      "upper_value": 27720.0,
-      "value": 26400.0
+      "lower_value": 25296.95550591185,
+      "upper_value": 25822.690521577388,
+      "value": 25559.82301374462
     }
   },
   "locked_disjoint_set/disjoint_set_find/8t": {
     "throughput_ops_ms": {
-      "lower_value": 38760.0,
-      "upper_value": 42840.0,
-      "value": 40800.0
+      "lower_value": 14480.689820678725,
+      "upper_value": 15401.074687285074,
+      "value": 14940.8822539819
+    }
+  },
+  "locked_disjoint_set/disjoint_set_union/16t": {
+    "throughput_ops_ms": {
+      "lower_value": 12695.892777380894,
+      "upper_value": 14568.161341200634,
+      "value": 13632.027059290764
     }
   },
   "locked_disjoint_set/disjoint_set_union/1t": {
     "throughput_ops_ms": {
-      "lower_value": 8208.0,
-      "upper_value": 9072.0,
-      "value": 8640.0
+      "lower_value": 71823.33192339703,
+      "upper_value": 74227.21307975447,
+      "value": 73025.27250157575
     }
   },
   "locked_disjoint_set/disjoint_set_union/2t": {
     "throughput_ops_ms": {
-      "lower_value": 9576.0,
-      "upper_value": 10584.0,
-      "value": 10080.0
+      "lower_value": 44189.54083876637,
+      "upper_value": 46052.96548759007,
+      "value": 45121.25316317822
     }
   },
   "locked_disjoint_set/disjoint_set_union/4t": {
     "throughput_ops_ms": {
-      "lower_value": 12312.0,
-      "upper_value": 13608.0,
-      "value": 12960.0
+      "lower_value": 12678.778798702857,
+      "upper_value": 13433.95267122475,
+      "value": 13056.365734963803
     }
   },
   "locked_disjoint_set/disjoint_set_union/8t": {
     "throughput_ops_ms": {
-      "lower_value": 17784.0,
-      "upper_value": 19656.0,
-      "value": 18720.0
+      "lower_value": 13634.696600542105,
+      "upper_value": 15252.148408339235,
+      "value": 14443.42250444067
     }
   },
   "locked_pq/pqueue_mpmc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 2452.985453658987,
-      "upper_value": 2819.866361353083,
-      "value": 2636.425907506035
+      "lower_value": 17309.043180307468,
+      "upper_value": 19977.28126969062,
+      "value": 18643.162224999043
     }
   },
   "locked_pq/pqueue_mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 1577.7459889930665,
-      "upper_value": 2826.1081010949842,
-      "value": 2201.9270450440254
+      "lower_value": 7488.528282706592,
+      "upper_value": 7723.296109091879,
+      "value": 7605.9121958992355
     }
   },
   "locked_pq/pqueue_mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 1785.4168510838006,
-      "upper_value": 1844.200388584837,
-      "value": 1814.8086198343187
+      "lower_value": 4447.516389258775,
+      "upper_value": 4679.154366556108,
+      "value": 4563.335377907441
     }
   },
   "locked_pq/pqueue_mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 1634.231778680626,
-      "upper_value": 1655.3437476351162,
-      "value": 1644.787763157871
+      "lower_value": 3804.0447709266723,
+      "upper_value": 4030.1196216389767,
+      "value": 3917.0821962828245
     }
   },
   "locked_set/set_algebra/1t": {
     "throughput_ops_ms": {
-      "lower_value": 4612.836506845531,
-      "upper_value": 4734.591017568475,
-      "value": 4673.713762207003
+      "lower_value": 9895.760264893635,
+      "upper_value": 10237.590285114433,
+      "value": 10066.675275004034
     }
   },
   "locked_set/set_algebra/2t": {
     "throughput_ops_ms": {
-      "lower_value": 4556.423810423515,
-      "upper_value": 4613.108861900725,
-      "value": 4584.76633616212
+      "lower_value": 9674.636905437312,
+      "upper_value": 10026.879207449734,
+      "value": 9850.758056443523
     }
   },
   "locked_set/set_algebra/4t": {
     "throughput_ops_ms": {
-      "lower_value": 4495.312389923491,
-      "upper_value": 4547.381002733784,
-      "value": 4521.346696328637
+      "lower_value": 9821.942493291506,
+      "upper_value": 9874.160050947372,
+      "value": 9848.05127211944
     }
   },
   "locked_set/set_algebra/8t": {
     "throughput_ops_ms": {
-      "lower_value": 4476.165123440437,
-      "upper_value": 4483.336396912956,
-      "value": 4479.7507601766965
+      "lower_value": 9836.77160872644,
+      "upper_value": 9877.057394222296,
+      "value": 9856.914501474368
     }
   },
   "locked_set/set_mixed/1t": {
     "throughput_ops_ms": {
-      "lower_value": 25586.256426050895,
-      "upper_value": 27341.08175694073,
-      "value": 26463.669091495813
+      "lower_value": 40792.7380166003,
+      "upper_value": 45367.63699131018,
+      "value": 43080.18750395524
     }
   },
   "locked_set/set_mixed/2t": {
     "throughput_ops_ms": {
-      "lower_value": 9281.127824626425,
-      "upper_value": 9676.372535511347,
-      "value": 9478.750180068886
+      "lower_value": 26501.310796473168,
+      "upper_value": 27257.192663260073,
+      "value": 26879.25172986662
     }
   },
   "locked_set/set_mixed/4t": {
     "throughput_ops_ms": {
-      "lower_value": 6602.652176922941,
-      "upper_value": 6949.511047790887,
-      "value": 6776.081612356914
+      "lower_value": 12960.248663648305,
+      "upper_value": 13848.072449062776,
+      "value": 13404.16055635554
     }
   },
   "locked_set/set_mixed/8t": {
     "throughput_ops_ms": {
-      "lower_value": 6574.581016678615,
-      "upper_value": 6737.212697358106,
-      "value": 6655.896857018361
+      "lower_value": 16165.07883781724,
+      "upper_value": 16343.143221510843,
+      "value": 16254.111029664042
     }
   },
   "locked_stack/stack_mpmc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 7463.436783882455,
-      "upper_value": 11131.007108359743,
-      "value": 9297.221946121099
+      "lower_value": 4970.414452484573,
+      "upper_value": 6039.207261962621,
+      "value": 5504.810857223597
     }
   },
   "locked_stack/stack_mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 7627.774962051826,
-      "upper_value": 10406.084929562428,
-      "value": 9016.929945807127
+      "lower_value": 2493.53905384977,
+      "upper_value": 3071.246399342784,
+      "value": 2782.392726596277
     }
   },
   "locked_stack/stack_mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 7159.070749189324,
-      "upper_value": 7512.514344435939,
-      "value": 7335.792546812631
+      "lower_value": 21967.40559667199,
+      "upper_value": 23194.8555872153,
+      "value": 22581.130591943645
     }
   },
   "locked_stack/stack_mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 6795.281310621481,
-      "upper_value": 7093.98079652361,
-      "value": 6944.631053572545
+      "lower_value": 24830.795880741054,
+      "upper_value": 25645.272546499713,
+      "value": 25238.034213620384
     }
   },
   "locked_table/balanced/1t": {
     "throughput_ops_ms": {
-      "lower_value": 23215.01329484861,
-      "upper_value": 23929.680002767538,
-      "value": 23572.346648808074
+      "lower_value": 37350.56901458476,
+      "upper_value": 38204.7653127348,
+      "value": 37777.66716365978
     }
   },
   "locked_table/balanced/2t": {
     "throughput_ops_ms": {
-      "lower_value": 6733.60604131624,
-      "upper_value": 9328.089549197804,
-      "value": 8030.847795257022
+      "lower_value": 22644.774448893764,
+      "upper_value": 23857.762815119695,
+      "value": 23251.26863200673
     }
   },
   "locked_table/balanced/4t": {
     "throughput_ops_ms": {
-      "lower_value": 6372.348022306463,
-      "upper_value": 6473.950636377004,
-      "value": 6423.149329341733
+      "lower_value": 10995.936867813247,
+      "upper_value": 11679.515203195957,
+      "value": 11337.726035504602
     }
   },
   "locked_table/balanced/8t": {
     "throughput_ops_ms": {
-      "lower_value": 6266.5291212758075,
-      "upper_value": 6374.846294282819,
-      "value": 6320.687707779313
+      "lower_value": 11359.700338314831,
+      "upper_value": 11650.67188223724,
+      "value": 11505.186110276036
     }
   },
   "locked_table/read_heavy/1t": {
     "throughput_ops_ms": {
-      "lower_value": 22449.019365305823,
-      "upper_value": 26163.251866767896,
-      "value": 24306.13561603686
+      "lower_value": 39080.28765815265,
+      "upper_value": 40552.88755385426,
+      "value": 39816.58760600346
     }
   },
   "locked_table/read_heavy/2t": {
     "throughput_ops_ms": {
-      "lower_value": 9489.235112733482,
-      "upper_value": 9695.789832874669,
-      "value": 9592.512472804076
+      "lower_value": 24380.48181450624,
+      "upper_value": 25321.613275827654,
+      "value": 24851.047545166948
     }
   },
   "locked_table/read_heavy/4t": {
     "throughput_ops_ms": {
-      "lower_value": 7043.942183887634,
-      "upper_value": 7134.966413151163,
-      "value": 7089.454298519398
+      "lower_value": 12536.639983106003,
+      "upper_value": 12838.372918717954,
+      "value": 12687.506450911978
     }
   },
   "locked_table/read_heavy/8t": {
     "throughput_ops_ms": {
-      "lower_value": 6499.795732690825,
-      "upper_value": 6623.326186840322,
-      "value": 6561.560959765574
+      "lower_value": 15196.514657743895,
+      "upper_value": 15621.4898032547,
+      "value": 15409.002230499298
     }
   },
   "locked_table/snapshot_iter/1t": {
     "latency_p99_ns": {
-      "lower_value": 104266.53570212581,
-      "upper_value": 106238.7242978742,
-      "value": 105252.63
+      "lower_value": 45706.46744339179,
+      "upper_value": 46614.35255660822,
+      "value": 46160.41
     },
     "throughput_ops_ms": {
-      "lower_value": 43324.13754648346,
-      "upper_value": 43897.4618643272,
-      "value": 43610.79970540533
+      "lower_value": 92255.78438890452,
+      "upper_value": 93626.34593342573,
+      "value": 92941.06516116513
     }
   },
   "locked_table/snapshot_iter/2t": {
     "latency_p99_ns": {
-      "lower_value": 107871.87029254032,
-      "upper_value": 111193.84304079297,
-      "value": 109532.85666666664
+      "lower_value": 49434.11834477743,
+      "upper_value": 57185.07498855588,
+      "value": 53309.59666666666
     },
     "throughput_ops_ms": {
-      "lower_value": 41722.582454586176,
-      "upper_value": 41927.09329158493,
-      "value": 41824.837873085555
+      "lower_value": 77526.83031491193,
+      "upper_value": 81566.8491929908,
+      "value": 79546.83975395137
     }
   },
   "locked_table/snapshot_iter/4t": {
     "latency_p99_ns": {
-      "lower_value": 2154318.5826146873,
-      "upper_value": 2904898.844051975,
-      "value": 2529608.713333331
+      "lower_value": 570971.067358312,
+      "upper_value": 622936.7859750204,
+      "value": 596953.9266666662
     },
     "throughput_ops_ms": {
-      "lower_value": 23815.842626016944,
-      "upper_value": 29693.964590260613,
-      "value": 26754.90360813878
+      "lower_value": 85841.19229701684,
+      "upper_value": 89797.6321166423,
+      "value": 87819.41220682957
     }
   },
   "locked_table/snapshot_iter/8t": {
     "latency_p99_ns": {
-      "lower_value": 4243691.428587366,
-      "upper_value": 4292477.531412611,
-      "value": 4268084.479999988
+      "lower_value": 2172023.941199526,
+      "upper_value": 2206153.4854671275,
+      "value": 2189088.713333327
     },
     "throughput_ops_ms": {
-      "lower_value": 40760.598588568886,
-      "upper_value": 41156.84156521085,
-      "value": 40958.72007688987
+      "lower_value": 80277.00135793751,
+      "upper_value": 81753.88961335404,
+      "value": 81015.44548564577
     }
   },
   "locked_table/write_heavy/1t": {
     "throughput_ops_ms": {
-      "lower_value": 25548.000083230418,
-      "upper_value": 28052.496148702452,
-      "value": 26800.248115966435
+      "lower_value": 40454.50920712186,
+      "upper_value": 42603.9525906313,
+      "value": 41529.23089887658
     }
   },
   "locked_table/write_heavy/2t": {
     "throughput_ops_ms": {
-      "lower_value": 8574.197309373294,
-      "upper_value": 8832.569778024355,
-      "value": 8703.383543698825
+      "lower_value": 25309.20348341633,
+      "upper_value": 25994.96473264221,
+      "value": 25652.08410802927
     }
   },
   "locked_table/write_heavy/4t": {
     "throughput_ops_ms": {
-      "lower_value": 6549.557952178451,
-      "upper_value": 6665.360541439019,
-      "value": 6607.459246808735
+      "lower_value": 12583.802118854499,
+      "upper_value": 12671.640191314531,
+      "value": 12627.721155084515
     }
   },
   "locked_table/write_heavy/8t": {
     "throughput_ops_ms": {
-      "lower_value": 5041.564858364863,
-      "upper_value": 6192.270806627949,
-      "value": 5616.917832496406
+      "lower_value": 8558.951444765049,
+      "upper_value": 8798.99657335485,
+      "value": 8678.97400905995
     }
   },
   "locked_task_queue/taskpool_forkjoin/1t": {
     "throughput_ops_ms": {
-      "lower_value": 12340.077342255125,
-      "upper_value": 14153.689400896561,
-      "value": 13246.883371575843
+      "lower_value": 19479.821484457567,
+      "upper_value": 20072.744356646854,
+      "value": 19776.28292055221
     }
   },
   "locked_task_queue/taskpool_forkjoin/2t": {
     "throughput_ops_ms": {
-      "lower_value": 8388.87514538569,
-      "upper_value": 9207.658121252112,
-      "value": 8798.2666333189
+      "lower_value": 13026.055869259837,
+      "upper_value": 14131.849360679438,
+      "value": 13578.952614969638
     }
   },
   "locked_task_queue/taskpool_forkjoin/4t": {
     "throughput_ops_ms": {
-      "lower_value": 6613.496709959048,
-      "upper_value": 6966.2859499004635,
-      "value": 6789.891329929756
+      "lower_value": 6667.947732992126,
+      "upper_value": 7263.389519655845,
+      "value": 6965.668626323985
     }
   },
   "locked_task_queue/taskpool_forkjoin/8t": {
     "throughput_ops_ms": {
-      "lower_value": 3015.0968966646556,
-      "upper_value": 6720.694267761273,
-      "value": 4867.895582212965
+      "lower_value": 6853.804018398181,
+      "upper_value": 8721.259353917907,
+      "value": 7787.531686158044
     }
   },
   "locked_task_queue/taskpool_parfor/1t": {
     "throughput_ops_ms": {
-      "lower_value": 479085.92131094914,
-      "upper_value": 488922.09085687855,
-      "value": 484004.00608391385
+      "lower_value": 330376.26325534424,
+      "upper_value": 362228.5064549444,
+      "value": 346302.3848551443
     }
   },
   "locked_task_queue/taskpool_parfor/2t": {
     "throughput_ops_ms": {
-      "lower_value": 406505.44063804834,
-      "upper_value": 511707.32109359535,
-      "value": 459106.38086582185
+      "lower_value": 575049.0353726777,
+      "upper_value": 683011.5460140225,
+      "value": 629030.2906933501
     }
   },
   "locked_task_queue/taskpool_parfor/4t": {
     "throughput_ops_ms": {
-      "lower_value": 399843.7302420628,
-      "upper_value": 439530.4104354755,
-      "value": 419687.0703387692
+      "lower_value": 630283.7788552485,
+      "upper_value": 720146.0216967157,
+      "value": 675214.9002759821
     }
   },
   "locked_task_queue/taskpool_parfor/8t": {
     "throughput_ops_ms": {
-      "lower_value": 323485.30605657375,
-      "upper_value": 407030.34636886336,
-      "value": 365257.82621271856
+      "lower_value": 539111.4513939646,
+      "upper_value": 692012.1445042029,
+      "value": 615561.7979490837
     }
   },
   "locked_task_queue/taskpool_spawnsync/1t": {
     "throughput_ops_ms": {
-      "lower_value": 4201.493663901271,
-      "upper_value": 4421.68213576787,
-      "value": 4311.587899834571
+      "lower_value": 24873.901573533894,
+      "upper_value": 26518.75311197741,
+      "value": 25696.327342755652
     }
   },
   "locked_task_queue/taskpool_spawnsync/2t": {
     "throughput_ops_ms": {
-      "lower_value": 4425.500466989512,
-      "upper_value": 5107.985037500681,
-      "value": 4766.742752245096
+      "lower_value": 12657.148197073744,
+      "upper_value": 15148.991552114509,
+      "value": 13903.069874594126
     }
   },
   "locked_task_queue/taskpool_spawnsync/4t": {
     "throughput_ops_ms": {
-      "lower_value": 1796.1079981022028,
-      "upper_value": 2270.6689797487193,
-      "value": 2033.3884889254612
+      "lower_value": 6618.931965062312,
+      "upper_value": 10243.205420973982,
+      "value": 8431.068693018147
     }
   },
   "locked_task_queue/taskpool_spawnsync/8t": {
     "throughput_ops_ms": {
-      "lower_value": 1335.8167923557678,
-      "upper_value": 1667.5311108522621,
-      "value": 1501.673951604015
+      "lower_value": 968.1141815117757,
+      "upper_value": 1213.7861754468406,
+      "value": 1090.950178479308
     }
   },
   "lockfree_cabi/mpmc/1p1c": {
     "latency_max_ns": {
-      "value": 30555.18181818182
+      "value": 6871.272727272727
     },
     "latency_p50_ns": {
-      "value": 235.8181818181818
+      "value": 166.0
     },
     "latency_p95_ns": {
-      "value": 260.8181818181818
+      "value": 167.0
     },
     "latency_p999_ns": {
-      "value": 334.90909090909093
+      "value": 333.0
     },
     "latency_p99_ns": {
-      "value": 266.0
+      "value": 167.0
     },
     "throughput_ops_ms": {
-      "lower_value": 18353.103451170427,
-      "upper_value": 18445.099995993158,
-      "value": 18399.101723581793
+      "lower_value": 44147.691739099624,
+      "upper_value": 47763.84435526788,
+      "value": 45955.76804718375
     }
   },
   "lockfree_cabi/mpmc/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 17884.270365289918,
-      "upper_value": 18093.232457477043,
-      "value": 17988.75141138348
+      "lower_value": 26640.967151327153,
+      "upper_value": 28540.935610830493,
+      "value": 27590.951381078823
     }
   },
   "lockfree_cabi/mpmc/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 18688.24210096247,
-      "upper_value": 19415.152023015722,
-      "value": 19051.697061989096
+      "lower_value": 9488.178203573429,
+      "upper_value": 10675.05587659766,
+      "value": 10081.617040085544
     }
   },
   "lockfree_cabi/mpmc/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 22654.974979154093,
-      "upper_value": 22767.814200813667,
-      "value": 22711.39458998388
+      "lower_value": 24037.696943309697,
+      "upper_value": 29392.783295271598,
+      "value": 26715.240119290647
     }
   },
   "lockfree_cabi/mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 18064.682909251787,
-      "upper_value": 18959.3131751794,
-      "value": 18511.998042215593
+      "lower_value": 23172.498655433996,
+      "upper_value": 34909.58758397414,
+      "value": 29041.04311970407
     }
   },
   "lockfree_cabi/mpmc/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 17947.107743837274,
-      "upper_value": 19015.483665963664,
-      "value": 18481.29570490047
+      "lower_value": 9260.791314189222,
+      "upper_value": 9507.459107042052,
+      "value": 9384.125210615637
     }
   },
   "lockfree_cabi/mpmc/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 10722.652781899438,
-      "upper_value": 14693.472907314359,
-      "value": 12708.062844606899
+      "lower_value": 11206.82301822637,
+      "upper_value": 13473.217595908749,
+      "value": 12340.02030706756
     }
   },
   "lockfree_cabi/mpmc/4p2c": {
     "throughput_ops_ms": {
-      "lower_value": 12596.762972970071,
-      "upper_value": 13194.842685157368,
-      "value": 12895.80282906372
+      "lower_value": 9118.557469574942,
+      "upper_value": 9904.573234345276,
+      "value": 9511.56535196011
     }
   },
   "lockfree_cabi/mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 18606.178993855505,
-      "upper_value": 20137.80255269713,
-      "value": 19371.990773276317
+      "lower_value": 8760.571962315778,
+      "upper_value": 10471.182247198773,
+      "value": 9615.877104757275
     }
   },
   "lockfree_cabi/mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 18101.7553161884,
-      "upper_value": 19188.08891267357,
-      "value": 18644.922114430985
+      "lower_value": 16923.852782727645,
+      "upper_value": 18445.67268257608,
+      "value": 17684.762732651863
     }
   },
   "lockfree_cabi/mpsc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 22166.723355454076,
-      "upper_value": 27512.19482884662,
-      "value": 24839.459092150348
+      "lower_value": 57557.057454249414,
+      "upper_value": 62946.70327320456,
+      "value": 60251.88036372699
     }
   },
   "lockfree_cabi/mpsc/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 26706.86159668577,
-      "upper_value": 27899.13084752139,
-      "value": 27302.99622210358
+      "lower_value": 23520.26643085166,
+      "upper_value": 25598.06206126436,
+      "value": 24559.16424605801
     }
   },
   "lockfree_cabi/mpsc/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 16047.142641548786,
-      "upper_value": 17669.578318978853,
-      "value": 16858.36048026382
+      "lower_value": 9777.70881280923,
+      "upper_value": 11677.000630557119,
+      "value": 10727.354721683174
     }
   },
   "lockfree_cabi/mpsc/8p1c": {
     "throughput_ops_ms": {
-      "lower_value": 14343.988231109559,
-      "upper_value": 17007.27353833924,
-      "value": 15675.630884724398
+      "lower_value": 7827.611079931503,
+      "upper_value": 8063.055601551603,
+      "value": 7945.333340741553
     }
   },
   "lockfree_cabi/spsc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 18338.996156401063,
-      "upper_value": 19010.07256675771,
-      "value": 18674.534361579386
+      "lower_value": 54290.950516705656,
+      "upper_value": 59662.12151795341,
+      "value": 56976.536017329534
     }
   },
   "lockfree_mpmc/mpmc/1p1c": {
     "latency_max_ns": {
-      "value": 23552.81818181818
+      "value": 11053.181818181818
     },
     "latency_p50_ns": {
-      "value": 250.0
+      "value": 128.72727272727272
     },
     "latency_p95_ns": {
-      "value": 261.8181818181818
+      "value": 167.0
     },
     "latency_p999_ns": {
-      "value": 352.45454545454544
+      "value": 321.8181818181818
     },
     "latency_p99_ns": {
-      "value": 271.0
+      "value": 170.72727272727272
     },
     "throughput_ops_ms": {
-      "lower_value": 19169.650787005925,
-      "upper_value": 19243.730595708726,
-      "value": 19206.690691357326
+      "lower_value": 55805.024311469664,
+      "upper_value": 66563.45451189303,
+      "value": 61184.239411681345
     }
   },
   "lockfree_mpmc/mpmc/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 16938.80021085715,
-      "upper_value": 17054.775632845984,
-      "value": 16996.787921851566
+      "lower_value": 27290.785161655433,
+      "upper_value": 32780.388540049105,
+      "value": 30035.58685085227
     }
   },
   "lockfree_mpmc/mpmc/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 18725.340499451722,
-      "upper_value": 18884.44468096884,
-      "value": 18804.892590210282
+      "lower_value": 9550.404187986751,
+      "upper_value": 10447.58045068464,
+      "value": 9998.992319335695
     }
   },
   "lockfree_mpmc/mpmc/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 22509.762327519093,
-      "upper_value": 24835.613716729473,
-      "value": 23672.688022124283
+      "lower_value": 21908.564513267538,
+      "upper_value": 29792.061078831513,
+      "value": 25850.312796049526
     }
   },
   "lockfree_mpmc/mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 17128.83766469106,
-      "upper_value": 17603.991198478896,
-      "value": 17366.414431584977
+      "lower_value": 23754.51267152325,
+      "upper_value": 25107.839509183996,
+      "value": 24431.176090353623
     }
   },
   "lockfree_mpmc/mpmc/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 17280.779190951595,
-      "upper_value": 17584.44390669604,
-      "value": 17432.611548823817
+      "lower_value": 8443.081770547644,
+      "upper_value": 13032.080531805055,
+      "value": 10737.58115117635
     }
   },
   "lockfree_mpmc/mpmc/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 12718.900963412101,
-      "upper_value": 13779.02732186211,
-      "value": 13248.964142637105
+      "lower_value": 8846.80323486685,
+      "upper_value": 13758.57848171109,
+      "value": 11302.69085828897
     }
   },
   "lockfree_mpmc/mpmc/4p2c": {
     "throughput_ops_ms": {
-      "lower_value": 11120.52525402095,
-      "upper_value": 14080.638129390461,
-      "value": 12600.581691705705
+      "lower_value": 7005.597305817794,
+      "upper_value": 11676.231672689759,
+      "value": 9340.914489253777
     }
   },
   "lockfree_mpmc/mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 17167.140509330522,
-      "upper_value": 18016.297464459123,
-      "value": 17591.718986894823
+      "lower_value": 7834.331040482415,
+      "upper_value": 9555.030699757677,
+      "value": 8694.680870120046
     }
   },
   "lockfree_mpmc/mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 16784.602975906502,
-      "upper_value": 17983.133714082298,
-      "value": 17383.8683449944
+      "lower_value": 18194.543219838088,
+      "upper_value": 20002.383859057183,
+      "value": 19098.463539447635
     }
   },
   "lockfree_mpsc/mpsc/1p1c": {
     "latency_max_ns": {
-      "value": 26762.363636363636
+      "value": 11526.545454545454
     },
     "latency_p50_ns": {
-      "value": 241.8181818181818
+      "value": 166.0
     },
     "latency_p95_ns": {
-      "value": 253.72727272727272
+      "value": 167.0
     },
     "latency_p999_ns": {
-      "value": 331.3636363636364
+      "value": 333.1818181818182
     },
     "latency_p99_ns": {
-      "value": 264.54545454545456
+      "value": 170.72727272727272
     },
     "throughput_ops_ms": {
-      "lower_value": 22492.28728019991,
-      "upper_value": 24979.301855543243,
-      "value": 23735.794567871577
+      "lower_value": 66717.03905355111,
+      "upper_value": 81106.76477688354,
+      "value": 73911.90191521733
     }
   },
   "lockfree_mpsc/mpsc/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 29532.50771179102,
-      "upper_value": 32031.732050315295,
-      "value": 30782.119881053157
+      "lower_value": 27051.697186970076,
+      "upper_value": 27994.3164063403,
+      "value": 27523.006796655187
     }
   },
   "lockfree_mpsc/mpsc/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 19351.188295273496,
-      "upper_value": 22932.829892035537,
-      "value": 21142.009093654517
+      "lower_value": 10821.894168923001,
+      "upper_value": 14174.999764810556,
+      "value": 12498.446966866779
     }
   },
   "lockfree_mpsc/mpsc/8p1c": {
     "throughput_ops_ms": {
-      "lower_value": 12461.530375675471,
-      "upper_value": 16968.655609779507,
-      "value": 14715.09299272749
+      "lower_value": 7813.481889411141,
+      "upper_value": 7987.905960886572,
+      "value": 7900.693925148857
     }
   },
   "lockfree_spmc/mpmc/1p1c": {
     "latency_max_ns": {
-      "value": 31177.909090909092
+      "value": 11098.363636363636
     },
     "latency_p50_ns": {
-      "value": 250.0
+      "value": 154.8181818181818
     },
     "latency_p95_ns": {
-      "value": 262.6363636363636
+      "value": 167.0
     },
     "latency_p999_ns": {
-      "value": 344.27272727272725
+      "value": 333.09090909090907
     },
     "latency_p99_ns": {
-      "value": 273.6363636363636
+      "value": 167.0
     },
     "throughput_ops_ms": {
-      "lower_value": 31778.796926541614,
-      "upper_value": 35715.19060050564,
-      "value": 33746.99376352363
+      "lower_value": 39607.04779816129,
+      "upper_value": 49450.65376261031,
+      "value": 44528.8507803858
     }
   },
   "lockfree_spmc/mpmc/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 36563.09380258394,
-      "upper_value": 37659.519967942964,
-      "value": 37111.30688526345
+      "lower_value": 13994.88125102771,
+      "upper_value": 19232.109221095514,
+      "value": 16613.49523606161
     }
   },
   "lockfree_spmc/mpmc/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 29740.949923586173,
-      "upper_value": 32529.416860232217,
-      "value": 31135.183391909195
+      "lower_value": 9001.367088600839,
+      "upper_value": 9444.933562587043,
+      "value": 9223.15032559394
     }
   },
   "lockfree_spsc/spsc/1p1c": {
     "latency_max_ns": {
-      "value": 24242.909090909092
+      "value": 11435.545454545454
     },
     "latency_p50_ns": {
-      "value": 363.45454545454544
+      "value": 238.8181818181818
     },
     "latency_p95_ns": {
-      "value": 388.8181818181818
+      "value": 253.8181818181818
     },
     "latency_p999_ns": {
-      "value": 607.1818181818181
+      "value": 363.90909090909093
     },
     "latency_p99_ns": {
-      "value": 402.27272727272725
+      "value": 257.54545454545456
     },
     "throughput_ops_ms": {
-      "lower_value": 10717.346686674831,
-      "upper_value": 10804.005384262724,
-      "value": 10760.676035468778
+      "lower_value": 21582.60197188645,
+      "upper_value": 24704.79600209431,
+      "value": 23143.69898699038
     }
   },
   "lockfree_unbounded_mpmc/mpmc_unbounded/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 6567.041360310624,
-      "upper_value": 12515.869097100443,
-      "value": 9541.455228705534
+      "lower_value": 5694.548837153681,
+      "upper_value": 6592.003543968398,
+      "value": 6143.27619056104
     }
   },
   "lockfree_unbounded_mpmc/mpmc_unbounded/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 6839.237236907524,
-      "upper_value": 6847.132754479517,
-      "value": 6843.18499569352
-    }
-  },
-  "lockfree_unbounded_mpmc/mpmc_unbounded/1p4c": {
-    "throughput_ops_ms": {
-      "lower_value": 8587.3,
-      "upper_value": 10495.6,
-      "value": 9541.5
+      "lower_value": 5256.273570981799,
+      "upper_value": 8331.631000993368,
+      "value": 6793.952285987583
     }
   },
   "lockfree_unbounded_mpmc/mpmc_unbounded/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 10225.955682694863,
-      "upper_value": 10973.494346498575,
-      "value": 10599.72501459672
+      "lower_value": 8356.63494977995,
+      "upper_value": 8519.41473054231,
+      "value": 8438.02484016113
     }
   },
   "lockfree_unbounded_mpmc/mpmc_unbounded/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 9448.472353028712,
-      "upper_value": 10407.79221652621,
-      "value": 9928.13228477746
-    }
-  },
-  "lockfree_unbounded_mpmc/mpmc_unbounded/2p4c": {
-    "throughput_ops_ms": {
-      "lower_value": 8587.3,
-      "upper_value": 10495.6,
-      "value": 9541.5
-    }
-  },
-  "lockfree_unbounded_mpmc/mpmc_unbounded/4p1c": {
-    "throughput_ops_ms": {
-      "lower_value": 8587.3,
-      "upper_value": 10495.6,
-      "value": 9541.5
-    }
-  },
-  "lockfree_unbounded_mpmc/mpmc_unbounded/4p2c": {
-    "throughput_ops_ms": {
-      "lower_value": 8587.3,
-      "upper_value": 10495.6,
-      "value": 9541.5
-    }
-  },
-  "lockfree_unbounded_mpmc/mpmc_unbounded/4p4c": {
-    "throughput_ops_ms": {
-      "lower_value": 8587.3,
-      "upper_value": 10495.6,
-      "value": 9541.5
-    }
-  },
-  "lockfree_unbounded_mpmc/mpmc_unbounded/8p8c": {
-    "throughput_ops_ms": {
-      "lower_value": 8587.3,
-      "upper_value": 10495.6,
-      "value": 9541.5
+      "lower_value": 7914.158241906707,
+      "upper_value": 8066.057529477881,
+      "value": 7990.107885692294
     }
   },
   "lockfree_unbounded_mpsc/mpsc_unbounded/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 9712.940083097688,
-      "upper_value": 10263.569007849073,
-      "value": 9988.25454547338
+      "lower_value": 5850.434670196972,
+      "upper_value": 8241.438375792233,
+      "value": 7045.9365229946025
     }
   },
   "lockfree_unbounded_mpsc/mpsc_unbounded/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 14346.526674261962,
-      "upper_value": 15295.699063998823,
-      "value": 14821.112869130393
+      "lower_value": 6614.351300663068,
+      "upper_value": 12801.39346408594,
+      "value": 9707.872382374504
     }
   },
   "lockfree_unbounded_mpsc/mpsc_unbounded/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 13673.233358271558,
-      "upper_value": 18944.17817463123,
-      "value": 16308.705766451394
+      "lower_value": 6264.966300492688,
+      "upper_value": 7203.93962743603,
+      "value": 6734.452963964359
     }
   },
   "lockfree_unbounded_mpsc/mpsc_unbounded/8p1c": {
     "throughput_ops_ms": {
-      "lower_value": 18310.04134930566,
-      "upper_value": 18383.894069900383,
-      "value": 18346.96770960302
+      "lower_value": 3794.5743209432258,
+      "upper_value": 3942.6517777476274,
+      "value": 3868.6130493454266
     }
   },
   "lockfree_unbounded_spmc/mpmc_unbounded/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 22501.220264118456,
-      "upper_value": 22982.676329966227,
-      "value": 22741.94829704234
+      "lower_value": 17541.21913332768,
+      "upper_value": 26434.61576253597,
+      "value": 21987.917447931824
     }
   },
   "lockfree_unbounded_spmc/mpmc_unbounded/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 13934.349008592792,
-      "upper_value": 18629.685887786727,
-      "value": 16282.01744818976
+      "lower_value": 11244.159339972814,
+      "upper_value": 13416.242426465165,
+      "value": 12330.20088321899
     }
   },
   "lockfree_unbounded_spsc/spsc_unbounded/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 25319.974029140787,
-      "upper_value": 28603.262631437443,
-      "value": 26961.618330289115
+      "lower_value": 21460.235072925134,
+      "upper_value": 25694.017722785975,
+      "value": 23577.126397855554
     }
   },
   "loony/mpmc_unbounded/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 9000.0,
-      "upper_value": 11000.0,
-      "value": 10000.0
+      "lower_value": 33087.24117779226,
+      "upper_value": 38586.30604806977,
+      "value": 35836.773612931014
     }
   },
   "loony/mpmc_unbounded/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 9000.0,
-      "upper_value": 11000.0,
-      "value": 10000.0
+      "lower_value": 11163.645444729189,
+      "upper_value": 11284.948578560061,
+      "value": 11224.297011644625
     }
   },
   "loony/mpmc_unbounded/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 9000.0,
-      "upper_value": 11000.0,
-      "value": 10000.0
+      "lower_value": 17315.06380379015,
+      "upper_value": 17696.42192201689,
+      "value": 17505.74286290352
     }
   },
   "loony/mpmc_unbounded/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 9000.0,
-      "upper_value": 11000.0,
-      "value": 10000.0
+      "lower_value": 9403.987724434919,
+      "upper_value": 27801.483933499978,
+      "value": 18602.73582896745
     }
   },
   "loony/mpmc_unbounded/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 9000.0,
-      "upper_value": 11000.0,
-      "value": 10000.0
+      "lower_value": 25985.383801738386,
+      "upper_value": 26107.711363197664,
+      "value": 26046.547582468025
     }
   },
   "loony/mpmc_unbounded/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 9000.0,
-      "upper_value": 11000.0,
-      "value": 10000.0
+      "lower_value": 9177.866252957274,
+      "upper_value": 9286.549201827149,
+      "value": 9232.207727392211
     }
   },
   "loony/mpmc_unbounded/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 9000.0,
-      "upper_value": 11000.0,
-      "value": 10000.0
+      "lower_value": 16465.253449943946,
+      "upper_value": 18224.38458562474,
+      "value": 17344.819017784343
     }
   },
   "loony/mpmc_unbounded/4p2c": {
     "throughput_ops_ms": {
-      "lower_value": 9000.0,
-      "upper_value": 11000.0,
-      "value": 10000.0
+      "lower_value": 9794.40087798118,
+      "upper_value": 10311.490475337172,
+      "value": 10052.945676659176
     }
   },
   "loony/mpmc_unbounded/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 9000.0,
-      "upper_value": 11000.0,
-      "value": 10000.0
+      "lower_value": 12333.357295747512,
+      "upper_value": 13513.066758106092,
+      "value": 12923.212026926802
     }
   },
   "loony/mpmc_unbounded/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 9000.0,
-      "upper_value": 11000.0,
-      "value": 10000.0
+      "lower_value": 10560.667349613876,
+      "upper_value": 11807.45313900437,
+      "value": 11184.060244309123
     }
   },
   "meta": {
@@ -2953,7 +3134,7 @@
       "lockfree": {
         "fingerprint": null,
         "kind": "in-tree",
-        "version": "0.6.0"
+        "version": "0.6.2"
       },
       "loony": {
         "fingerprint": null,
@@ -3007,1261 +3188,1261 @@
         "version": "1.54.1"
       }
     },
-    "generated_at": "2026-10-25T02:36:28Z",
+    "generated_at": "2026-10-25T11:45:00Z",
     "host": {
-      "arch": "amd64",
-      "cores": 4,
-      "cpu_model": "AMD EPYC 9V45 96-Core Processor",
+      "arch": "arm64",
+      "cores": 12,
+      "cpu_model": "Apple M4 Pro",
       "environment": "GitHub Actions CI Runner",
-      "memory_bytes": 16765415424,
-      "memory_human": "15 GB",
-      "os": "linux"
+      "memory_bytes": 51539607552,
+      "memory_human": "48 GB",
+      "os": "macosx"
     },
-    "lockfree_version": "0.6.0",
+    "lockfree_version": "0.6.2",
     "nim_version": "2.2.12",
     "schema": 1
   },
   "moodycamel/mpmc_unbounded/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 21481.46358036643,
-      "upper_value": 22931.64324290749,
-      "value": 22206.55341163696
+      "lower_value": 36906.0110313499,
+      "upper_value": 37107.78405054062,
+      "value": 37006.89754094526
     }
   },
   "moodycamel/mpmc_unbounded/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 9871.807779880619,
-      "upper_value": 17263.160359102312,
-      "value": 13567.484069491466
+      "lower_value": 15692.210970090266,
+      "upper_value": 17240.26303768238,
+      "value": 16466.237003886323
     }
   },
   "moodycamel/mpmc_unbounded/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 11757.450112335784,
-      "upper_value": 14041.865020184217,
-      "value": 12899.65756626
+      "lower_value": 5722.300679000776,
+      "upper_value": 5807.8034964482495,
+      "value": 5765.052087724513
     }
   },
   "moodycamel/mpmc_unbounded/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 33216.36529799112,
-      "upper_value": 33654.799718660746,
-      "value": 33435.58250832593
+      "lower_value": 69302.139996065,
+      "upper_value": 69506.50608180906,
+      "value": 69404.32303893703
     }
   },
   "moodycamel/mpmc_unbounded/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 9887.695044071428,
-      "upper_value": 22037.19309831907,
-      "value": 15962.444071195248
+      "lower_value": 21914.08532897046,
+      "upper_value": 21936.75140354791,
+      "value": 21925.418366259186
     }
   },
   "moodycamel/mpmc_unbounded/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 12365.848284413563,
-      "upper_value": 13827.622986439468,
-      "value": 13096.735635426516
+      "lower_value": 10071.122370652633,
+      "upper_value": 10132.095910928554,
+      "value": 10101.609140790593
     }
   },
   "moodycamel/mpmc_unbounded/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 26868.23220241002,
-      "upper_value": 33961.50723289032,
-      "value": 30414.86971765017
+      "lower_value": 74266.47971078742,
+      "upper_value": 74770.33287185826,
+      "value": 74518.40629132284
     }
   },
   "moodycamel/mpmc_unbounded/4p2c": {
     "throughput_ops_ms": {
-      "lower_value": 9689.841470336683,
-      "upper_value": 23588.67556688059,
-      "value": 16639.258518608636
+      "lower_value": 19412.366942903576,
+      "upper_value": 20139.54769565765,
+      "value": 19775.957319280613
     }
   },
   "moodycamel/mpmc_unbounded/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 10017.33000282179,
-      "upper_value": 14705.298053543087,
-      "value": 12361.314028182438
+      "lower_value": 9521.962798296365,
+      "upper_value": 19897.9325834266,
+      "value": 14709.947690861482
     }
   },
   "moodycamel/mpmc_unbounded/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 13208.241679175882,
-      "upper_value": 14721.078263728106,
-      "value": 13964.659971451994
+      "lower_value": 9026.706297155011,
+      "upper_value": 9101.843217122048,
+      "value": 9064.27475713853
     }
   },
   "mutex_guard/smr_pin_unpin/1t": {
     "latency_max_ns": {
-      "value": 26.3125
+      "value": 10.4375
     },
     "latency_p50_ns": {
-      "value": 12.5
+      "value": 5.1875
     },
     "latency_p95_ns": {
-      "value": 13.1875
+      "value": 5.25
     },
     "latency_p999_ns": {
-      "value": 26.0
+      "value": 10.421937499999999
     },
     "latency_p99_ns": {
-      "value": 13.78125
+      "value": 5.25
     },
     "throughput_ops_ms": {
-      "lower_value": 86622.58956252206,
-      "upper_value": 99588.43352744005,
-      "value": 93105.51154498105
+      "lower_value": 217984.3590745095,
+      "upper_value": 220514.1306733952,
+      "value": 219249.24487395235
     }
   },
   "mutex_guard/smr_pin_unpin/2t": {
     "throughput_ops_ms": {
-      "lower_value": 41882.706388039325,
-      "upper_value": 44694.356211957536,
-      "value": 43288.53129999843
+      "lower_value": 142918.38785464785,
+      "upper_value": 159353.670205416,
+      "value": 151136.02903003193
     }
   },
   "mutex_guard/smr_pin_unpin/4t": {
     "throughput_ops_ms": {
-      "lower_value": 24723.293442593913,
-      "upper_value": 27793.293299355642,
-      "value": 26258.293370974778
+      "lower_value": 67643.12525052867,
+      "upper_value": 68740.59280678675,
+      "value": 68191.85902865771
     }
   },
   "mutex_guard/smr_pin_unpin/8t": {
     "throughput_ops_ms": {
-      "lower_value": 26424.9584225958,
-      "upper_value": 26906.577148765453,
-      "value": 26665.767785680626
+      "lower_value": 88542.31868540379,
+      "upper_value": 90371.66221667928,
+      "value": 89456.99045104154
     }
   },
   "nebr/smr_pin_unpin/1t": {
     "latency_max_ns": {
-      "value": 42.5625
+      "value": 59.9375
     },
     "latency_p50_ns": {
-      "value": 34.4375
+      "value": 20.8125
     },
     "latency_p95_ns": {
-      "value": 35.0625
+      "value": 26.0625
     },
     "latency_p999_ns": {
-      "value": 41.78125
+      "value": 55.359375
     },
     "latency_p99_ns": {
-      "value": 37.5625
+      "value": 31.25
     },
     "throughput_ops_ms": {
-      "lower_value": 27239.60170475936,
-      "upper_value": 27765.138304169242,
-      "value": 27502.3700044643
+      "lower_value": 36253.97804579493,
+      "upper_value": 39032.23003919416,
+      "value": 37643.104042494546
     }
   },
   "nebr/smr_pin_unpin/2t": {
     "throughput_ops_ms": {
-      "lower_value": 52451.36703495402,
-      "upper_value": 53344.382135336185,
-      "value": 52897.8745851451
+      "lower_value": 73971.3358145676,
+      "upper_value": 88570.60921994204,
+      "value": 81270.97251725482
     }
   },
   "nebr/smr_pin_unpin/4t": {
     "throughput_ops_ms": {
-      "lower_value": 54948.92209012773,
-      "upper_value": 83686.1742825558,
-      "value": 69317.54818634177
+      "lower_value": 111571.73099150408,
+      "upper_value": 301022.04859428393,
+      "value": 206296.889792894
     }
   },
   "nebr/smr_pin_unpin/8t": {
     "throughput_ops_ms": {
-      "lower_value": 62629.21310290514,
-      "upper_value": 75675.45995888609,
-      "value": 69152.33653089561
+      "lower_value": 212463.48673339267,
+      "upper_value": 230719.83654872017,
+      "value": 221591.66164105642
     }
   },
   "nebr/smr_retire_reclaim/1t": {
     "throughput_ops_ms": {
-      "lower_value": 12863.78199288196,
-      "upper_value": 13453.54216144157,
-      "value": 13158.662077161765
+      "lower_value": 39111.05230969284,
+      "upper_value": 39355.08456358641,
+      "value": 39233.06843663962
     }
   },
   "nebr/smr_retire_reclaim/2t": {
     "throughput_ops_ms": {
-      "lower_value": 18515.279009053054,
-      "upper_value": 25118.126031259802,
-      "value": 21816.70252015643
+      "lower_value": 60202.93086714586,
+      "upper_value": 64860.42819411053,
+      "value": 62531.67953062819
     }
   },
   "nebr/smr_retire_reclaim/4t": {
     "throughput_ops_ms": {
-      "lower_value": 28108.731279856464,
-      "upper_value": 30989.63460106657,
-      "value": 29549.182940461516
+      "lower_value": 90875.94078492331,
+      "upper_value": 93661.36872430971,
+      "value": 92268.65475461651
     }
   },
   "nebr/smr_retire_reclaim/8t": {
     "throughput_ops_ms": {
-      "lower_value": 5788.375429692495,
-      "upper_value": 9801.898661209454,
-      "value": 7795.137045450975
+      "lower_value": 7628.175913476447,
+      "upper_value": 50780.05408726452,
+      "value": 29204.115000370482
     }
   },
   "nim_channel/mpsc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 1254.9888850750785,
-      "upper_value": 1473.6457451049664,
-      "value": 1364.3173150900225
+      "lower_value": 18057.172714561424,
+      "upper_value": 18603.34510404502,
+      "value": 18330.258909303222
     }
   },
   "nim_channel/mpsc/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 3350.460670327009,
-      "upper_value": 4553.420044106839,
-      "value": 3951.940357216924
+      "lower_value": 6489.932824980982,
+      "upper_value": 12207.261059292994,
+      "value": 9348.596942136988
     }
   },
   "nim_channel/mpsc/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 3509.269716007143,
-      "upper_value": 3620.4201549040154,
-      "value": 3564.844935455579
+      "lower_value": 16266.392332081172,
+      "upper_value": 18993.806813296,
+      "value": 17630.099572688585
     }
   },
   "nim_channel/mpsc/8p1c": {
     "throughput_ops_ms": {
-      "lower_value": 3389.3873721736463,
-      "upper_value": 3528.943054158004,
-      "value": 3459.165213165825
+      "lower_value": 7687.801601977102,
+      "upper_value": 8238.047401297514,
+      "value": 7962.924501637308
     }
   },
   "nim_channel_sync/rendezvous_handoff/1p1c": {
     "latency_max_ns": {
-      "value": 95546.66666666667
+      "value": 21388.666666666668
     },
     "latency_p50_ns": {
-      "value": 16054.0
+      "value": 4139.0
     },
     "latency_p95_ns": {
-      "value": 18304.333333333332
+      "value": 6417.0
     },
     "latency_p999_ns": {
-      "value": 31580.666666666668
+      "value": 9916.333333333334
     },
     "latency_p99_ns": {
-      "value": 24924.0
+      "value": 7500.0
     },
     "throughput_ops_ms": {
-      "lower_value": 2176.4936638948843,
-      "upper_value": 2187.9913590386927,
-      "value": 2182.2425114667885
+      "lower_value": 401.84582550396016,
+      "upper_value": 1009.2844343322663,
+      "value": 705.5651299181133
     }
   },
   "nim_channel_sync/rendezvous_handoff/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 1397.949262305677,
-      "upper_value": 1503.4336837616804,
-      "value": 1450.6914730336787
+      "lower_value": 295.7387446167296,
+      "upper_value": 309.83043890364695,
+      "value": 302.7845917601883
     }
   },
   "nim_channel_sync/rendezvous_handoff/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 894.1708292667939,
-      "upper_value": 1295.0396299024535,
-      "value": 1094.6052295846237
+      "lower_value": 138.06907696905495,
+      "upper_value": 160.23739672430764,
+      "value": 149.1532368466813
     }
   },
   "nim_channel_sync/rendezvous_handoff/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 291.8352715176029,
-      "upper_value": 1243.5957196981913,
-      "value": 767.7154956078971
+      "lower_value": 42.515783022909915,
+      "upper_value": 48.62105495638845,
+      "value": 45.56841898964918
     }
   },
   "nim_channel_sync/rendezvous_rpc/1p1c": {
     "latency_max_ns": {
-      "value": 95546.66666666667
+      "value": 21388.666666666668
     },
     "latency_p50_ns": {
-      "value": 16054.0
+      "value": 4139.0
     },
     "latency_p95_ns": {
-      "value": 18304.333333333332
+      "value": 6417.0
     },
     "latency_p999_ns": {
-      "value": 31580.666666666668
+      "value": 9916.333333333334
     },
     "latency_p99_ns": {
-      "value": 24924.0
+      "value": 7500.0
     },
     "throughput_ops_ms": {
-      "lower_value": 58.44222458105037,
-      "upper_value": 62.736567765747736,
-      "value": 60.58939617339905
+      "lower_value": 208.82567810021771,
+      "upper_value": 244.60705428043406,
+      "value": 226.71636619032589
     }
   },
   "nim_channels/mpmc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 2342.8635563558896,
-      "upper_value": 2384.861986134168,
-      "value": 2363.862771245029
+      "lower_value": 2518.6191823045465,
+      "upper_value": 3253.561704971932,
+      "value": 2886.0904436382393
     }
   },
   "nim_channels/mpmc/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 860.1424693570573,
-      "upper_value": 888.9909348359529,
-      "value": 874.5667020965051
+      "lower_value": 6374.713934099903,
+      "upper_value": 8036.755094487114,
+      "value": 7205.734514293508
     }
   },
   "nim_channels/mpmc/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 188.73641068136763,
-      "upper_value": 210.90867200564756,
-      "value": 199.8225413435076
+      "lower_value": 1034.8273354151356,
+      "upper_value": 2180.179424575923,
+      "value": 1607.5033799955293
     }
   },
   "nim_channels/mpmc/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 4194.256624013344,
-      "upper_value": 5655.890030642242,
-      "value": 4925.073327327793
+      "lower_value": 3779.192492468178,
+      "upper_value": 4514.839395705682,
+      "value": 4147.01594408693
     }
   },
   "nim_channels/mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 1395.0339157948015,
-      "upper_value": 1433.8852275237732,
-      "value": 1414.4595716592873
+      "lower_value": 2408.1104858547756,
+      "upper_value": 2608.0400706579817,
+      "value": 2508.0752782563786
     }
   },
   "nim_channels/mpmc/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 531.6761053688169,
-      "upper_value": 644.9971655620391,
-      "value": 588.336635465428
+      "lower_value": 374.84418106751934,
+      "upper_value": 454.1515746128414,
+      "value": 414.49787784018037
     }
   },
   "nim_channels/mpmc/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 5112.8015637075305,
-      "upper_value": 5392.738555480876,
-      "value": 5252.770059594203
+      "lower_value": 13945.85909115457,
+      "upper_value": 16739.854363520433,
+      "value": 15342.856727337503
     }
   },
   "nim_channels/mpmc/4p2c": {
     "throughput_ops_ms": {
-      "lower_value": 1267.266139230455,
-      "upper_value": 3255.4595793771205,
-      "value": 2261.362859303788
+      "lower_value": 7379.05604105286,
+      "upper_value": 8159.423831457085,
+      "value": 7769.239936254972
     }
   },
   "nim_channels/mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 1708.4157779989225,
-      "upper_value": 1977.3946449158946,
-      "value": 1842.9052114574085
+      "lower_value": 744.2048858914306,
+      "upper_value": 784.9018690034536,
+      "value": 764.5533774474421
     }
   },
   "nim_channels/mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 1290.8641469458626,
-      "upper_value": 1463.5947051222997,
-      "value": 1377.2294260340811
+      "lower_value": 89.8548278006796,
+      "upper_value": 129.186072864613,
+      "value": 109.5204503326463
     }
   },
   "rayon_pool/taskpool_forkjoin/1t": {
     "throughput_ops_ms": {
-      "lower_value": 25821.263369996683,
-      "upper_value": 29213.738621435325,
-      "value": 27517.500995716004
+      "lower_value": 22342.425354245377,
+      "upper_value": 22466.258660556497,
+      "value": 22404.342007400937
     }
   },
   "rayon_pool/taskpool_forkjoin/2t": {
     "throughput_ops_ms": {
-      "lower_value": 33186.45185567672,
-      "upper_value": 41314.72884050545,
-      "value": 37250.590348091086
+      "lower_value": 11609.650217183656,
+      "upper_value": 12676.12215390686,
+      "value": 12142.886185545258
     }
   },
   "rayon_pool/taskpool_forkjoin/4t": {
     "throughput_ops_ms": {
-      "lower_value": 41262.74818635291,
-      "upper_value": 47414.94445276608,
-      "value": 44338.846319559496
+      "lower_value": 22730.17351456536,
+      "upper_value": 23745.225240488304,
+      "value": 23237.69937752683
     }
   },
   "rayon_pool/taskpool_forkjoin/8t": {
     "throughput_ops_ms": {
-      "lower_value": 28790.189594309835,
-      "upper_value": 36052.30421500684,
-      "value": 32421.24690465834
+      "lower_value": 19115.77809476593,
+      "upper_value": 26832.29609170422,
+      "value": 22974.037093235074
     }
   },
   "rayon_pool/taskpool_parfor/1t": {
     "throughput_ops_ms": {
-      "lower_value": 445060.5300828675,
-      "upper_value": 560508.0273727787,
-      "value": 502784.2787278231
+      "lower_value": 399535.46406889975,
+      "upper_value": 407968.73889126256,
+      "value": 403752.10148008115
     }
   },
   "rayon_pool/taskpool_parfor/2t": {
     "throughput_ops_ms": {
-      "lower_value": 656138.8831019348,
-      "upper_value": 676870.2805202566,
-      "value": 666504.5818110957
+      "lower_value": 620169.8394117083,
+      "upper_value": 665944.5338818547,
+      "value": 643057.1866467815
     }
   },
   "rayon_pool/taskpool_parfor/4t": {
     "throughput_ops_ms": {
-      "lower_value": 605874.0042073701,
-      "upper_value": 707093.3128363013,
-      "value": 656483.6585218357
+      "lower_value": 553428.6255408761,
+      "upper_value": 697774.8760993211,
+      "value": 625601.7508200986
     }
   },
   "rayon_pool/taskpool_parfor/8t": {
     "throughput_ops_ms": {
-      "lower_value": 699117.048585286,
-      "upper_value": 841708.5883137326,
-      "value": 770412.8184495093
+      "lower_value": 436624.4559827639,
+      "upper_value": 706775.1909479849,
+      "value": 571699.8234653744
     }
   },
   "rendezvous_channel/rendezvous_handoff/1p1c": {
     "latency_max_ns": {
-      "value": 43765.666666666664
+      "value": 15110.666666666666
     },
     "latency_p50_ns": {
-      "value": 13710.666666666666
+      "value": 4722.333333333333
     },
     "latency_p95_ns": {
-      "value": 15469.333333333334
+      "value": 7013.666666666667
     },
     "latency_p999_ns": {
-      "value": 36023.666666666664
+      "value": 10986.333333333334
     },
     "latency_p99_ns": {
-      "value": 22443.666666666668
+      "value": 8250.0
     },
     "throughput_ops_ms": {
-      "lower_value": 212.36843094236627,
-      "upper_value": 319.4820025153785,
-      "value": 265.9252167288724
+      "lower_value": 450.9168405347236,
+      "upper_value": 474.8109926849956,
+      "value": 462.8639166098596
     }
   },
   "rendezvous_channel/rendezvous_handoff/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 532.8174168610326,
-      "upper_value": 2500.264634609969,
-      "value": 1516.5410257355009
+      "lower_value": 753.198265213758,
+      "upper_value": 756.6088049465685,
+      "value": 754.9035350801632
     }
   },
   "rendezvous_channel/rendezvous_handoff/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 1359.3802220942268,
-      "upper_value": 2090.110219138842,
-      "value": 1724.7452206165344
+      "lower_value": 592.8578616122073,
+      "upper_value": 606.9325527657835,
+      "value": 599.8952071889954
     }
   },
   "rendezvous_channel/rendezvous_handoff/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 1588.8607696600302,
-      "upper_value": 1778.0695961572005,
-      "value": 1683.4651829086154
+      "lower_value": 696.2999145120218,
+      "upper_value": 711.6258550841535,
+      "value": 703.9628847980877
     }
   },
   "rendezvous_channel/rendezvous_rpc/1p1c": {
     "latency_max_ns": {
-      "value": 43765.666666666664
+      "value": 15110.666666666666
     },
     "latency_p50_ns": {
-      "value": 13710.666666666666
+      "value": 4722.333333333333
     },
     "latency_p95_ns": {
-      "value": 15469.333333333334
+      "value": 7013.666666666667
     },
     "latency_p999_ns": {
-      "value": 36023.666666666664
+      "value": 10986.333333333334
     },
     "latency_p99_ns": {
-      "value": 22443.666666666668
+      "value": 8250.0
     },
     "throughput_ops_ms": {
-      "lower_value": 79.36585981318194,
-      "upper_value": 100.25513036295538,
-      "value": 89.81049508806866
+      "lower_value": 202.29530354468184,
+      "upper_value": 210.61937274814412,
+      "value": 206.45733814641298
     }
   },
   "rigtorp_mpmc/mpmc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 34205.30363356747,
-      "upper_value": 34607.70959231202,
-      "value": 34406.506612939746
+      "lower_value": 128847.8424956766,
+      "upper_value": 168353.95700959308,
+      "value": 148600.89975263484
     }
   },
   "rigtorp_mpmc/mpmc/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 12066.56328149094,
-      "upper_value": 14427.638692842422,
-      "value": 13247.100987166681
+      "lower_value": 13478.337909342586,
+      "upper_value": 17841.275714424042,
+      "value": 15659.806811883314
     }
   },
   "rigtorp_mpmc/mpmc/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 11111.898174486398,
-      "upper_value": 13522.499665281523,
-      "value": 12317.19891988396
+      "lower_value": 5834.189236253747,
+      "upper_value": 6105.094796988913,
+      "value": 5969.64201662133
     }
   },
   "rigtorp_mpmc/mpmc/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 16759.55820019094,
-      "upper_value": 18049.868524768306,
-      "value": 17404.713362479622
+      "lower_value": 15055.005360256913,
+      "upper_value": 18174.735136684973,
+      "value": 16614.870248470943
     }
   },
   "rigtorp_mpmc/mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 12280.077557416012,
-      "upper_value": 12353.793391518748,
-      "value": 12316.93547446738
+      "lower_value": 14563.230652108561,
+      "upper_value": 18435.4771083402,
+      "value": 16499.353880224382
     }
   },
   "rigtorp_mpmc/mpmc/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 8522.408874066043,
-      "upper_value": 9789.0879404264,
-      "value": 9155.748407246221
+      "lower_value": 5713.143996056204,
+      "upper_value": 7652.823386003625,
+      "value": 6682.983691029915
     }
   },
   "rigtorp_mpmc/mpmc/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 10404.436275750773,
-      "upper_value": 10666.527226852999,
-      "value": 10535.481751301886
+      "lower_value": 6543.914892220738,
+      "upper_value": 12352.51703010768,
+      "value": 9448.21596116421
     }
   },
   "rigtorp_mpmc/mpmc/4p2c": {
     "throughput_ops_ms": {
-      "lower_value": 10285.87875179723,
-      "upper_value": 12902.319512920785,
-      "value": 11594.099132359008
+      "lower_value": 6198.861939254223,
+      "upper_value": 7099.74086457738,
+      "value": 6649.301401915802
     }
   },
   "rigtorp_mpmc/mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 9035.470234344722,
-      "upper_value": 11798.225995266008,
-      "value": 10416.848114805365
+      "lower_value": 4081.0734407397895,
+      "upper_value": 5040.742794019833,
+      "value": 4560.908117379811
     }
   },
   "rigtorp_mpmc/mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 4740.383162182727,
-      "upper_value": 5497.052188208863,
-      "value": 5118.717675195795
+      "lower_value": 2283.2706392619857,
+      "upper_value": 2708.6144493169822,
+      "value": 2495.942544289484
     }
   },
   "rigtorp_spsc/spsc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 15546.608591020538,
-      "upper_value": 22447.81541786864,
-      "value": 18997.21200444459
+      "lower_value": 36424.79936970874,
+      "upper_value": 52918.42968865106,
+      "value": 44671.6145291799
     }
   },
   "rtrb_stream/spsc_chunk/4kb": {
     "bandwidth_mb_s": {
-      "lower_value": 15893.143899000159,
-      "upper_value": 17115.994749757676,
-      "value": 16504.569324378917
+      "lower_value": 23014.279875529854,
+      "upper_value": 24270.5135782241,
+      "value": 23642.396726876977
     },
     "throughput_ops_ms": {
-      "lower_value": 4068.6448381440405,
-      "upper_value": 4381.694655937965,
-      "value": 4225.169747041003
+      "lower_value": 5891.655648135643,
+      "upper_value": 6213.25147602537,
+      "value": 6052.453562080506
     }
   },
   "rtrb_stream/spsc_chunk/512b": {
     "bandwidth_mb_s": {
-      "lower_value": 6056.253959115496,
-      "upper_value": 6535.2644075983135,
-      "value": 6295.759183356905
+      "lower_value": 6061.708510181461,
+      "upper_value": 6943.046767801519,
+      "value": 6502.37763899149
     },
     "throughput_ops_ms": {
-      "lower_value": 12403.208108268534,
-      "upper_value": 13384.221506761345,
-      "value": 12893.71480751494
+      "lower_value": 12414.379028851632,
+      "upper_value": 14219.359780457511,
+      "value": 13316.869404654572
     }
   },
   "rtrb_stream/spsc_chunk/64b": {
     "bandwidth_mb_s": {
-      "lower_value": 2581.0545063398004,
-      "upper_value": 2982.2001308062036,
-      "value": 2781.627318573002
+      "lower_value": 1487.730123973596,
+      "upper_value": 1557.3394521852858,
+      "value": 1522.534788079441
     },
     "throughput_ops_ms": {
-      "lower_value": 42287.99703187129,
-      "upper_value": 48860.36694312883,
-      "value": 45574.18198750006
+      "lower_value": 24374.970351183394,
+      "upper_value": 25515.449584603724,
+      "value": 24945.20996789356
     }
   },
   "rtrb_stream/spsc_chunk/64kb": {
     "bandwidth_mb_s": {
-      "lower_value": 16838.76081624941,
-      "upper_value": 18811.767807347187,
-      "value": 17825.2643117983
+      "lower_value": 49663.50864701725,
+      "upper_value": 50758.58406490996,
+      "value": 50211.046355963605
     },
     "throughput_ops_ms": {
-      "lower_value": 269.4201730599906,
-      "upper_value": 300.988284917555,
-      "value": 285.2042289887728
+      "lower_value": 794.6161383522758,
+      "upper_value": 812.1373450385593,
+      "value": 803.3767416954175
     }
   },
   "rust_bus/fanout/1p16c": {
     "throughput_ops_ms": {
-      "lower_value": 13369.792774417338,
-      "upper_value": 16086.529816934397,
-      "value": 14728.161295675867
+      "lower_value": 5634.42682327275,
+      "upper_value": 8943.297088994575,
+      "value": 7288.861956133663
     }
   },
   "rust_bus/fanout/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 24387.538409652447,
-      "upper_value": 24435.80282982923,
-      "value": 24411.67061974084
+      "lower_value": 32084.294732343664,
+      "upper_value": 61822.58552453427,
+      "value": 46953.44012843897
     }
   },
   "rust_bus/fanout/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 22134.951170809672,
-      "upper_value": 22580.958339852677,
-      "value": 22357.954755331175
+      "lower_value": 44905.424874008524,
+      "upper_value": 46725.494756274515,
+      "value": 45815.45981514152
     }
   },
   "rust_bus/fanout/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 19495.567943428512,
-      "upper_value": 23536.26095708255,
-      "value": 21515.914450255532
+      "lower_value": 27531.52590612363,
+      "upper_value": 49524.09855456134,
+      "value": 38527.81223034248
     }
   },
   "rust_bus/fanout/1p8c": {
     "throughput_ops_ms": {
-      "lower_value": 12041.533769689635,
-      "upper_value": 26933.819059859266,
-      "value": 19487.67641477445
+      "lower_value": 46586.23175649738,
+      "upper_value": 52212.35678126976,
+      "value": 49399.29426888357
     }
   },
   "skiplist/balanced/1t": {
     "throughput_ops_ms": {
-      "lower_value": 2915.390249808776,
-      "upper_value": 2948.0118570639884,
-      "value": 2931.701053436382
+      "lower_value": 5034.390049346472,
+      "upper_value": 5108.458487358539,
+      "value": 5071.424268352505
     }
   },
   "skiplist/balanced/2t": {
     "throughput_ops_ms": {
-      "lower_value": 4992.942504324351,
-      "upper_value": 5243.01812530615,
-      "value": 5117.9803148152505
+      "lower_value": 9178.90305446815,
+      "upper_value": 9605.7500385996,
+      "value": 9392.326546533875
     }
   },
   "skiplist/balanced/4t": {
     "throughput_ops_ms": {
-      "lower_value": 7946.490235711516,
-      "upper_value": 8213.067230956092,
-      "value": 8079.778733333805
+      "lower_value": 16145.978714107303,
+      "upper_value": 17827.92975810561,
+      "value": 16986.954236106456
     }
   },
   "skiplist/balanced/8t": {
     "throughput_ops_ms": {
-      "lower_value": 5843.327131233511,
-      "upper_value": 7171.823537695325,
-      "value": 6507.575334464418
+      "lower_value": 24847.881005782656,
+      "upper_value": 25401.654110412506,
+      "value": 25124.76755809758
     }
   },
   "skiplist/read_heavy/1t": {
     "throughput_ops_ms": {
-      "lower_value": 3447.967280299224,
-      "upper_value": 3490.0455776604845,
-      "value": 3469.0064289798543
+      "lower_value": 5613.210641367663,
+      "upper_value": 5713.1652248844275,
+      "value": 5663.187933126045
     }
   },
   "skiplist/read_heavy/2t": {
     "throughput_ops_ms": {
-      "lower_value": 6450.37208167471,
-      "upper_value": 6634.016944220351,
-      "value": 6542.194512947531
+      "lower_value": 10584.77417965369,
+      "upper_value": 10833.616137739198,
+      "value": 10709.195158696444
     }
   },
   "skiplist/read_heavy/4t": {
     "throughput_ops_ms": {
-      "lower_value": 10589.349251906748,
-      "upper_value": 11032.180610348209,
-      "value": 10810.764931127478
+      "lower_value": 20045.876364120508,
+      "upper_value": 20540.670907356747,
+      "value": 20293.273635738627
     }
   },
   "skiplist/read_heavy/8t": {
     "throughput_ops_ms": {
-      "lower_value": 8677.367787635374,
-      "upper_value": 9651.264956181267,
-      "value": 9164.31637190832
+      "lower_value": 24453.108849946737,
+      "upper_value": 39223.86848642577,
+      "value": 31838.48866818625
     }
   },
   "skiplist/write_heavy/1t": {
     "throughput_ops_ms": {
-      "lower_value": 2304.194334439375,
-      "upper_value": 2468.310408487464,
-      "value": 2386.2523714634194
+      "lower_value": 4653.739176826963,
+      "upper_value": 4750.546174272831,
+      "value": 4702.142675549897
     }
   },
   "skiplist/write_heavy/2t": {
     "throughput_ops_ms": {
-      "lower_value": 4179.696240041388,
-      "upper_value": 4688.496422183539,
-      "value": 4434.096331112463
+      "lower_value": 8639.93991200501,
+      "upper_value": 8713.637922352938,
+      "value": 8676.788917178974
     }
   },
   "skiplist/write_heavy/4t": {
     "throughput_ops_ms": {
-      "lower_value": 7173.697755953667,
-      "upper_value": 7341.0989736799975,
-      "value": 7257.398364816832
+      "lower_value": 15874.821185211013,
+      "upper_value": 16141.06838312512,
+      "value": 16007.944784168067
     }
   },
   "skiplist/write_heavy/8t": {
     "throughput_ops_ms": {
-      "lower_value": 5614.919178412967,
-      "upper_value": 6403.082934932047,
-      "value": 6009.001056672507
+      "lower_value": 21326.507059062562,
+      "upper_value": 21520.863186844326,
+      "value": 21423.685122953444
     }
   },
   "skiplist_pq/pqueue_mpmc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 1963.3429201930574,
-      "upper_value": 2184.220767199081,
-      "value": 2073.7818436960692
+      "lower_value": 4811.831099853851,
+      "upper_value": 5411.135531959373,
+      "value": 5111.483315906612
     }
   },
   "skiplist_pq/pqueue_mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 2124.939402845025,
-      "upper_value": 2314.467504766997,
-      "value": 2219.703453806011
+      "lower_value": 4692.974796379442,
+      "upper_value": 4754.274654812081,
+      "value": 4723.624725595761
     }
   },
   "skiplist_pq/pqueue_mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 1626.3723854917805,
-      "upper_value": 2207.011652082789,
-      "value": 1916.692018787285
+      "lower_value": 2303.7408119332804,
+      "upper_value": 2484.524021401805,
+      "value": 2394.1324166675427
     }
   },
   "skiplist_pq/pqueue_mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 1299.935113832908,
-      "upper_value": 1360.4799994130644,
-      "value": 1330.2075566229862
+      "lower_value": 2562.3993465650574,
+      "upper_value": 2697.933500299472,
+      "value": 2630.1664234322648
     }
   },
   "skiplist_set/set_algebra/1t": {
     "throughput_ops_ms": {
-      "lower_value": 4785.003383609926,
-      "upper_value": 4894.109331628423,
-      "value": 4839.556357619174
+      "lower_value": 8059.916355080058,
+      "upper_value": 8394.76451499734,
+      "value": 8227.340435038699
     }
   },
   "skiplist_set/set_algebra/2t": {
     "throughput_ops_ms": {
-      "lower_value": 9725.629684754875,
-      "upper_value": 10240.51918881227,
-      "value": 9983.074436783572
+      "lower_value": 15223.838729663496,
+      "upper_value": 15552.013589551329,
+      "value": 15387.926159607412
     }
   },
   "skiplist_set/set_algebra/4t": {
     "throughput_ops_ms": {
-      "lower_value": 13086.126768785172,
-      "upper_value": 13829.004883969457,
-      "value": 13457.565826377315
+      "lower_value": 29496.834022474384,
+      "upper_value": 30348.5436921549,
+      "value": 29922.688857314643
     }
   },
   "skiplist_set/set_algebra/8t": {
     "throughput_ops_ms": {
-      "lower_value": 10240.136926006522,
-      "upper_value": 10524.027489088578,
-      "value": 10382.08220754755
+      "lower_value": 57074.732015810696,
+      "upper_value": 59293.596209058924,
+      "value": 58184.16411243481
     }
   },
   "skiplist_set/set_mixed/1t": {
     "throughput_ops_ms": {
-      "lower_value": 3322.985606882212,
-      "upper_value": 3416.6599597560153,
-      "value": 3369.8227833191136
+      "lower_value": 5341.699810210117,
+      "upper_value": 5435.840092757959,
+      "value": 5388.769951484038
     }
   },
   "skiplist_set/set_mixed/2t": {
     "throughput_ops_ms": {
-      "lower_value": 5902.7082287243165,
-      "upper_value": 6571.653890785738,
-      "value": 6237.1810597550275
+      "lower_value": 9941.492825934538,
+      "upper_value": 10297.930436178647,
+      "value": 10119.711631056593
     }
   },
   "skiplist_set/set_mixed/4t": {
     "throughput_ops_ms": {
-      "lower_value": 10004.361110130774,
-      "upper_value": 10441.86770063616,
-      "value": 10223.114405383467
+      "lower_value": 18378.976358124466,
+      "upper_value": 18498.97288514944,
+      "value": 18438.974621636953
     }
   },
   "skiplist_set/set_mixed/8t": {
     "throughput_ops_ms": {
-      "lower_value": 8006.579291471477,
-      "upper_value": 9061.522148476182,
-      "value": 8534.05071997383
+      "lower_value": 30588.946105348317,
+      "upper_value": 32091.712837701547,
+      "value": 31340.329471524932
     }
   },
   "stream_ring/spsc_chunk/4kb": {
     "bandwidth_mb_s": {
-      "lower_value": 2568.2747731541963,
-      "upper_value": 2676.8142438679565,
-      "value": 2622.5445085110764
+      "lower_value": 24205.383636131384,
+      "upper_value": 24497.88050926867,
+      "value": 24351.632072700027
     },
     "throughput_ops_ms": {
-      "lower_value": 657.478341927474,
-      "upper_value": 685.2644464301968,
-      "value": 671.3713941788354
+      "lower_value": 6196.578210849634,
+      "upper_value": 6271.45741037278,
+      "value": 6234.017810611207
     }
   },
   "stream_ring/spsc_chunk/512b": {
     "bandwidth_mb_s": {
-      "lower_value": 4834.2408635528145,
-      "upper_value": 4998.691000087208,
-      "value": 4916.465931820011
+      "lower_value": 3691.2964119588055,
+      "upper_value": 3754.5042363452317,
+      "value": 3722.9003241520186
     },
     "throughput_ops_ms": {
-      "lower_value": 9900.525288556162,
-      "upper_value": 10237.3191681786,
-      "value": 10068.92222836738
+      "lower_value": 7559.775051691634,
+      "upper_value": 7689.2246760350345,
+      "value": 7624.499863863334
     }
   },
   "stream_ring/spsc_chunk/64b": {
     "bandwidth_mb_s": {
-      "lower_value": 1108.4526474710983,
-      "upper_value": 1209.1959552140393,
-      "value": 1158.8243013425688
+      "lower_value": 2489.2988755912556,
+      "upper_value": 14993.32514399846,
+      "value": 8741.312009794858
     },
     "throughput_ops_ms": {
-      "lower_value": 18160.888176166478,
-      "upper_value": 19811.466530226822,
-      "value": 18986.17735319665
+      "lower_value": 40784.67277768714,
+      "upper_value": 245650.6391592708,
+      "value": 143217.65596847897
     }
   },
   "stream_ring/spsc_chunk/64kb": {
     "bandwidth_mb_s": {
-      "lower_value": 2687.2661101925223,
-      "upper_value": 2712.554172923258,
-      "value": 2699.9101415578903
+      "lower_value": 48614.9818885424,
+      "upper_value": 49682.03470347065,
+      "value": 49148.50829600653
     },
     "throughput_ops_ms": {
-      "lower_value": 42.99625776308036,
-      "upper_value": 43.40086676677213,
-      "value": 43.198562264926245
+      "lower_value": 777.8397102166783,
+      "upper_value": 794.9125552555305,
+      "value": 786.3761327361044
     }
   },
   "tagged_stack/stack_mpmc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 15743.757319676633,
-      "upper_value": 17005.643645873944,
-      "value": 16374.700482775288
+      "lower_value": 7604.982248640302,
+      "upper_value": 8036.768173554196,
+      "value": 7820.875211097249
     }
   },
   "tagged_stack/stack_mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 9248.317260666558,
-      "upper_value": 12789.763878378915,
-      "value": 11019.040569522736
+      "lower_value": 10593.623345977005,
+      "upper_value": 14135.92829187675,
+      "value": 12364.775818926877
     }
   },
   "tagged_stack/stack_mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 8706.62407260861,
-      "upper_value": 11316.822895017922,
-      "value": 10011.723483813266
+      "lower_value": 4149.338393523458,
+      "upper_value": 4815.493831257412,
+      "value": 4482.416112390435
     }
   },
   "tagged_stack/stack_mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 6272.988281417242,
-      "upper_value": 10366.276947538165,
-      "value": 8319.632614477703
+      "lower_value": 5920.3871255808535,
+      "upper_value": 9100.504674362435,
+      "value": 7510.445899971644
     }
   },
   "taskpool/taskpool_forkjoin/1t": {
     "throughput_ops_ms": {
-      "lower_value": 7418.238440993617,
-      "upper_value": 8416.19976998428,
-      "value": 7917.219105488948
+      "lower_value": 4165.291675019992,
+      "upper_value": 7570.159949105405,
+      "value": 5867.725812062698
     }
   },
   "taskpool/taskpool_forkjoin/2t": {
     "throughput_ops_ms": {
-      "lower_value": 7743.948569551652,
-      "upper_value": 12577.998269562973,
-      "value": 10160.973419557313
+      "lower_value": 6795.632072640286,
+      "upper_value": 6819.420168945986,
+      "value": 6807.526120793136
     }
   },
   "taskpool/taskpool_forkjoin/4t": {
     "throughput_ops_ms": {
-      "lower_value": 9156.421555893507,
-      "upper_value": 9290.545717256748,
-      "value": 9223.483636575127
+      "lower_value": 3601.555254919148,
+      "upper_value": 4046.543416625491,
+      "value": 3824.0493357723194
     }
   },
   "taskpool/taskpool_forkjoin/8t": {
     "throughput_ops_ms": {
-      "lower_value": 9084.843968330695,
-      "upper_value": 9435.098794455223,
-      "value": 9259.97138139296
+      "lower_value": 3476.36236181926,
+      "upper_value": 3546.444670644651,
+      "value": 3511.4035162319556
     }
   },
   "taskpool/taskpool_parfor/1t": {
     "throughput_ops_ms": {
-      "lower_value": 294269.97510219284,
-      "upper_value": 367086.83256861474,
-      "value": 330678.4038354038
+      "lower_value": 253615.93785684495,
+      "upper_value": 284242.3155307447,
+      "value": 268929.1266937948
     }
   },
   "taskpool/taskpool_parfor/2t": {
     "throughput_ops_ms": {
-      "lower_value": 403439.2426736744,
-      "upper_value": 417684.55968268967,
-      "value": 410561.90117818204
+      "lower_value": 402538.62121411646,
+      "upper_value": 411640.89220175555,
+      "value": 407089.756707936
     }
   },
   "taskpool/taskpool_parfor/4t": {
     "throughput_ops_ms": {
-      "lower_value": 428517.0032362586,
-      "upper_value": 487386.8063907127,
-      "value": 457951.9048134856
+      "lower_value": 452343.45910667913,
+      "upper_value": 459898.7464850017,
+      "value": 456121.1027958404
     }
   },
   "taskpool/taskpool_parfor/8t": {
     "throughput_ops_ms": {
-      "lower_value": 429089.4047406033,
-      "upper_value": 473374.546473352,
-      "value": 451231.97560697765
+      "lower_value": 594841.3279052512,
+      "upper_value": 598207.1878447286,
+      "value": 596524.2578749899
     }
   },
   "taskpool/taskpool_spawnsync/1t": {
     "throughput_ops_ms": {
-      "lower_value": 1926.9178252086147,
-      "upper_value": 1961.6522764965032,
-      "value": 1944.285050852559
+      "lower_value": 3729.5965872203947,
+      "upper_value": 3949.078309950602,
+      "value": 3839.3374485854984
     }
   },
   "taskpool/taskpool_spawnsync/2t": {
     "throughput_ops_ms": {
-      "lower_value": 1639.3326055511086,
-      "upper_value": 2115.6733676294616,
-      "value": 1877.5029865902852
+      "lower_value": 4764.400104990694,
+      "upper_value": 5101.217840084929,
+      "value": 4932.808972537811
     }
   },
   "taskpool/taskpool_spawnsync/4t": {
     "throughput_ops_ms": {
-      "lower_value": 1326.3387809684789,
-      "upper_value": 1612.9863757591427,
-      "value": 1469.6625783638108
+      "lower_value": 2580.6395710498045,
+      "upper_value": 2667.999820574414,
+      "value": 2624.3196958121093
     }
   },
   "taskpool/taskpool_spawnsync/8t": {
     "throughput_ops_ms": {
-      "lower_value": 1473.9165249321507,
-      "upper_value": 1497.1090521378153,
-      "value": 1485.512788534983
+      "lower_value": 1902.040490513259,
+      "upper_value": 1932.848057899139,
+      "value": 1917.444274206199
     }
   },
   "threading_channels/mpmc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 4680.0,
-      "upper_value": 5720.0,
-      "value": 5200.0
+      "lower_value": 34925.730841091136,
+      "upper_value": 35769.77183598983,
+      "value": 35347.75133854048
     }
   },
   "threading_channels/mpmc/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 2790.0,
-      "upper_value": 3410.0,
-      "value": 3100.0
+      "lower_value": 18433.55263830155,
+      "upper_value": 19146.56523307261,
+      "value": 18790.05893568708
     }
   },
   "threading_channels/mpmc/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 1710.0,
-      "upper_value": 2090.0,
-      "value": 1900.0
+      "lower_value": 6257.907969779001,
+      "upper_value": 6633.0853422924365,
+      "value": 6445.496656035719
     }
   },
   "threading_channels/mpmc/2p1c": {
     "throughput_ops_ms": {
-      "lower_value": 4320.0,
-      "upper_value": 5280.0,
-      "value": 4800.0
+      "lower_value": 17997.420550661223,
+      "upper_value": 18502.15804413596,
+      "value": 18249.78929739859
     }
   },
   "threading_channels/mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 3240.0,
-      "upper_value": 3960.0,
-      "value": 3600.0
+      "lower_value": 16721.626827345208,
+      "upper_value": 17249.792358043793,
+      "value": 16985.7095926945
     }
   },
   "threading_channels/mpmc/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 1980.0,
-      "upper_value": 2420.0,
-      "value": 2200.0
+      "lower_value": 10729.462445147718,
+      "upper_value": 11115.773620109398,
+      "value": 10922.618032628558
     }
   },
   "threading_channels/mpmc/4p1c": {
     "throughput_ops_ms": {
-      "lower_value": 3060.0,
-      "upper_value": 3740.0,
-      "value": 3400.0
+      "lower_value": 7898.917967390055,
+      "upper_value": 8071.4380071619735,
+      "value": 7985.177987276014
     }
   },
   "threading_channels/mpmc/4p2c": {
     "throughput_ops_ms": {
-      "lower_value": 2520.0,
-      "upper_value": 3080.0,
-      "value": 2800.0
+      "lower_value": 14863.649795190999,
+      "upper_value": 15321.457944351576,
+      "value": 15092.553869771287
     }
   },
   "threading_channels/mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 1620.0,
-      "upper_value": 1980.0,
-      "value": 1800.0
+      "lower_value": 19149.40196215827,
+      "upper_value": 19486.80935939881,
+      "value": 19318.10566077854
     }
   },
   "threading_channels/mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 1080.0,
-      "upper_value": 1320.0,
-      "value": 1200.0
+      "lower_value": 18212.44808357984,
+      "upper_value": 19591.73403774744,
+      "value": 18902.09106066364
     }
   },
   "token_bucket/contention/16t": {
     "throughput_ops_ms": {
-      "lower_value": 19038.72150775235,
-      "upper_value": 19431.75425079273,
-      "value": 19235.23787927254
+      "lower_value": 31044.896583122987,
+      "upper_value": 32969.666152085796,
+      "value": 32007.28136760439
     }
   },
   "token_bucket/contention/1t": {
     "throughput_ops_ms": {
-      "lower_value": 24267.846072222965,
-      "upper_value": 24541.46649238399,
-      "value": 24404.656282303476
+      "lower_value": 27505.925368046348,
+      "upper_value": 32191.19955054492,
+      "value": 29848.562459295634
     }
   },
   "token_bucket/contention/2t": {
     "throughput_ops_ms": {
-      "lower_value": 24028.282660752488,
-      "upper_value": 24143.286334545202,
-      "value": 24085.784497648845
+      "lower_value": 29436.18967358225,
+      "upper_value": 33430.410379787885,
+      "value": 31433.30002668507
     }
   },
   "token_bucket/contention/4t": {
     "throughput_ops_ms": {
-      "lower_value": 21553.23493929458,
-      "upper_value": 21572.947332775282,
-      "value": 21563.09113603493
+      "lower_value": 33804.56521560636,
+      "upper_value": 36088.00744496849,
+      "value": 34946.286330287425
     }
   },
   "token_bucket/contention/8t": {
     "throughput_ops_ms": {
-      "lower_value": 20077.799319742506,
-      "upper_value": 20281.872025655543,
-      "value": 20179.835672699024
+      "lower_value": 18461.262130247585,
+      "upper_value": 27187.08109769905,
+      "value": 22824.171613973318
     }
   },
   "token_bucket64/contention/16t": {
     "throughput_ops_ms": {
-      "lower_value": 21249.63632047663,
-      "upper_value": 21607.519324989407,
-      "value": 21428.57782273302
+      "lower_value": 24259.089437950548,
+      "upper_value": 26035.365067868195,
+      "value": 25147.22725290937
     }
   },
   "token_bucket64/contention/1t": {
     "throughput_ops_ms": {
-      "lower_value": 25102.000338993807,
-      "upper_value": 25568.234651097628,
-      "value": 25335.117495045717
+      "lower_value": 53783.01256950734,
+      "upper_value": 54410.37638202385,
+      "value": 54096.694475765595
     }
   },
   "token_bucket64/contention/2t": {
     "throughput_ops_ms": {
-      "lower_value": 25169.06100516614,
-      "upper_value": 25318.97729913406,
-      "value": 25244.0191521501
+      "lower_value": 49718.63800919904,
+      "upper_value": 51027.28358808701,
+      "value": 50372.96079864303
     }
   },
   "token_bucket64/contention/4t": {
     "throughput_ops_ms": {
-      "lower_value": 23505.11199844476,
-      "upper_value": 23958.635709938175,
-      "value": 23731.873854191468
+      "lower_value": 42100.313694857294,
+      "upper_value": 44175.22575612465,
+      "value": 43137.76972549097
     }
   },
   "token_bucket64/contention/8t": {
     "throughput_ops_ms": {
-      "lower_value": 22822.26852905332,
-      "upper_value": 23130.37339639607,
-      "value": 22976.320962724694
+      "lower_value": 19326.295067779876,
+      "upper_value": 24172.55489494264,
+      "value": 21749.42498136126
     }
   },
   "tokio_broadcast/fanout/1p16c": {
     "throughput_ops_ms": {
-      "lower_value": 7473.360109871344,
-      "upper_value": 11270.003043590656,
-      "value": 9371.681576731
+      "lower_value": 33087.14291104463,
+      "upper_value": 36325.262764632644,
+      "value": 34706.20283783864
     }
   },
   "tokio_broadcast/fanout/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 8288.473959588055,
-      "upper_value": 8524.873766342125,
-      "value": 8406.67386296509
+      "lower_value": 20826.916092281404,
+      "upper_value": 43777.342127163836,
+      "value": 32302.12910972262
     }
   },
   "tokio_broadcast/fanout/1p2c": {
     "throughput_ops_ms": {
-      "lower_value": 7614.526254083259,
-      "upper_value": 12560.610641374926,
-      "value": 10087.568447729092
+      "lower_value": 36343.655126075704,
+      "upper_value": 51758.4799872956,
+      "value": 44051.06755668565
     }
   },
   "tokio_broadcast/fanout/1p4c": {
     "throughput_ops_ms": {
-      "lower_value": 19703.97938171569,
-      "upper_value": 21699.56487739471,
-      "value": 20701.7721295552
+      "lower_value": 18811.97449074458,
+      "upper_value": 31354.047958653973,
+      "value": 25083.011224699276
     }
   },
   "tokio_broadcast/fanout/1p8c": {
     "throughput_ops_ms": {
-      "lower_value": 12720.115878576582,
-      "upper_value": 28115.589960490128,
-      "value": 20417.852919533354
+      "lower_value": 22690.76540364621,
+      "upper_value": 27201.904568890233,
+      "value": 24946.334986268223
     }
   },
   "tokio_broadcast/topic_bus/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 36234.79330162968,
-      "upper_value": 39597.28146906118,
-      "value": 37916.03738534543
+      "lower_value": 18200.89636083946,
+      "upper_value": 23965.78575367358,
+      "value": 21083.34105725652
     }
   },
   "tokio_broadcast/topic_bus/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 4187.372261439514,
-      "upper_value": 5916.9249262283865,
-      "value": 5052.14859383395
+      "lower_value": 19046.917113399504,
+      "upper_value": 37286.09352366853,
+      "value": 28166.50531853402
     }
   },
   "tokio_broadcast/topic_bus/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 11343.393347100007,
-      "upper_value": 12571.173743735993,
-      "value": 11957.283545418
+      "lower_value": 21558.59815394817,
+      "upper_value": 29857.10824113864,
+      "value": 25707.853197543405
     }
   },
   "tokio_broadcast/topic_bus/4p8c": {
     "throughput_ops_ms": {
-      "lower_value": 8919.722202492305,
-      "upper_value": 10213.851885729668,
-      "value": 9566.787044110986
+      "lower_value": 30351.498825652958,
+      "upper_value": 44227.39909430928,
+      "value": 37289.44895998112
     }
   },
   "topic_bus_backoff/topic_bus/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 17544.144418519383,
-      "upper_value": 17950.29867584475,
-      "value": 17747.221547182067
+      "lower_value": 4329.461021781369,
+      "upper_value": 9705.689354238708,
+      "value": 7017.575188010039
     }
   },
   "topic_bus_backoff/topic_bus/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 2498.577727493603,
-      "upper_value": 3986.8426798716987,
-      "value": 3242.710203682651
+      "lower_value": 4992.119634901161,
+      "upper_value": 6056.529370776898,
+      "value": 5524.324502839029
     }
   },
   "topic_bus_backoff/topic_bus/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 4028.295913877109,
-      "upper_value": 5667.117751159418,
-      "value": 4847.706832518264
+      "lower_value": 6897.343693378595,
+      "upper_value": 10167.223866586384,
+      "value": 8532.28377998249
     }
   },
   "topic_bus_backoff/topic_bus/4p8c": {
     "throughput_ops_ms": {
-      "lower_value": 9224.082683206187,
-      "upper_value": 12009.365029364733,
-      "value": 10616.72385628546
+      "lower_value": 9157.78075919762,
+      "upper_value": 10813.420552084935,
+      "value": 9985.600655641278
     }
   },
   "topic_bus_drop/topic_bus/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 8921.231538786773,
-      "upper_value": 8977.29681110252,
-      "value": 8949.264174944647
+      "lower_value": 5527.306765094177,
+      "upper_value": 11781.744719013153,
+      "value": 8654.525742053665
     }
   },
   "topic_bus_drop/topic_bus/2p4c": {
     "throughput_ops_ms": {
-      "lower_value": 2981.859426178744,
-      "upper_value": 3327.5079000522346,
-      "value": 3154.6836631154893
+      "lower_value": 5079.2987973824,
+      "upper_value": 6160.882961821908,
+      "value": 5620.090879602154
     }
   },
   "topic_bus_drop/topic_bus/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 5277.0188802457205,
-      "upper_value": 5934.666151005024,
-      "value": 5605.8425156253725
+      "lower_value": 9162.299981577089,
+      "upper_value": 9184.050867469181,
+      "value": 9173.175424523135
     }
   },
   "topic_bus_drop/topic_bus/4p8c": {
     "throughput_ops_ms": {
-      "lower_value": 8808.499011304559,
-      "upper_value": 11246.456578812666,
-      "value": 10027.477795058612
+      "lower_value": 9594.74896791868,
+      "upper_value": 13421.79374000393,
+      "value": 11508.271353961305
     }
   },
   "treiber_stack/stack_mpmc/1p1c": {
     "throughput_ops_ms": {
-      "lower_value": 3165.0759401781356,
-      "upper_value": 3410.39294672152,
-      "value": 3287.7344434498277
+      "lower_value": 4545.66128430844,
+      "upper_value": 7204.962738622717,
+      "value": 5875.3120114655785
     }
   },
   "treiber_stack/stack_mpmc/2p2c": {
     "throughput_ops_ms": {
-      "lower_value": 4373.891276483152,
-      "upper_value": 4619.190439971123,
-      "value": 4496.5408582271375
+      "lower_value": 6547.104290508454,
+      "upper_value": 6563.639638384368,
+      "value": 6555.371964446411
     }
   },
   "treiber_stack/stack_mpmc/4p4c": {
     "throughput_ops_ms": {
-      "lower_value": 3248.9063593900637,
-      "upper_value": 4442.245616131071,
-      "value": 3845.5759877605674
+      "lower_value": 2098.065954393484,
+      "upper_value": 2274.535688697129,
+      "value": 2186.3008215453065
     }
   },
   "treiber_stack/stack_mpmc/8p8c": {
     "throughput_ops_ms": {
-      "lower_value": 3827.7529756340864,
-      "upper_value": 4301.521163345996,
-      "value": 4064.637069490041
+      "lower_value": 1463.0667078806034,
+      "upper_value": 1493.8609009207173,
+      "value": 1478.4638044006604
     }
   }
 }

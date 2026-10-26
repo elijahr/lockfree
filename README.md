@@ -233,17 +233,17 @@ At the core of `lockfree`'s Morrison-Afek LCRQ unbounded MPMC queue and NEBR rec
 <!-- BENCHMARK_METRICS_START -->
 ## Performance Benchmarks
 
-> Continuous verification measured on `AMD EPYC 9V45 96-Core Processor, 4 cores, linux amd64`.
+> Continuous verification measured on `Apple M4 Pro, 12 cores, macosx arm64`.
 > Throughput numbers reflect 1,000,000 messages across active producer and consumer threads.
 
 ### High-Contention Throughput Matrix
 
 | Topology | Engine | Shape | Throughput (ops/ms) | Throughput (ops/sec) | vs Nim stdlib `system/Channel` |
 | :--- | :--- | :--- | :---: | :---: | :---: |
-| **MPMC** | `BQueue` (Bounded) | 4 producers, 4 consumers | **17,592 ops/ms** | **17,591,719 ops/s** | **9.5x faster** (1,843 ops/ms) |
-| **SPMC** | `BQueue` (Bounded) | 1 producer, 2 consumers | **37,111 ops/ms** | **37,111,307 ops/s** | — *(stdlib has no SPMC)* |
-| **MPSC** | `BQueue` (Bounded) | 4 producers, 1 consumer | **21,142 ops/ms** | **21,142,009 ops/s** | **5.9x faster** (3,565 ops/ms) |
-| **SPSC** | `Queue` (Unbounded) | 1 producer, 1 consumer | **26,962 ops/ms** | **26,961,618 ops/s** | — *(stdlib has no SPSC)* |
+| **MPMC** | `BQueue` (Bounded) | 4 producers, 4 consumers | **8,695 ops/ms** | **8,694,681 ops/s** | **11.4x faster** (765 ops/ms) |
+| **SPMC** | `BQueue` (Bounded) | 1 producer, 2 consumers | **16,613 ops/ms** | **16,613,495 ops/s** | — *(stdlib has no SPMC)* |
+| **MPSC** | `BQueue` (Bounded) | 4 producers, 1 consumer | **12,498 ops/ms** | **12,498,447 ops/s** | **0.7x faster** (17,630 ops/ms) |
+| **SPSC** | `Queue` (Unbounded) | 1 producer, 1 consumer | **23,577 ops/ms** | **23,577,126 ops/s** | — *(stdlib has no SPSC)* |
 
 *Run benchmarks locally with `nimble benchmarks` or explore multi-language comparisons, interactive filters, and latency curves on the [Interactive Benchmarks Portal](https://elijahr.github.io/lockfree/latest/guide/queues/benchmarks/).*
 <!-- BENCHMARK_METRICS_END -->
