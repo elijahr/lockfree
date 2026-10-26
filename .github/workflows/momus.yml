@@ -19,32 +19,148 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  call:
+  gate:
+    # Coarse gate: skip bot-authored events, and for issue_comment require the
+    # comment is on a PR. Fine-grained trigger-phrase match happens in the
+    # trigger_check step below.
     if: >-
       github.event.sender.type != 'Bot' && (
+        github.event_name == 'pull_request' ||
         github.event_name == 'workflow_dispatch' ||
-        (github.event_name == 'pull_request' && github.event.action == 'opened') ||
         (
           github.event_name == 'issue_comment' &&
-          github.event.issue.pull_request != null &&
-          (
-            startsWith(github.event.comment.body, '/ai-review') ||
-            contains(github.event.comment.body, '@axiomantic-momus[bot]')
-          )
+          github.event.issue.pull_request != null
         )
       )
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      proceed: ${{ steps.trigger_check.outputs.proceed }}
+    steps:
+      - name: Trigger check
+        id: trigger_check
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          COMMENT_BODY: ${{ github.event.comment.body }}
+          TRIGGER_COMMAND: /ai-review
+          TRIGGER_MENTION: "@axiomantic-momus[bot]"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr_number }}
+          THIS_RUN_ID: ${{ github.run_id }}
+          COMMENT_AUTHOR_ASSOCIATION: ${{ github.event.comment.author_association }}
+          PR_AUTHOR_ASSOCIATION: ${{ github.event.pull_request.author_association }}
+          IS_FORK: ${{ github.event.pull_request.head.repo.full_name != '' && github.event.pull_request.head.repo.full_name != github.repository }}
+        run: |
+          # Collaborator / Maintainer Gate:
+          if [ "$EVENT_NAME" = "issue_comment" ]; then
+            case "$COMMENT_AUTHOR_ASSOCIATION" in
+              OWNER|MEMBER|COLLABORATOR) ;;
+              *)
+                echo "Commenter is not an OWNER, MEMBER, or COLLABORATOR (association: ${COMMENT_AUTHOR_ASSOCIATION}); skipping review."
+                echo "proceed=false" >> "$GITHUB_OUTPUT"
+                exit 0
+                ;;
+            esac
+          elif [ "$EVENT_NAME" = "pull_request" ]; then
+            if [ "$IS_FORK" = "true" ]; then
+              echo "PR #$PR_NUMBER is from an external fork; skipping automatic review on open. Maintainers can trigger review by commenting $TRIGGER_COMMAND."
+              echo "proceed=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            case "$PR_AUTHOR_ASSOCIATION" in
+              OWNER|MEMBER|COLLABORATOR) ;;
+              *)
+                echo "PR author is not an OWNER, MEMBER, or COLLABORATOR; skipping automatic review on open. Maintainers can trigger review by commenting $TRIGGER_COMMAND."
+                echo "proceed=false" >> "$GITHUB_OUTPUT"
+                exit 0
+                ;;
+            esac
+          fi
+
+          if [ "$EVENT_NAME" = "issue_comment" ]; then
+            matched=0
+            if printf '%s' "$COMMENT_BODY" \
+              | grep -qE "^$(printf '%s' "$TRIGGER_COMMAND" \
+                | sed -e 's/[][\\.*^$/+?(){}|]/\\&/g')([[:space:]]|$)"; then
+              matched=1
+            fi
+            if [ "$matched" -eq 0 ] && [ -n "$TRIGGER_MENTION" ]; then
+              if printf '%s' "$COMMENT_BODY" \
+                | grep -qE "(^|[[:space:]])$(printf '%s' "$TRIGGER_MENTION" \
+                  | sed -e 's/[][\\.*^$/+?(){}|]/\\&/g')([[:space:]]|[[:punct:]]|$)"; then
+                matched=1
+              fi
+            fi
+            if [ "$matched" -eq 0 ]; then
+              echo "Comment did not match trigger command or mention; skipping."
+              echo "proceed=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          fi
+
+          WF_ID=$(gh api "/repos/${REPO}/actions/runs/${THIS_RUN_ID}" --jq .workflow_id 2>/dev/null || echo 0)
+          IN_FLIGHT=$(gh api \
+            "/repos/${REPO}/actions/workflows/${WF_ID}/runs?status=in_progress&per_page=100" \
+            --jq '[.workflow_runs[] | select(.id != '"$THIS_RUN_ID"') | select(.pull_requests[]? .number == '"$PR_NUMBER"')] | length' \
+            2>/dev/null || echo 0)
+          if [ "${IN_FLIGHT:-0}" -gt 0 ]; then
+            echo "Another review run is already in progress for PR #$PR_NUMBER; skipping."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+
+  review:
+    needs: gate
+    if: needs.gate.outputs.proceed == 'true'
+    environment: code-review
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       pull-requests: write
       issues: write
-    uses: axiomantic/.github/.github/workflows/momus.yml@devel
-    with:
-      pr_number: ${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr_number }}
-      event_name: ${{ github.event_name }}
-      trigger_command: /ai-review
-      trigger_mention: "@axiomantic-momus[bot]"
-      model: ~anthropic/claude-sonnet-latest
-      base_url: https://openrouter.ai/api/v1
-      only_collaborators: true
-      environment: code-review
-    secrets: inherit
+    steps:
+      - name: Resolve PR head SHA (issue_comment or workflow_dispatch)
+        id: resolve_sha
+        if: github.event_name == 'issue_comment' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr_number }}
+        run: |
+          SHA=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json headRefOid -q .headRefOid)
+          if [ -z "$SHA" ]; then
+            echo "::error::Could not resolve head SHA for PR #$PR_NUMBER"
+            exit 1
+          fi
+          echo "sha=$SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout PR head (pull_request)
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Checkout PR head (issue_comment or workflow_dispatch)
+        if: github.event_name == 'issue_comment' || github.event_name == 'workflow_dispatch'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.resolve_sha.outputs.sha }}
+          fetch-depth: 0
+
+      - name: Run momus
+        uses: axiomantic/momus@v1
+        env:
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          LLM_BASE_URL: https://openrouter.ai/api/v1
+          LLM_MODEL: ~anthropic/claude-sonnet-latest
+          MOMUS_TRIGGER_COMMAND: /ai-review
+          MOMUS_TRIGGER_MENTION: "@axiomantic-momus[bot]"
+          MOMUS_USING_APP_TOKEN: "false"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          pr_number: ${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr_number }}
+          event: ${{ github.event_name }}
