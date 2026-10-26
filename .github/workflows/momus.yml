@@ -159,6 +159,7 @@ jobs:
           LLM_MODEL: deepseek/deepseek-v4-flash
           MOMUS_TRIGGER_COMMAND: /ai-review
           MOMUS_TRIGGER_MENTION: "@axiomantic-momus[bot]"
+          MOMUS_USING_APP_TOKEN: "false"
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           pr_number: ${{ github.event.pull_request.number || github.event.issue.number || github.event.inputs.pr_number }}
