@@ -57,9 +57,11 @@ Momus provides automated, noise-filtered AI code reviews on pull requests using 
   - If you wish Momus to post formal `APPROVE` reviews rather than `COMMENT`, configure:
     - `MOMUS_APP_ID`: Your GitHub App ID.
     - `MOMUS_APP_PRIVATE_KEY`: Your GitHub App PEM private key.
-- **Triggering Reviews**:
-  - Momus runs automatically when PRs are opened.
-  - Re-trigger reviews on any PR by commenting `/ai-review` or `@axiomantic-momus[bot]`.
+- **Triggering Reviews & Security Gating**:
+  - Reviews are securely gated to repository maintainers and collaborators (`OWNER`, `MEMBER`, `COLLABORATOR`).
+  - PRs from maintainers are reviewed automatically when opened.
+  - PRs from external forks are not reviewed automatically on open to protect secrets; maintainers trigger a review by commenting `/ai-review` on the PR.
+  - Re-trigger reviews at any time by commenting `/ai-review` or `@axiomantic-momus[bot]`.
 
 ---
 

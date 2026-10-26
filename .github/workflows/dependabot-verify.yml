@@ -12,10 +12,14 @@ on:
       - ".github/renovate.json"
       - ".github/workflows/dependabot-verify.yml"
 
+permissions: {}
+
 jobs:
   validate:
     name: Validate Dependabot & Renovate Configurations
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
 
