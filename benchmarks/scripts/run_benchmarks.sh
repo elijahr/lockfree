@@ -135,7 +135,7 @@ for bin in "${BINARIES[@]}"; do
     bench_unbounded_mpmc)
       compile_cmd=(nim "$mode" -d:release -d:danger --threads:on \
         -d:UnboundedMpmcMessageCount=50000 -d:UnboundedMpmcRuns=2 -d:BenchUnboundedWarmup=1 \
-        -d:BenchSkipOversubscribed -d:benchProgress $flags -o:".tmp/$bin" "benchmarks/nim/$bin.nim")
+        -d:benchProgress $flags -o:".tmp/$bin" "benchmarks/nim/$bin.nim")
       ;;
     bench_latency)
       compile_cmd=(nim c -d:release -d:danger --threads:on \

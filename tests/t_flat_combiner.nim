@@ -65,6 +65,7 @@ type
   CounterOp = object
     kind: CounterOpKind
     delta: int64
+    notifyFlag: ptr Atomic[bool]
 
   SeqCounter = object
     value: int64
@@ -80,6 +81,8 @@ proc applyCounter(state: var SeqCounter, op: CounterOp): int64 {.gcsafe.} =
   of coGet:
     state.value
   of coSleep:
+    if op.notifyFlag != nil:
+      op.notifyFlag[].store(true, moRelease)
     os.sleep(int(op.delta))
     state.value
 
@@ -128,8 +131,7 @@ type
     startedFlag: ptr Atomic[bool]
 
 proc pruneBlocker(ctx: ptr PruneBlockerCtx) {.thread.} =
-  ctx.startedFlag[].store(true, moRelease)
-  discard ctx.fc.combine(CounterOp(kind: coSleep, delta: int64(ctx.holdMs)))
+  discard ctx.fc.combine(CounterOp(kind: coSleep, delta: int64(ctx.holdMs), notifyFlag: ctx.startedFlag))
 
 proc pruneWorker(ctx: ptr PruneWorkerCtx) {.thread.} =
   if ctx.startFlag != nil:
@@ -322,14 +324,15 @@ suite "FlatCombiner[T, Op, Res] — Hendler-Incze-Shavit-Tzafrir Adapter":
     # Hold the combiner lock from a background blocker thread during worker startup
     # so all workers are guaranteed to experience contention, register publication
     # records, and publish into pubHead before the combiner sweeps them.
+    # The blocker thread signals startedFlag from INSIDE the combiner critical section
+    # (during applyCounter coSleep) so we guarantee the lock is held before releasing workers.
     var blockerStarted: Atomic[bool]
     blockerStarted.store(false, moRelaxed)
-    var blockerCtx = PruneBlockerCtx(fc: fc, holdMs: 30, startedFlag: addr blockerStarted)
+    var blockerCtx = PruneBlockerCtx(fc: fc, holdMs: 150, startedFlag: addr blockerStarted)
     var blockerThread: Thread[ptr PruneBlockerCtx]
     createThread(blockerThread, pruneBlocker, addr blockerCtx)
     while not blockerStarted.load(moAcquire):
       cpuPause()
-    os.sleep(5)
 
     const NumTempWorkers = 6
     const WorkerOps = 10

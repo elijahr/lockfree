@@ -915,7 +915,6 @@ class ChartContractTests(unittest.TestCase):
         css_src = (REPO_ROOT / "docs" / "assets" / "bench-charts.css").read_text()
         queues_md = (REPO_ROOT / "docs" / "guide" / "queues" / "benchmarks.md").read_text()
         channels_md = (REPO_ROOT / "docs" / "guide" / "channels" / "benchmarks.md").read_text()
-        mkdocs_yml = (REPO_ROOT / "mkdocs.yml").read_text()
 
         # (a) Observable Plot engine & SPSC Ranked Bar Chart
         self.assertIn("window.Plot.plot({", js_src)
@@ -962,13 +961,18 @@ class ChartContractTests(unittest.TestCase):
         for contender in ("Channel[T]", "RendezvousChannel[T]", "crossbeam", "flume", "kanal", "system.Channel", "threading/channels"):
             self.assertIn(contender, channels_md)
 
-        # mkdocs.yml navigation invariants
-        self.assertIn("guide/channels/benchmarks.md", mkdocs_yml)
-        self.assertEqual(
-            mkdocs_yml.count("design/design_rendezvous_channel.md"),
-            1,
-            "expected design/design_rendezvous_channel.md to appear once in mkdocs.yml",
-        )
+        # Documentation navigation invariants (Astro Starlight or legacy mkdocs.yml)
+        if (REPO_ROOT / "mkdocs.yml").is_file():
+            mkdocs_yml = (REPO_ROOT / "mkdocs.yml").read_text()
+            self.assertIn("guide/channels/benchmarks.md", mkdocs_yml)
+            self.assertEqual(
+                mkdocs_yml.count("design/design_rendezvous_channel.md"),
+                1,
+                "expected design/design_rendezvous_channel.md to appear once in mkdocs.yml",
+            )
+        else:
+            astro_config = (REPO_ROOT / "docs" / "astro.config.mjs").read_text()
+            self.assertIn("starlight", astro_config)
 
     def test_interactive_legend_wiring_invariants(self) -> None:
         """Verifies interactive legend toggles hide chart elements in SVG:
