@@ -88,6 +88,11 @@ jobs:
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
           nimble develop -y
+          # Configure downstream lockfreequeues to find local lockfree under test
+          echo '--path:"../lockfree/src"' >> ../lockfreequeues/nim.cfg
+          if [ -f ../lockfreequeues/tests/config.nims ]; then
+            echo 'switch("path", "$projectDir/../../lockfree/src")' >> ../lockfreequeues/tests/config.nims
+          fi
 
       - name: Install lockfreequeues dependencies
         run: |
@@ -167,6 +172,11 @@ jobs:
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
           nimble develop -y
+          # Configure downstream nim-debra to find local lockfree under test
+          echo '--path:"../lockfree/src"' >> ../nim-debra/nim.cfg
+          if [ -f ../nim-debra/tests/config.nims ]; then
+            echo 'switch("path", "$projectDir/../../lockfree/src")' >> ../nim-debra/tests/config.nims
+          fi
 
       - name: Install nim-debra dependencies
         run: |
