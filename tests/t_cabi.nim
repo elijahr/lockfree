@@ -1603,7 +1603,7 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
       let rootDir = currentSourcePath().parentDir() / ".."
       let staticLib = rootDir / ".tmp/liblockfree.a"
       let buildCode = execShellCmd(
-        "nim c --app:staticlib -d:danger -d:useMalloc --threads:on --path:" &
+        "nim c --app:staticlib --hints:off --warnings:off -d:release --opt:speed -d:useMalloc --threads:on --path:" &
         (rootDir / "src") & " --nimcache:" & (rootDir / ".tmp/cabi_staticlib_cache") &
         " -o:" & staticLib & " " & (rootDir / "src/lockfree/cabi.nim")
       )

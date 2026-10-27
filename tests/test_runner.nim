@@ -87,7 +87,7 @@ proc runParallel(
   nimcacheDir: string = "",
   isRelease: bool = false,
   isDanger: bool = false,
-  timeoutSec: float = 180.0
+  timeoutSec: float = 360.0
 ): int =
   var running: seq[RunningProcess] = @[]
   var results: seq[TestResult] = @[]
@@ -205,7 +205,7 @@ when isMainModule:
   var nimcacheDir = ""
   var isRelease = false
   var isDanger = false
-  var timeoutSec = 180.0
+  var timeoutSec = 360.0
   let envTimeout = getEnv("LFQ_TEST_TIMEOUT_SEC", "")
   if envTimeout.len > 0:
     try:

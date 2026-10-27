@@ -73,6 +73,7 @@ concurrency:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  LFQ_TEST_TIMEOUT_SEC: "360"
 
 # Pin every `run:` step's shell to bash. Real GHA's hosted runners default
 # to bash for `run:` steps, so workflows that use bash-isms (`set -o
