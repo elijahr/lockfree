@@ -1,5 +1,5 @@
 _commit: v0.0.1-32-gd78e894
-_src_path: /Users/eek/Development/template-nim
+_src_path: gh:axiomantic/polyform
 author_email: maintainers@axiomantic.org
 author_name: Axiomantic Maintainers
 description: Production-grade project built with Axiomantic standards.
