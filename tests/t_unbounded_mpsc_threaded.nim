@@ -1,4 +1,5 @@
 import lockfree/atomics
+import lockfree/atomics/backoff
 import lockfree/atomics/dsl
 import options
 import unittest2
@@ -55,7 +56,9 @@ proc consumer[ST: static DeallocationStrategy, S: static int](
         inc consumed
       elif ctx.producersDone[].load(moAcquire) >= ProducerCount:
         # All producers done but we haven't consumed everything - keep trying
-        discard
+        cpuPause()
+      else:
+        cpuPause()
 
 suite "UnboundedMpsc threaded":
   var

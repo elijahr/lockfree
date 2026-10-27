@@ -15,6 +15,7 @@
 ## 7, 5, 6.1.
 
 import lockfree/atomics
+import lockfree/atomics/backoff
 import lockfree/atomics/dsl
 import options
 import unittest2
@@ -51,7 +52,7 @@ proc producer[N: static int](ctx: ptr ProducerContext[N]) {.thread.} =
   let base = ctx.producerIdx * ItemsPerProducer
   for i in 1 .. ItemsPerProducer:
     while not p.push(base + i):
-      discard
+      cpuPause()
   discard ctx.producersDone[].fetchAdd(1, moRelease)
 
 proc consumer[N: static int](ctx: ptr ConsumerContext[N]) {.thread.} =
@@ -67,6 +68,9 @@ proc consumer[N: static int](ctx: ptr ConsumerContext[N]) {.thread.} =
     elif ctx.producersDone[].load(moAcquire) >= ProducerCount:
       if ctx.totalConsumed[].load(moRelaxed) >= ItemCount:
         break
+      cpuPause()
+    else:
+      cpuPause()
 
 suite "Queue MPMC threaded":
   var

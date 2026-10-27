@@ -13,6 +13,7 @@
 ## 7, 5, 6.1.
 
 import lockfree/atomics
+import lockfree/atomics/backoff
 import lockfree/atomics/dsl
 import options
 import unittest2
@@ -43,7 +44,7 @@ proc producer[N: static int](ctx: ptr TestContext[N]) {.thread.} =
   let base = ctx.producerIdx * ItemsPerProducer
   for i in 1 .. ItemsPerProducer:
     while not p.push(base + i):
-      discard
+      cpuPause()
   discard ctx.producersDone[].fetchAdd(1, moRelease)
 
 proc consumer[N: static int](ctx: ptr TestContext[N]) {.thread.} =
@@ -71,8 +72,8 @@ proc consumer[N: static int](ctx: ptr TestContext[N]) {.thread.} =
       if ctx.received[val].exchange(true, moRelaxed):
         ctx.duplicateFound[].store(true, moRelaxed)
       inc consumed
-    elif ctx.producersDone[].load(moAcquire) >= ProducerCount:
-      discard
+    else:
+      cpuPause()
 
 suite "Queue MPSC threaded":
   var

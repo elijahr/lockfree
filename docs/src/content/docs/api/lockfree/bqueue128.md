@@ -49,6 +49,17 @@ BQueue128[T; N] = object
 Bounded lock-free MPMC queue utilizing 128-bit atomic DWCAS for instantaneous slot publication without intermediate partial-write states.
 
 
+## Constants
+
+### `BQueue128MaxWaitForPublishSpins`
+
+```nim
+BQueue128MaxWaitForPublishSpins {.intdefine.}: int = 1024
+```
+
+Bounded spin budget for a consumer waiting on an in-flight producer that has claimed the slot turn (tail advanced past pos) but has not yet completed its 128-bit atomic slot publication (or vice versa for a producer waiting on an in-flight consumer). After this many cpuPause spins, the operation surrenders and returns false to prevent deadlocking on preempted peers.
+
+
 ## Procedures & Functions
 
 ### `initBQueue128`

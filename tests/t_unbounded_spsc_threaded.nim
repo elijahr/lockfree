@@ -3,6 +3,7 @@
 ## `Queue[T, ccSingle, ccSingle, stEager, S, MaxThreads]`.
 
 import lockfree/atomics
+import lockfree/atomics/backoff
 import lockfree/atomics/dsl
 import options
 import unittest2
@@ -43,7 +44,9 @@ proc consumer[S: static int](ctx: ptr TestContext[S]) {.thread.} =
       inc consumed
     elif ctx.producerDone[].load(moAcquire):
       # Producer done but we haven't consumed everything - keep trying
-      discard
+      cpuPause()
+    else:
+      cpuPause()
 
 suite "UnboundedSpsc threaded":
   var

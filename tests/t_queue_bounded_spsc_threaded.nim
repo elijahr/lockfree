@@ -11,6 +11,7 @@
 ## 7, 5, 6.1.
 
 import lockfree/atomics
+import lockfree/atomics/backoff
 import lockfree/atomics/dsl
 import options
 import unittest2
@@ -35,7 +36,7 @@ type TestContext[N: static int] = object
 proc producer[N: static int](ctx: ptr TestContext[N]) {.thread.} =
   for i in 1 .. ItemCount:
     while not ctx.queue[].push(i):
-      discard
+      cpuPause()
   ctx.producerDone[].store(true, moRelease)
 
 proc consumer[N: static int](ctx: ptr TestContext[N]) {.thread.} =
@@ -57,8 +58,8 @@ proc consumer[N: static int](ctx: ptr TestContext[N]) {.thread.} =
       if ctx.received[val].exchange(true, moRelaxed):
         ctx.duplicateFound[].store(true, moRelaxed)
       inc consumed
-    elif ctx.producerDone[].load(moAcquire):
-      discard
+    else:
+      cpuPause()
 
 suite "Queue SPSC threaded":
   var

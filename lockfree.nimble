@@ -28,22 +28,22 @@ task should_fail, "Verifies compile-fail negative controls":
   exec "nim r --hints:off --warnings:off --path:src tests/should_fail/runner.nim"
 
 task testUnit, "Runs fast Tier 1 behavioral and unit tests in parallel (<15s)":
-  exec "nim r --hints:off --warnings:off tests/test_runner.nim --unit"
+  exec "nim r --hints:off --warnings:off tests/test_runner.nim --unit --release"
 
 task testThreaded, "Runs Tier 2 multithreaded concurrency tests in parallel":
-  exec "nim r --hints:off --warnings:off tests/test_runner.nim --concurrency"
+  exec "nim r --hints:off --warnings:off tests/test_runner.nim --concurrency --release"
 
 task testQueues, "Runs queue unit tests":
-  exec "nim r --hints:off --warnings:off tests/test_runner.nim --queues"
+  exec "nim r --hints:off --warnings:off tests/test_runner.nim --queues --release"
 
 task testStructures, "Runs data structure unit tests":
-  exec "nim r --hints:off --warnings:off tests/test_runner.nim --structures"
+  exec "nim r --hints:off --warnings:off tests/test_runner.nim --structures --release"
 
 task testSync, "Runs concurrency & synchronization unit tests":
-  exec "nim r --hints:off --warnings:off tests/test_runner.nim --sync"
+  exec "nim r --hints:off --warnings:off tests/test_runner.nim --sync --release"
 
 task testPrimitives, "Runs atomics & memory primitive unit tests":
-  exec "nim r --hints:off --warnings:off tests/test_runner.nim --primitives"
+  exec "nim r --hints:off --warnings:off tests/test_runner.nim --primitives --release"
 
 task testRelease, "Runs fast Tier 1 unit tests in release mode (-d:release --opt:speed)":
   exec "nim r --hints:off --warnings:off tests/test_runner.nim --unit --release"
@@ -67,14 +67,14 @@ task test, "Runs the test suite":
   let variant = getEnv("LFQ_TEST_VARIANT", "orc")
 
   proc runOrc =
-    exec "nim r --hints:off --warnings:off tests/test_runner.nim --all --mm:orc"
+    exec "nim r --hints:off --warnings:off tests/test_runner.nim --all --release --mm:orc"
 
   proc runCpp =
-    exec "nim r --hints:off --warnings:off tests/test_runner.nim --all --cpp"
+    exec "nim r --hints:off --warnings:off tests/test_runner.nim --all --release --cpp"
 
   proc runArc =
-    exec "nim r --hints:off --warnings:off tests/test_runner.nim --all --mm:arc"
-    exec "nim c --hints:off --warnings:off --mm:arc --threads:on -r tests/smr/debra-legacy/t_nebr_all.nim"
+    exec "nim r --hints:off --warnings:off tests/test_runner.nim --all --release --mm:arc"
+    exec "nim c -d:release --opt:speed --hints:off --warnings:off --mm:arc --threads:on -r tests/smr/debra-legacy/t_nebr_all.nim"
 
   case variant
   of "all":
@@ -96,7 +96,7 @@ task testTSan, "Runs Tier 2 concurrency tests under ThreadSanitizer (TSAN)":
   # Targeted to Tier 2 concurrency runner to eliminate 14-min compiler bloat.
   let nimcacheBase = getHomeDir() / ".cache" / "nim"
   exec "nim r --hints:off --warnings:off --path:src tests/should_fail/runner.nim"
-  exec "nim c --cc:clang --mm:atomicArc --threads:on --path:src " &
+  exec "nim c -d:release --opt:speed --cc:clang --mm:atomicArc --threads:on --path:src " &
     "--passC:\"-fsanitize=thread\" --passL:\"-fsanitize=thread\" " &
     "--nimcache:" & (nimcacheBase / "test_tsan") & " -r tests/concurrency/runner.nim"
 
@@ -113,7 +113,7 @@ task testRefcountTrace, "Runs the refcount-balance matrix under -d:lockfreeRefco
   # the define, so this path is irrelevant to release builds). Runs
   # under arc — the destructor-driven refcount path the matrix exercises.
   let nimcacheBase = getHomeDir() / ".cache" / "nim"
-  exec "nim c --mm:arc --threads:on -d:lockfreeRefcountTrace " &
+  exec "nim c -d:release --opt:speed --mm:arc --threads:on -d:lockfreeRefcountTrace " &
     "--path:tests/composition " &
     "--nimcache:" & (nimcacheBase / "test_refcount_trace") &
     " -r tests/composition/t_refcount_use_patterns.nim"
@@ -131,7 +131,7 @@ task testSliceDispose, "Runs the seq[char] dispose-routing regression under -d:l
   # to release builds). Runs under arc — the destructor-driven dispose
   # path the test exercises.
   let nimcacheBase = getHomeDir() / ".cache" / "nim"
-  exec "nim c --mm:arc --threads:on -d:lockfreeSliceDisposeTrace " &
+  exec "nim c -d:release --opt:speed --mm:arc --threads:on -d:lockfreeSliceDisposeTrace " &
     "--path:tests/composition " &
     "--nimcache:" & (nimcacheBase / "test_slice_dispose") &
     " -r tests/composition/t_seq_char_dispose.nim"
@@ -149,7 +149,7 @@ task testDestructorWalkTrace, "Runs the destructor-walk string/seq slot-count re
   # element in every lane). This task runs the REAL slot-count assertions.
   # Runs under arc — the destructor-driven dispose path under test.
   let nimcacheBase = getHomeDir() / ".cache" / "nim"
-  exec "nim c --mm:arc --threads:on -d:lockfreeSliceDisposeTrace " &
+  exec "nim c -d:release --opt:speed --mm:arc --threads:on -d:lockfreeSliceDisposeTrace " &
     "--path:tests/composition " &
     "--nimcache:" & (nimcacheBase / "test_destructor_walk_trace") &
     " -r tests/t_destructor_walk.nim"
@@ -162,9 +162,9 @@ task testStress, "Runs the high-volume (100k) bounded-queue stress suite":
   # every umbrella lane would dominate wall-clock. This dedicated task runs
   # it on its own. Two MM lanes: orc (default) and arc.
   let nimcacheBase = getHomeDir() / ".cache" / "nim"
-  exec "nim c --threads:on --path:src " &
+  exec "nim c -d:release --opt:speed --threads:on --path:src " &
     "--nimcache:" & (nimcacheBase / "t_stress_orc") & " -r tests/stress/runner.nim"
-  exec "nim c --mm:arc --threads:on --path:src " &
+  exec "nim c -d:release --opt:speed --mm:arc --threads:on --path:src " &
     "--nimcache:" & (nimcacheBase / "t_stress_arc") & " -r tests/stress/runner.nim"
 
 
