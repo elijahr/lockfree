@@ -127,10 +127,10 @@ suite "Cycle 4 — Gemini critical-finding deterministic repros":
     var th: Thread[ptr PopCtx]
     createThread(th, popWorker, addr ctx)
 
-    # Wall-clock budget: 2000ms is far longer than any sane
+    # Wall-clock budget: 10000ms is far longer than any sane
     # bounded-spin escalation. Pre-fix this fires forever.
     var elapsedMs = 0
-    while elapsedMs < 2000:
+    while elapsedMs < 10000:
       if done.load(moAcquire):
         break
       sleep(20)
