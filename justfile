@@ -49,7 +49,13 @@ clean:
 
 # 9. Secret Scanning
 check-secrets:
-    gitleaks detect -v
+    @if command -v gitleaks >/dev/null 2>&1; then \
+        gitleaks detect -v; \
+    elif command -v pre-commit >/dev/null 2>&1; then \
+        pre-commit run gitleaks --all-files; \
+    else \
+        echo "Error: neither gitleaks nor pre-commit found. Install gitleaks or pre-commit." >&2; exit 1; \
+    fi
 
 # 10. Upstream Template Synchronization
 update-template:
