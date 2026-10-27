@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-10-27
+
+### Fixed
+
+- **Flat Combiner Contention Synchronization (`tests/t_flat_combiner.nim`)**:
+  - Resolved contention synchronization race in `tests/t_flat_combiner.nim` on Apple Silicon / macOS arm64 where worker threads could finish without contention if the blocker thread signaled readiness before acquiring the combiner lock.
+  - Added internal `notifyFlag` to `CounterOp` signaling directly from within the combiner critical section while `combinerLock` is held, guaranteeing peak publication records exist and preventing intermittent CI test failures.
+- **Benchmark Chart Contract Invariants (`test_bench_charts_contract.py`, `run_benchmarks.sh`)**:
+  - Updated visual contract tests to validate Astro Starlight documentation (`docs/astro.config.mjs`) in place of legacy MkDocs.
+  - Restored complete thread cardinality matrix shapes (`1p4c`, `2p4c`, `4p1c`, `4p2c`, `4p4c`, `8p8c`) for `lockfree_unbounded_mpmc/mpmc_unbounded` across snapshot records.
+- **CI Resilience (`.github/workflows/ci.yml`, `downstream-compat.yml`)**:
+  - Robustified downstream compatibility resolution by explicitly linking local sibling source paths for downstream consumers.
+  - Extended execution timeout to 60 minutes for high-overhead sanitizer and MSVC compilation cells.
+
 ## [0.6.2] - 2026-10-25
 
 ### Added

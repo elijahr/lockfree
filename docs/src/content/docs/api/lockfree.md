@@ -53,7 +53,7 @@ Module surface &amp; Concurrency Topologies:<ul class="simple"><li><strong>Bound
 ### `LockfreeVersion`
 
 ```nim
-LockfreeVersion {.strdefine.} = "0.6.2"
+LockfreeVersion {.strdefine.} = "0.6.3"
 ```
 
 In-tree package version. Mirrors the <tt class="docutils literal"><span class="pre"><span class="Identifier">version</span> <span class="Operator">=</span> <span class="StringLit">&quot;0.5.0&quot;</span></span></tt> line in <tt class="docutils literal"><span class="pre"><span class="Identifier">lockfree</span><span class="Operator">.</span><span class="Identifier">nimble</span></span></tt>. <tt class="docutils literal"><span class="pre"><span class="Punctuation">{</span><span class="Operator">.</span><span class="Identifier">strdefine</span><span class="Operator">.</span><span class="Punctuation">}</span></span></tt> lets downstream builds override via <tt class="docutils literal"><span class="pre"><span class="Operator">-</span><span class="Identifier">d</span><span class="Punctuation">:</span><span class="Identifier">LockfreeVersion</span><span class="Operator">=&lt;</span><span class="Identifier">x</span><span class="Operator">.</span><span class="Identifier">y</span><span class="Operator">.</span><span class="Identifier">z</span><span class="Operator">&gt;</span></span></tt> for fork builds; the bench JSON captures whatever value was compiled in.

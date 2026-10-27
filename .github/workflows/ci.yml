@@ -750,7 +750,7 @@ jobs:
             sanitize-address: 'yes'
             cache-tag: 'asan'
             continue-on-error: true
-            timeout: 45
+            timeout: 60
 
           # --- Cell 10: Linux arm64 ------------------------------------------
           - cell: '10'
@@ -795,7 +795,7 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'no'
             cache-tag: 'msvc'
-            timeout: 45
+            timeout: 60
             continue-on-error: true
 
           # --- Cell 17b: Windows + MinGW GCC + orc ---------------------------
