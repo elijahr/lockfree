@@ -2,7 +2,8 @@ name: Auto Tag
 on:
   push:
     branches: [main]
-    paths: ["*.nimble"]
+    paths:
+      - "*.nimble"
 permissions: {}
 
 jobs:
@@ -17,9 +18,10 @@ jobs:
       - name: Extract version from .nimble
         id: ver
         run: |
-          NIMBLE=$(ls *.nimble | head -1)
+          NIMBLE=$(ls *.nimble 2>/dev/null | head -1)
+          [ -z "$NIMBLE" ] && { echo "no .nimble file found"; exit 1; }
           VERSION=$(grep -m1 -E '^version\s*=\s*"' "$NIMBLE" | sed -E 's/^version\s*=\s*"([^"]+)".*/\1/')
-          [ -z "$VERSION" ] && { echo "no version"; exit 1; }
+          [ -z "$VERSION" ] && { echo "no version found in $NIMBLE"; exit 1; }
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
       - name: Tag if not exists
         env: { VERSION: "${{ steps.ver.outputs.version }}" }
