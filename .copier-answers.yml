@@ -1,4 +1,4 @@
-_commit: v0.1.8
+_commit: v0.1.9
 _src_path: gh:axiomantic/polyform
 author_email: maintainers@axiomantic.org
 author_name: Axiomantic Maintainers
@@ -8,6 +8,8 @@ enable_momus_review: true
 flavor: pure_nim
 github_owner: axiomantic
 license: MIT
+momus_base_url: https://openrouter.ai/api/v1
+momus_model: ~anthropic/claude-sonnet-latest
 package_name: lockfree
 project_name: lockfree
 repo_name: lockfree
