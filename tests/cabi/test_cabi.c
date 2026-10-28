@@ -1259,7 +1259,14 @@ static void test_cabi_streambuffer(void) {
     TEST_ASSERT(lf_stream_reserve_write(NULL, 16, &ptr1, &len1, &ptr2, &len2) == LF_ERR_INVALID_ARG, "reserve_write NULL sb");
     TEST_ASSERT(lf_stream_reserve_write(sbuf, 16, NULL, &len1, &ptr2, &len2) == LF_ERR_INVALID_ARG, "reserve_write NULL out_ptr1");
     TEST_ASSERT(lf_stream_reserve_write(sbuf, 16, &ptr1, NULL, &ptr2, &len2) == LF_ERR_INVALID_ARG, "reserve_write NULL out_len1");
+    TEST_ASSERT(lf_stream_reserve_write(sbuf, 16, &ptr1, &len1, NULL, &len2) == LF_ERR_INVALID_ARG, "reserve_write NULL out_ptr2");
+    TEST_ASSERT(lf_stream_reserve_write(sbuf, 16, &ptr1, &len1, &ptr2, NULL) == LF_ERR_INVALID_ARG, "reserve_write NULL out_len2");
     TEST_ASSERT(lf_stream_reserve_write(sbuf, 1024, &ptr1, &len1, &ptr2, &len2) == LF_ERR_INVALID_ARG, "reserve_write > cap");
+    TEST_ASSERT(lf_stream_peek_read(NULL, &cptr1, &len1, &cptr2, &len2) == LF_ERR_INVALID_ARG, "peek_read NULL sb");
+    TEST_ASSERT(lf_stream_peek_read(sbuf, NULL, &len1, &cptr2, &len2) == LF_ERR_INVALID_ARG, "peek_read NULL out_ptr1");
+    TEST_ASSERT(lf_stream_peek_read(sbuf, &cptr1, NULL, &cptr2, &len2) == LF_ERR_INVALID_ARG, "peek_read NULL out_len1");
+    TEST_ASSERT(lf_stream_peek_read(sbuf, &cptr1, &len1, NULL, &len2) == LF_ERR_INVALID_ARG, "peek_read NULL out_ptr2");
+    TEST_ASSERT(lf_stream_peek_read(sbuf, &cptr1, &len1, &cptr2, NULL) == LF_ERR_INVALID_ARG, "peek_read NULL out_len2");
     TEST_ASSERT(lf_stream_peek_read(sbuf, &cptr1, &len1, &cptr2, &len2) == LF_ERR_EMPTY, "peek_read on empty sbuf");
 
     TEST_ASSERT(lf_stream_reserve_write(sbuf, 32, &ptr1, &len1, &ptr2, &len2) == LF_OK, "lf_stream_reserve_write 32 failed");
@@ -1274,6 +1281,32 @@ static void test_cabi_streambuffer(void) {
     for (size_t i = 0; i < len2; i++) TEST_ASSERT(cptr2[i] == (uint8_t)(len1 + i + 1), "peek_read slice 2 byte mismatch");
     TEST_ASSERT(lf_stream_consume_read(sbuf, 32) == LF_OK, "lf_stream_consume_read 32 failed");
     TEST_ASSERT(lf_streambuffer_is_empty(sbuf), "sbuf should be empty after consume_read");
+
+    /* Explicit wrap-around test for lf_stream_reserve_write & lf_stream_peek_read */
+    lf_streambuffer_t* wrap_sb = lf_streambuffer_create(64, false);
+    TEST_ASSERT(wrap_sb != NULL, "wrap_sb create failed");
+    TEST_ASSERT(lf_stream_reserve_write(wrap_sb, 50, &ptr1, &len1, &ptr2, &len2) == LF_OK, "wrap_sb reserve 50 failed");
+    TEST_ASSERT(ptr1 != NULL && len1 == 50 && ptr2 == NULL && len2 == 0, "wrap_sb initial 50 should not wrap");
+    for (size_t i = 0; i < 50; i++) ptr1[i] = (uint8_t)(i + 10);
+    TEST_ASSERT(lf_stream_commit_write(wrap_sb, 50) == LF_OK, "wrap_sb commit 50 failed");
+    TEST_ASSERT(lf_stream_consume_read(wrap_sb, 40) == LF_OK, "wrap_sb consume 40 failed");
+
+    /* Write cursor is at 50, read cursor at 40 (capacity 64). Reserve 30 bytes -> 14 in slice 1, 16 in slice 2 */
+    TEST_ASSERT(lf_stream_reserve_write(wrap_sb, 30, &ptr1, &len1, &ptr2, &len2) == LF_OK, "wrap_sb reserve 30 wrap failed");
+    TEST_ASSERT(ptr1 != NULL && len1 == 14 && ptr2 != NULL && len2 == 16, "wrap_sb reserve 30 split mismatch");
+    for (size_t i = 0; i < 14; i++) ptr1[i] = (uint8_t)(100 + i);
+    for (size_t i = 0; i < 16; i++) ptr2[i] = (uint8_t)(200 + i);
+    TEST_ASSERT(lf_stream_commit_write(wrap_sb, 30) == LF_OK, "wrap_sb commit 30 failed");
+
+    /* Peek read across wrap boundary -> 24 bytes in slice 1 (10 old + 14 new), 16 bytes in slice 2 */
+    TEST_ASSERT(lf_stream_peek_read(wrap_sb, &cptr1, &len1, &cptr2, &len2) == LF_OK, "wrap_sb peek_read wrap failed");
+    TEST_ASSERT(cptr1 != NULL && len1 == 24 && cptr2 != NULL && len2 == 16, "wrap_sb peek_read split mismatch");
+    for (size_t i = 0; i < 10; i++) TEST_ASSERT(cptr1[i] == (uint8_t)(50 + i), "wrap_sb peek slice 1 old byte mismatch");
+    for (size_t i = 0; i < 14; i++) TEST_ASSERT(cptr1[10 + i] == (uint8_t)(100 + i), "wrap_sb peek slice 1 new byte mismatch");
+    for (size_t i = 0; i < 16; i++) TEST_ASSERT(cptr2[i] == (uint8_t)(200 + i), "wrap_sb peek slice 2 byte mismatch");
+    TEST_ASSERT(lf_stream_consume_read(wrap_sb, 40) == LF_OK, "wrap_sb consume 40 wrap failed");
+    TEST_ASSERT(lf_streambuffer_is_empty(wrap_sb), "wrap_sb should be empty after consume 40");
+    lf_streambuffer_destroy(wrap_sb);
 
     lfq_streambuffer_destroy(sbuf);
 

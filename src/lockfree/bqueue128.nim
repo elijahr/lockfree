@@ -139,7 +139,8 @@ proc tryPushEx*[T: uint64 | int64 | pointer | int, N: static int](
         # 128-bit hardware CAS is always sequentially consistent at instruction level.
         while not compareExchangeWeak(cell[], expected, desired):
           discard
-        let h = self.head.load(moAcquire)
+        threadFence(moSequentiallyConsistent)
+        let h = self.head.load(moSequentiallyConsistent)
         wasEmpty = (h >= pos)
         return true
       waitSpins = 0 # Ring position advanced by peer; reset spin budget
@@ -186,7 +187,7 @@ proc tryPop*[T: uint64 | int64 | pointer | int, N: static int](
     var observed: Pair[uint64, T] = load(cell[], moSequentiallyConsistent)
     let diff = cast[int64](observed.first - (pos + 1))
     if diff == 0:
-      if self.head.compareExchangeWeak(pos, pos + 1, moRelaxed, moRelaxed):
+      if self.head.compareExchangeWeak(pos, pos + 1, moAcqRel, moRelaxed):
         var expected = observed
         var desired: Pair[uint64, T]
         desired.first = pos + uint64(N)

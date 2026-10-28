@@ -298,6 +298,8 @@ type MemoryOrder* = enum
   moAcquireRelease ## Both acquire and release on RMW.
   moSequentiallyConsistent ## Single total order across all SC ops.
 
+const moAcqRel* = moAcquireRelease
+
 template toAtomMemModel(o: MemoryOrder): AtomMemModel =
   cast[AtomMemModel](cint(ord(o)))
 

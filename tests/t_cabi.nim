@@ -1584,23 +1584,29 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     var l1: csize_t = 0
     var p2: ptr uint8 = nil
     var l2: csize_t = 0
+    var cp1: ConstUint8Ptr = nil
+    var cp2: ConstUint8Ptr = nil
 
     # Negative controls on invalid arguments
     check lf_stream_reserve_write(nil, 16, addr p1, addr l1, addr p2, addr l2) == LF_ERR_INVALID_ARG
     check lf_stream_reserve_write(sb, 16, nil, addr l1, addr p2, addr l2) == LF_ERR_INVALID_ARG
     check lf_stream_reserve_write(sb, 16, addr p1, nil, addr p2, addr l2) == LF_ERR_INVALID_ARG
+    check lf_stream_reserve_write(sb, 16, addr p1, addr l1, nil, addr l2) == LF_ERR_INVALID_ARG
+    check lf_stream_reserve_write(sb, 16, addr p1, addr l1, addr p2, nil) == LF_ERR_INVALID_ARG
     check lf_stream_reserve_write(sb, 128, addr p1, addr l1, addr p2, addr l2) == LF_ERR_INVALID_ARG
     check lf_stream_commit_write(nil, 8) == LF_ERR_INVALID_ARG
     check lf_stream_commit_write(sb, 65) == LF_ERR_INVALID_ARG
-    check lf_stream_peek_read(nil, addr p1, addr l1, addr p2, addr l2) == LF_ERR_INVALID_ARG
-    check lf_stream_peek_read(sb, nil, addr l1, addr p2, addr l2) == LF_ERR_INVALID_ARG
-    check lf_stream_peek_read(sb, addr p1, nil, addr p2, addr l2) == LF_ERR_INVALID_ARG
+    check lf_stream_peek_read(nil, addr cp1, addr l1, addr cp2, addr l2) == LF_ERR_INVALID_ARG
+    check lf_stream_peek_read(sb, nil, addr l1, addr cp2, addr l2) == LF_ERR_INVALID_ARG
+    check lf_stream_peek_read(sb, addr cp1, nil, addr cp2, addr l2) == LF_ERR_INVALID_ARG
+    check lf_stream_peek_read(sb, addr cp1, addr l1, nil, addr l2) == LF_ERR_INVALID_ARG
+    check lf_stream_peek_read(sb, addr cp1, addr l1, addr cp2, nil) == LF_ERR_INVALID_ARG
     check lf_stream_consume_read(nil, 8) == LF_ERR_INVALID_ARG
     check lf_stream_consume_read(sb, 1) == LF_ERR_INVALID_ARG
 
     # Peek on empty buffer returns LF_ERR_EMPTY
-    check lf_stream_peek_read(sb, addr p1, addr l1, addr p2, addr l2) == LF_ERR_EMPTY
-    check p1 == nil and l1 == 0 and p2 == nil and l2 == 0
+    check lf_stream_peek_read(sb, addr cp1, addr l1, addr cp2, addr l2) == LF_ERR_EMPTY
+    check cp1 == nil and l1 == 0 and cp2 == nil and l2 == 0
 
     # Reserve 50 bytes (contiguous, no wrap)
     check lf_stream_reserve_write(sb, 50, addr p1, addr l1, addr p2, addr l2) == LF_OK
@@ -1613,9 +1619,9 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check lf_streambuffer_available_read(sb) == 50
 
     # Peek and consume 40 bytes (advances read head to 40, write tail at 50)
-    check lf_stream_peek_read(sb, addr p1, addr l1, addr p2, addr l2) == LF_OK
-    check p1 != nil and l1 == 50 and p2 == nil and l2 == 0
-    let r1 = cast[ptr UncheckedArray[uint8]](p1)
+    check lf_stream_peek_read(sb, addr cp1, addr l1, addr cp2, addr l2) == LF_OK
+    check cp1 != nil and l1 == 50 and cp2 == nil and l2 == 0
+    let r1 = cast[ptr UncheckedArray[uint8]](cp1)
     for i in 0 ..< 40:
       check r1[i] == uint8(i + 1)
     check lf_stream_consume_read(sb, 40) == LF_OK
@@ -1636,11 +1642,11 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check lf_streambuffer_available_read(sb) == 40
 
     # Peek read across wrap boundary (head is at 40, capacity 64 -> 24 bytes in slice 1, 16 bytes in slice 2)
-    check lf_stream_peek_read(sb, addr p1, addr l1, addr p2, addr l2) == LF_OK
-    check p1 != nil and l1 == 24
-    check p2 != nil and l2 == 16
-    let rs1 = cast[ptr UncheckedArray[uint8]](p1)
-    let rs2 = cast[ptr UncheckedArray[uint8]](p2)
+    check lf_stream_peek_read(sb, addr cp1, addr l1, addr cp2, addr l2) == LF_OK
+    check cp1 != nil and l1 == 24
+    check cp2 != nil and l2 == 16
+    let rs1 = cast[ptr UncheckedArray[uint8]](cp1)
+    let rs2 = cast[ptr UncheckedArray[uint8]](cp2)
     for i in 0 ..< 10:
       check rs1[i] == uint8(41 + i)
     for i in 0 ..< 14:
@@ -1655,7 +1661,7 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check l1 + l2 == 64
     check lfq_stream_commit_write(sb, 64) == LFQ_OK
     check lfq_stream_reserve_write(sb, 1, addr p1, addr l1, addr p2, addr l2) == LFQ_ERR_FULL
-    check lfq_stream_peek_read(sb, addr p1, addr l1, addr p2, addr l2) == LFQ_OK
+    check lfq_stream_peek_read(sb, addr cp1, addr l1, addr cp2, addr l2) == LFQ_OK
     check l1 + l2 == 64
     check lfq_stream_consume_read(sb, 64) == LFQ_OK
 
@@ -1768,6 +1774,142 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check lf_producer_release(uProd) == LF_OK
     check lf_consumer_release(uCons) == LF_OK
     check lf_queue_destroy(uMpmc) == LF_OK
+
+  test "Multithreaded Producer/Consumer Wakeup Contention (lf_push_ex & lf_bqueue128_push_ex)":
+    const
+      NumProducers = 4
+      ItemsPerProducer = 500
+      TotalItems = NumProducers * ItemsPerProducer
+
+    type
+      QueueWakeupCtx = object
+        q: ptr lf_queue_t
+        wakeups: Atomic[int]
+        consumed: Atomic[int]
+        sumConsumed: Atomic[int]
+
+      ProdArg = tuple[ctx: ptr QueueWakeupCtx, id: int]
+
+    proc queueProdWorker(arg: ProdArg) {.thread.} =
+      var prod: ptr lf_producer_t = nil
+      doAssert lf_producer_acquire(arg.ctx.q, addr prod) == LF_OK
+      for i in 1 .. ItemsPerProducer:
+        let val = arg.id * ItemsPerProducer + i
+        var wasEmpty = false
+        while true:
+          let st = lf_push_ex(prod, cast[pointer](val), addr wasEmpty)
+          if st == LF_OK:
+            if wasEmpty:
+              discard arg.ctx.wakeups.fetchAdd(1, moAcqRel)
+            break
+          cpuRelax()
+      doAssert lf_producer_release(prod) == LF_OK
+
+    # 1. Bounded MPMC Queue under multithreaded wakeup contention
+    var bCtx: QueueWakeupCtx
+    check lf_bounded_mpmc_create(64, 8, 8, nil, nil, addr bCtx.q) == LF_OK
+    bCtx.wakeups.store(0, moRelaxed)
+    bCtx.consumed.store(0, moRelaxed)
+    bCtx.sumConsumed.store(0, moRelaxed)
+
+    var bCons: ptr lf_consumer_t = nil
+    check lf_consumer_acquire(bCtx.q, addr bCons) == LF_OK
+    var bThreads: array[NumProducers, Thread[ProdArg]]
+    for p in 0 ..< NumProducers:
+      createThread(bThreads[p], queueProdWorker, (addr bCtx, p))
+
+    var item: pointer = nil
+    while bCtx.consumed.load(moAcquire) < TotalItems:
+      if lf_pop(bCons, addr item) == LF_OK:
+        discard bCtx.consumed.fetchAdd(1, moAcqRel)
+        discard bCtx.sumConsumed.fetchAdd(cast[int](item), moAcqRel)
+      else:
+        cpuRelax()
+
+    for p in 0 ..< NumProducers:
+      joinThread(bThreads[p])
+
+    let expectedSum = (TotalItems * (TotalItems + 1)) div 2
+    check bCtx.consumed.load(moAcquire) == TotalItems
+    check bCtx.sumConsumed.load(moAcquire) == expectedSum
+    check bCtx.wakeups.load(moAcquire) >= 1
+    check lf_consumer_release(bCons) == LF_OK
+    check lf_queue_destroy(bCtx.q) == LF_OK
+
+    # 2. Unbounded MPMC Queue under multithreaded wakeup contention
+    var uCtx: QueueWakeupCtx
+    check lf_unbounded_mpmc_create(16, 16, nil, nil, addr uCtx.q) == LF_OK
+    uCtx.wakeups.store(0, moRelaxed)
+    uCtx.consumed.store(0, moRelaxed)
+    uCtx.sumConsumed.store(0, moRelaxed)
+
+    var uCons: ptr lf_consumer_t = nil
+    check lf_consumer_acquire(uCtx.q, addr uCons) == LF_OK
+    var uThreads: array[NumProducers, Thread[ProdArg]]
+    for p in 0 ..< NumProducers:
+      createThread(uThreads[p], queueProdWorker, (addr uCtx, p))
+
+    while uCtx.consumed.load(moAcquire) < TotalItems:
+      if lf_pop(uCons, addr item) == LF_OK:
+        discard uCtx.consumed.fetchAdd(1, moAcqRel)
+        discard uCtx.sumConsumed.fetchAdd(cast[int](item), moAcqRel)
+      else:
+        cpuRelax()
+
+    for p in 0 ..< NumProducers:
+      joinThread(uThreads[p])
+
+    check uCtx.consumed.load(moAcquire) == TotalItems
+    check uCtx.sumConsumed.load(moAcquire) == expectedSum
+    check uCtx.wakeups.load(moAcquire) >= 1
+    check lf_consumer_release(uCons) == LF_OK
+    check lf_queue_destroy(uCtx.q) == LF_OK
+
+    # 3. BQueue128 under multithreaded wakeup contention
+    type
+      BQ128WakeupCtx = object
+        q: ptr lf_bqueue128_t
+        wakeups: Atomic[int]
+        consumed: Atomic[int]
+        sumConsumed: Atomic[int]
+      BQ128ProdArg = tuple[ctx: ptr BQ128WakeupCtx, id: int]
+
+    proc bq128ProdWorker(arg: BQ128ProdArg) {.thread.} =
+      for i in 1 .. ItemsPerProducer:
+        let val = arg.id * ItemsPerProducer + i
+        var wasEmpty = false
+        while true:
+          let st = lf_bqueue128_push_ex(arg.ctx.q, cast[pointer](val), addr wasEmpty)
+          if st == LF_OK:
+            if wasEmpty:
+              discard arg.ctx.wakeups.fetchAdd(1, moAcqRel)
+            break
+          cpuRelax()
+
+    var bq128Ctx: BQ128WakeupCtx
+    check lf_bqueue128_create(64, nil, nil, addr bq128Ctx.q) == LF_OK
+    bq128Ctx.wakeups.store(0, moRelaxed)
+    bq128Ctx.consumed.store(0, moRelaxed)
+    bq128Ctx.sumConsumed.store(0, moRelaxed)
+
+    var bq128Threads: array[NumProducers, Thread[BQ128ProdArg]]
+    for p in 0 ..< NumProducers:
+      createThread(bq128Threads[p], bq128ProdWorker, (addr bq128Ctx, p))
+
+    while bq128Ctx.consumed.load(moAcquire) < TotalItems:
+      if lf_bqueue128_pop(bq128Ctx.q, addr item) == LF_OK:
+        discard bq128Ctx.consumed.fetchAdd(1, moAcqRel)
+        discard bq128Ctx.sumConsumed.fetchAdd(cast[int](item), moAcqRel)
+      else:
+        cpuRelax()
+
+    for p in 0 ..< NumProducers:
+      joinThread(bq128Threads[p])
+
+    check bq128Ctx.consumed.load(moAcquire) == TotalItems
+    check bq128Ctx.sumConsumed.load(moAcquire) == expectedSum
+    check bq128Ctx.wakeups.load(moAcquire) >= 1
+    check lf_bqueue128_destroy(bq128Ctx.q) == LF_OK
 
   when not defined(windows):
     test "Direct C99 Header Interoperability":

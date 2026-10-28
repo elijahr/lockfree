@@ -29,7 +29,6 @@ when not (defined(macosx) or defined(macos) or defined(ios) or defined(linux) or
 const
   DefaultStreamCapacity* = 65536
   CacheLine* = CacheLineBytes
-  moAcqRel* = moAcquireRelease
   moSeqCst* = moSequentiallyConsistent
 
 # ------------------------------------------------------------------------------
@@ -356,10 +355,10 @@ proc acquireWriteIov*(self: var StreamRing, requestedLen: int): IOVecPair =
   ## Does NOT advance the write cursor; caller must call commitWrite afterwards.
   if requestedLen <= 0: return IOVecPair()
   let t = self.tail.load(moRelaxed)
-  var avail = self.capacity - int(t - self.cachedHead)
+  var avail = if t >= self.cachedHead: self.capacity - int(t - self.cachedHead) else: 0
   if avail < requestedLen:
     self.cachedHead = self.head.load(moAcquire)
-    avail = self.capacity - int(t - self.cachedHead)
+    avail = if t >= self.cachedHead: self.capacity - int(t - self.cachedHead) else: 0
   if avail <= 0: return IOVecPair()
 
   let n = min(requestedLen, avail)
@@ -394,10 +393,10 @@ proc acquireReadIov*(self: var StreamRing, requestedLen: int): IOVecPair =
   ## Does NOT advance the read cursor; caller must call commitRead afterwards.
   if requestedLen <= 0: return IOVecPair()
   let h = self.head.load(moRelaxed)
-  var avail = int(self.cachedTail - h)
+  var avail = if self.cachedTail >= h: int(self.cachedTail - h) else: 0
   if avail < requestedLen:
     self.cachedTail = self.tail.load(moAcquire)
-    avail = int(self.cachedTail - h)
+    avail = if self.cachedTail >= h: int(self.cachedTail - h) else: 0
   if avail <= 0: return IOVecPair()
 
   let n = min(requestedLen, avail)

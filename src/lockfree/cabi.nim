@@ -188,20 +188,14 @@ proc boundedPushEx[N, P, C: static int](
     prod: ptr lf_producer_t, item: pointer, outWasEmpty: ptr bool
 ): lf_status_t {.nimcall, gcsafe, raises: [].} =
   let p = cast[ptr BoundedProducerImpl[N, P, C]](prod)
-  let q = cast[ptr BoundedQueueImpl[N, P, C]](p.base.queue)
   cAbiBoundary:
-    let hBefore = q.rawQueue.head.load(moAcquire)
-    let tBefore = q.rawQueue.tail.load(moAcquire)
-    let ok = p.bound.push(item)
+    var wasEmpty = false
+    let ok = p.bound.pushEx(item, wasEmpty)
+    if outWasEmpty != nil:
+      outWasEmpty[] = wasEmpty
     if ok:
-      if outWasEmpty != nil:
-        let hAfter = q.rawQueue.head.load(moAcquire)
-        let tAfter = q.rawQueue.tail.load(moAcquire)
-        outWasEmpty[] = (tBefore <= hBefore) or (tAfter - hAfter <= 1'u64)
       LF_OK
     else:
-      if outWasEmpty != nil:
-        outWasEmpty[] = false
       LF_ERR_FULL
 
 proc boundedPop[N, P, C: static int](cons: ptr lf_consumer_t, outItem: ptr pointer): lf_status_t {.nimcall, gcsafe, raises: [].} =
@@ -394,14 +388,12 @@ proc unboundedPushEx[S, MaxThreads: static int](
     prod: ptr lf_producer_t, item: pointer, outWasEmpty: ptr bool
 ): lf_status_t {.nimcall, gcsafe, raises: [].} =
   let p = cast[ptr UnboundedProducerImpl[S, MaxThreads]](prod)
-  let q = cast[ptr UnboundedQueueImpl[S, MaxThreads]](p.base.queue)
   cAbiBoundary:
     {.cast(gcsafe).}:
-      let countBefore = q.rawQueue[].itemCount.load(moAcquire)
-      p.bound.push(item)
+      var wasEmpty = false
+      p.bound.pushEx(item, wasEmpty)
       if outWasEmpty != nil:
-        let countAfter = q.rawQueue[].itemCount.load(moAcquire)
-        outWasEmpty[] = (countBefore <= 0) or (countAfter <= 1)
+        outWasEmpty[] = wasEmpty
       LF_OK
 
 proc unboundedPop[S, MaxThreads: static int](cons: ptr lf_consumer_t, outItem: ptr pointer): lf_status_t {.nimcall, gcsafe, raises: [].} =
@@ -670,11 +662,10 @@ proc unboundedQueueDestroy[S, MaxThreads: static int](qBase: ptr lf_queue_t): lf
             # unconsumed published LCRQ cells.
             var seg = q.rawQueue[].headSegment.load(moAcquire)
             while seg != nil:
-              let startIdx = max(0, seg.prevConsumerIdx.load(moAcquire) + 1)
               let endIdx = min(S, seg.tail.load(moAcquire))
-              for i in startIdx ..< endIdx:
+              for i in 0 ..< endIdx:
                 let cellPair = load(seg.cells[i], moSequentiallyConsistent)
-                if cellPair.first == 1'u:
+                if cellPair.first == 1'u and cellPair.second != nil:
                   q.base.destructor(cellPair.second, q.base.userData)
                   store(
                     seg.cells[i],
@@ -2759,6 +2750,9 @@ proc lf_streambuffer_commit_read*(
 ) {.exportc: "lf_streambuffer_commit_read", cdecl, gcsafe, raises: [].} =
   lf_stream_ring_commit_read(ring, bytes_read)
 
+type
+  ConstUint8Ptr* {.importc: "const uint8_t*".} = ptr uint8
+
 proc lf_stream_reserve_write*(
     sb: ptr lf_streambuffer_t,
     requested_bytes: csize_t,
@@ -2775,7 +2769,7 @@ proc lf_stream_reserve_write*(
     out_ptr2[] = nil
   if out_len2 != nil:
     out_len2[] = 0
-  if unlikely(sb == nil or sb.raw == nil or out_ptr1 == nil or out_len1 == nil):
+  if unlikely(sb == nil or sb.raw == nil or out_ptr1 == nil or out_len1 == nil or out_ptr2 == nil or out_len2 == nil):
     return LF_ERR_INVALID_ARG
   cAbiBoundary:
     let cap = sb.raw[].capacity()
@@ -2793,10 +2787,8 @@ proc lf_stream_reserve_write*(
     out_ptr1[] = cast[ptr uint8](iov.first.data)
     out_len1[] = csize_t(iov.first.len)
     if iov.second.len > 0 and iov.second.data != nil:
-      if out_ptr2 != nil:
-        out_ptr2[] = cast[ptr uint8](iov.second.data)
-      if out_len2 != nil:
-        out_len2[] = csize_t(iov.second.len)
+      out_ptr2[] = cast[ptr uint8](iov.second.data)
+      out_len2[] = csize_t(iov.second.len)
     LF_OK
 
 proc lf_stream_commit_write*(
@@ -2815,9 +2807,9 @@ proc lf_stream_commit_write*(
 
 proc lf_stream_peek_read*(
     sb: ptr lf_streambuffer_t,
-    out_ptr1: ptr ptr uint8,
+    out_ptr1: ptr ConstUint8Ptr,
     out_len1: ptr csize_t,
-    out_ptr2: ptr ptr uint8,
+    out_ptr2: ptr ConstUint8Ptr,
     out_len2: ptr csize_t
 ): lf_status_t {.exportc: "lf_stream_peek_read", cdecl, gcsafe, raises: [].} =
   if out_ptr1 != nil:
@@ -2828,7 +2820,7 @@ proc lf_stream_peek_read*(
     out_ptr2[] = nil
   if out_len2 != nil:
     out_len2[] = 0
-  if unlikely(sb == nil or sb.raw == nil or out_ptr1 == nil or out_len1 == nil):
+  if unlikely(sb == nil or sb.raw == nil or out_ptr1 == nil or out_len1 == nil or out_ptr2 == nil or out_len2 == nil):
     return LF_ERR_INVALID_ARG
   cAbiBoundary:
     let avail = sb.raw[].availableRead()
@@ -2837,13 +2829,11 @@ proc lf_stream_peek_read*(
     let iov = sb.raw[].acquireReadIov(avail)
     if iov.first.len <= 0 or iov.first.data == nil:
       return LF_ERR_EMPTY
-    out_ptr1[] = cast[ptr uint8](iov.first.data)
+    out_ptr1[] = cast[ConstUint8Ptr](iov.first.data)
     out_len1[] = csize_t(iov.first.len)
     if iov.second.len > 0 and iov.second.data != nil:
-      if out_ptr2 != nil:
-        out_ptr2[] = cast[ptr uint8](iov.second.data)
-      if out_len2 != nil:
-        out_len2[] = csize_t(iov.second.len)
+      out_ptr2[] = cast[ConstUint8Ptr](iov.second.data)
+      out_len2[] = csize_t(iov.second.len)
     LF_OK
 
 proc lf_stream_consume_read*(
@@ -5551,9 +5541,9 @@ proc lfq_stream_commit_write*(
 
 proc lfq_stream_peek_read*(
     sb: ptr lfq_streambuffer_t,
-    out_ptr1: ptr ptr uint8,
+    out_ptr1: ptr ConstUint8Ptr,
     out_len1: ptr csize_t,
-    out_ptr2: ptr ptr uint8,
+    out_ptr2: ptr ConstUint8Ptr,
     out_len2: ptr csize_t
 ): lfq_status_t {.exportc: "lfq_stream_peek_read", cdecl, gcsafe, raises: [].} =
   lf_stream_peek_read(sb, out_ptr1, out_len1, out_ptr2, out_len2)
