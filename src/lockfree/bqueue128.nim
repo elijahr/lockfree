@@ -111,16 +111,18 @@ proc `=copy`*[T, N](dest: var BQueue128[T, N], src: BQueue128[T, N]) {.
 # Core Queue Operations (Lock-Free / DWCAS)
 # ------------------------------------------------------------------------------
 
-proc tryPush*[T: uint64 | int64 | pointer | int, N: static int](
-    self: var BQueue128[T, N], val: T
+proc tryPushEx*[T: uint64 | int64 | pointer | int, N: static int](
+    self: var BQueue128[T, N], val: T, wasEmpty: var bool
 ): bool {.inline.} =
-  ## Enqueues `val` into the queue.
+  ## Enqueues `val` into the queue and sets `wasEmpty = true` if this push
+  ## transitioned the queue from empty (`0` items) to `1` item.
   ##
   ## Returns `true` if enqueued successfully.
   ## Returns `false` immediately if the queue is full.
   ##
   ## Uses 128-bit hardware DWCAS (`cmpxchg16b` / `casp`) to atomically advance
   ## the slot turn and publish the payload in a single instruction.
+  wasEmpty = false
   const mask = uint64(N - 1)
   var pos = self.tail.load(moRelaxed)
   var waitSpins = 0
@@ -137,6 +139,9 @@ proc tryPush*[T: uint64 | int64 | pointer | int, N: static int](
         # 128-bit hardware CAS is always sequentially consistent at instruction level.
         while not compareExchangeWeak(cell[], expected, desired):
           discard
+        threadFence(moSequentiallyConsistent)
+        let h = self.head.load(moSequentiallyConsistent)
+        wasEmpty = (h >= pos)
         return true
       waitSpins = 0 # Ring position advanced by peer; reset spin budget
     elif diff < 0:
@@ -149,9 +154,23 @@ proc tryPush*[T: uint64 | int64 | pointer | int, N: static int](
       pos = self.tail.load(moRelaxed)
       waitSpins = 0
 
+proc tryPush*[T: uint64 | int64 | pointer | int, N: static int](
+    self: var BQueue128[T, N], val: T
+): bool {.inline.} =
+  ## Enqueues `val` into the queue.
+  ##
+  ## Returns `true` if enqueued successfully.
+  ## Returns `false` immediately if the queue is full.
+  var dummy = false
+  self.tryPushEx(val, dummy)
+
 template push*[T, N](self: var BQueue128[T, N], val: T): bool =
   ## Convenience alias for `tryPush`.
   self.tryPush(val)
+
+template pushEx*[T, N](self: var BQueue128[T, N], val: T, wasEmpty: var bool): bool =
+  ## Convenience alias for `tryPushEx`.
+  self.tryPushEx(val, wasEmpty)
 
 proc tryPop*[T: uint64 | int64 | pointer | int, N: static int](
     self: var BQueue128[T, N], val: var T
@@ -168,7 +187,7 @@ proc tryPop*[T: uint64 | int64 | pointer | int, N: static int](
     var observed: Pair[uint64, T] = load(cell[], moSequentiallyConsistent)
     let diff = cast[int64](observed.first - (pos + 1))
     if diff == 0:
-      if self.head.compareExchangeWeak(pos, pos + 1, moRelaxed, moRelaxed):
+      if self.head.compareExchangeWeak(pos, pos + 1, moAcqRel, moRelaxed):
         var expected = observed
         var desired: Pair[uint64, T]
         desired.first = pos + uint64(N)

@@ -1051,7 +1051,7 @@ proc pop*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
       let value = move(seg.data[head])
       seg.head = head + 1
       when not defined(lockfreeDisableItemCount):
-        discard self.itemCount.fetchSub(1, moRelaxed)
+        discard self.itemCount.fetchSub(1, moAcqRel)
       # seg.data holds SlotEncoding(T). Decode at the boundary so the returned
       # Option[T] matches the user-facing type. Legacy body returned
       # `some(value)` directly, which compiled only for POD T (where
@@ -1613,16 +1613,20 @@ proc newMpmcUnboundedQueue*[
 ## handle storage entirely.
 ## ----------------------------------------------------------------------
 
-proc push*[
+proc pushEx*[
     T;
     Tag: SpscProducerTag | MpmcProducerTag | AnyThreadTag,
     ccProd, ccCons: static PinScopeCardinality,
     ST: static DeallocationStrategy,
     S, MaxThreads: static int,
 ](
-    self: Bound[T, Tag, Queue[T, ccProd, ccCons, ST, S, MaxThreads]], item: sink T
-) {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
-  ## Push a single item onto the unbounded queue (cardinality-dispatched).
+    self: Bound[T, Tag, Queue[T, ccProd, ccCons, ST, S, MaxThreads]],
+    item: sink T,
+    wasEmpty: var bool,
+): bool {.discardable, tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Push a single item onto the unbounded queue (cardinality-dispatched) and
+  ## set `wasEmpty = true` if `itemCount` transitioned from `<= 0` to `1`.
+  wasEmpty = false
   # Path-C admission gate (25-row composition matrix + reject chain). Rejects:
   # distinct ref alias (row 7), nested ref (row 8), value types with managed
   # fields, unsupported T. Accepts: ref T, string, seq[U] (with R7 element
@@ -1677,7 +1681,8 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
     seg.data[tail] = wrapOrIdentity[T](item)
     seg.tail.store(tail + 1, moRelease)
     when not defined(lockfreeDisableItemCount):
-      discard self.queue.itemCount.fetchAdd(1, moRelaxed)
+      wasEmpty = (self.queue.itemCount.fetchAdd(1, moAcqRel) <= 0)
+    return true
   elif ccProd == ccSingle and ccCons == ccMulti:
     # spmc-equiv — single producer, no pin.
     var seg = self.queue.tailSegment.load(moRelaxed)
@@ -1693,7 +1698,8 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
     seg.data[tail] = wrapOrIdentity[T](item)
     seg.tail.store(tail + 1, moRelease)
     when not defined(lockfreeDisableItemCount):
-      discard self.queue.itemCount.fetchAdd(1, moRelaxed)
+      wasEmpty = (self.queue.itemCount.fetchAdd(1, moAcqRel) <= 0)
+    return true
   else:
     # ccProd == ccMulti — mpsc/mpmc-equiv: pin claim required.
     type MgrT = typeof(self.queue.manager[])
@@ -1817,8 +1823,21 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
               seg.data[tail] = encoded
             seg.committed[tail].store(true, moRelease)
           when not defined(lockfreeDisableItemCount):
-            discard self.queue.itemCount.fetchAdd(1, moRelaxed)
-          break
+            wasEmpty = (self.queue.itemCount.fetchAdd(1, moAcqRel) <= 0)
+          return true
+
+proc push*[
+    T;
+    Tag: SpscProducerTag | MpmcProducerTag | AnyThreadTag,
+    ccProd, ccCons: static PinScopeCardinality,
+    ST: static DeallocationStrategy,
+    S, MaxThreads: static int,
+](
+    self: Bound[T, Tag, Queue[T, ccProd, ccCons, ST, S, MaxThreads]], item: sink T
+) {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Push a single item onto the unbounded queue (cardinality-dispatched).
+  var dummy = false
+  discard self.pushEx(item, dummy)
 
 proc push*[
     T;
@@ -1866,7 +1885,7 @@ proc pop*[
         let encoded = move(seg.data[head])
         seg.head = head + 1
         when not defined(lockfreeDisableItemCount):
-          discard self.queue.itemCount.fetchSub(1, moRelaxed)
+          discard self.queue.itemCount.fetchSub(1, moAcqRel)
         return some(unwrapOrIdentity[T](encoded))
       if head >= S:
         let nextSeg = seg.next.load(moAcquire)
@@ -1898,7 +1917,7 @@ proc pop*[
             result = some(unwrapOrIdentity[T](move(seg.data[seg.head])))
             inc seg.head
             when not defined(lockfreeDisableItemCount):
-              discard self.queue.itemCount.fetchSub(1, moRelaxed)
+              discard self.queue.itemCount.fetchSub(1, moAcqRel)
           # Deliberate transient-empty return: when `head < tail` but the
           # committed flag at `head` is not yet visible, a producer has reserved
           # the slot via tail-bump but has not finished publishing. This is the
@@ -2049,7 +2068,7 @@ proc pop*[
         # data[] holds SlotEncoding(T); decode on the way out.
         result = some(unwrapOrIdentity[T](move(seg.data[mySlot])))
         when not defined(lockfreeDisableItemCount):
-          discard self.queue.itemCount.fetchSub(1, moRelaxed)
+          discard self.queue.itemCount.fetchSub(1, moAcqRel)
         break
 
   when ST == stEager:
@@ -2258,7 +2277,7 @@ proc pop*[
         if claimed.isSome:
           result = some(unwrapOrIdentity[T](move(claimed.get)))
           when not defined(lockfreeDisableItemCount):
-            discard self.queue.itemCount.fetchSub(1, moRelaxed)
+            discard self.queue.itemCount.fetchSub(1, moAcqRel)
           break
         # tryClaim returned none. Distinguish via fresh acquire-load: (a)
         # CLOSED_BIT set — a peer consumer drove close-on-empty on our
@@ -2362,7 +2381,7 @@ proc pop*[
               if claimed.isSome:
                 result = some(unwrapOrIdentity[T](move(claimed.get)))
                 when not defined(lockfreeDisableItemCount):
-                  discard self.queue.itemCount.fetchSub(1, moRelaxed)
+                  discard self.queue.itemCount.fetchSub(1, moAcqRel)
                 when ST == stEager:
                   if h.advanceEvery(LockFreeQueuesAdvanceEvery):
                     discard reclaimNow(h)
@@ -2591,7 +2610,7 @@ proc popBatch*[
             if claimed.isSome:
               dest[totalPopped] = unwrapOrIdentity[T](move(claimed.get))
               when not defined(lockfreeDisableItemCount):
-                discard self.queue.itemCount.fetchSub(1, moRelaxed)
+                discard self.queue.itemCount.fetchSub(1, moAcqRel)
               inc totalPopped
               continue
             let recheck = load(seg.cells[mySlot], moSequentiallyConsistent)
@@ -2627,7 +2646,7 @@ proc popBatch*[
                 if c.isSome:
                   dest[totalPopped] = unwrapOrIdentity[T](move(c.get))
                   when not defined(lockfreeDisableItemCount):
-                    discard self.queue.itemCount.fetchSub(1, moRelaxed)
+                    discard self.queue.itemCount.fetchSub(1, moAcqRel)
                   inc totalPopped
                   published = true
                   break
@@ -2673,7 +2692,7 @@ proc popBatch*[
                     discard tryCloseOnEmpty[SlotEncoding(T)](seg.cells[slot], 0'u)
             when not defined(lockfreeDisableItemCount):
               if batchClaimed > 0:
-                discard self.queue.itemCount.fetchSub(batchClaimed, moRelaxed)
+                discard self.queue.itemCount.fetchSub(batchClaimed, moAcqRel)
             continue
           else:
             backoffOnRetry(spins)

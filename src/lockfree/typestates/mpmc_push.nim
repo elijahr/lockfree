@@ -95,6 +95,21 @@ proc complete*[N, P, C: static int, T](
   queue.cells.seqStore(op.slot, op.pos + 1, moRelease) # P5 publish
   true
 
+proc completeEx*[N, P, C: static int, T](
+    op: MPMCPushSlotClaimed[N],
+    queue: var MpmcPushBase[N, P, C, T],
+    item: sink T,
+    wasEmpty: var bool,
+): bool {.inline, notATransition.} =
+  ## Write item to the claimed slot, publish the seq advance, issue a
+  ## sequentially-consistent fence, and compute `wasEmpty = (head >= pos)`
+  ## using the exact ticket `op.pos` claimed in `tryClaim`.
+  queue.cells.dataPtr(op.slot)[] = item # P4 plain store; ordered by P5
+  queue.cells.seqStore(op.slot, op.pos + 1, moRelease) # P5 publish
+  threadFence(moSequentiallyConsistent)
+  wasEmpty = (queue.head.load(moSequentiallyConsistent) >= op.pos)
+  true
+
 proc extractFalse*[N: static int](op: MPMCPushFull[N]): bool {.notATransition.} =
   ## Terminal: extract false result (queue was full this generation).
   false

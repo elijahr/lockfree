@@ -110,6 +110,18 @@ lf_status_t lf_bqueue128_push(lf_bqueue128_t* queue, void* item);
 #define lfq_bqueue128_push lf_bqueue128_push
 
 /**
+ * @brief Attempts to enqueue an item using a single atomic 128-bit CAS and
+ * reports whether the queue transitioned from empty (0) to 1 item.
+ *
+ * @param queue         Bounded queue handle.
+ * @param item          Payload pointer to enqueue.
+ * @param out_was_empty Optional out-pointer set to true if the queue was empty prior to this push (may be NULL).
+ * @return LF_OK on success, LF_ERR_FULL if the queue is full, or LF_ERR_INVALID_ARG.
+ */
+lf_status_t lf_bqueue128_push_ex(lf_bqueue128_t* queue, void* item, bool* out_was_empty);
+#define lfq_bqueue128_push_ex lf_bqueue128_push_ex
+
+/**
  * @brief Attempts to dequeue an item using a single atomic 128-bit CAS.
  *
  * @param queue    Bounded queue handle.

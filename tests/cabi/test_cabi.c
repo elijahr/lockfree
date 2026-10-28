@@ -1248,6 +1248,66 @@ static void test_cabi_streambuffer(void) {
     read_bytes = lfq_streambuffer_read_blocking(sbuf, buf, 3, 5000000);
     TEST_ASSERT(read_bytes == 3, "streambuffer read_blocking failed");
 
+    /* 6. Status-returning Two-Phase Reserve/Commit & Peek/Consume C ABI */
+    uint8_t* ptr1 = NULL;
+    size_t len1 = 0;
+    uint8_t* ptr2 = NULL;
+    size_t len2 = 0;
+    const uint8_t* cptr1 = NULL;
+    const uint8_t* cptr2 = NULL;
+
+    TEST_ASSERT(lf_stream_reserve_write(NULL, 16, &ptr1, &len1, &ptr2, &len2) == LF_ERR_INVALID_ARG, "reserve_write NULL sb");
+    TEST_ASSERT(lf_stream_reserve_write(sbuf, 16, NULL, &len1, &ptr2, &len2) == LF_ERR_INVALID_ARG, "reserve_write NULL out_ptr1");
+    TEST_ASSERT(lf_stream_reserve_write(sbuf, 16, &ptr1, NULL, &ptr2, &len2) == LF_ERR_INVALID_ARG, "reserve_write NULL out_len1");
+    TEST_ASSERT(lf_stream_reserve_write(sbuf, 16, &ptr1, &len1, NULL, &len2) == LF_ERR_INVALID_ARG, "reserve_write NULL out_ptr2");
+    TEST_ASSERT(lf_stream_reserve_write(sbuf, 16, &ptr1, &len1, &ptr2, NULL) == LF_ERR_INVALID_ARG, "reserve_write NULL out_len2");
+    TEST_ASSERT(lf_stream_reserve_write(sbuf, 1024, &ptr1, &len1, &ptr2, &len2) == LF_ERR_INVALID_ARG, "reserve_write > cap");
+    TEST_ASSERT(lf_stream_peek_read(NULL, &cptr1, &len1, &cptr2, &len2) == LF_ERR_INVALID_ARG, "peek_read NULL sb");
+    TEST_ASSERT(lf_stream_peek_read(sbuf, NULL, &len1, &cptr2, &len2) == LF_ERR_INVALID_ARG, "peek_read NULL out_ptr1");
+    TEST_ASSERT(lf_stream_peek_read(sbuf, &cptr1, NULL, &cptr2, &len2) == LF_ERR_INVALID_ARG, "peek_read NULL out_len1");
+    TEST_ASSERT(lf_stream_peek_read(sbuf, &cptr1, &len1, NULL, &len2) == LF_ERR_INVALID_ARG, "peek_read NULL out_ptr2");
+    TEST_ASSERT(lf_stream_peek_read(sbuf, &cptr1, &len1, &cptr2, NULL) == LF_ERR_INVALID_ARG, "peek_read NULL out_len2");
+    TEST_ASSERT(lf_stream_peek_read(sbuf, &cptr1, &len1, &cptr2, &len2) == LF_ERR_EMPTY, "peek_read on empty sbuf");
+
+    TEST_ASSERT(lf_stream_reserve_write(sbuf, 32, &ptr1, &len1, &ptr2, &len2) == LF_OK, "lf_stream_reserve_write 32 failed");
+    TEST_ASSERT(ptr1 != NULL && (len1 + len2) == 32, "lf_stream_reserve_write slice lengths mismatch");
+    for (size_t i = 0; i < len1; i++) ptr1[i] = (uint8_t)(i + 1);
+    for (size_t i = 0; i < len2; i++) ptr2[i] = (uint8_t)(len1 + i + 1);
+    TEST_ASSERT(lf_stream_commit_write(sbuf, 32) == LF_OK, "lf_stream_commit_write 32 failed");
+
+    TEST_ASSERT(lf_stream_peek_read(sbuf, &cptr1, &len1, &cptr2, &len2) == LF_OK, "lf_stream_peek_read 32 failed");
+    TEST_ASSERT(cptr1 != NULL && (len1 + len2) == 32, "lf_stream_peek_read slice lengths mismatch");
+    for (size_t i = 0; i < len1; i++) TEST_ASSERT(cptr1[i] == (uint8_t)(i + 1), "peek_read slice 1 byte mismatch");
+    for (size_t i = 0; i < len2; i++) TEST_ASSERT(cptr2[i] == (uint8_t)(len1 + i + 1), "peek_read slice 2 byte mismatch");
+    TEST_ASSERT(lf_stream_consume_read(sbuf, 32) == LF_OK, "lf_stream_consume_read 32 failed");
+    TEST_ASSERT(lf_streambuffer_is_empty(sbuf), "sbuf should be empty after consume_read");
+
+    /* Explicit wrap-around test for lf_stream_reserve_write & lf_stream_peek_read */
+    lf_streambuffer_t* wrap_sb = lf_streambuffer_create(64, false);
+    TEST_ASSERT(wrap_sb != NULL, "wrap_sb create failed");
+    TEST_ASSERT(lf_stream_reserve_write(wrap_sb, 50, &ptr1, &len1, &ptr2, &len2) == LF_OK, "wrap_sb reserve 50 failed");
+    TEST_ASSERT(ptr1 != NULL && len1 == 50 && ptr2 == NULL && len2 == 0, "wrap_sb initial 50 should not wrap");
+    for (size_t i = 0; i < 50; i++) ptr1[i] = (uint8_t)(i + 10);
+    TEST_ASSERT(lf_stream_commit_write(wrap_sb, 50) == LF_OK, "wrap_sb commit 50 failed");
+    TEST_ASSERT(lf_stream_consume_read(wrap_sb, 40) == LF_OK, "wrap_sb consume 40 failed");
+
+    /* Write cursor is at 50, read cursor at 40 (capacity 64). Reserve 30 bytes -> 14 in slice 1, 16 in slice 2 */
+    TEST_ASSERT(lf_stream_reserve_write(wrap_sb, 30, &ptr1, &len1, &ptr2, &len2) == LF_OK, "wrap_sb reserve 30 wrap failed");
+    TEST_ASSERT(ptr1 != NULL && len1 == 14 && ptr2 != NULL && len2 == 16, "wrap_sb reserve 30 split mismatch");
+    for (size_t i = 0; i < 14; i++) ptr1[i] = (uint8_t)(100 + i);
+    for (size_t i = 0; i < 16; i++) ptr2[i] = (uint8_t)(200 + i);
+    TEST_ASSERT(lf_stream_commit_write(wrap_sb, 30) == LF_OK, "wrap_sb commit 30 failed");
+
+    /* Peek read across wrap boundary -> 24 bytes in slice 1 (10 old + 14 new), 16 bytes in slice 2 */
+    TEST_ASSERT(lf_stream_peek_read(wrap_sb, &cptr1, &len1, &cptr2, &len2) == LF_OK, "wrap_sb peek_read wrap failed");
+    TEST_ASSERT(cptr1 != NULL && len1 == 24 && cptr2 != NULL && len2 == 16, "wrap_sb peek_read split mismatch");
+    for (size_t i = 0; i < 10; i++) TEST_ASSERT(cptr1[i] == (uint8_t)(50 + i), "wrap_sb peek slice 1 old byte mismatch");
+    for (size_t i = 0; i < 14; i++) TEST_ASSERT(cptr1[10 + i] == (uint8_t)(100 + i), "wrap_sb peek slice 1 new byte mismatch");
+    for (size_t i = 0; i < 16; i++) TEST_ASSERT(cptr2[i] == (uint8_t)(200 + i), "wrap_sb peek slice 2 byte mismatch");
+    TEST_ASSERT(lf_stream_consume_read(wrap_sb, 40) == LF_OK, "wrap_sb consume 40 wrap failed");
+    TEST_ASSERT(lf_streambuffer_is_empty(wrap_sb), "wrap_sb should be empty after consume 40");
+    lf_streambuffer_destroy(wrap_sb);
+
     lfq_streambuffer_destroy(sbuf);
 
     /* 6. Null Resilience */
@@ -2110,10 +2170,12 @@ static void test_cabi_bqueue128(void) {
     /* Backward compatibility aliases */
     lfq_bqueue128_t* lq = NULL;
     TEST_ASSERT(lfq_bqueue128_create(8, NULL, NULL, &lq) == LFQ_OK, "lfq_bqueue128_create failed");
-    TEST_ASSERT(lfq_bqueue128_push(lq, (void*)77) == LFQ_OK, "lfq push failed");
+    bool was_empty = false;
+    TEST_ASSERT(lf_bqueue128_push_ex(lq, (void*)77, &was_empty) == LF_OK && was_empty == true, "lf_bqueue128_push_ex 0->1 failed");
+    TEST_ASSERT(lfq_bqueue128_push_ex(lq, (void*)88, &was_empty) == LFQ_OK && was_empty == false, "lfq_bqueue128_push_ex 1->2 failed");
     void* litem = NULL;
-    TEST_ASSERT(lfq_bqueue128_pop(lq, &litem) == LFQ_OK, "lfq pop failed");
-    TEST_ASSERT((uintptr_t)litem == 77, "lfq popped item mismatch");
+    TEST_ASSERT(lfq_bqueue128_pop(lq, &litem) == LFQ_OK && (uintptr_t)litem == 77, "lfq pop 77 failed");
+    TEST_ASSERT(lfq_bqueue128_pop(lq, &litem) == LFQ_OK && (uintptr_t)litem == 88, "lfq pop 88 failed");
     TEST_ASSERT(lfq_bqueue128_destroy(lq) == LFQ_OK, "lfq destroy failed");
 
     printf("test_cabi_bqueue128 PASSED.\n");
@@ -2134,12 +2196,14 @@ static void test_cabi_lf_modern_prefix(void) {
     TEST_ASSERT(lf_producer_acquire(queue, &prod) == LF_OK, "lf_producer_acquire failed");
     TEST_ASSERT(lf_consumer_acquire(queue, &cons) == LF_OK, "lf_consumer_acquire failed");
 
-    TEST_ASSERT(lf_push(prod, (void*)(uintptr_t)42) == LF_OK, "lf_push failed");
-    TEST_ASSERT(lf_queue_len(queue) == 1, "lf_queue_len failed");
+    bool was_empty = false;
+    TEST_ASSERT(lf_push_ex(prod, (void*)(uintptr_t)42, &was_empty) == LF_OK && was_empty == true, "lf_push_ex 0->1 failed");
+    TEST_ASSERT(lf_queue_push_ex(prod, (void*)(uintptr_t)43, &was_empty) == LF_OK && was_empty == false, "lf_queue_push_ex 1->2 failed");
+    TEST_ASSERT(lf_queue_len(queue) == 2, "lf_queue_len failed");
 
     void* item = NULL;
-    TEST_ASSERT(lf_pop(cons, &item) == LF_OK, "lf_pop failed");
-    TEST_ASSERT((uintptr_t)item == 42, "lf_pop item mismatch");
+    TEST_ASSERT(lf_pop(cons, &item) == LF_OK && (uintptr_t)item == 42, "lf_pop 42 failed");
+    TEST_ASSERT(lf_pop(cons, &item) == LF_OK && (uintptr_t)item == 43, "lf_pop 43 failed");
     TEST_ASSERT(lf_pop(cons, &item) == LF_ERR_EMPTY, "lf_pop on empty failed");
 
     TEST_ASSERT(lf_producer_release(prod) == LF_OK, "lf_producer_release failed");

@@ -997,6 +997,34 @@ proc push*[
         backoffOnRetry(spins)
         continue
 
+proc pushEx*[
+    T; Tag: SpscProducerTag | MpmcProducerTag | AnyThreadTag, N, P, C: static int
+](
+    self: Bound[T, Tag, BQueue[T, ccMulti, ccMulti, N, P, C]],
+    item: sink T,
+    wasEmpty: var bool,
+): bool {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## MPMC single-item push on a Bound producer endpoint with exact 0->1
+  ## empty-transition detection.
+  pathCAdmit(T)
+  wasEmpty = false
+  when defined(debug):
+    assert getThreadId() == self.attachedTid, "push from wrong thread"
+  var queueBase = cast[ptr MpmcPushBase[N, P, C, SlotEncoding(T)]](self.queue)
+  var op = mpmc_push.start[N]()
+  var spins = InitialSpin
+  while true:
+    var claim = op.tryClaim(queueBase[])
+    match claim:
+      MPMCPushFull(full):
+        return full.extractFalse()
+      MPMCPushSlotClaimed(slotClaimed):
+        return slotClaimed.completeEx(queueBase[], wrapOrIdentity[T](item), wasEmpty)
+      MPMCPushStart(restart):
+        op = restart
+        backoffOnRetry(spins)
+        continue
+
 # --- SPMC pop (via Bound) ------------------------------------------------
 proc pop*[T; Tag: SpscConsumerTag | MpmcConsumerTag | AnyThreadTag, N, C: static int](
     self: Bound[T, Tag, BQueue[T, ccSingle, ccMulti, N, 0, C]]

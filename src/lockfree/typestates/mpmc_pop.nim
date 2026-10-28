@@ -72,7 +72,7 @@ proc tryClaim*[N, P, C: static int, T](
   let diff = cast[int64](s) - cast[int64](pos + 1)
   if diff == 0:
     var expected = pos
-    if queue.head.compareExchangeWeak(expected, pos + 1, moRelaxed, moRelaxed):
+    if queue.head.compareExchangeWeak(expected, pos + 1, moAcqRel, moRelaxed):
       # C3
       MPMCPopClaimResult[N] -> MPMCPopSlotClaimed[N](pos: pos, slot: slot)
     else:
