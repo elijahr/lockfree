@@ -240,10 +240,10 @@ At the core of `lockfree`'s Morrison-Afek LCRQ unbounded MPMC queue and NEBR rec
 
 | Topology | Engine | Shape | Throughput (ops/ms) | Throughput (ops/sec) | vs Nim stdlib `system/Channel` |
 | :--- | :--- | :--- | :---: | :---: | :---: |
-| **MPMC** | `BQueue` (Bounded) | 4 producers, 4 consumers | **17,640 ops/ms** | **17,639,848 ops/s** | **31.2x faster** (566 ops/ms) |
-| **SPMC** | `BQueue` (Bounded) | 1 producer, 2 consumers | **19,589 ops/ms** | **19,589,072 ops/s** | — *(stdlib has no SPMC)* |
-| **MPSC** | `BQueue` (Bounded) | 4 producers, 1 consumer | **11,000 ops/ms** | **10,999,886 ops/s** | **0.8x faster** (14,572 ops/ms) |
-| **SPSC** | `Queue` (Unbounded) | 1 producer, 1 consumer | **33,790 ops/ms** | **33,789,837 ops/s** | — *(stdlib has no SPSC)* |
+| **MPMC** | `BQueue` (Bounded) | 4 producers, 4 consumers | **18,520 ops/ms** | **18,519,690 ops/s** | **24.7x faster** (749 ops/ms) |
+| **SPMC** | `BQueue` (Bounded) | 1 producer, 2 consumers | **21,937 ops/ms** | **21,936,549 ops/s** | — *(stdlib has no SPMC)* |
+| **MPSC** | `BQueue` (Bounded) | 4 producers, 1 consumer | **12,654 ops/ms** | **12,653,764 ops/s** | **0.9x faster** (14,202 ops/ms) |
+| **SPSC** | `Queue` (Unbounded) | 1 producer, 1 consumer | **29,917 ops/ms** | **29,917,394 ops/s** | — *(stdlib has no SPSC)* |
 
 *Run benchmarks locally with `nimble benchmarks` or explore multi-language comparisons, interactive filters, and latency curves on the [Interactive Benchmarks Portal](https://elijahr.github.io/lockfree/latest/guide/queues/benchmarks/).*
 <!-- BENCHMARK_METRICS_END -->
