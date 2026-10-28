@@ -1271,7 +1271,11 @@ static void test_cabi_streambuffer(void) {
     TEST_ASSERT(lf_stream_commit_write(sbuf, 1) == LF_ERR_INVALID_ARG, "commit_write without prior reserve should fail");
 
     TEST_ASSERT(lf_stream_reserve_write(sbuf, 16, &ptr1, &len1, &ptr2, &len2) == LF_OK, "lf_stream_reserve_write 16 failed");
+    TEST_ASSERT(lf_stream_reserve_write(sbuf, 1024, &ptr1, &len1, &ptr2, &len2) == LF_ERR_INVALID_ARG, "failed reserve > cap must not clobber active reservation");
     TEST_ASSERT(lf_stream_commit_write(sbuf, 17) == LF_ERR_INVALID_ARG, "lf_stream_commit_write reserved+1 should fail");
+    TEST_ASSERT(lf_stream_commit_write(sbuf, 16) == LF_OK, "lf_stream_commit_write 16 after failed reserve should succeed");
+    TEST_ASSERT(lf_stream_consume_read(sbuf, 16) == LF_OK, "lf_stream_consume_read 16 failed");
+    TEST_ASSERT(lf_stream_reserve_write(sbuf, 16, &ptr1, &len1, &ptr2, &len2) == LF_OK, "lf_stream_reserve_write 16 second failed");
     TEST_ASSERT(lf_stream_commit_write(sbuf, 0) == LF_OK, "lf_stream_commit_write 0 cancel failed");
     TEST_ASSERT(lf_stream_commit_write(sbuf, 1) == LF_ERR_INVALID_ARG, "lf_stream_commit_write after 0 cancel should fail");
 

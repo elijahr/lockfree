@@ -68,6 +68,7 @@ task test, "Runs the test suite":
 
   proc runOrc =
     exec "nim r --hints:off --warnings:off tests/test_runner.nim --all --release --mm:orc"
+    exec "nim c -d:release -d:lockfreeDisableItemCount --threads:on --path:src --nimcache:.tmp/cabi_no_itemcount -r tests/t_cabi.nim"
 
   proc runCpp =
     exec "nim r --hints:off --warnings:off tests/test_runner.nim --all --release --cpp"
@@ -290,6 +291,7 @@ task benchteststress, "Runs the bench harness test suite including 3.3M-sample s
 
 task cabi, "Builds and runs the C ABI verification test suite":
   exec "nim c -d:danger --threads:on --path:src -r tests/t_cabi.nim"
+  exec "nim c -d:danger -d:lockfreeDisableItemCount --threads:on --path:src --nimcache:.tmp/cabi_no_itemcount -r tests/t_cabi.nim"
  
  
 task channel, "Builds and runs the Channel facade test suite":

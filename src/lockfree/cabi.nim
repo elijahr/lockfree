@@ -2770,8 +2770,6 @@ proc lf_stream_reserve_write*(
     out_ptr2[] = nil
   if out_len2 != nil:
     out_len2[] = 0
-  if sb != nil:
-    sb.lastReservedWrite = 0
   if unlikely(sb == nil or sb.raw == nil or out_ptr1 == nil or out_len1 == nil or out_ptr2 == nil or out_len2 == nil):
     return LF_ERR_INVALID_ARG
   cAbiBoundary:

@@ -17,8 +17,12 @@
 
 import unittest2
 import std/os
+import std/options
 import lockfree/atomics
 import lockfree/atomics/backoff
+import lockfree/queue
+import lockfree/strategy
+import lockfree/endpoint
 import lockfree/cabi
 
 # Pass include path to the C compiler so #include "lockfree.h" resolves
@@ -1600,7 +1604,13 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     # Reserve 16 bytes, verify committing reserved+1 (17) fails with LF_ERR_INVALID_ARG even when capacity (64) > 17
     check lf_stream_reserve_write(sb, 16, addr p1, addr l1, addr p2, addr l2) == LF_OK
     check l1 + l2 == 16
+    # Failed reserve (> capacity) must NOT clobber active 16-byte reservation
+    check lf_stream_reserve_write(sb, 128, addr p1, addr l1, addr p2, addr l2) == LF_ERR_INVALID_ARG
     check lf_stream_commit_write(sb, 17) == LF_ERR_INVALID_ARG
+    check lf_stream_commit_write(sb, 16) == LF_OK
+    check lf_stream_consume_read(sb, 16) == LF_OK
+    check lf_stream_commit_write(sb, 1) == LF_ERR_INVALID_ARG
+    check lf_stream_reserve_write(sb, 16, addr p1, addr l1, addr p2, addr l2) == LF_OK
     check lf_stream_commit_write(sb, 0) == LF_OK
     check lf_stream_commit_write(sb, 1) == LF_ERR_INVALID_ARG
     check lf_stream_peek_read(nil, addr cp1, addr l1, addr cp2, addr l2) == LF_ERR_INVALID_ARG
@@ -1972,6 +1982,39 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check lf_queue_destroy(epBounded) == LF_OK
     check lf_queue_destroy(epUnbounded) == LF_OK
     check lf_bqueue128_destroy(epBq128) == LF_OK
+
+    # 5. Unbounded SPSC, SPMC, and MPSC pushEx 20-epoch wakeup verification (covers all cardinalities in queue.nim)
+    var qSpsc = newUnboundedSpscQueue[int, stEager, 16, 4]()
+    var qSpmc = newUnboundedSpmcQueue[int, stEager, 16, 4]()
+    var qMpsc = newUnboundedMpscQueue[int, stEager, 16, 4]()
+    var pSpsc = qSpsc.getProducerHere()
+    var cSpsc = qSpsc.getConsumerHere()
+    var pSpmc = qSpmc.getProducerHere()
+    var cSpmc = qSpmc.getConsumerHere()
+    var pMpsc = qMpsc.getProducerHere()
+    var cMpsc = qMpsc.getConsumerHere()
+
+    var spscWakeups = 0
+    var spmcWakeups = 0
+    var mpscWakeups = 0
+    for ep in 1 .. NumEpochs:
+      for k in 1 .. 4:
+        var weSpsc = false
+        var weSpmc = false
+        var weMpsc = false
+        check pSpsc.pushEx(ep * 10 + k, weSpsc) == true
+        check pSpmc.pushEx(ep * 10 + k, weSpmc) == true
+        check pMpsc.pushEx(ep * 10 + k, weMpsc) == true
+        if weSpsc: inc spscWakeups
+        if weSpmc: inc spmcWakeups
+        if weMpsc: inc mpscWakeups
+      for k in 1 .. 4:
+        check cSpsc.pop() == some(ep * 10 + k)
+        check cSpmc.pop() == some(ep * 10 + k)
+        check cMpsc.pop() == some(ep * 10 + k)
+    check spscWakeups == NumEpochs
+    check spmcWakeups == NumEpochs
+    check mpscWakeups == NumEpochs
 
   when not defined(windows):
     test "Direct C99 Header Interoperability":
