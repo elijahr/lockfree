@@ -104,9 +104,12 @@ lf_status_t lf_consumer_release(lf_consumer_t* cons);
  *   StoreLoad barrier. Guarantees that at least one concurrent producer in an
  *   empty-to-nonempty epoch observes `*out_was_empty = true` when the
  *   lowest-ticket producer publishes (avoiding missed wakeups).
- * - Unbounded MPMC: Atomically increments `itemCount` (`fetchAdd(1, moAcqRel) <= 0`)
- *   by default. When compiled with `-d:lockfreeDisableItemCount`, falls back to
- *   checking `headSegment == seg` and `seg.prevConsumerIdx + 1 >= slot`.
+ * - Unbounded Queue (SPSC, SPMC, MPSC, MPMC): Atomically increments `itemCount`
+ *   (`fetchAdd(1, moAcqRel) <= 0`) by default. When compiled with
+ *   `-d:lockfreeDisableItemCount`, all unbounded queue cardinalities fall back
+ *   to segment + slot/consumer-index inspection (`prevConsumerIdx` for
+ *   multi-consumer SPMC/MPMC and atomic `head` slot inspection for
+ *   single-consumer SPSC/MPSC).
  */
 lf_status_t lf_push(lf_producer_t* prod, void* item);
 #define lfq_push lf_push

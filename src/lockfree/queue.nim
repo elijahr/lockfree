@@ -1049,8 +1049,10 @@ proc pop*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
     let tail = seg.tail.load(moAcquire)
     if head < tail:
       let value = move(seg.data[head])
-      seg.head = head + 1
-      when not defined(lockfreeDisableItemCount):
+      when defined(lockfreeDisableItemCount):
+        cast[ptr Atomic[int]](addr seg.head)[].store(head + 1, moRelease)
+      else:
+        seg.head = head + 1
         discard self.itemCount.fetchSub(1, moAcqRel)
       # seg.data holds SlotEncoding(T). Decode at the boundary so the returned
       # Option[T] matches the user-facing type. Legacy body returned
@@ -1684,7 +1686,7 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
       wasEmpty = (self.queue.itemCount.fetchAdd(1, moAcqRel) <= 0)
     else:
       let hSeg = self.queue.headSegment.load(moAcquire)
-      wasEmpty = (hSeg == seg and hSeg.head >= tail)
+      wasEmpty = (hSeg == seg and cast[ptr Atomic[int]](addr hSeg.head)[].load(moAcquire) >= tail)
     return true
   elif ccProd == ccSingle and ccCons == ccMulti:
     # spmc-equiv — single producer, no pin.
@@ -1835,7 +1837,7 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
             when ccCons == ccMulti:
               wasEmpty = (hSeg == seg and seg.prevConsumerIdx.load(moAcquire) + 1 >= tail)
             else:
-              wasEmpty = (hSeg == seg and hSeg.head >= tail)
+              wasEmpty = (hSeg == seg and cast[ptr Atomic[int]](addr hSeg.head)[].load(moAcquire) >= tail)
           return true
 
 proc push*[
@@ -1895,8 +1897,10 @@ proc pop*[
       if head < tail:
         # data[] holds SlotEncoding(T); move out and decode.
         let encoded = move(seg.data[head])
-        seg.head = head + 1
-        when not defined(lockfreeDisableItemCount):
+        when defined(lockfreeDisableItemCount):
+          cast[ptr Atomic[int]](addr seg.head)[].store(head + 1, moRelease)
+        else:
+          seg.head = head + 1
           discard self.queue.itemCount.fetchSub(1, moAcqRel)
         return some(unwrapOrIdentity[T](encoded))
       if head >= S:
@@ -1927,8 +1931,10 @@ proc pop*[
           if seg.committed[seg.head].load(moAcquire):
             # data[] holds SlotEncoding(T); decode on the way out.
             result = some(unwrapOrIdentity[T](move(seg.data[seg.head])))
-            inc seg.head
-            when not defined(lockfreeDisableItemCount):
+            when defined(lockfreeDisableItemCount):
+              cast[ptr Atomic[int]](addr seg.head)[].store(seg.head + 1, moRelease)
+            else:
+              inc seg.head
               discard self.queue.itemCount.fetchSub(1, moAcqRel)
           # Deliberate transient-empty return: when `head < tail` but the
           # committed flag at `head` is not yet visible, a producer has reserved
