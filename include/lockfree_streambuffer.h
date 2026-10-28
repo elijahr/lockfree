@@ -174,11 +174,17 @@ lf_status_t lf_stream_reserve_write(
  *        from `lf_stream_reserve_write`, publishing them to the consumer with
  *        release memory ordering.
  *
+ * `committed_bytes` must not exceed the byte count reserved by the preceding
+ * `lf_stream_reserve_write` call (`*out_len1 + *out_len2`). Passing
+ * `committed_bytes == 0` cancels the active reservation without advancing the
+ * write cursor and returns `LF_OK`.
+ *
  * @param sb               Stream buffer handle (must not be NULL).
  * @param committed_bytes  Number of bytes actually written (must not exceed
- *                         currently available write space).
+ *                         the byte count reserved by the preceding
+ *                         `lf_stream_reserve_write` call).
  * @return `LF_OK` on success, or `LF_ERR_INVALID_ARG` if `sb` is NULL or
- *         `committed_bytes` exceeds available write space.
+ *         `committed_bytes` exceeds the active reservation or available write space.
  */
 lf_status_t lf_stream_commit_write(
     lf_streambuffer_t* sb,

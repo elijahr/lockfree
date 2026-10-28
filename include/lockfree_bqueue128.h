@@ -113,6 +113,12 @@ lf_status_t lf_bqueue128_push(lf_bqueue128_t* queue, void* item);
  * @brief Attempts to enqueue an item using a single atomic 128-bit CAS and
  * reports whether the queue transitioned from empty (0) to 1 item.
  *
+ * Compares the consumer `head` cursor against the producer's claimed ticket
+ * `pos` (`head >= pos`) after a sequentially-consistent StoreLoad barrier,
+ * guaranteeing that at least one concurrent producer in an empty-to-nonempty
+ * epoch observes `*out_was_empty = true` when the lowest-ticket producer
+ * publishes.
+ *
  * @param queue         Bounded queue handle.
  * @param item          Payload pointer to enqueue.
  * @param out_was_empty Optional out-pointer set to true if the queue was empty prior to this push (may be NULL).

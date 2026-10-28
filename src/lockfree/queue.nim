@@ -1682,6 +1682,9 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
     seg.tail.store(tail + 1, moRelease)
     when not defined(lockfreeDisableItemCount):
       wasEmpty = (self.queue.itemCount.fetchAdd(1, moAcqRel) <= 0)
+    else:
+      let hSeg = self.queue.headSegment.load(moAcquire)
+      wasEmpty = (hSeg == seg and hSeg.head >= tail)
     return true
   elif ccProd == ccSingle and ccCons == ccMulti:
     # spmc-equiv — single producer, no pin.
@@ -1699,6 +1702,9 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
     seg.tail.store(tail + 1, moRelease)
     when not defined(lockfreeDisableItemCount):
       wasEmpty = (self.queue.itemCount.fetchAdd(1, moAcqRel) <= 0)
+    else:
+      let hSeg = self.queue.headSegment.load(moAcquire)
+      wasEmpty = (hSeg == seg and seg.prevConsumerIdx.load(moAcquire) + 1 >= tail)
     return true
   else:
     # ccProd == ccMulti — mpsc/mpmc-equiv: pin claim required.
@@ -1824,6 +1830,12 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
             seg.committed[tail].store(true, moRelease)
           when not defined(lockfreeDisableItemCount):
             wasEmpty = (self.queue.itemCount.fetchAdd(1, moAcqRel) <= 0)
+          else:
+            let hSeg = self.queue.headSegment.load(moAcquire)
+            when ccCons == ccMulti:
+              wasEmpty = (hSeg == seg and seg.prevConsumerIdx.load(moAcquire) + 1 >= tail)
+            else:
+              wasEmpty = (hSeg == seg and hSeg.head >= tail)
           return true
 
 proc push*[
