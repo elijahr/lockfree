@@ -104,6 +104,14 @@ proc completeEx*[N, P, C: static int, T](
   ## Write item to the claimed slot, publish the seq advance, issue a
   ## sequentially-consistent fence, and compute `wasEmpty = (head >= pos)`
   ## using the exact ticket `op.pos` claimed in `tryClaim`.
+  ##
+  ## Note on bounded MPMC wakeup semantics: `wasEmpty` compares the consumer
+  ## `head` cursor against this producer's claimed ticket `op.pos` after a
+  ## sequentially-consistent StoreLoad barrier. In an empty-to-nonempty epoch
+  ## with concurrent producers, at least one producer (specifically the
+  ## lowest-ticket producer when it publishes before being consumed, and any
+  ## concurrent producer that publishes before the consumer advances `head`)
+  ## is guaranteed to observe `wasEmpty = true`, preventing missed wakeups.
   queue.cells.dataPtr(op.slot)[] = item # P4 plain store; ordered by P5
   queue.cells.seqStore(op.slot, op.pos + 1, moRelease) # P5 publish
   threadFence(moSequentiallyConsistent)

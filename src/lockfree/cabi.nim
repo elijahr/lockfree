@@ -2473,6 +2473,7 @@ type
 
   lf_stream_ring_handle* {.exportc: "lf_stream_ring_t".} = object
     raw*: ptr StreamRing
+    lastReservedWrite*: csize_t
 
   lf_stream_ring_t* = lf_stream_ring_handle
   lfq_stream_ring_handle* = lf_stream_ring_handle
@@ -2769,6 +2770,8 @@ proc lf_stream_reserve_write*(
     out_ptr2[] = nil
   if out_len2 != nil:
     out_len2[] = 0
+  if sb != nil:
+    sb.lastReservedWrite = 0
   if unlikely(sb == nil or sb.raw == nil or out_ptr1 == nil or out_len1 == nil or out_ptr2 == nil or out_len2 == nil):
     return LF_ERR_INVALID_ARG
   cAbiBoundary:
@@ -2789,6 +2792,7 @@ proc lf_stream_reserve_write*(
     if iov.second.len > 0 and iov.second.data != nil:
       out_ptr2[] = cast[ptr uint8](iov.second.data)
       out_len2[] = csize_t(iov.second.len)
+    sb.lastReservedWrite = csize_t(iov.first.len + iov.second.len)
     LF_OK
 
 proc lf_stream_commit_write*(
@@ -2798,11 +2802,14 @@ proc lf_stream_commit_write*(
   if unlikely(sb == nil or sb.raw == nil):
     return LF_ERR_INVALID_ARG
   cAbiBoundary:
+    if committed_bytes > sb.lastReservedWrite:
+      return LF_ERR_INVALID_ARG
     let avail = sb.raw[].availableWrite()
     if committed_bytes > csize_t(avail):
       return LF_ERR_INVALID_ARG
     if committed_bytes > 0:
       sb.raw[].commitWrite(int(committed_bytes))
+    sb.lastReservedWrite = 0
     LF_OK
 
 proc lf_stream_peek_read*(

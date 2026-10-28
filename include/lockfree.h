@@ -96,7 +96,18 @@ lf_status_t lf_consumer_acquire(lf_queue_t* queue, lf_consumer_t** out_cons);
 lf_status_t lf_consumer_release(lf_consumer_t* cons);
 #define lfq_consumer_release lf_consumer_release
 
-/* Queue Fast-Path Operations (Pointer Payload) */
+/* Queue Fast-Path Operations (Pointer Payload)
+ *
+ * Wakeup Detection Semantics (`lf_push_ex` / `lf_queue_push_ex`):
+ * - Bounded MPMC: Compares the consumer `head` cursor against the producer's
+ *   claimed ticket `pos` (`head >= pos`) after a sequentially-consistent
+ *   StoreLoad barrier. Guarantees that at least one concurrent producer in an
+ *   empty-to-nonempty epoch observes `*out_was_empty = true` when the
+ *   lowest-ticket producer publishes (avoiding missed wakeups).
+ * - Unbounded MPMC: Atomically increments `itemCount` (`fetchAdd(1, moAcqRel) <= 0`)
+ *   by default. When compiled with `-d:lockfreeDisableItemCount`, falls back to
+ *   checking `headSegment == seg` and `seg.prevConsumerIdx + 1 >= slot`.
+ */
 lf_status_t lf_push(lf_producer_t* prod, void* item);
 #define lfq_push lf_push
 lf_status_t lf_push_ex(lf_producer_t* prod, void* item, bool* out_was_empty);
