@@ -9,6 +9,36 @@
 extern "C" {
 #endif
 
+#ifndef LF_STATUS_DEFINED
+#define LF_STATUS_DEFINED
+typedef enum lf_status {
+    LF_ERR_PANIC           = -2,
+    LF_ERR_FAILURE         = -1,
+    LF_OK                  =  0,
+    LF_ERR_EMPTY           =  1,
+    LF_ERR_FULL            =  2,
+    LF_ERR_CLOSED          =  3,
+    LF_ERR_INVALID_ARG     =  4,
+    LF_ERR_REGISTRY_FULL   =  5,
+    LF_ERR_UNSUPPORTED     =  6
+} lf_status_t;
+
+#ifndef LFQ_STATUS_DEFINED
+#define LFQ_STATUS_DEFINED
+#define lfq_status_t lf_status_t
+#define lfq_status lf_status
+#define LFQ_OK                  LF_OK
+#define LFQ_ERR_EMPTY           LF_ERR_EMPTY
+#define LFQ_ERR_FULL            LF_ERR_FULL
+#define LFQ_ERR_CLOSED          LF_ERR_CLOSED
+#define LFQ_ERR_INVALID_ARG     LF_ERR_INVALID_ARG
+#define LFQ_ERR_REGISTRY_FULL   LF_ERR_REGISTRY_FULL
+#define LFQ_ERR_UNSUPPORTED     LF_ERR_UNSUPPORTED
+#define LFQ_ERR_FAILURE         LF_ERR_FAILURE
+#define LFQ_ERR_PANIC           LF_ERR_PANIC
+#endif
+#endif
+
 typedef struct lf_stream_ring lf_stream_ring_t;
 #define lfq_stream_ring lf_stream_ring
 #define lfq_stream_ring_t lf_stream_ring_t
@@ -105,6 +135,38 @@ lf_iovec_pair_t lf_streambuffer_acquire_read_iov(lf_streambuffer_t* ring, size_t
 #define lfq_streambuffer_acquire_read_iov lf_streambuffer_acquire_read_iov
 void lf_streambuffer_commit_read(lf_streambuffer_t* ring, size_t bytes_read);
 #define lfq_streambuffer_commit_read lf_streambuffer_commit_read
+
+/* Zero-Copy Two-Phase Reserve/Commit & Peek/Consume APIs (Status-Returning) */
+lf_status_t lf_stream_reserve_write(
+    lf_streambuffer_t* sb,
+    size_t requested_bytes,
+    uint8_t** out_ptr1,
+    size_t* out_len1,
+    uint8_t** out_ptr2,
+    size_t* out_len2
+);
+#define lfq_stream_reserve_write lf_stream_reserve_write
+
+lf_status_t lf_stream_commit_write(
+    lf_streambuffer_t* sb,
+    size_t committed_bytes
+);
+#define lfq_stream_commit_write lf_stream_commit_write
+
+lf_status_t lf_stream_peek_read(
+    const lf_streambuffer_t* sb,
+    const uint8_t** out_ptr1,
+    size_t* out_len1,
+    const uint8_t** out_ptr2,
+    size_t* out_len2
+);
+#define lfq_stream_peek_read lf_stream_peek_read
+
+lf_status_t lf_stream_consume_read(
+    lf_streambuffer_t* sb,
+    size_t consumed_bytes
+);
+#define lfq_stream_consume_read lf_stream_consume_read
 
 /* -------------------------------------------------------------------------
  * MPMCStreamRing (Multi-Producer Multi-Consumer Byte Stream Ring)

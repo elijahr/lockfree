@@ -99,10 +99,14 @@ lf_status_t lf_consumer_release(lf_consumer_t* cons);
 /* Queue Fast-Path Operations (Pointer Payload) */
 lf_status_t lf_push(lf_producer_t* prod, void* item);
 #define lfq_push lf_push
+lf_status_t lf_push_ex(lf_producer_t* prod, void* item, bool* out_was_empty);
+#define lfq_push_ex lf_push_ex
 lf_status_t lf_pop(lf_consumer_t* cons, void** out_item);
 #define lfq_pop lf_pop
 lf_status_t lf_queue_push(lf_producer_t* prod, void* item);
 #define lfq_queue_push lf_queue_push
+lf_status_t lf_queue_push_ex(lf_producer_t* prod, void* item, bool* out_was_empty);
+#define lfq_queue_push_ex lf_queue_push_ex
 lf_status_t lf_queue_pop(lf_consumer_t* cons, void** out_item);
 #define lfq_queue_pop lf_queue_pop
 

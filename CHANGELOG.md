@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Zero-Copy Two-Phase `StreamBuffer` / `StreamRing` Reserve/Commit & Peek/Consume C ABI (`include/lockfree_streambuffer.h`, `src/lockfree/cabi.nim`)**:
+  - Added status-returning pointer/length out-parameter APIs `lf_stream_reserve_write`, `lf_stream_commit_write`, `lf_stream_peek_read`, and `lf_stream_consume_read` (along with `lfq_stream_*` backward-compatibility aliases) to support zero-copy PEP 3118 `Py_buffer` / `memoryview` streaming I/O across both contiguous and wrap-around ring slices.
+- **0-to-1 Empty-Transition Detection (`include/lockfree.h`, `include/lockfree_bqueue128.h`, `src/lockfree/bqueue128.nim`, `src/lockfree/cabi.nim`)**:
+  - Added `BQueue128.tryPushEx` / `pushEx`, `lf_bqueue128_push_ex` (`lfq_bqueue128_push_ex`), and `lf_push_ex` / `lf_queue_push_ex` (`lfq_push_ex` / `lfq_queue_push_ex`) reporting `out_was_empty` on `0 -> 1` queue transitions for zero-syscall steady-state event-loop wakeups.
+- **Unbounded Queue Teardown Destructor Fallback (`src/lockfree/cabi.nim`)**:
+  - Hardened `unboundedQueueDestroy` with a direct segment-chain LCRQ cell drain fallback when `DebraManager` thread registration slots are exhausted at teardown time.
+
 ## [0.6.3] - 2026-10-27
 
 ### Fixed
