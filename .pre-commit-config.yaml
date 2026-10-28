@@ -29,4 +29,3 @@ repos:
         language: system
         files: \.(nim|nimble)$
         pass_filenames: false
-

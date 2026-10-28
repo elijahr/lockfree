@@ -6,14 +6,20 @@ default:
 # 1. Dependency Setup
 setup:
     nimble install --depsOnly -y
-    cd docs && npm install
+    cd docs && npm install --legacy-peer-deps
 
 # 2. Test Suite Execution
 test:
+    @just test-nim
+
+test-nim:
     nimble test
 
 # 3. Linter Execution
 lint:
+    @just lint-nim
+
+lint-nim:
     nph --check .
     nimble check
 
@@ -37,5 +43,5 @@ docs-build:
 
 # 8. Clean Build Artifacts
 clean:
-    rm -rf nimcache htmldocs site docs/dist docs/.astro tools/docgen
+    rm -rf nimcache htmldocs site docs/dist docs/.astro tools/docgen dist .venv
     find . -name '*.exe' -delete
