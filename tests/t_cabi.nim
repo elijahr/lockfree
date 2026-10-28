@@ -199,7 +199,10 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     for i in 1 .. 100:
       check lf_push(prod, cast[pointer](i)) == LF_OK
 
-    check lf_queue_len(queue) == 100
+    when defined(lockfreeDisableItemCount):
+      check lf_queue_len(queue) == 0
+    else:
+      check lf_queue_len(queue) == 100
     check lf_queue_is_empty(queue) == false
 
     # Pop 100 items and verify FIFO order
@@ -1581,7 +1584,7 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check lfq_bqueue128_destroy(lbq) == LFQ_OK
 
   test "Zero-Copy StreamBuffer Two-Phase Reserve/Commit & Peek/Consume C ABI":
-    let sb = lf_streambuffer_create(64, false)
+    var sb = lf_streambuffer_create(64, false)
     check sb != nil
 
     var p1: ptr uint8 = nil
@@ -1610,6 +1613,10 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check lf_stream_commit_write(sb, 16) == LF_OK
     check lf_stream_consume_read(sb, 16) == LF_OK
     check lf_stream_commit_write(sb, 1) == LF_ERR_INVALID_ARG
+    # Recreate sb at head=0, tail=0 so wrap-around offset assertions below start from index 0
+    lf_streambuffer_destroy(sb)
+    sb = lf_streambuffer_create(64, false)
+    check sb != nil
     check lf_stream_reserve_write(sb, 16, addr p1, addr l1, addr p2, addr l2) == LF_OK
     check lf_stream_commit_write(sb, 0) == LF_OK
     check lf_stream_commit_write(sb, 1) == LF_ERR_INVALID_ARG

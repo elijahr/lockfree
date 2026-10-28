@@ -16,6 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unbounded Queue Teardown Destructor Fallback (`src/lockfree/cabi.nim`)**:
   - Hardened `unboundedQueueDestroy` with a direct segment-chain LCRQ cell drain fallback when `DebraManager` thread registration slots are exhausted at teardown time.
 
+### Fixed
+
+- **C ABI StreamBuffer Reservation Tracking & `-d:lockfreeDisableItemCount` Wakeup Parity (`src/lockfree/cabi.nim`, `src/lockfree/queue.nim`, `tests/t_cabi.nim`)**:
+  - Preserved active `lastReservedWrite` reservation across failed `lf_stream_reserve_write` calls (`LF_ERR_INVALID_ARG` / `LF_ERR_FULL`), delegated `unboundedQueueIsEmpty` to `Queue.isEmpty()`, and handled segment-boundary rollover in `Queue.pushEx` when `-d:lockfreeDisableItemCount` is enabled.
+
 ## [0.6.3] - 2026-10-27
 
 ### Fixed

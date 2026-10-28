@@ -1686,7 +1686,10 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
       wasEmpty = (self.queue.itemCount.fetchAdd(1, moAcqRel) <= 0)
     else:
       let hSeg = self.queue.headSegment.load(moAcquire)
-      wasEmpty = (hSeg == seg and cast[ptr Atomic[int]](addr hSeg.head)[].load(moAcquire) >= tail)
+      let hHead = cast[ptr Atomic[int]](addr hSeg.head)[].load(moAcquire)
+      wasEmpty =
+        (hSeg == seg and hHead >= tail) or
+        (tail == 0 and hSeg.next.load(moAcquire) == seg and hHead >= S)
     return true
   elif ccProd == ccSingle and ccCons == ccMulti:
     # spmc-equiv — single producer, no pin.
@@ -1706,7 +1709,9 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
       wasEmpty = (self.queue.itemCount.fetchAdd(1, moAcqRel) <= 0)
     else:
       let hSeg = self.queue.headSegment.load(moAcquire)
-      wasEmpty = (hSeg == seg and seg.prevConsumerIdx.load(moAcquire) + 1 >= tail)
+      wasEmpty =
+        (hSeg == seg and seg.prevConsumerIdx.load(moAcquire) + 1 >= tail) or
+        (tail == 0 and hSeg.next.load(moAcquire) == seg and hSeg.prevConsumerIdx.load(moAcquire) + 1 >= S)
     return true
   else:
     # ccProd == ccMulti — mpsc/mpmc-equiv: pin claim required.
@@ -1835,9 +1840,14 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
           else:
             let hSeg = self.queue.headSegment.load(moAcquire)
             when ccCons == ccMulti:
-              wasEmpty = (hSeg == seg and seg.prevConsumerIdx.load(moAcquire) + 1 >= tail)
+              wasEmpty =
+                (hSeg == seg and seg.prevConsumerIdx.load(moAcquire) + 1 >= tail) or
+                (tail == 0 and hSeg.next.load(moAcquire) == seg and hSeg.prevConsumerIdx.load(moAcquire) + 1 >= S)
             else:
-              wasEmpty = (hSeg == seg and cast[ptr Atomic[int]](addr hSeg.head)[].load(moAcquire) >= tail)
+              let hHead = cast[ptr Atomic[int]](addr hSeg.head)[].load(moAcquire)
+              wasEmpty =
+                (hSeg == seg and hHead >= tail) or
+                (tail == 0 and hSeg.next.load(moAcquire) == seg and hHead >= S)
           return true
 
 proc push*[

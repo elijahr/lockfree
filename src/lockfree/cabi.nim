@@ -616,7 +616,7 @@ proc unboundedQueueIsEmpty[S, MaxThreads: static int](qBase: ptr lf_queue_t): bo
   let q = cast[ptr UnboundedQueueImpl[S, MaxThreads]](qBase)
   try:
     {.cast(gcsafe).}:
-      q.rawQueue[].len <= 0
+      q.rawQueue[].isEmpty()
   except:
     true
 
