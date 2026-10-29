@@ -2,23 +2,23 @@
   "version": 2,
   "packages": {
     "unittest2": {
-      "version": "0.2.5",
-      "vcsRevision": "26f2ef3ae0ec72a2a75bfe557e02e88f6a31c189",
+      "version": "0.3.0",
+      "vcsRevision": "19701632b4f287b3012a5e435a9d829b0f66c605",
       "url": "https://github.com/status-im/nim-unittest2",
       "downloadMethod": "git",
       "dependencies": [],
       "checksums": {
-        "sha1": "02bb3751ba9ddc3c17bfd89f2e41cb6bfb8fc0c9"
+        "sha1": "a14b3648dc8bbbaefd0b16d9567b567cc264b042"
       }
     },
     "typestates": {
-      "version": "0.12.0",
-      "vcsRevision": "86f55fae5cbb02bae8fba050a6293b04e0468448",
+      "version": "0.14.0",
+      "vcsRevision": "086c236a77e759bf9186d32f3f375b8818833f11",
       "url": "https://github.com/elijahr/nim-typestates",
       "downloadMethod": "git",
       "dependencies": [],
       "checksums": {
-        "sha1": "421a7d735870ac5c9a2c1a57fc602cfa1e86af1d"
+        "sha1": "579b80cedeafc9b92d8ee49b396990fec822a54b"
       }
     }
   },

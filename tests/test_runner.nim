@@ -78,6 +78,55 @@ proc findSyncTests(): seq[string] =
 proc findPrimitiveTests(): seq[string] =
   parseImportsFrom("unit/runner_primitives.nim")
 
+proc buildCompileCmd*(
+  testPath: string,
+  mm: string = "orc",
+  backend: string = "c",
+  cc: string = "",
+  nimcacheDir: string = "",
+  isRelease: bool = false,
+  isDanger: bool = false
+): seq[string] =
+  result = @[
+    if backend == "cpp": "cpp" else: "c",
+    "--mm:" & mm,
+    "--threads:on",
+    "--parallelBuild:1",
+    "--path:src",
+    "-d:testing",
+    "--verbosity:0",
+    "--hints:off",
+    "--warnings:off"
+  ]
+  if cc.len > 0:
+    result.add("--cc:" & cc)
+  if isDanger:
+    result.add("-d:danger")
+    result.add("-u:debug")
+    result.add("--opt:speed")
+    result.add("--debugger:off")
+    result.add("--debuginfo:off")
+  elif isRelease:
+    result.add("-d:release")
+    result.add("-u:debug")
+    result.add("--opt:speed")
+    result.add("--assertions:on")
+    result.add("--debugger:off")
+    result.add("--debuginfo:off")
+
+  let effNimcacheDir =
+    if nimcacheDir.len > 0:
+      nimcacheDir
+    else:
+      getHomeDir() / ".cache" / "nim" / ("test_runner_" & mm & "_" & backend & (if cc.len > 0: "_" & cc else: ""))
+  let testBase = testPath.extractFilename().changeFileExt("")
+  let perTestNimcache = effNimcacheDir / testBase
+  result.add("--nimcache:" & perTestNimcache)
+  if not isRelease and not isDanger and cc == "vcc":
+    result.add("--passC:/Fd:" & (perTestNimcache / "vc140.pdb"))
+  result.add("-r")
+  result.add(testPath)
+
 proc runParallel(
   tests: seq[string],
   maxWorkers: int,
@@ -104,33 +153,15 @@ proc runParallel(
       inc nextIdx
       let t0 = epochTime()
       let cmd = "nim"
-      var args: seq[string] = @[
-        if backend == "cpp": "cpp" else: "c",
-        "--mm:" & mm,
-        "--threads:on",
-        "--path:src",
-        "-d:testing",
-        "--verbosity:0",
-        "--hints:off",
-        "--warnings:off"
-      ]
-      if cc.len > 0:
-        args.add("--cc:" & cc)
-      if isDanger:
-        args.add("-d:danger")
-        args.add("-u:debug")
-        args.add("--opt:speed")
-      elif isRelease:
-        args.add("-d:release")
-        args.add("-u:debug")
-        args.add("--opt:speed")
-        args.add("--assertions:on")
-
-      if nimcacheDir.len > 0:
-        let testBase = testPath.extractFilename().changeFileExt("")
-        args.add("--nimcache:" & (nimcacheDir / testBase))
-      args.add("-r")
-      args.add(testPath)
+      let args = buildCompileCmd(
+        testPath = testPath,
+        mm = mm,
+        backend = backend,
+        cc = cc,
+        nimcacheDir = nimcacheDir,
+        isRelease = isRelease,
+        isDanger = isDanger
+      )
 
       let p = startProcess(cmd, args = args, options = {poStdErrToStdOut, poUsePath})
       when defined(posix):

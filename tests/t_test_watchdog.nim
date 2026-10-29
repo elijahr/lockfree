@@ -3,6 +3,7 @@
 import std/[os, osproc, strtabs, strutils]
 import unittest2
 import ./test_watchdog
+import ./test_runner
 
 proc cloneCurrentEnv(overrides: openArray[(string, string)]): StringTableRef =
   result = newStringTable(modeCaseSensitive)
@@ -72,3 +73,93 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
     )
     check exitCode == 0
     check "[LOCKFREE TEST WATCHDOG TIMEOUT]" notin output
+
+  test "buildCompileCmd enforces --parallelBuild:1, isolated nimcache, release debug-info stripping, and MSVC per-test /Fd: PDB":
+    let defaultCacheRoot = getHomeDir() / ".cache" / "nim" / "test_runner_orc_c_vcc"
+    let expectedPerTestCache = defaultCacheRoot / "t_dwcas"
+
+    let releaseVccCmd = buildCompileCmd(
+      testPath = "tests/t_dwcas.nim",
+      mm = "orc",
+      backend = "c",
+      cc = "vcc",
+      nimcacheDir = "",
+      isRelease = true,
+      isDanger = false
+    )
+    check releaseVccCmd == @[
+      "c",
+      "--mm:orc",
+      "--threads:on",
+      "--parallelBuild:1",
+      "--path:src",
+      "-d:testing",
+      "--verbosity:0",
+      "--hints:off",
+      "--warnings:off",
+      "--cc:vcc",
+      "-d:release",
+      "-u:debug",
+      "--opt:speed",
+      "--assertions:on",
+      "--debugger:off",
+      "--debuginfo:off",
+      "--nimcache:" & expectedPerTestCache,
+      "-r",
+      "tests/t_dwcas.nim"
+    ]
+
+    let dangerCppCmd = buildCompileCmd(
+      testPath = "tests/t_queue.nim",
+      mm = "arc",
+      backend = "cpp",
+      cc = "",
+      nimcacheDir = "/tmp/custom_nimcache",
+      isRelease = false,
+      isDanger = true
+    )
+    check dangerCppCmd == @[
+      "cpp",
+      "--mm:arc",
+      "--threads:on",
+      "--parallelBuild:1",
+      "--path:src",
+      "-d:testing",
+      "--verbosity:0",
+      "--hints:off",
+      "--warnings:off",
+      "-d:danger",
+      "-u:debug",
+      "--opt:speed",
+      "--debugger:off",
+      "--debuginfo:off",
+      "--nimcache:" & ("/tmp/custom_nimcache" / "t_queue"),
+      "-r",
+      "tests/t_queue.nim"
+    ]
+
+    let debugVccCmd = buildCompileCmd(
+      testPath = "tests/t_dwcas.nim",
+      mm = "orc",
+      backend = "c",
+      cc = "vcc",
+      nimcacheDir = "",
+      isRelease = false,
+      isDanger = false
+    )
+    check debugVccCmd == @[
+      "c",
+      "--mm:orc",
+      "--threads:on",
+      "--parallelBuild:1",
+      "--path:src",
+      "-d:testing",
+      "--verbosity:0",
+      "--hints:off",
+      "--warnings:off",
+      "--cc:vcc",
+      "--nimcache:" & expectedPerTestCache,
+      "--passC:/Fd:" & (expectedPerTestCache / "vc140.pdb"),
+      "-r",
+      "tests/t_dwcas.nim"
+    ]
