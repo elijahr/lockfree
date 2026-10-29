@@ -211,3 +211,8 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
     check findQueueBundles().len == 8
     check findUnitBundles().len == 11
     check findConcurrencyBundles().len == 4
+    check resolveBundledMode(0, "", bundledFlag = false, unbundledFlag = false) == true
+    check resolveBundledMode(0, "", bundledFlag = true, unbundledFlag = false) == true
+    check resolveBundledMode(0, "", bundledFlag = false, unbundledFlag = true) == false
+    check resolveBundledMode(1, "", bundledFlag = false, unbundledFlag = false) == false
+    check resolveBundledMode(0, "dwcas", bundledFlag = false, unbundledFlag = false) == false

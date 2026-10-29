@@ -16,6 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unbounded Queue Teardown Destructor Fallback (`src/lockfree/cabi.nim`)**:
   - Hardened `unboundedQueueDestroy` with a direct segment-chain LCRQ cell drain fallback when `DebraManager` thread registration slots are exhausted at teardown time.
 - Add bundled parallel mode (`--bundled`, auto-enabled on Windows/MSVC) with 15 balanced unit/concurrency sub-runners to `tests/test_runner.nim`, add missing `t_cas` to `tests/unit/runner_primitives.nim`, align `task testASan` with `task testTSan` in `lockfree.nimble`, cap all CI job timeouts to 20m (`LFQ_TEST_TIMEOUT_SEC=180`), and remove redundant `nimble examples` runs from `test-heavy` in `.github/workflows/ci.yml`.
+- Default `tests/test_runner.nim` to bundled parallel mode across all platforms (when `directFiles` and `filterSubstr` are empty and `--unbundled` is not set) and raise `LFQ_TEST_TIMEOUT_SEC` / default `timeoutSec` to 300s while keeping all CI job timeouts capped at 20m.
 
 ### Changed
 

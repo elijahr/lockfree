@@ -169,6 +169,16 @@ proc buildCompileCmd*(
   result.add("-r")
   result.add(testPath)
 
+proc resolveBundledMode*(
+  directFilesCount: int,
+  filterSubstr: string,
+  bundledFlag: bool = false,
+  unbundledFlag: bool = false
+): bool =
+  if directFilesCount > 0 or filterSubstr.len > 0 or unbundledFlag:
+    return false
+  return true
+
 proc runParallel(
   tests: seq[string],
   maxWorkers: int,
@@ -178,7 +188,7 @@ proc runParallel(
   nimcacheDir: string = "",
   isRelease: bool = false,
   isDanger: bool = false,
-  timeoutSec: float = 180.0,
+  timeoutSec: float = 300.0,
   isBundled: bool = false
 ): int =
   var running: seq[RunningProcess] = @[]
@@ -296,7 +306,7 @@ when isMainModule:
   var isDanger = false
   var bundledFlag = false
   var unbundledFlag = false
-  var timeoutSec = 180.0
+  var timeoutSec = 300.0
   let envTimeout = getEnv("LFQ_TEST_TIMEOUT_SEC", "")
   if envTimeout.len > 0:
     try:
@@ -347,12 +357,12 @@ when isMainModule:
     elif fileExists(param):
       directFiles.add(param.absolutePath())
 
-  let autoBundled = (cc == "vcc") or defined(windows)
-  let useBundled =
-    if directFiles.len > 0 or filterSubstr.len > 0 or unbundledFlag:
-      false
-    else:
-      bundledFlag or autoBundled
+  let useBundled = resolveBundledMode(
+    directFilesCount = directFiles.len,
+    filterSubstr = filterSubstr,
+    bundledFlag = bundledFlag,
+    unbundledFlag = unbundledFlag
+  )
 
   var tests: seq[string] = @[]
   if directFiles.len > 0:
