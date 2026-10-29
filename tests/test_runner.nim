@@ -79,6 +79,43 @@ proc findSyncTests(): seq[string] =
 proc findPrimitiveTests(): seq[string] =
   parseImportsFrom("unit/runner_primitives.nim")
 
+proc resolveTestPaths(relPaths: openArray[string]): seq[string] =
+  let baseDir = currentSourcePath().parentDir()
+  for rel in relPaths:
+    let p = baseDir / rel
+    if fileExists(p):
+      result.add(p)
+
+proc findQueueBundles*(): seq[string] =
+  resolveTestPaths([
+    "unit/runner_queues_lifecycle.nim",
+    "unit/runner_queues_typestate.nim",
+    "unit/runner_queues_unbounded.nim",
+    "unit/runner_queues_unbounded_api.nim",
+    "unit/runner_queues_unbounded_spsc_mpsc.nim",
+    "unit/runner_queues_bounded.nim",
+    "unit/runner_queues_composition.nim",
+    "unit/runner_queues_lcrq.nim"
+  ])
+
+proc findUnitBundles*(): seq[string] =
+  result = resolveTestPaths([
+    "unit/runner_sync.nim",
+    "unit/runner_structures.nim"
+  ])
+  result.add(findQueueBundles())
+  result.add(resolveTestPaths([
+    "unit/runner_primitives.nim"
+  ]))
+
+proc findConcurrencyBundles*(): seq[string] =
+  resolveTestPaths([
+    "concurrency/runner_concurrency_io.nim",
+    "concurrency/runner_concurrency_queues.nim",
+    "concurrency/runner_concurrency_sync.nim",
+    "concurrency/runner_concurrency_structures.nim"
+  ])
+
 proc buildCompileCmd*(
   testPath: string,
   mm: string = "orc",
@@ -87,13 +124,14 @@ proc buildCompileCmd*(
   nimcacheDir: string = "",
   isRelease: bool = false,
   isDanger: bool = false,
-  workerSlot: int = 0
+  workerSlot: int = 0,
+  isBundled: bool = false
 ): seq[string] =
   result = @[
     if backend == "cpp": "cpp" else: "c",
     "--mm:" & mm,
     "--threads:on",
-    "--parallelBuild:1",
+    if isBundled: "--parallelBuild:2" else: "--parallelBuild:1",
     "--path:src",
     "-d:testing",
     "--verbosity:0",
@@ -140,7 +178,8 @@ proc runParallel(
   nimcacheDir: string = "",
   isRelease: bool = false,
   isDanger: bool = false,
-  timeoutSec: float = 360.0
+  timeoutSec: float = 180.0,
+  isBundled: bool = false
 ): int =
   var running: seq[RunningProcess] = @[]
   var results: seq[TestResult] = @[]
@@ -169,7 +208,8 @@ proc runParallel(
         nimcacheDir = nimcacheDir,
         isRelease = isRelease,
         isDanger = isDanger,
-        workerSlot = workerSlot
+        workerSlot = workerSlot,
+        isBundled = isBundled
       )
 
       let p = startProcess(cmd, args = args, options = {poStdErrToStdOut, poUsePath})
@@ -254,7 +294,9 @@ when isMainModule:
   var nimcacheDir = ""
   var isRelease = false
   var isDanger = false
-  var timeoutSec = 360.0
+  var bundledFlag = false
+  var unbundledFlag = false
+  var timeoutSec = 180.0
   let envTimeout = getEnv("LFQ_TEST_TIMEOUT_SEC", "")
   if envTimeout.len > 0:
     try:
@@ -278,6 +320,10 @@ when isMainModule:
       runSync = true
     elif param == "--primitives" or param == "-p":
       runPrimitives = true
+    elif param == "--bundled" or param == "-b":
+      bundledFlag = true
+    elif param == "--no-bundled" or param == "--unbundled":
+      unbundledFlag = true
     elif param == "--release" or param == "-d:release":
       isRelease = true
     elif param == "--danger" or param == "-d:danger":
@@ -301,9 +347,24 @@ when isMainModule:
     elif fileExists(param):
       directFiles.add(param.absolutePath())
 
+  let autoBundled = (cc == "vcc") or defined(windows)
+  let useBundled =
+    if directFiles.len > 0 or filterSubstr.len > 0 or unbundledFlag:
+      false
+    else:
+      bundledFlag or autoBundled
+
   var tests: seq[string] = @[]
   if directFiles.len > 0:
     tests = directFiles
+  elif useBundled:
+    if runQueues: tests.add(findQueueBundles())
+    if runStructures: tests.add(resolveTestPaths(["unit/runner_structures.nim"]))
+    if runSync: tests.add(resolveTestPaths(["unit/runner_sync.nim"]))
+    if runPrimitives: tests.add(resolveTestPaths(["unit/runner_primitives.nim"]))
+    if runConcurrency: tests.add(findConcurrencyBundles())
+    if runUnit or (not runQueues and not runStructures and not runSync and not runPrimitives and not runConcurrency):
+      tests.add(findUnitBundles())
   else:
     if runQueues: tests.add(findQueueTests())
     if runStructures: tests.add(findStructureTests())
@@ -332,7 +393,8 @@ when isMainModule:
 
   let optLabel = if isDanger: ", Danger" elif isRelease: ", Release" else: ", Debug"
   let ccLabel = if cc.len > 0: ", CC: " & cc else: ""
-  echo "Running ", uniqueTests.len, " test suites across ", workers, " worker threads [MM: ", mm, ", Backend: ", backend, ccLabel, optLabel, "]..."
+  let modeLabel = if useBundled: ", Bundled" else: ""
+  echo "Running ", uniqueTests.len, " test suites across ", workers, " worker threads [MM: ", mm, ", Backend: ", backend, ccLabel, optLabel, modeLabel, "]..."
   flushFile(stdout)
-  let code = runParallel(uniqueTests, workers, mm = mm, backend = backend, cc = cc, nimcacheDir = nimcacheDir, isRelease = isRelease, isDanger = isDanger, timeoutSec = timeoutSec)
+  let code = runParallel(uniqueTests, workers, mm = mm, backend = backend, cc = cc, nimcacheDir = nimcacheDir, isRelease = isRelease, isDanger = isDanger, timeoutSec = timeoutSec, isBundled = useBundled)
   quit(code)

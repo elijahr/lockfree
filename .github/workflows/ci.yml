@@ -73,7 +73,7 @@ concurrency:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  LFQ_TEST_TIMEOUT_SEC: "360"
+  LFQ_TEST_TIMEOUT_SEC: "180"
 
 # Pin every `run:` step's shell to bash. Real GHA's hosted runners default
 # to bash for `run:` steps, so workflows that use bash-isms (`set -o
@@ -202,7 +202,7 @@ jobs:
             sanitize-address: 'no'
             cache-tag: 'orc'
             continue-on-error: 'false'
-            timeout: 60
+            timeout: 20
 
           - cell: '1b'
             label: 'baseline cpp/gcc/linux'
@@ -215,7 +215,7 @@ jobs:
             sanitize-address: 'no'
             cache-tag: 'cpp'
             continue-on-error: 'false'
-            timeout: 60
+            timeout: 20
 
           - cell: '1c'
             label: 'baseline arc/gcc/linux + nebr aggregator'
@@ -228,7 +228,7 @@ jobs:
             sanitize-address: 'no'
             cache-tag: 'arc'
             continue-on-error: 'false'
-            timeout: 60
+            timeout: 20
 
     steps:
       - name: Checkout project
@@ -336,7 +336,7 @@ jobs:
   multi-nim:
     name: '13: Multi-Nim (2.2.10, 2.2.12, devel)'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
 
     steps:
       - name: Checkout project
@@ -480,7 +480,7 @@ jobs:
       image: ghcr.io/elijahr/lockfree-ci:latest
     env:
       LOCKFREE_NIM_FROM_IMAGE: 'true'
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
@@ -550,7 +550,7 @@ jobs:
       image: ghcr.io/elijahr/lockfree-ci:latest
     env:
       LOCKFREE_NIM_FROM_IMAGE: 'true'
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
@@ -597,7 +597,7 @@ jobs:
   nimony:
     name: '14: nimony aufbruch (informational)'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     continue-on-error: true
     steps:
       - name: Checkout project
@@ -733,7 +733,7 @@ jobs:
             sanitize-address: 'no'
             cache-tag: 'tsan'
             continue-on-error: true
-            timeout: 45
+            timeout: 20
 
           # --- Cell 7: ASAN on baseline lane ---------------------------------
           - cell: '7'
@@ -750,7 +750,7 @@ jobs:
             sanitize-address: 'yes'
             cache-tag: 'asan'
             continue-on-error: true
-            timeout: 60
+            timeout: 20
 
           # --- Cell 10: Linux arm64 ------------------------------------------
           - cell: '10'
@@ -765,7 +765,7 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'no'
             cache-tag: 'base'
-            timeout: 45
+            timeout: 20
 
           # --- Cell 11: macOS arm64 (Apple Silicon + Apple Clang) ------------
           # No container: macOS runner cannot host a Linux container.
@@ -779,7 +779,7 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'no'
             cache-tag: 'base'
-            timeout: 45
+            timeout: 20
 
           # --- Cell 17a: Windows + MSVC (vcc) + orc --------------------------
           # No container: Windows runner cannot host a Linux container.
@@ -795,7 +795,7 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'no'
             cache-tag: 'msvc'
-            timeout: 60
+            timeout: 20
             continue-on-error: true
 
           # --- Cell 17b: Windows + MinGW GCC + orc ---------------------------
@@ -812,7 +812,7 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'no'
             cache-tag: 'mingw'
-            timeout: 45
+            timeout: 20
             continue-on-error: true
 
     steps:
@@ -946,9 +946,6 @@ jobs:
               echo "::endgroup::"
               ;;
           esac
-          echo "::group::Run examples"
-          nimble_run nimble examples
-          echo "::endgroup::"
 
       - name: Run tests (Windows)
         if: runner.os == 'Windows'
@@ -989,10 +986,6 @@ jobs:
           nimble_run nimble test
           echo "::endgroup::"
 
-          echo "::group::Run examples on Windows"
-          nimble_run nimble examples
-          echo "::endgroup::"
-
   # ===========================================================================
   # Cell 8 — Valgrind memcheck (curated subset). Tier C.
   # ===========================================================================
@@ -1004,7 +997,7 @@ jobs:
       image: ghcr.io/elijahr/lockfree-ci:latest
     env:
       LOCKFREE_NIM_FROM_IMAGE: 'true'
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
@@ -1091,7 +1084,7 @@ jobs:
       image: ghcr.io/elijahr/lockfree-ci:latest
     env:
       LOCKFREE_NIM_FROM_IMAGE: 'true'
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - name: Checkout project
         uses: actions/checkout@v4

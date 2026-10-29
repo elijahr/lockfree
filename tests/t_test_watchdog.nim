@@ -172,3 +172,42 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       "-r",
       "tests/t_dwcas.nim"
     ]
+
+    let bundledVccCmd = buildCompileCmd(
+      testPath = "tests/unit/runner_primitives.nim",
+      mm = "orc",
+      backend = "c",
+      cc = "vcc",
+      nimcacheDir = "",
+      isRelease = true,
+      isDanger = false,
+      workerSlot = 1,
+      isBundled = true
+    )
+    let expectedWorker1Cache = defaultCacheRoot / "worker_1"
+    check bundledVccCmd == @[
+      "c",
+      "--mm:orc",
+      "--threads:on",
+      "--parallelBuild:2",
+      "--path:src",
+      "-d:testing",
+      "--verbosity:0",
+      "--hints:off",
+      "--warnings:off",
+      "--cc:vcc",
+      "-d:release",
+      "-u:debug",
+      "--opt:speed",
+      "--assertions:on",
+      "--debugger:off",
+      "--debuginfo:off",
+      "--nimcache:" & expectedWorker1Cache,
+      "--out:" & (expectedWorker1Cache / ("runner_primitives" & binExt)),
+      "-r",
+      "tests/unit/runner_primitives.nim"
+    ]
+
+    check findQueueBundles().len == 8
+    check findUnitBundles().len == 11
+    check findConcurrencyBundles().len == 4

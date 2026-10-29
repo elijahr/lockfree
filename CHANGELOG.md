@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `BQueue128.tryPushEx` / `pushEx`, `lf_bqueue128_push_ex` (`lfq_bqueue128_push_ex`), and `lf_push_ex` / `lf_queue_push_ex` (`lfq_push_ex` / `lfq_queue_push_ex`) reporting `out_was_empty` on `0 -> 1` queue transitions for zero-syscall steady-state event-loop wakeups.
 - **Unbounded Queue Teardown Destructor Fallback (`src/lockfree/cabi.nim`)**:
   - Hardened `unboundedQueueDestroy` with a direct segment-chain LCRQ cell drain fallback when `DebraManager` thread registration slots are exhausted at teardown time.
+- Add bundled parallel mode (`--bundled`, auto-enabled on Windows/MSVC) with 15 balanced unit/concurrency sub-runners to `tests/test_runner.nim`, add missing `t_cas` to `tests/unit/runner_primitives.nim`, align `task testASan` with `task testTSan` in `lockfree.nimble`, cap all CI job timeouts to 20m (`LFQ_TEST_TIMEOUT_SEC=180`), and remove redundant `nimble examples` runs from `test-heavy` in `.github/workflows/ci.yml`.
 
 ### Changed
 

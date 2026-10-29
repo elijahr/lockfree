@@ -178,16 +178,17 @@ task testShell, "Runs the standalone shell-test regression scripts":
   exec "bash tests/test_chronos_dep_error.sh"
 
 
-task testASan, "Runs the test suite under AddressSanitizer (ASAN)":
+task testASan, "Runs Tier 2 concurrency tests under AddressSanitizer (ASAN)":
   # AddressSanitizer works under arc/orc/atomicArc. We use the same MM
   # the rest of the matrix uses for the orc baseline (so ASAN-instrumented
   # behavior is the closest possible match to what cell 1a tests
-  # un-instrumented). Cell 7 (test-heavy/ubuntu-latest) invokes this.
+  # un-instrumented). Targeted to Tier 2 concurrency runner to match testTSan
+  # and avoid monolithic test.nim C compilation bloat. Cell 7 invokes this.
   let nimcacheBase = getHomeDir() / ".cache" / "nim"
   exec "nim r --hints:off --warnings:off --path:src tests/should_fail/runner.nim"
-  exec "nim c -d:release --opt:speed --cc:clang --threads:on --path:src " &
+  exec "nim c --hints:off --warnings:off -d:release --opt:speed --cc:clang --threads:on --path:src " &
     "--passC:\"-fsanitize=address\" --passL:\"-fsanitize=address\" " &
-    "--nimcache:" & (nimcacheBase / "test_asan") & " -r tests/test.nim"
+    "--nimcache:" & (nimcacheBase / "test_asan") & " -r tests/concurrency/runner.nim"
 
 
 task examples, "Runs the examples":
