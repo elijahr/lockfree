@@ -71,7 +71,6 @@ type
     head: ptr SkipListNode[T, MaxLevel]
     tail: ptr SkipListNode[T, MaxLevel]
     manager: ptr DebraManager[MaxThreads, ccMulti]
-    count: Atomic[int]
     rc: Atomic[int]
     ownsManager: bool
 
@@ -213,10 +212,19 @@ proc getOrRegisterHandle*[T; MaxThreads, MaxLevel: static int](
     self: SkipListSet[T, MaxThreads, MaxLevel]
 ): ThreadHandle[MaxThreads, ccMulti] =
   let setId = self.core.id
+  let manager = self.core.manager
   for entry in gTlsHandles:
     if entry.setId == setId:
-      return ThreadHandle[MaxThreads, ccMulti](idx: entry.handleIdx, manager: self.core.manager)
-  let h = registerThread(self.core.manager[])
+      return ThreadHandle[MaxThreads, ccMulti](idx: entry.handleIdx, manager: manager)
+  let activeMask = manager.activeThreadMask.load(moAcquire)
+  for idx in 0 ..< MaxThreads:
+    if (activeMask and (1'u64 shl idx)) != 0'u64:
+      if isCurrent(manager.threads[idx].threadId.load(moAcquire)):
+        if gTlsHandles.len >= MaxCachedTlsHandles:
+          gTlsHandles.delete(0)
+        gTlsHandles.add(TlsHandleEntry(setId: setId, handleIdx: idx))
+        return ThreadHandle[MaxThreads, ccMulti](idx: idx, manager: manager)
+  let h = registerThread(manager[])
   if gTlsHandles.len >= MaxCachedTlsHandles:
     gTlsHandles.delete(0)
   gTlsHandles.add(TlsHandleEntry(setId: setId, handleIdx: h.idx))
@@ -258,7 +266,6 @@ proc newSkipListSet*[
   core.head = head
   core.tail = tail
   core.manager = mgr
-  core.count.store(0, moRelaxed)
   core.rc.store(1, moRelaxed)
   core.ownsManager = true
 
@@ -294,7 +301,6 @@ proc newSkipListSet*[
   core.head = head
   core.tail = tail
   core.manager = manager
-  core.count.store(0, moRelaxed)
   core.rc.store(1, moRelaxed)
   core.ownsManager = false
 
@@ -399,16 +405,52 @@ proc find[T; MaxThreads, MaxLevel: static int](
 
 proc len*[T; MaxThreads, MaxLevel: static int](
     self: SkipListSet[T, MaxThreads, MaxLevel]
-): int {.inline.} =
-  ## Returns the approximate number of items currently in the set.
-  if self.core == nil: 0
-  else: max(0, self.core.count.load(moRelaxed))
+): int =
+  ## Returns the approximate number of items currently in the set by traversing
+  ## unmarked level-0 nodes under an SMR guard without maintaining a hot-path
+  ## shared atomic counter.
+  if self.core == nil:
+    return 0
+  let firstEntry = self.core.head.next[0].load(moAcquire)
+  let firstNode = toPtr[SkipListNode[T, MaxLevel]](firstEntry)
+  if firstNode == nil or firstNode == self.core.tail:
+    return 0
+  let h = self.getOrRegisterHandle()
+  let pinned = unpinned(h).pin()
+  try:
+    var count = 0
+    var curr = toPtr[SkipListNode[T, MaxLevel]](self.core.head.next[0].load(moAcquire))
+    while curr != nil and curr != self.core.tail:
+      let succEntry = curr.next[0].load(moAcquire)
+      if not isMarked(succEntry):
+        inc count
+      curr = toPtr[SkipListNode[T, MaxLevel]](succEntry)
+    return count
+  finally:
+    unpinGuard(pinned)
 
 proc isEmpty*[T; MaxThreads, MaxLevel: static int](
     self: SkipListSet[T, MaxThreads, MaxLevel]
-): bool {.inline.} =
-  ## Returns `true` if the set contains zero elements.
-  self.len == 0
+): bool =
+  ## Returns `true` if the set contains zero elements via O(1) head inspection.
+  if self.core == nil:
+    return true
+  let firstEntry = self.core.head.next[0].load(moAcquire)
+  let firstNode = toPtr[SkipListNode[T, MaxLevel]](firstEntry)
+  if firstNode == nil or firstNode == self.core.tail:
+    return true
+  let h = self.getOrRegisterHandle()
+  let pinned = unpinned(h).pin()
+  try:
+    var curr = toPtr[SkipListNode[T, MaxLevel]](self.core.head.next[0].load(moAcquire))
+    while curr != nil and curr != self.core.tail:
+      let succEntry = curr.next[0].load(moAcquire)
+      if not isMarked(succEntry):
+        return false
+      curr = toPtr[SkipListNode[T, MaxLevel]](succEntry)
+    return true
+  finally:
+    unpinGuard(pinned)
 
 proc registerThread*[T; MaxThreads, MaxLevel: static int](
     self: var SkipListSet[T, MaxThreads, MaxLevel]
@@ -504,8 +546,6 @@ proc insert*[T; MaxThreads, MaxLevel: static int](
         deallocShared(newNode)
         continue
 
-      discard self.core.count.fetchAdd(1, moRelaxed)
-
       for level in 1 .. topLevel:
         if isMarked(newNode.next[0].load(moAcquire)):
           break
@@ -574,7 +614,6 @@ proc remove*[T; MaxThreads, MaxLevel: static int](
         let succPtr0 = toPtr[SkipListNode[T, MaxLevel]](succEntry0)
         let markedEntry0 = toEntry(succPtr0, true)
         if nodeToDelete.next[0].compareExchange(succEntry0, markedEntry0, moAcquireRelease, moAcquire):
-          discard self.core.count.fetchSub(1, moRelaxed)
           discard self.find(item, preds, succs, ready)
           handle.advanceEvery(32)
           return true

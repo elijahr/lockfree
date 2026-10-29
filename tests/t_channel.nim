@@ -291,3 +291,20 @@ suite "Channel Facade — Lifecycle & Remediation (AUDIT-CHAN-01 & AUDIT-CHAN-02
       let (txU, rxU) = newUnboundedChannel[int](segmentSize = 16)
       check txU.send(i)
       check rxU.recv() == some(i)
+
+  test "bounded channel TLS MRU eviction properly closes Bound and recycles P=1/C=1 slots":
+    const TotalChans = ChannelTlsMruCapacity + 8
+    var chans: seq[tuple[tx: Sender[int], rx: Receiver[int]]] = @[]
+    for i in 0 ..< TotalChans:
+      let ch = newBoundedChannelImpl[int, 16, 1, 1]()
+      check ch.tx.send(1000 + i)
+      check ch.rx.recv() == some(1000 + i)
+      chans.add(ch)
+
+    # First 8 channels were evicted from tlsProducers and tlsConsumers.
+    # Because eviction now closes Bound and clears producerThreadIds/consumerThreadIds,
+    # re-acquiring their single P=1/C=1 slot must succeed instead of returning false/none(int).
+    for i in 0 ..< 8:
+      check chans[i].tx.send(2000 + i)
+      check chans[i].rx.recv() == some(2000 + i)
+      check chans[i].rx.isEmpty == true

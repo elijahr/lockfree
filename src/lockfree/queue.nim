@@ -345,11 +345,11 @@ type
       # SPSC + SPMC: data only, SlotEncoding(T) wire form.
       data*: array[S, SlotEncoding(T)]
     next* {.align: CacheLineBytes.}: Atomic[ptr Segment[T, ccProd, ccCons, S]]
+    segIdx*: uint64
     tail* {.align: CacheLineBytes.}: Atomic[int]
     when ccCons == ccSingle:
-      # mpsc-equiv + absorbed spsc-equiv: single-consumer non-atomic read
-      # position.
-      head* {.align: CacheLineBytes.}: int
+      # mpsc-equiv + absorbed spsc-equiv: single-consumer atomic read position.
+      head* {.align: CacheLineBytes.}: Atomic[int]
     when ccProd == ccMulti and ccCons == ccSingle:
       # MPSC-only multi-producer publication flags. MPMC migrated to `cells`
       # (above) where the seq counter subsumes commit-bit.
@@ -389,8 +389,6 @@ type
       # Absorbed `UnboundedSpsc` body — no manager, no debra.
       headSegment* {.align: CacheLineBytes.}: Atomic[ptr Segment[T, ccProd, ccCons, S]]
       tailSegment* {.align: CacheLineBytes.}: Atomic[ptr Segment[T, ccProd, ccCons, S]]
-      itemCount*: Atomic[int]
-      segments*: Atomic[int]
     else:
       # Debra-integrated body. Manager CC is gated on `ccCons`: nebr
       # `cardinality.nim` REQUIRES `ccMulti` for consumer pins on multi-consumer
@@ -401,8 +399,6 @@ type
         manager*: ptr DebraManager[MaxThreads, nebr.ccSingle]
       headSegment* {.align: CacheLineBytes.}: Atomic[ptr Segment[T, ccProd, ccCons, S]]
       tailSegment* {.align: CacheLineBytes.}: Atomic[ptr Segment[T, ccProd, ccCons, S]]
-      itemCount*: Atomic[int]
-      segments*: Atomic[int]
       ownsManager*: bool
       when ccProd == ccMulti:
         producerCount*: Atomic[int]
@@ -487,7 +483,9 @@ proc validateQueueParams*[
 ## Unbounded-queue body — SPSC implementation
 ## ----------------------------------------------------------------------
 
-proc newSegment[T; ccProd, ccCons: static PinScopeCardinality, S: static int](): ptr Segment[
+proc newSegment[T; ccProd, ccCons: static PinScopeCardinality, S: static int](
+    segIdx: uint64 = 0'u64
+): ptr Segment[
   T, ccProd, ccCons, S
 ] =
   ## Allocate a new segment on a CacheLineBytes boundary so the `{.align.}`
@@ -495,10 +493,11 @@ proc newSegment[T; ccProd, ccCons: static PinScopeCardinality, S: static int]():
   ## distinct physical cache lines.
   result = allocAligned[Segment[T, ccProd, ccCons, S]]()
   result.next.store(nil, moRelaxed)
+  result.segIdx = segIdx
   result.tail.store(0, moRelaxed)
   when ccCons == ccSingle:
-    # mpsc-equiv + absorbed spsc-equiv carry a `head: int` field.
-    result.head = 0
+    # mpsc-equiv + absorbed spsc-equiv carry an `Atomic[int]` head field.
+    result.head.store(0, moRelaxed)
   when ccProd == ccMulti and ccCons == ccMulti:
     # MPMC strict-LCRQ: each cell starts in the empty state `(seq=0,
     # default(T))`. While `allocAligned` already returns zero-initialized memory
@@ -749,14 +748,12 @@ proc newQueue*[
   # this body, ccProd is effectively ccMulti (mpsc-equiv).
   result.manager = manager
   result.ownsManager = false
-  result.itemCount.store(0, moRelaxed)
   when ccProd == ccMulti:
     result.producerCount.store(0, moRelaxed)
   discard handle
   let seg = newSegment[T, ccProd, ccSingle, S]()
   result.headSegment.store(seg, moRelaxed)
   result.tailSegment.store(seg, moRelaxed)
-  result.segments.store(1, moRelaxed)
   bindClient(manager[])
 
 proc newQueue*[
@@ -777,13 +774,11 @@ proc newQueue*[
   validateQueueParams(Queue[T, ccProd, ccSingle, ST, S, MaxThreads])
   result.manager = manager
   result.ownsManager = false
-  result.itemCount.store(0, moRelaxed)
   when ccProd == ccMulti:
     result.producerCount.store(0, moRelaxed)
   let seg = newSegment[T, ccProd, ccSingle, S]()
   result.headSegment.store(seg, moRelaxed)
   result.tailSegment.store(seg, moRelaxed)
-  result.segments.store(1, moRelaxed)
   bindClient(manager[])
 
 proc newQueue*[
@@ -801,7 +796,6 @@ proc newQueue*[
   validateQueueParams(Queue[T, ccProd, ccMulti, ST, S, MaxThreads])
   result.manager = manager
   result.ownsManager = false
-  result.itemCount.store(0, moRelaxed)
   when ccProd == ccMulti:
     result.producerCount.store(0, moRelaxed)
   result.consumerCount.store(0, moRelaxed)
@@ -809,7 +803,6 @@ proc newQueue*[
   let seg = newSegment[T, ccProd, ccMulti, S]()
   result.headSegment.store(seg, moRelaxed)
   result.tailSegment.store(seg, moRelaxed)
-  result.segments.store(1, moRelaxed)
   bindClient(manager[])
 
 proc newQueue*[
@@ -826,14 +819,12 @@ proc newQueue*[
   validateQueueParams(Queue[T, ccProd, ccMulti, ST, S, MaxThreads])
   result.manager = manager
   result.ownsManager = false
-  result.itemCount.store(0, moRelaxed)
   when ccProd == ccMulti:
     result.producerCount.store(0, moRelaxed)
   result.consumerCount.store(0, moRelaxed)
   let seg = newSegment[T, ccProd, ccMulti, S]()
   result.headSegment.store(seg, moRelaxed)
   result.tailSegment.store(seg, moRelaxed)
-  result.segments.store(1, moRelaxed)
   bindClient(manager[])
 
 # Spsc-absorbed manager-borrowed `{.error.}` gate. The spsc-absorbed `(ccSingle,
@@ -894,13 +885,10 @@ proc newQueue*[
   ## single consumer via `attachConsumer()` before its first `pop`.
   validateQueueParams(Queue[T, ccProd, ccCons, ST, S, MaxThreads])
   when ccProd == ccSingle and ccCons == ccSingle:
-    # Spsc-absorbed: no manager, no debra. Allocate initial segment and zero the
-    # counters; that's it.
+    # Spsc-absorbed: no manager, no debra. Allocate initial segment; that's it.
     let seg = newSegment[T, ccSingle, ccSingle, S]()
     result.headSegment.store(seg, moRelaxed)
     result.tailSegment.store(seg, moRelaxed)
-    result.itemCount.store(0, moRelaxed)
-    result.segments.store(1, moRelaxed)
   else:
     when ccCons == ccMulti:
       let mgr = allocAligned[DebraManager[MaxThreads, nebr.ccMulti]]()
@@ -970,9 +958,25 @@ proc len*[
     ccProd, ccCons: static PinScopeCardinality,
     ST: static DeallocationStrategy,
     S, MaxThreads: static int,
-](self: var Queue[T, ccProd, ccCons, ST, S, MaxThreads]): int =
-  ## Number of items currently in the queue (atomic snapshot).
-  result = self.itemCount.load(moRelaxed)
+](self: var Queue[T, ccProd, ccCons, ST, S, MaxThreads]): int {.inline.} =
+  ## Number of items currently in the queue (O(1) atomic snapshot derived from
+  ## head/tail segment indices and slot cursors).
+  let head = self.headSegment.load(moAcquire)
+  let tail = self.tailSegment.load(moAcquire)
+  if head == nil or tail == nil:
+    return 0
+  let hCons =
+    when ccCons == ccSingle:
+      clamp(head.head.load(moAcquire), 0, S)
+    else:
+      clamp(head.prevConsumerIdx.load(moAcquire) + 1, 0, S)
+  let tProd = clamp(tail.tail.load(moAcquire), 0, S)
+  if head == tail or tail.segIdx == head.segIdx:
+    result = max(0, tProd - hCons)
+  elif tail.segIdx > head.segIdx:
+    result = max(0, int(tail.segIdx - head.segIdx - 1'u64) * S + (S - hCons) + tProd)
+  else:
+    result = 0
 
 proc segmentCount*[
     T;
@@ -980,8 +984,18 @@ proc segmentCount*[
     ST: static DeallocationStrategy,
     S, MaxThreads: static int,
 ](self: var Queue[T, ccProd, ccCons, ST, S, MaxThreads]): int =
-  ## Number of segments currently allocated (atomic snapshot).
-  result = self.segments.load(moRelaxed)
+  ## Number of segments currently active (or retained under `stManual`).
+  let tail = self.tailSegment.load(moAcquire)
+  if tail == nil:
+    return 0
+  when ST == stManual and not (ccProd == ccSingle and ccCons == ccSingle):
+    result = int(tail.segIdx) + 1
+  else:
+    let head = self.headSegment.load(moAcquire)
+    if head == nil or tail.segIdx < head.segIdx:
+      result = 1
+    else:
+      result = int(tail.segIdx - head.segIdx) + 1
 
 proc isEmpty*[
     T;
@@ -989,23 +1003,8 @@ proc isEmpty*[
     ST: static DeallocationStrategy,
     S, MaxThreads: static int,
 ](self: var Queue[T, ccProd, ccCons, ST, S, MaxThreads]): bool {.inline.} =
-  ## Returns true if the queue is empty (atomic snapshot). Checks if headSegment
-  ## == tailSegment (and unconsumed slots).
-  when not defined(lockfreeDisableItemCount):
-    if self.itemCount.load(moRelaxed) != 0:
-      return false
-  let head = self.headSegment.load(moAcquire)
-  let tail = self.tailSegment.load(moAcquire)
-  if head != tail:
-    return false
-  if head == nil:
-    return true
-  when ccCons == ccSingle:
-    head.head >= head.tail.load(moAcquire)
-  else:
-    let t = head.tail.load(moAcquire)
-    let c = head.prevConsumerIdx.load(moAcquire)
-    (c + 1) >= t or t == 0
+  ## Returns true if the queue is empty (O(1) atomic snapshot).
+  self.len == 0
 
 
 ## ----------------------------------------------------------------------
@@ -1045,15 +1044,11 @@ proc pop*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
 
   var seg = self.headSegment.load(moAcquire)
   while true:
-    let head = seg.head
+    let head = seg.head.load(moRelaxed)
     let tail = seg.tail.load(moAcquire)
     if head < tail:
       let value = move(seg.data[head])
-      when defined(lockfreeDisableItemCount):
-        cast[ptr Atomic[int]](addr seg.head)[].store(head + 1, moRelease)
-      else:
-        seg.head = head + 1
-        discard self.itemCount.fetchSub(1, moAcqRel)
+      seg.head.store(head + 1, moRelease)
       # seg.data holds SlotEncoding(T). Decode at the boundary so the returned
       # Option[T] matches the user-facing type. Legacy body returned
       # `some(value)` directly, which compiled only for POD T (where
@@ -1067,7 +1062,6 @@ proc pop*[T; ST: static DeallocationStrategy, S, MaxThreads: static int](
       let oldSeg = seg
       self.headSegment.store(nextSeg, moRelease)
       seg = nextSeg
-      discard self.segments.fetchSub(1, moRelaxed)
       freeAligned(oldSeg)
     else:
       return none(T)
@@ -1627,7 +1621,7 @@ proc pushEx*[
     wasEmpty: var bool,
 ): bool {.discardable, tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
   ## Push a single item onto the unbounded queue (cardinality-dispatched) and
-  ## set `wasEmpty = true` if `itemCount` transitioned from `<= 0` to `1`.
+  ## set `wasEmpty = true` if the queue transitioned from empty to non-empty.
   wasEmpty = false
   # Path-C admission gate (25-row composition matrix + reject chain). Rejects:
   # distinct ref alias (row 7), nested ref (row 8), value types with managed
@@ -1673,45 +1667,37 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
     # between these statements.
     var tail = seg.tail.load(moRelaxed)
     if tail >= S:
-      let newSeg = newSegment[T, ccProd, ccCons, S]()
+      let newSeg = newSegment[T, ccProd, ccCons, S](seg.segIdx + 1'u64)
       seg.next.store(newSeg, moRelease)
       self.queue.tailSegment.store(newSeg, moRelease)
       seg = newSeg
       tail = 0
-      discard self.queue.segments.fetchAdd(1, moRelaxed)
     # data[] holds SlotEncoding(T); encode at the boundary.
     seg.data[tail] = wrapOrIdentity[T](item)
     seg.tail.store(tail + 1, moRelease)
-    when not defined(lockfreeDisableItemCount):
-      wasEmpty = (self.queue.itemCount.fetchAdd(1, moAcqRel) <= 0)
-    else:
-      let hSeg = self.queue.headSegment.load(moAcquire)
-      let hHead = cast[ptr Atomic[int]](addr hSeg.head)[].load(moAcquire)
-      wasEmpty =
-        (hSeg == seg and hHead >= tail) or
-        (tail == 0 and hSeg.next.load(moAcquire) == seg and hHead >= S)
+    let hSeg = self.queue.headSegment.load(moAcquire)
+    let hHead = hSeg.head.load(moAcquire)
+    wasEmpty =
+      (hSeg == seg and hHead >= tail) or
+      (tail == 0 and hSeg.next.load(moAcquire) == seg and hHead >= S)
     return true
   elif ccProd == ccSingle and ccCons == ccMulti:
     # spmc-equiv — single producer, no pin.
     var seg = self.queue.tailSegment.load(moRelaxed)
     var tail = seg.tail.load(moRelaxed)
     if tail >= S:
-      let newSeg = newSegment[T, ccProd, ccCons, S]()
+      let newSeg = newSegment[T, ccProd, ccCons, S](seg.segIdx + 1'u64)
       seg.next.store(newSeg, moRelease)
       self.queue.tailSegment.store(newSeg, moRelease)
       seg = newSeg
       tail = 0
-      discard self.queue.segments.fetchAdd(1, moRelaxed)
     # data[] holds SlotEncoding(T); encode at the boundary.
     seg.data[tail] = wrapOrIdentity[T](item)
     seg.tail.store(tail + 1, moRelease)
-    when not defined(lockfreeDisableItemCount):
-      wasEmpty = (self.queue.itemCount.fetchAdd(1, moAcqRel) <= 0)
-    else:
-      let hSeg = self.queue.headSegment.load(moAcquire)
-      wasEmpty =
-        (hSeg == seg and seg.prevConsumerIdx.load(moAcquire) + 1 >= tail) or
-        (tail == 0 and hSeg.next.load(moAcquire) == seg and hSeg.prevConsumerIdx.load(moAcquire) + 1 >= S)
+    let hSeg = self.queue.headSegment.load(moAcquire)
+    wasEmpty =
+      (hSeg == seg and seg.prevConsumerIdx.load(moAcquire) + 1 >= tail) or
+      (tail == 0 and hSeg.next.load(moAcquire) == seg and hSeg.prevConsumerIdx.load(moAcquire) + 1 >= S)
     return true
   else:
     # ccProd == ccMulti — mpsc/mpmc-equiv: pin claim required.
@@ -1735,14 +1721,13 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
         if tail >= S:
           let nextSeg = seg.next.load(moAcquire)
           if nextSeg == nil:
-            let newSeg = newSegment[T, ccProd, ccCons, S]()
+            let newSeg = newSegment[T, ccProd, ccCons, S](seg.segIdx + 1'u64)
             var expectedNext: ptr Segment[T, ccProd, ccCons, S] = nil
             if seg.next.compareExchange(expectedNext, newSeg, moRelease, moRelaxed):
               var expectedSeg = seg
               discard self.queue.tailSegment.compareExchange(
                 expectedSeg, newSeg, moRelease, moRelaxed
               )
-              discard self.queue.segments.fetchAdd(1, moRelaxed)
               continue
             else:
               freeAligned(newSeg)
@@ -1784,7 +1769,7 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
                 # inline-skip past it.
                 let nextSeg = seg.next.load(moAcquire)
                 if nextSeg == nil:
-                  let newSeg = newSegment[T, ccProd, ccCons, S]()
+                  let newSeg = newSegment[T, ccProd, ccCons, S](seg.segIdx + 1'u64)
                   var expectedNext: ptr Segment[T, ccProd, ccCons, S] = nil
                   if seg.next.compareExchange(
                     expectedNext, newSeg, moRelease, moRelaxed
@@ -1793,7 +1778,6 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
                     discard self.queue.tailSegment.compareExchange(
                       expectedSeg, newSeg, moRelease, moRelaxed
                     )
-                    discard self.queue.segments.fetchAdd(1, moRelaxed)
                     # No local `seg = newSeg`: the `continue` re-enters the loop
                     # head, which re-reads `seg` from `tailSegment` (the
                     # authoritative value). Escalation correctness rests on the
@@ -1835,19 +1819,16 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
             else:
               seg.data[tail] = encoded
             seg.committed[tail].store(true, moRelease)
-          when not defined(lockfreeDisableItemCount):
-            wasEmpty = (self.queue.itemCount.fetchAdd(1, moAcqRel) <= 0)
+          let hSeg = self.queue.headSegment.load(moAcquire)
+          when ccCons == ccMulti:
+            wasEmpty =
+              (hSeg == seg and seg.prevConsumerIdx.load(moAcquire) + 1 >= tail) or
+              (tail == 0 and hSeg.next.load(moAcquire) == seg and hSeg.prevConsumerIdx.load(moAcquire) + 1 >= S)
           else:
-            let hSeg = self.queue.headSegment.load(moAcquire)
-            when ccCons == ccMulti:
-              wasEmpty =
-                (hSeg == seg and seg.prevConsumerIdx.load(moAcquire) + 1 >= tail) or
-                (tail == 0 and hSeg.next.load(moAcquire) == seg and hSeg.prevConsumerIdx.load(moAcquire) + 1 >= S)
-            else:
-              let hHead = cast[ptr Atomic[int]](addr hSeg.head)[].load(moAcquire)
-              wasEmpty =
-                (hSeg == seg and hHead >= tail) or
-                (tail == 0 and hSeg.next.load(moAcquire) == seg and hHead >= S)
+            let hHead = hSeg.head.load(moAcquire)
+            wasEmpty =
+              (hSeg == seg and hHead >= tail) or
+              (tail == 0 and hSeg.next.load(moAcquire) == seg and hHead >= S)
           return true
 
 proc push*[
@@ -1902,16 +1883,12 @@ proc pop*[
   when ccProd == ccSingle:
     # SPSC-absorbed: head advances on the consumer side; no committed flag.
     while true:
-      let head = seg.head
+      let head = seg.head.load(moRelaxed)
       let tail = seg.tail.load(moAcquire)
       if head < tail:
         # data[] holds SlotEncoding(T); move out and decode.
         let encoded = move(seg.data[head])
-        when defined(lockfreeDisableItemCount):
-          cast[ptr Atomic[int]](addr seg.head)[].store(head + 1, moRelease)
-        else:
-          seg.head = head + 1
-          discard self.queue.itemCount.fetchSub(1, moAcqRel)
+        seg.head.store(head + 1, moRelease)
         return some(unwrapOrIdentity[T](encoded))
       if head >= S:
         let nextSeg = seg.next.load(moAcquire)
@@ -1920,7 +1897,6 @@ proc pop*[
         let oldSeg = seg
         self.queue.headSegment.store(nextSeg, moRelease)
         seg = nextSeg
-        discard self.queue.segments.fetchSub(1, moRelaxed)
         freeAligned(oldSeg)
       else:
         return none(T)
@@ -1936,16 +1912,13 @@ proc pop*[
     block:
       var scope = pinScope(unpinned(h))
       while true:
+        let head = seg.head.load(moRelaxed)
         let tail = seg.tail.load(moAcquire)
-        if seg.head < tail:
-          if seg.committed[seg.head].load(moAcquire):
+        if head < tail:
+          if seg.committed[head].load(moAcquire):
             # data[] holds SlotEncoding(T); decode on the way out.
-            result = some(unwrapOrIdentity[T](move(seg.data[seg.head])))
-            when defined(lockfreeDisableItemCount):
-              cast[ptr Atomic[int]](addr seg.head)[].store(seg.head + 1, moRelease)
-            else:
-              inc seg.head
-              discard self.queue.itemCount.fetchSub(1, moAcqRel)
+            result = some(unwrapOrIdentity[T](move(seg.data[head])))
+            seg.head.store(head + 1, moRelease)
           # Deliberate transient-empty return: when `head < tail` but the
           # committed flag at `head` is not yet visible, a producer has reserved
           # the slot via tail-bump but has not finished publishing. This is the
@@ -1959,7 +1932,7 @@ proc pop*[
           # so the window is closed by the time a genuine end-of-stream `none`
           # is returned.
           break
-        if seg.head >= S:
+        if head >= S:
           let nextSeg = seg.next.load(moAcquire)
           if nextSeg == nil:
             break
@@ -1969,8 +1942,6 @@ proc pop*[
             nextSeg,
             segmentDestructor[T, ccMulti, ccSingle, S],
           )
-          when ST != stManual:
-            discard self.queue.segments.fetchSub(1, moRelaxed)
           seg = nextSeg
         else:
           break
@@ -2078,8 +2049,6 @@ proc pop*[
           nextSeg,
           segmentDestructor[T, ccSingle, ccMulti, S],
         ):
-          when ST != stManual:
-            discard self.queue.segments.fetchSub(1, moRelaxed)
           seg = nextSeg
         else:
           seg = self.queue.headSegment.load(moAcquire)
@@ -2095,8 +2064,6 @@ proc pop*[
       if seg.prevConsumerIdx.compareExchange(prevIdx, mySlot, moAcquire, moRelaxed):
         # data[] holds SlotEncoding(T); decode on the way out.
         result = some(unwrapOrIdentity[T](move(seg.data[mySlot])))
-        when not defined(lockfreeDisableItemCount):
-          discard self.queue.itemCount.fetchSub(1, moAcqRel)
         break
 
   when ST == stEager:
@@ -2270,8 +2237,6 @@ proc pop*[
           nextSeg,
           segmentDestructor[T, ccMulti, ccMulti, S],
         ):
-          when ST != stManual:
-            discard self.queue.segments.fetchSub(1, moRelaxed)
           seg = nextSeg
           closesSeenThisSegment = 0
           spins = InitialSpin
@@ -2304,8 +2269,6 @@ proc pop*[
         var claimed = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
         if claimed.isSome:
           result = some(unwrapOrIdentity[T](move(claimed.get)))
-          when not defined(lockfreeDisableItemCount):
-            discard self.queue.itemCount.fetchSub(1, moAcqRel)
           break
         # tryClaim returned none. Distinguish via fresh acquire-load: (a)
         # CLOSED_BIT set — a peer consumer drove close-on-empty on our
@@ -2353,8 +2316,6 @@ proc pop*[
               nextSeg,
               segmentDestructor[T, ccMulti, ccMulti, S],
             ):
-              when ST != stManual:
-                discard self.queue.segments.fetchSub(1, moRelaxed)
               seg = nextSeg
               closesSeenThisSegment = 0
               spins = InitialSpin
@@ -2408,8 +2369,6 @@ proc pop*[
               var claimed = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
               if claimed.isSome:
                 result = some(unwrapOrIdentity[T](move(claimed.get)))
-                when not defined(lockfreeDisableItemCount):
-                  discard self.queue.itemCount.fetchSub(1, moAcqRel)
                 when ST == stEager:
                   if h.advanceEvery(LockFreeQueuesAdvanceEvery):
                     discard reclaimNow(h)
@@ -2464,8 +2423,6 @@ proc pop*[
               nextSeg,
               segmentDestructor[T, ccMulti, ccMulti, S],
             ):
-              when ST != stManual:
-                discard self.queue.segments.fetchSub(1, moRelaxed)
               seg = nextSeg
               closesSeenThisSegment = 0
               spins = InitialSpin
@@ -2616,8 +2573,6 @@ proc popBatch*[
             nextSeg,
             segmentDestructor[T, ccMulti, ccMulti, S],
           ):
-            when ST != stManual:
-              discard self.queue.segments.fetchSub(1, moRelaxed)
             seg = nextSeg
             closesSeenThisSegment = 0
             spins = InitialSpin
@@ -2637,8 +2592,6 @@ proc popBatch*[
             var claimed = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
             if claimed.isSome:
               dest[totalPopped] = unwrapOrIdentity[T](move(claimed.get))
-              when not defined(lockfreeDisableItemCount):
-                discard self.queue.itemCount.fetchSub(1, moAcqRel)
               inc totalPopped
               continue
             let recheck = load(seg.cells[mySlot], moSequentiallyConsistent)
@@ -2654,8 +2607,6 @@ proc popBatch*[
                     nextSeg,
                     segmentDestructor[T, ccMulti, ccMulti, S],
                   ):
-                    when ST != stManual:
-                      discard self.queue.segments.fetchSub(1, moRelaxed)
                     seg = nextSeg
                     closesSeenThisSegment = 0
                     spins = InitialSpin
@@ -2673,8 +2624,6 @@ proc popBatch*[
                 var c = tryClaim[SlotEncoding(T)](seg.cells[mySlot], 0'u)
                 if c.isSome:
                   dest[totalPopped] = unwrapOrIdentity[T](move(c.get))
-                  when not defined(lockfreeDisableItemCount):
-                    discard self.queue.itemCount.fetchSub(1, moAcqRel)
                   inc totalPopped
                   published = true
                   break
@@ -2689,13 +2638,11 @@ proc popBatch*[
           # k > 1: Amortized batch reservation!
           let newPrevIdx = prevIdx + k
           if seg.prevConsumerIdx.compareExchange(prevIdx, newPrevIdx, moAcquire, moRelaxed):
-            var batchClaimed = 0
             for slot in mySlot .. newPrevIdx:
               var claimed = tryClaim[SlotEncoding(T)](seg.cells[slot], 0'u)
               if claimed.isSome:
                 dest[totalPopped] = unwrapOrIdentity[T](move(claimed.get))
                 inc totalPopped
-                inc batchClaimed
               else:
                 let recheck = load(seg.cells[slot], moSequentiallyConsistent)
                 if not seqIsClosed(recheck.first):
@@ -2712,15 +2659,11 @@ proc popBatch*[
                       if c.isSome:
                         dest[totalPopped] = unwrapOrIdentity[T](move(c.get))
                         inc totalPopped
-                        inc batchClaimed
                         published = true
                         break
                     inc waitSpins
                   if not published:
                     discard tryCloseOnEmpty[SlotEncoding(T)](seg.cells[slot], 0'u)
-            when not defined(lockfreeDisableItemCount):
-              if batchClaimed > 0:
-                discard self.queue.itemCount.fetchSub(batchClaimed, moAcqRel)
             continue
           else:
             backoffOnRetry(spins)

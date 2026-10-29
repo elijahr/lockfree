@@ -1305,7 +1305,7 @@ proc lf_table_is_empty*(table: ptr lf_table_t): bool {.exportc: "lf_table_is_emp
   if unlikely(table == nil or table.raw == nil):
     return true
   try:
-    return table.raw[].len == 0
+    return table.raw[].isEmpty()
   except:
     return true
 
@@ -1641,7 +1641,7 @@ proc lf_ctrie_is_empty*(ctrie: ptr lf_ctrie_t): bool {.exportc: "lf_ctrie_is_emp
   if unlikely(ctrie == nil or ctrie.raw == nil):
     return true
   try:
-    ctrie.raw[].len == 0
+    ctrie.raw[].isEmpty()
   except:
     true
 
@@ -1720,7 +1720,7 @@ proc lf_ctrie_snapshot_is_empty*(snapshot: ptr lf_ctrie_snapshot_t): bool {.expo
   if unlikely(snapshot == nil or snapshot.raw == nil):
     return true
   try:
-    snapshot.raw[].len == 0
+    snapshot.raw[].isEmpty()
   except:
     true
 

@@ -138,3 +138,76 @@ suite "TaggedStack / Stack128 (128-Bit DWCAS)":
     check s.isEmpty == true
     check s.len == 0
 
+  test "concurrent tryPush and pop never observe uninitialized payload":
+    var s = initTaggedStack[int]()
+    let sPtr = addr s
+    const NumThreads = 4
+    const ItemsPerThread = 2500
+
+    type
+      TryPushWorkerArg = object
+        idx: int
+        stack: ptr TaggedStack[int]
+
+    var poppedCounts {.global.}: array[NumThreads, int]
+    var zeroPayloadObserved {.global.}: Atomic[int]
+    var doneProducers {.global.}: Atomic[int]
+    zeroPayloadObserved.store(0, moRelaxed)
+    doneProducers.store(0, moRelaxed)
+
+    proc tryPushProducer(arg: TryPushWorkerArg) {.thread, nimcall.} =
+      let baseVal = arg.idx * ItemsPerThread + 1
+      for i in 0 ..< ItemsPerThread:
+        let v = baseVal + i
+        while not arg.stack[].tryPush(v):
+          cpuPause()
+
+    proc tryPushConsumer(arg: TryPushWorkerArg) {.thread, nimcall.} =
+      var count = 0
+      while true:
+        let opt = arg.stack[].pop()
+        if opt.isSome:
+          if opt.get <= 0:
+            discard zeroPayloadObserved.fetchAdd(1, moRelaxed)
+          inc count
+        else:
+          if doneProducers.load(moAcquire) == NumThreads and arg.stack[].isEmpty:
+            while true:
+              let tailOpt = arg.stack[].pop()
+              if tailOpt.isSome:
+                if tailOpt.get <= 0:
+                  discard zeroPayloadObserved.fetchAdd(1, moRelaxed)
+                inc count
+              else:
+                break
+            break
+          cpuPause()
+      poppedCounts[arg.idx] = count
+
+    var prodThreads: array[NumThreads, Thread[TryPushWorkerArg]]
+    var consThreads: array[NumThreads, Thread[TryPushWorkerArg]]
+
+    for i in 0 ..< NumThreads:
+      createThread(consThreads[i], tryPushConsumer, TryPushWorkerArg(idx: i, stack: sPtr))
+    for i in 0 ..< NumThreads:
+      createThread(prodThreads[i], tryPushProducer, TryPushWorkerArg(idx: i, stack: sPtr))
+
+    for i in 0 ..< NumThreads:
+      joinThread(prodThreads[i])
+    doneProducers.store(NumThreads, moRelease)
+    for i in 0 ..< NumThreads:
+      joinThread(consThreads[i])
+
+    var totalPopped = 0
+    for i in 0 ..< NumThreads:
+      totalPopped += poppedCounts[i]
+    let remaining = s.drain()
+    for v in remaining:
+      check v > 0
+    totalPopped += remaining.len
+
+    check zeroPayloadObserved.load(moAcquire) == 0
+    check totalPopped == NumThreads * ItemsPerThread
+    check s.isEmpty == true
+    check s.len == 0
+

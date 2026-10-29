@@ -199,10 +199,7 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     for i in 1 .. 100:
       check lf_push(prod, cast[pointer](i)) == LF_OK
 
-    when defined(lockfreeDisableItemCount):
-      check lf_queue_len(queue) == 0
-    else:
-      check lf_queue_len(queue) == 100
+    check lf_queue_len(queue) == 100
     check lf_queue_is_empty(queue) == false
 
     # Pop 100 items and verify FIFO order
