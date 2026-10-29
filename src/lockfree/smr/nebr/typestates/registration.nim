@@ -76,45 +76,49 @@ proc register*[MaxThreads: static int, CC: static PinScopeCardinality](
   ## successful, RegistrationFull if all slots are taken.
   let ctx = RegistrationContext[MaxThreads, CC](u)
   let mgr = ctx.manager
+  var claimedIdx = -1
 
   # Try each slot in order
-  for i in 0 ..< MaxThreads:
-    let bit = 1'u64 shl i
-    var expected = mgr.activeThreadMask.load(moAcquire)
+  block search:
+    for i in 0 ..< MaxThreads:
+      let bit = 1'u64 shl i
+      var expected = mgr.activeThreadMask.load(moAcquire)
 
-    # Keep trying while this slot is free
-    while (expected and bit) == 0:
-      let desired = expected or bit
-      if mgr.activeThreadMask.compareExchangeWeak(
-        expected, desired, moAcquireRelease, moAcquire
-      ):
-        # Successfully claimed slot i.
-        #
-        # Cycle-40 pivot (Windows): the slot stores the raw OS thread ID
-        # (`uint32`), not a duplicated handle. There is no handle to drain on
-        # re-claim — the cycle-37/38 deferred-close machinery is gone
-        # entirely, along with the handle leak and use-after-close race
-        # surfaces. Store thread ID for signaling
-        mgr.threads[i].threadId.store(currentThreadId(), moRelease)
-        # Set thread-local index for signal handler. Both `threadLocalIdx` and
-        # `threadLocalRegistered` must be set: the bare index can't distinguish
-        # "registered at slot 0" from "never registered" since threadvars
-        # default to zero.
-        threadLocalIdx = i
-        threadLocalRegistered = true
-        threadLocalManager = cast[pointer](mgr)
-        return
-          RegisterResult[MaxThreads, CC] ->
-          Registered[MaxThreads, CC](
-            RegistrationContext[MaxThreads, CC](manager: mgr, idx: i)
-          )
-      # CAS failed, expected was updated, retry with new value
+      # Keep trying while this slot is free
+      while (expected and bit) == 0:
+        let desired = expected or bit
+        if mgr.activeThreadMask.compareExchangeWeak(
+          expected, desired, moAcquireRelease, moAcquire
+        ):
+          # Successfully claimed slot i.
+          #
+          # Cycle-40 pivot (Windows): the slot stores the raw OS thread ID
+          # (`uint32`), not a duplicated handle. There is no handle to drain on
+          # re-claim — the cycle-37/38 deferred-close machinery is gone
+          # entirely, along with the handle leak and use-after-close race
+          # surfaces. Store thread ID for signaling
+          mgr.threads[i].threadId.store(currentThreadId(), moRelease)
+          # Set thread-local index for signal handler. Both `threadLocalIdx` and
+          # `threadLocalRegistered` must be set: the bare index can't distinguish
+          # "registered at slot 0" from "never registered" since threadvars
+          # default to zero.
+          threadLocalIdx = i
+          threadLocalRegistered = true
+          threadLocalManager = cast[pointer](mgr)
+          claimedIdx = i
+          break search
+        # CAS failed, expected was updated, retry with new value
 
-  # All slots taken
-  RegisterResult[MaxThreads, CC] ->
-    RegistrationFull[MaxThreads, CC](
-      RegistrationContext[MaxThreads, CC](manager: mgr, idx: -1)
-    )
+  if claimedIdx >= 0:
+    RegisterResult[MaxThreads, CC] ->
+      Registered[MaxThreads, CC](
+        RegistrationContext[MaxThreads, CC](manager: mgr, idx: claimedIdx)
+      )
+  else:
+    RegisterResult[MaxThreads, CC] ->
+      RegistrationFull[MaxThreads, CC](
+        RegistrationContext[MaxThreads, CC](manager: mgr, idx: -1)
+      )
 
 func idx*[MaxThreads: static int, CC: static PinScopeCardinality](
     r: Registered[MaxThreads, CC]
