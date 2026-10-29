@@ -16,6 +16,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Unbounded Queue Teardown Destructor Fallback (`src/lockfree/cabi.nim`)**:
   - Hardened `unboundedQueueDestroy` with a direct segment-chain LCRQ cell drain fallback when `DebraManager` thread registration slots are exhausted at teardown time.
 
+### Changed
+
+- **Eliminated Hot-Path Atomic Counters & Restored Disjoint-Access Parallelism (`src/lockfree/queue.nim`, `src/lockfree/stack.nim`, `src/lockfree/stack128.nim`, `src/lockfree/bstack.nim`, `src/lockfree/skiplist.nim`, `src/lockfree/set.nim`, `src/lockfree/priority_queue.nim`, `src/lockfree/ctrie.nim`, `src/lockfree/cabi.nim`)**:
+  - Removed `Queue.itemCount`, `Queue.segments`, `-d:lockfreeTrackItemCount`, and `-d:lockfreeDisableItemCount`; added `Segment.segIdx*: uint64` for O(1) arithmetic `Queue.len` and `Queue.segmentCount`, and converted `Segment.head` (`ccSingle`) to `Atomic[int]`.
+  - Removed hot-path `count: Atomic[int]` RMW cache-line contention from `TreiberStack`, `TaggedStack`, `BStack`, `SkipListMap`, `SkipListSet`, `SkipListPriorityQueue`, and `Ctrie`, implementing SMR-protected traversal for `len` and O(1) head/root inspection for `isEmpty`.
+
+### Fixed
+
+- **C ABI StreamBuffer Reservation Tracking & Unbounded Queue `pushEx` Segment Rollover (`src/lockfree/cabi.nim`, `src/lockfree/queue.nim`, `tests/t_cabi.nim`)**:
+  - Preserved active `lastReservedWrite` reservation across failed `lf_stream_reserve_write` calls (`LF_ERR_INVALID_ARG` / `LF_ERR_FULL`), delegated `unboundedQueueIsEmpty`, `lf_table_is_empty`, `lf_ctrie_is_empty`, and `lf_ctrie_snapshot_is_empty` to `.isEmpty()`, and handled segment-boundary rollover in `Queue.pushEx`.
+- **`TaggedStack.tryPush` Data Race & `Channel` TLS MRU Eviction Slot Recycling (`src/lockfree/stack128.nim`, `src/lockfree/channel.nim`)**:
+  - Initialized `freshNode.data` before the publishing `compareExchangeWeak` in `TaggedStack.tryPush` (restoring `item` on CAS retry) so concurrent `pop()` threads never read uninitialized payload data.
+  - Properly closed evicted `Bound` endpoints and cleared `producerThreadIds[idx]` / `consumerThreadIds[idx]` when `Channel` TLS MRU caches reach `ChannelTlsMruCapacity`, and updated `unboundedIsEmpty` to call `uc.queue.isEmpty()`.
+
 ## [0.6.3] - 2026-10-27
 
 ### Fixed

@@ -179,6 +179,12 @@ proc boundedSend[T; N, P, C: static int](p: pointer, item: sink T): bool {.nimca
     var u = bc.queue.getProducer()
     var b = u.bindToThread()
     if tlsProducers.len >= ChannelTlsMruCapacity:
+      var evicted = move(tlsProducers[^1])
+      let idx = evicted.bound.idx
+      let qPtr = evicted.bound.queue
+      discard close(evicted.bound)
+      if qPtr != nil and idx >= 0 and idx < P:
+        qPtr.producerThreadIds[idx].store(0, moRelease)
       tlsProducers.setLen(ChannelTlsMruCapacity - 1)
     tlsProducers.insert(CachedProducerEntry[T, N, P, C](chanId: chanId, bound: b), 0)
     return tlsProducers[0].bound.push(item)
@@ -209,6 +215,12 @@ proc boundedRecv[T; N, P, C: static int](p: pointer): Option[T] {.nimcall, gcsaf
     var u = bc.queue.getConsumer()
     var b = u.bindToThread()
     if tlsConsumers.len >= ChannelTlsMruCapacity:
+      var evicted = move(tlsConsumers[^1])
+      let idx = evicted.bound.idx
+      let qPtr = evicted.bound.queue
+      discard close(evicted.bound)
+      if qPtr != nil and idx >= 0 and idx < C:
+        qPtr.consumerThreadIds[idx].store(0, moRelease)
       tlsConsumers.setLen(ChannelTlsMruCapacity - 1)
     tlsConsumers.insert(CachedConsumerEntry[T, N, P, C](chanId: chanId, bound: b), 0)
     return tlsConsumers[0].bound.pop()
@@ -338,7 +350,9 @@ proc unboundedIsFull[T; ST: static DeallocationStrategy; S, MaxThreads: static i
   false
 
 proc unboundedIsEmpty[T; ST: static DeallocationStrategy; S, MaxThreads: static int](p: pointer): bool {.nimcall, gcsafe, raises: [].} =
-  unboundedLen[T, ST, S, MaxThreads](p) == 0
+  {.cast(gcsafe).}:
+    var uc = cast[ptr UnboundedCore[T, ST, S, MaxThreads]](p)
+    uc.queue.isEmpty()
 
 proc newUnboundedChannelImpl*[T; ST: static DeallocationStrategy; S, MaxThreads: static int](): tuple[tx: Sender[T], rx: Receiver[T]] =
   let uc = cast[ptr UnboundedCore[T, ST, S, MaxThreads]](allocShared0(sizeof(UnboundedCore[T, ST, S, MaxThreads])))

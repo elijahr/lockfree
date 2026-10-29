@@ -616,7 +616,7 @@ proc unboundedQueueIsEmpty[S, MaxThreads: static int](qBase: ptr lf_queue_t): bo
   let q = cast[ptr UnboundedQueueImpl[S, MaxThreads]](qBase)
   try:
     {.cast(gcsafe).}:
-      q.rawQueue[].len <= 0
+      q.rawQueue[].isEmpty()
   except:
     true
 
@@ -1305,7 +1305,7 @@ proc lf_table_is_empty*(table: ptr lf_table_t): bool {.exportc: "lf_table_is_emp
   if unlikely(table == nil or table.raw == nil):
     return true
   try:
-    return table.raw[].len == 0
+    return table.raw[].isEmpty()
   except:
     return true
 
@@ -1641,7 +1641,7 @@ proc lf_ctrie_is_empty*(ctrie: ptr lf_ctrie_t): bool {.exportc: "lf_ctrie_is_emp
   if unlikely(ctrie == nil or ctrie.raw == nil):
     return true
   try:
-    ctrie.raw[].len == 0
+    ctrie.raw[].isEmpty()
   except:
     true
 
@@ -1720,7 +1720,7 @@ proc lf_ctrie_snapshot_is_empty*(snapshot: ptr lf_ctrie_snapshot_t): bool {.expo
   if unlikely(snapshot == nil or snapshot.raw == nil):
     return true
   try:
-    snapshot.raw[].len == 0
+    snapshot.raw[].isEmpty()
   except:
     true
 
@@ -2473,6 +2473,7 @@ type
 
   lf_stream_ring_handle* {.exportc: "lf_stream_ring_t".} = object
     raw*: ptr StreamRing
+    lastReservedWrite*: csize_t
 
   lf_stream_ring_t* = lf_stream_ring_handle
   lfq_stream_ring_handle* = lf_stream_ring_handle
@@ -2789,6 +2790,7 @@ proc lf_stream_reserve_write*(
     if iov.second.len > 0 and iov.second.data != nil:
       out_ptr2[] = cast[ptr uint8](iov.second.data)
       out_len2[] = csize_t(iov.second.len)
+    sb.lastReservedWrite = csize_t(iov.first.len + iov.second.len)
     LF_OK
 
 proc lf_stream_commit_write*(
@@ -2798,11 +2800,14 @@ proc lf_stream_commit_write*(
   if unlikely(sb == nil or sb.raw == nil):
     return LF_ERR_INVALID_ARG
   cAbiBoundary:
+    if committed_bytes > sb.lastReservedWrite:
+      return LF_ERR_INVALID_ARG
     let avail = sb.raw[].availableWrite()
     if committed_bytes > csize_t(avail):
       return LF_ERR_INVALID_ARG
     if committed_bytes > 0:
       sb.raw[].commitWrite(int(committed_bytes))
+    sb.lastReservedWrite = 0
     LF_OK
 
 proc lf_stream_peek_read*(

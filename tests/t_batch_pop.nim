@@ -118,8 +118,7 @@ suite "popBatch and popChunk Primitives":
     for i in 1 .. 10:
       producer.push(i * 5)
 
-    when not defined(lockfreeDisableItemCount):
-      check q.len == 10
+    check q.len == 10
 
     var buf: array[6, int]
     let n1 = consumer.popBatch(buf)
@@ -127,8 +126,7 @@ suite "popBatch and popChunk Primitives":
     for i in 0 .. 5:
       check buf[i] == (i + 1) * 5
 
-    when not defined(lockfreeDisableItemCount):
-      check q.len == 4
+    check q.len == 4
 
     var buf2: array[6, int]
     let n2 = consumer.popBatch(buf2)
@@ -137,8 +135,7 @@ suite "popBatch and popChunk Primitives":
     check buf2[1] == 40
     check buf2[2] == 45
     check buf2[3] == 50
-    when not defined(lockfreeDisableItemCount):
-      check q.len == 0
+    check q.len == 0
 
     # Empty queue popBatch
     check consumer.popBatch(buf2) == 0
@@ -153,8 +150,7 @@ suite "popBatch and popChunk Primitives":
     for i in 1 .. 14:
       producer.push(i)
 
-    when not defined(lockfreeDisableItemCount):
-      check q.len == 14
+    check q.len == 14
 
     # Extract in a batch larger than a single segment size (7 > 4)
     var buf: array[7, int]
@@ -163,16 +159,14 @@ suite "popBatch and popChunk Primitives":
     for i in 0 .. 6:
       check buf[i] == i + 1
 
-    when not defined(lockfreeDisableItemCount):
-      check q.len == 7
+    check q.len == 7
 
     let n2 = consumer.popBatch(buf)
     check n2 == 7
     for i in 0 .. 6:
       check buf[i] == i + 8
 
-    when not defined(lockfreeDisableItemCount):
-      check q.len == 0
+    check q.len == 0
     check consumer.popBatch(buf) == 0
 
   test "Queue unbounded MPSC batch pop":
@@ -184,8 +178,7 @@ suite "popBatch and popChunk Primitives":
     for i in 1 .. 14:
       producer.push(i)
 
-    when not defined(lockfreeDisableItemCount):
-      check q.len == 14
+    check q.len == 14
 
     var buf: array[6, int]
     let n1 = consumer.popBatch(buf)
@@ -193,24 +186,21 @@ suite "popBatch and popChunk Primitives":
     for i in 0 .. 5:
       check buf[i] == i + 1
 
-    when not defined(lockfreeDisableItemCount):
-      check q.len == 8
+    check q.len == 8
 
     let n2 = consumer.popBatch(buf)
     check n2 == 6
     for i in 0 .. 5:
       check buf[i] == i + 7
 
-    when not defined(lockfreeDisableItemCount):
-      check q.len == 2
+    check q.len == 2
 
     let n3 = consumer.popBatch(buf)
     check n3 == 2
     check buf[0] == 13
     check buf[1] == 14
 
-    when not defined(lockfreeDisableItemCount):
-      check q.len == 0
+    check q.len == 0
 
     check consumer.popBatch(buf) == 0
 
@@ -223,8 +213,7 @@ suite "popBatch and popChunk Primitives":
     for i in 1 .. 14:
       producer.push(i)
 
-    when not defined(lockfreeDisableItemCount):
-      check q.len == 14
+    check q.len == 14
 
     var buf: array[6, int]
     let n1 = consumer.popBatch(buf)
@@ -232,24 +221,21 @@ suite "popBatch and popChunk Primitives":
     for i in 0 .. 5:
       check buf[i] == i + 1
 
-    when not defined(lockfreeDisableItemCount):
-      check q.len == 8
+    check q.len == 8
 
     let n2 = consumer.popBatch(buf)
     check n2 == 6
     for i in 0 .. 5:
       check buf[i] == i + 7
 
-    when not defined(lockfreeDisableItemCount):
-      check q.len == 2
+    check q.len == 2
 
     let n3 = consumer.popBatch(buf)
     check n3 == 2
     check buf[0] == 13
     check buf[1] == 14
 
-    when not defined(lockfreeDisableItemCount):
-      check q.len == 0
+    check q.len == 0
 
     check consumer.popBatch(buf) == 0
 
@@ -265,8 +251,7 @@ suite "popBatch and popChunk Primitives":
     let chunk = consumer.popChunk(8)
     check chunk.len == 5
     check chunk == @[11, 22, 33, 44, 55]
-    when not defined(lockfreeDisableItemCount):
-      check q.len == 0
+    check q.len == 0
 
   test "Queue unbounded MPMC popBatch with MoveOnlyItem":
     var manager = initDebraManager[4, debra_mod.ccMulti]()
@@ -283,8 +268,7 @@ suite "popBatch and popChunk Primitives":
     check n == 6
     for i in 0 .. 5:
       check buf[i].val == (i + 1) * 7
-    when not defined(lockfreeDisableItemCount):
-      check q.len == 0
+    check q.len == 0
 
   type
     BQueueBatchPCtx[N, P, C: static int] = object

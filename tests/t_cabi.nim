@@ -17,8 +17,12 @@
 
 import unittest2
 import std/os
+import std/options
 import lockfree/atomics
 import lockfree/atomics/backoff
+import lockfree/queue
+import lockfree/strategy
+import lockfree/endpoint
 import lockfree/cabi
 
 # Pass include path to the C compiler so #include "lockfree.h" resolves
@@ -1577,7 +1581,7 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check lfq_bqueue128_destroy(lbq) == LFQ_OK
 
   test "Zero-Copy StreamBuffer Two-Phase Reserve/Commit & Peek/Consume C ABI":
-    let sb = lf_streambuffer_create(64, false)
+    var sb = lf_streambuffer_create(64, false)
     check sb != nil
 
     var p1: ptr uint8 = nil
@@ -1595,7 +1599,24 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check lf_stream_reserve_write(sb, 16, addr p1, addr l1, addr p2, nil) == LF_ERR_INVALID_ARG
     check lf_stream_reserve_write(sb, 128, addr p1, addr l1, addr p2, addr l2) == LF_ERR_INVALID_ARG
     check lf_stream_commit_write(nil, 8) == LF_ERR_INVALID_ARG
+    check lf_stream_commit_write(sb, 1) == LF_ERR_INVALID_ARG
     check lf_stream_commit_write(sb, 65) == LF_ERR_INVALID_ARG
+    # Reserve 16 bytes, verify committing reserved+1 (17) fails with LF_ERR_INVALID_ARG even when capacity (64) > 17
+    check lf_stream_reserve_write(sb, 16, addr p1, addr l1, addr p2, addr l2) == LF_OK
+    check l1 + l2 == 16
+    # Failed reserve (> capacity) must NOT clobber active 16-byte reservation
+    check lf_stream_reserve_write(sb, 128, addr p1, addr l1, addr p2, addr l2) == LF_ERR_INVALID_ARG
+    check lf_stream_commit_write(sb, 17) == LF_ERR_INVALID_ARG
+    check lf_stream_commit_write(sb, 16) == LF_OK
+    check lf_stream_consume_read(sb, 16) == LF_OK
+    check lf_stream_commit_write(sb, 1) == LF_ERR_INVALID_ARG
+    # Recreate sb at head=0, tail=0 so wrap-around offset assertions below start from index 0
+    lf_streambuffer_destroy(sb)
+    sb = lf_streambuffer_create(64, false)
+    check sb != nil
+    check lf_stream_reserve_write(sb, 16, addr p1, addr l1, addr p2, addr l2) == LF_OK
+    check lf_stream_commit_write(sb, 0) == LF_OK
+    check lf_stream_commit_write(sb, 1) == LF_ERR_INVALID_ARG
     check lf_stream_peek_read(nil, addr cp1, addr l1, addr cp2, addr l2) == LF_ERR_INVALID_ARG
     check lf_stream_peek_read(sb, nil, addr l1, addr cp2, addr l2) == LF_ERR_INVALID_ARG
     check lf_stream_peek_read(sb, addr cp1, nil, addr cp2, addr l2) == LF_ERR_INVALID_ARG
@@ -1910,6 +1931,94 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check bq128Ctx.sumConsumed.load(moAcquire) == expectedSum
     check bq128Ctx.wakeups.load(moAcquire) >= 1
     check lf_bqueue128_destroy(bq128Ctx.q) == LF_OK
+
+    # 4. Epoch-based drain-to-empty wakeup verification (20 epochs -> exact 20 wakeups)
+    const NumEpochs = 20
+    var epBounded: ptr lf_queue_t = nil
+    var epUnbounded: ptr lf_queue_t = nil
+    var epBq128: ptr lf_bqueue128_t = nil
+    check lf_bounded_mpmc_create(16, 4, 4, nil, nil, addr epBounded) == LF_OK
+    check lf_unbounded_mpmc_create(16, 8, nil, nil, addr epUnbounded) == LF_OK
+    check lf_bqueue128_create(16, nil, nil, addr epBq128) == LF_OK
+
+    var epBProd: ptr lf_producer_t = nil
+    var epBCons: ptr lf_consumer_t = nil
+    var epUProd: ptr lf_producer_t = nil
+    var epUCons: ptr lf_consumer_t = nil
+    check lf_producer_acquire(epBounded, addr epBProd) == LF_OK
+    check lf_consumer_acquire(epBounded, addr epBCons) == LF_OK
+    check lf_producer_acquire(epUnbounded, addr epUProd) == LF_OK
+    check lf_consumer_acquire(epUnbounded, addr epUCons) == LF_OK
+
+    var bEpochWakeups = 0
+    var uEpochWakeups = 0
+    var bq128EpochWakeups = 0
+    for ep in 1 .. NumEpochs:
+      for k in 1 .. 4:
+        var weB = false
+        var weU = false
+        var we128 = false
+        check lf_push_ex(epBProd, cast[pointer](ep * 10 + k), addr weB) == LF_OK
+        check lf_push_ex(epUProd, cast[pointer](ep * 10 + k), addr weU) == LF_OK
+        check lf_bqueue128_push_ex(epBq128, cast[pointer](ep * 10 + k), addr we128) == LF_OK
+        if weB: inc bEpochWakeups
+        if weU: inc uEpochWakeups
+        if we128: inc bq128EpochWakeups
+      for k in 1 .. 4:
+        var outB: pointer = nil
+        var outU: pointer = nil
+        var out128: pointer = nil
+        check lf_pop(epBCons, addr outB) == LF_OK
+        check lf_pop(epUCons, addr outU) == LF_OK
+        check lf_bqueue128_pop(epBq128, addr out128) == LF_OK
+        check cast[int](outB) == ep * 10 + k
+        check cast[int](outU) == ep * 10 + k
+        check cast[int](out128) == ep * 10 + k
+
+    check bEpochWakeups == NumEpochs
+    check uEpochWakeups == NumEpochs
+    check bq128EpochWakeups == NumEpochs
+
+    check lf_producer_release(epBProd) == LF_OK
+    check lf_consumer_release(epBCons) == LF_OK
+    check lf_producer_release(epUProd) == LF_OK
+    check lf_consumer_release(epUCons) == LF_OK
+    check lf_queue_destroy(epBounded) == LF_OK
+    check lf_queue_destroy(epUnbounded) == LF_OK
+    check lf_bqueue128_destroy(epBq128) == LF_OK
+
+    # 5. Unbounded SPSC, SPMC, and MPSC pushEx 20-epoch wakeup verification (covers all cardinalities in queue.nim)
+    var qSpsc = newUnboundedSpscQueue[int, stEager, 16, 4]()
+    var qSpmc = newUnboundedSpmcQueue[int, stEager, 16, 4]()
+    var qMpsc = newUnboundedMpscQueue[int, stEager, 16, 4]()
+    var pSpsc = qSpsc.getProducerHere()
+    var cSpsc = qSpsc.getConsumerHere()
+    var pSpmc = qSpmc.getProducerHere()
+    var cSpmc = qSpmc.getConsumerHere()
+    var pMpsc = qMpsc.getProducerHere()
+    var cMpsc = qMpsc.getConsumerHere()
+
+    var spscWakeups = 0
+    var spmcWakeups = 0
+    var mpscWakeups = 0
+    for ep in 1 .. NumEpochs:
+      for k in 1 .. 4:
+        var weSpsc = false
+        var weSpmc = false
+        var weMpsc = false
+        check pSpsc.pushEx(ep * 10 + k, weSpsc) == true
+        check pSpmc.pushEx(ep * 10 + k, weSpmc) == true
+        check pMpsc.pushEx(ep * 10 + k, weMpsc) == true
+        if weSpsc: inc spscWakeups
+        if weSpmc: inc spmcWakeups
+        if weMpsc: inc mpscWakeups
+      for k in 1 .. 4:
+        check cSpsc.pop() == some(ep * 10 + k)
+        check cSpmc.pop() == some(ep * 10 + k)
+        check cMpsc.pop() == some(ep * 10 + k)
+    check spscWakeups == NumEpochs
+    check spmcWakeups == NumEpochs
+    check mpscWakeups == NumEpochs
 
   when not defined(windows):
     test "Direct C99 Header Interoperability":

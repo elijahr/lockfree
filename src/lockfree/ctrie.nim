@@ -172,7 +172,6 @@ type
     id*: uint64
     root*: Atomic[ptr INode[K, V]]
     manager*: ptr DebraManager[MaxThreads, ccMulti]
-    count*: Atomic[int]
     rc*: Atomic[int]
     ownsManager*: bool
 
@@ -687,7 +686,6 @@ proc putInternal[K, V; MaxThreads: static int](
             if cur.main.compareExchangeStrong(expMain, cast[ptr MainNode[K, V]](newCn), moAcquireRelease, moAcquire):
               if cn.gen == root.gen:
                 ready.retire(cast[pointer](cn), destroyCNodeCallback[K, V])
-              discard self.core.count.fetchAdd(1, moRelaxed)
               return none(V)
             else:
               destroyCNodeCallback[K, V](cast[pointer](newCn))
@@ -749,7 +747,6 @@ proc putInternal[K, V; MaxThreads: static int](
                   if convertedToLNode:
                     ready.retire(cast[pointer](sn), destroySNodeCallback[K, V])
                     destroySNodeCallback[K, V](cast[pointer](newSn))
-                  discard self.core.count.fetchAdd(1, moRelaxed)
                   return none(V)
                 else:
                   destroyCNodeCallback[K, V](cast[pointer](newCn))
@@ -794,7 +791,6 @@ proc putInternal[K, V; MaxThreads: static int](
           if cur.main.compareExchangeStrong(expMain, cast[ptr MainNode[K, V]](newLn), moAcquireRelease, moAcquire):
             ready.retire(cast[pointer](ln), destroyLNodeCallback[K, V])
             if not found:
-              discard self.core.count.fetchAdd(1, moRelaxed)
               return none(V)
             else:
               return some(oldVal)
@@ -903,7 +899,6 @@ proc delete*[K, V; MaxThreads: static int](
                   if cn.gen == root.gen:
                     ready.retire(cast[pointer](cn), destroyCNodeCallback[K, V])
                   self.clean(parent, cur, remChild.toSNode, ready)
-                  discard self.core.count.fetchSub(1, moRelaxed)
                   return some(val)
                 else:
                   destroyTNodeCallback[K, V](cast[pointer](tn))
@@ -918,7 +913,6 @@ proc delete*[K, V; MaxThreads: static int](
                   ready.retire(cast[pointer](sn), destroySNodeCallback[K, V])
                   if cn.gen == root.gen:
                     ready.retire(cast[pointer](cn), destroyCNodeCallback[K, V])
-                  discard self.core.count.fetchSub(1, moRelaxed)
                   return some(val)
                 else:
                   destroyCNodeCallback[K, V](cast[pointer](newCn))
@@ -938,7 +932,6 @@ proc delete*[K, V; MaxThreads: static int](
                 ready.retire(cast[pointer](sn), destroySNodeCallback[K, V])
                 if cn.gen == root.gen:
                   ready.retire(cast[pointer](cn), destroyCNodeCallback[K, V])
-                discard self.core.count.fetchSub(1, moRelaxed)
                 return some(val)
               else:
                 destroyCNodeCallback[K, V](cast[pointer](newCn))
@@ -986,7 +979,6 @@ proc delete*[K, V; MaxThreads: static int](
             if cur.main.compareExchangeStrong(expMain, cast[ptr MainNode[K, V]](tn), moAcquireRelease, moAcquire):
               ready.retire(cast[pointer](ln), destroyLNodeCallback[K, V])
               self.clean(parent, cur, sn, ready)
-              discard self.core.count.fetchSub(1, moRelaxed)
               return some(val)
             else:
               destroyTNodeCallback[K, V](cast[pointer](tn))
@@ -998,7 +990,6 @@ proc delete*[K, V; MaxThreads: static int](
             var expMain = main
             if cur.main.compareExchangeStrong(expMain, cast[ptr MainNode[K, V]](newLn), moAcquireRelease, moAcquire):
               ready.retire(cast[pointer](ln), destroyLNodeCallback[K, V])
-              discard self.core.count.fetchSub(1, moRelaxed)
               return some(val)
             else:
               destroyLNodeCallback[K, V](cast[pointer](newLn))
@@ -1237,7 +1228,6 @@ proc upsert*[K, V; MaxThreads: static int](
             if cur.main.compareExchangeStrong(expMain, cast[ptr MainNode[K, V]](newCn), moAcquireRelease, moAcquire):
               if cn.gen == root.gen:
                 ready.retire(cast[pointer](cn), destroyCNodeCallback[K, V])
-              discard self.core.count.fetchAdd(1, moRelaxed)
               return insertVal
             else:
               destroyCNodeCallback[K, V](cast[pointer](newCn))
@@ -1297,7 +1287,6 @@ proc upsert*[K, V; MaxThreads: static int](
                   if convertedToLNode:
                     ready.retire(cast[pointer](sn), destroySNodeCallback[K, V])
                     destroySNodeCallback[K, V](cast[pointer](newSn))
-                  discard self.core.count.fetchAdd(1, moRelaxed)
                   return insertVal
                 else:
                   destroyCNodeCallback[K, V](cast[pointer](newCn))
@@ -1343,8 +1332,6 @@ proc upsert*[K, V; MaxThreads: static int](
           var expMain = main
           if cur.main.compareExchangeStrong(expMain, cast[ptr MainNode[K, V]](newLn), moAcquireRelease, moAcquire):
             ready.retire(cast[pointer](ln), destroyLNodeCallback[K, V])
-            if not found:
-              discard self.core.count.fetchAdd(1, moRelaxed)
             return settledVal
           else:
             destroyLNodeCallback[K, V](cast[pointer](newLn))
@@ -1360,11 +1347,90 @@ proc upsert*[K, V; MaxThreads: static int](
   finally:
     unpinGuard(toPinned(ready))
 
-proc len*[K, V; MaxThreads: static int](self: Ctrie[K, V, MaxThreads]): int {.inline.} =
-  if self.core == nil: 0 else: max(0, self.core.count.load(moRelaxed))
+proc countNodes[K, V](inode: ptr INode[K, V]): int =
+  if inode == nil:
+    return 0
+  let main = inode.main.load(moAcquire)
+  if main == nil:
+    return 0
+  case main.kind
+  of mnkCNode:
+    let cn = cast[ptr CNode[K, V]](main)
+    var count = 0
+    for i in 0 ..< cn.csize:
+      let child = cn.children[i]
+      if child.isSNode:
+        let sn = child.toSNode
+        if sn != nil and sn.vbox != nil:
+          inc count
+      elif child.isINode:
+        count += countNodes(child.toINode)
+    return count
+  of mnkLNode:
+    let ln = cast[ptr LNode[K, V]](main)
+    var count = 0
+    var curr = ln.head
+    while curr != nil:
+      inc count
+      curr = curr.next
+    return count
+  of mnkTNode:
+    let tn = cast[ptr TNode[K, V]](main)
+    if tn.snode != nil:
+      return 1
+    return 0
 
-proc isEmpty*[K, V; MaxThreads: static int](self: Ctrie[K, V, MaxThreads]): bool {.inline.} =
-  self.len == 0
+proc hasAnyNode[K, V](inode: ptr INode[K, V]): bool =
+  if inode == nil:
+    return false
+  let main = inode.main.load(moAcquire)
+  if main == nil:
+    return false
+  case main.kind
+  of mnkCNode:
+    let cn = cast[ptr CNode[K, V]](main)
+    if cn.csize == 0:
+      return false
+    for i in 0 ..< cn.csize:
+      let child = cn.children[i]
+      if child.isSNode:
+        let sn = child.toSNode
+        if sn != nil and sn.vbox != nil:
+          return true
+      elif child.isINode:
+        if hasAnyNode(child.toINode):
+          return true
+    return false
+  of mnkLNode:
+    let ln = cast[ptr LNode[K, V]](main)
+    return ln.head != nil
+  of mnkTNode:
+    let tn = cast[ptr TNode[K, V]](main)
+    return tn.snode != nil
+
+proc len*[K, V; MaxThreads: static int](self: Ctrie[K, V, MaxThreads]): int =
+  ## Returns the approximate number of entries currently in the Ctrie by
+  ## traversing the trie under an SMR guard without maintaining a hot-path
+  ## shared atomic counter.
+  if self.core == nil:
+    return 0
+  let th = self.getOrRegisterHandle()
+  let pinned = unpinned(th).pin()
+  try:
+    return countNodes(self.core.root.load(moAcquire))
+  finally:
+    unpinGuard(pinned)
+
+proc isEmpty*[K, V; MaxThreads: static int](self: Ctrie[K, V, MaxThreads]): bool =
+  ## Returns `true` if the Ctrie contains zero entries via fast root inspection.
+  if self.core == nil:
+    return true
+  let th = self.getOrRegisterHandle()
+  let pinned = unpinned(th).pin()
+  try:
+    return not hasAnyNode(self.core.root.load(moAcquire))
+  finally:
+    unpinGuard(pinned)
 
 # ---------------------------------------------------------------------------
 # Wait-Free O(1) Snapshotting
@@ -1508,13 +1574,24 @@ iterator values*[K, V; MaxThreads: static int](
     yield v
 
 proc len*[K, V; MaxThreads: static int](snap: Snapshot[K, V, MaxThreads]): int =
-  var n = 0
-  for _ in snap.pairs:
-    inc n
-  return n
+  if snap.root == nil or snap.core == nil:
+    return 0
+  let th = snap.getOrRegisterHandle()
+  let pinned = unpinned(th).pin()
+  try:
+    return countNodes(snap.root)
+  finally:
+    unpinGuard(pinned)
 
-proc isEmpty*[K, V; MaxThreads: static int](snap: Snapshot[K, V, MaxThreads]): bool {.inline.} =
-  snap.len == 0
+proc isEmpty*[K, V; MaxThreads: static int](snap: Snapshot[K, V, MaxThreads]): bool =
+  if snap.root == nil or snap.core == nil:
+    return true
+  let th = snap.getOrRegisterHandle()
+  let pinned = unpinned(th).pin()
+  try:
+    return not hasAnyNode(snap.root)
+  finally:
+    unpinGuard(pinned)
 
 iterator pairs*[K, V; MaxThreads: static int](
     self: Ctrie[K, V, MaxThreads]
@@ -1684,7 +1761,6 @@ proc initCtrie*[K, V](
   core.manager = mgr
   core.ownsManager = true
   core.rc.store(1, moRelaxed)
-  core.count.store(0, moRelaxed)
 
   let gen = allocGeneration()
   let emptyCn = allocCNode[K, V](0'u32, gen, 0)

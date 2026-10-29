@@ -57,7 +57,6 @@ type
     id*: uint64
     head*: ptr PQueueNode[T, MaxLevel]
     tail*: ptr PQueueNode[T, MaxLevel]
-    count*: Atomic[int]
     nextSeqId*: Atomic[uint64]
     restructuring*: Atomic[bool]
     rc*: Atomic[int]
@@ -364,7 +363,6 @@ proc newSkipListPriorityQueue*[
   core.id = allocPQueueId()
   core.head = head
   core.tail = tail
-  core.count.store(0, moRelaxed)
   core.nextSeqId.store(0'u64, moRelaxed)
   core.restructuring.store(false, moRelaxed)
   core.rc.store(1, moRelaxed)
@@ -585,7 +583,6 @@ proc push*[T; MaxThreads: static int; MaxLevel: static int](
     let desired0 = toEntry[T, MaxLevel](newNode, false)
 
     if pred0.next[0].compareExchange(expected0, desired0, moAcquireRelease, moAcquire):
-      discard pq.core.count.fetchAdd(1, moRelease)
       break
     backoffOnRetry(spins)
 
@@ -642,7 +639,6 @@ proc popMin*[T; MaxThreads: static int; MaxLevel: static int](
 
     var expectedDel = false
     if curr.deleted.compareExchange(expectedDel, true, moAcquireRelease, moAcquire):
-      discard pq.core.count.fetchSub(1, moRelease)
       let val = curr.key
       if hops >= DefaultRestructureThreshold:
         restructure(pq, ready)
@@ -681,7 +677,6 @@ proc tryPopMin*[T; MaxThreads: static int; MaxLevel: static int](
 
     var expectedDel = false
     if curr.deleted.compareExchange(expectedDel, true, moAcquireRelease, moAcquire):
-      discard pq.core.count.fetchSub(1, moRelease)
       outVal = curr.key
       if hops >= DefaultRestructureThreshold:
         restructure(pq, ready)
@@ -729,18 +724,52 @@ template peek*[T; MaxThreads: static int, MaxLevel: static int](
 
 proc len*[T; MaxThreads: static int; MaxLevel: static int](
     pq: SkipListPriorityQueue[T, MaxThreads, MaxLevel]
-): int {.inline.} =
-  ## Returns the current number of active elements in the priority queue.
+): int =
+  ## Returns the current number of active elements in the priority queue by
+  ## traversing unmarked, non-deleted level-0 nodes under an SMR guard without
+  ## maintaining a hot-path shared atomic counter.
   if pq.core == nil:
-    0
-  else:
-    max(0, pq.core.count.load(moAcquire))
+    return 0
+  let firstEntry = pq.core.head.next[0].load(moAcquire)
+  let firstNode = toPtr[T, MaxLevel](firstEntry)
+  if firstNode == nil or firstNode == pq.core.tail:
+    return 0
+  let handle = pq.getOrRegisterHandle()
+  let pinned = unpinned(handle).pin()
+  try:
+    var count = 0
+    var curr = toPtr[T, MaxLevel](pq.core.head.next[0].load(moAcquire))
+    while curr != nil and curr != pq.core.tail:
+      let succEntry = curr.next[0].load(moAcquire)
+      if not isMarked(succEntry) and not curr.deleted.load(moAcquire):
+        inc count
+      curr = toPtr[T, MaxLevel](succEntry)
+    return count
+  finally:
+    unpinGuard(pinned)
 
 proc isEmpty*[T; MaxThreads: static int; MaxLevel: static int](
     pq: SkipListPriorityQueue[T, MaxThreads, MaxLevel]
-): bool {.inline.} =
+): bool =
   ## Returns `true` if the priority queue currently contains no active elements.
-  pq.len() == 0
+  if pq.core == nil:
+    return true
+  let firstEntry = pq.core.head.next[0].load(moAcquire)
+  let firstNode = toPtr[T, MaxLevel](firstEntry)
+  if firstNode == nil or firstNode == pq.core.tail:
+    return true
+  let handle = pq.getOrRegisterHandle()
+  let pinned = unpinned(handle).pin()
+  try:
+    var curr = toPtr[T, MaxLevel](pq.core.head.next[0].load(moAcquire))
+    while curr != nil and curr != pq.core.tail:
+      let succEntry = curr.next[0].load(moAcquire)
+      if not isMarked(succEntry) and not curr.deleted.load(moAcquire):
+        return false
+      curr = toPtr[T, MaxLevel](succEntry)
+    return true
+  finally:
+    unpinGuard(pinned)
 
 proc clear*[T; MaxThreads: static int; MaxLevel: static int](
     pq: SkipListPriorityQueue[T, MaxThreads, MaxLevel]

@@ -73,7 +73,6 @@ type
     head: ptr SkipListNode[K, V, MaxLevel]
     tail: ptr SkipListNode[K, V, MaxLevel]
     manager: ptr DebraManager[MaxThreads, ccMulti]
-    count: Atomic[int]
     rc: Atomic[int]
     ownsManager: bool
 
@@ -304,7 +303,6 @@ proc newSkipListMap*[
   core.head = head
   core.tail = tail
   core.manager = mgr
-  core.count.store(0, moRelaxed)
   core.rc.store(1, moRelaxed)
   core.ownsManager = true
 
@@ -340,7 +338,6 @@ proc newSkipListMap*[
   core.head = head
   core.tail = tail
   core.manager = manager
-  core.count.store(0, moRelaxed)
   core.rc.store(1, moRelaxed)
   core.ownsManager = false
 
@@ -433,12 +430,88 @@ proc find[K, V; MaxThreads, MaxLevel: static int](
 # Public API
 # ---------------------------------------------------------------------------
 
-proc len*[K, V; MaxThreads, MaxLevel: static int](
+proc countLevel0Nodes[K, V; MaxThreads, MaxLevel: static int](
     self: SkipListMap[K, V, MaxThreads, MaxLevel]
 ): int {.inline.} =
-  ## Returns the number of items currently in the map.
-  if self.core == nil: 0
-  else: max(0, self.core.count.load(moRelaxed))
+  var currEntry = self.core.head.next[0].load(moAcquire)
+  var curr = toPtr[SkipListNode[K, V, MaxLevel]](currEntry)
+  while curr != nil and curr != self.core.tail:
+    let succEntry = curr.next[0].load(moAcquire)
+    if not isMarked(succEntry) and curr.valPtr.load(moAcquire) != nil:
+      inc result
+    curr = toPtr[SkipListNode[K, V, MaxLevel]](succEntry)
+
+proc hasAnyLevel0Node[K, V; MaxThreads, MaxLevel: static int](
+    self: SkipListMap[K, V, MaxThreads, MaxLevel]
+): bool {.inline.} =
+  var currEntry = self.core.head.next[0].load(moAcquire)
+  var curr = toPtr[SkipListNode[K, V, MaxLevel]](currEntry)
+  while curr != nil and curr != self.core.tail:
+    let succEntry = curr.next[0].load(moAcquire)
+    if not isMarked(succEntry) and curr.valPtr.load(moAcquire) != nil:
+      return true
+    curr = toPtr[SkipListNode[K, V, MaxLevel]](succEntry)
+  return false
+
+proc len*[K, V; MaxThreads, MaxLevel: static int](
+    self: SkipListMap[K, V, MaxThreads, MaxLevel],
+    handle: ThreadHandle[MaxThreads, ccMulti]
+): int =
+  ## Returns the number of active items currently in the map via level-0
+  ## traversal under Debra SMR protection.
+  if unlikely(self.core == nil or self.core.head == nil):
+    return 0
+  if toPtr[SkipListNode[K, V, MaxLevel]](self.core.head.next[0].load(moAcquire)) == self.core.tail:
+    return 0
+  let pinned = unpinned(handle).pin()
+  try:
+    return self.countLevel0Nodes()
+  finally:
+    unpinGuard(pinned)
+
+proc len*[K, V; MaxThreads, MaxLevel: static int](
+    self: SkipListMap[K, V, MaxThreads, MaxLevel]
+): int =
+  ## Returns the number of active items currently in the map via level-0
+  ## traversal.
+  if unlikely(self.core == nil or self.core.head == nil):
+    return 0
+  if toPtr[SkipListNode[K, V, MaxLevel]](self.core.head.next[0].load(moAcquire)) == self.core.tail:
+    return 0
+  try:
+    let h = self.getOrRegisterHandle()
+    return self.len(h)
+  except DebraRegistrationError:
+    return self.countLevel0Nodes()
+
+proc isEmpty*[K, V; MaxThreads, MaxLevel: static int](
+    self: SkipListMap[K, V, MaxThreads, MaxLevel],
+    handle: ThreadHandle[MaxThreads, ccMulti]
+): bool =
+  ## Returns `true` if the map contains no active keys (O(1) head inspection).
+  if unlikely(self.core == nil or self.core.head == nil):
+    return true
+  if toPtr[SkipListNode[K, V, MaxLevel]](self.core.head.next[0].load(moAcquire)) == self.core.tail:
+    return true
+  let pinned = unpinned(handle).pin()
+  try:
+    return not self.hasAnyLevel0Node()
+  finally:
+    unpinGuard(pinned)
+
+proc isEmpty*[K, V; MaxThreads, MaxLevel: static int](
+    self: SkipListMap[K, V, MaxThreads, MaxLevel]
+): bool =
+  ## Returns `true` if the map contains no active keys (O(1) head inspection).
+  if unlikely(self.core == nil or self.core.head == nil):
+    return true
+  if toPtr[SkipListNode[K, V, MaxLevel]](self.core.head.next[0].load(moAcquire)) == self.core.tail:
+    return true
+  try:
+    let h = self.getOrRegisterHandle()
+    return self.isEmpty(h)
+  except DebraRegistrationError:
+    return not self.hasAnyLevel0Node()
 
 proc registerThread*[K, V; MaxThreads, MaxLevel: static int](
     self: var SkipListMap[K, V, MaxThreads, MaxLevel]
@@ -603,8 +676,6 @@ proc put*[K, V; MaxThreads, MaxLevel: static int](
         deallocShared(newNode)
         continue
 
-      discard self.core.count.fetchAdd(1, moRelaxed)
-
       for level in 1 .. topLevel:
         if isMarked(newNode.next[0].load(moAcquire)):
           break
@@ -675,7 +746,6 @@ proc delete*[K, V; MaxThreads, MaxLevel: static int](
         let succPtr0 = toPtr[SkipListNode[K, V, MaxLevel]](succEntry0)
         let markedEntry0 = toEntry(succPtr0, true)
         if nodeToDelete.next[0].compareExchange(succEntry0, markedEntry0, moAcquireRelease, moAcquire):
-          discard self.core.count.fetchSub(1, moRelaxed)
           discard self.find(key, preds, succs, ready)
           handle.advanceEvery(32)
           return true
@@ -750,8 +820,6 @@ proc computeIfAbsent*[K, V; MaxThreads, MaxLevel: static int](
           `=destroy`(newNode.key)
         deallocShared(newNode)
         continue
-
-      discard self.core.count.fetchAdd(1, moRelaxed)
 
       for level in 1 .. topLevel:
         if isMarked(newNode.next[0].load(moAcquire)):
@@ -923,8 +991,6 @@ proc upsert*[K, V; MaxThreads, MaxLevel: static int](
         deallocShared(newNode)
         backoffOnRetry(spins)
         continue
-
-      discard self.core.count.fetchAdd(1, moRelaxed)
 
       for level in 1 .. topLevel:
         if isMarked(newNode.next[0].load(moAcquire)):

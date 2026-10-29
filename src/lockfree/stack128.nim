@@ -51,7 +51,6 @@ type
     ## Thread-safe, non-blocking, and requires zero thread registration or epoch SMR.
     top* {.align: CacheLineBytes.}: Atomic[TaggedHead]
     freeList* {.align: CacheLineBytes.}: Atomic[TaggedHead]
-    count* {.align: CacheLineBytes.}: Atomic[int]
 
   Stack128*[T] = TaggedStack[T]
     ## Semantic alias for `TaggedStack[T]`.
@@ -68,7 +67,6 @@ proc initTaggedStack*[T](): TaggedStack[T] =
   ## Initializes an empty value-type `TaggedStack[T]`.
   result.top.store(Pair[uint64, uint64](first: 0'u64, second: 0'u64), moSequentiallyConsistent)
   result.freeList.store(Pair[uint64, uint64](first: 0'u64, second: 0'u64), moSequentiallyConsistent)
-  result.count.store(0, moRelaxed)
 
 proc initStack128*[T](): Stack128[T] {.inline.} =
   ## Initializes an empty value-type `Stack128[T]`. Alias for `initTaggedStack[T]()`.
@@ -140,13 +138,14 @@ proc tryPush*[T](self: var TaggedStack[T], item: var T): bool =
   ## Returns `false` and leaves `item` completely unmodified on contention.
   let node = self.popFreeNode()
   let freshNode = if node != nil: node else: allocAligned[TaggedStackNode[T]]()
+  freshNode.data = move(item)
   var oldTop = self.top.load(moSequentiallyConsistent)
   freshNode.next.store(cast[ptr TaggedStackNode[T]](oldTop.first), moRelease)
   let newTop = Pair[uint64, uint64](first: cast[uint64](freshNode), second: oldTop.second + 1'u64)
   if self.top.compareExchangeWeak(oldTop, newTop, moSequentiallyConsistent, moSequentiallyConsistent):
-    freshNode.data = move(item)
-    discard self.count.fetchAdd(1, moRelaxed)
     return true
+  item = move(freshNode.data)
+  reset(freshNode.data)
   self.pushFreeNode(freshNode)
   return false
 
@@ -165,7 +164,6 @@ proc push*[T](self: var TaggedStack[T], item: sink T) =
     node.next.store(cast[ptr TaggedStackNode[T]](oldTop.first), moRelease)
     let newTop = Pair[uint64, uint64](first: cast[uint64](node), second: oldTop.second + 1'u64)
     if self.top.compareExchangeWeak(oldTop, newTop, moSequentiallyConsistent, moSequentiallyConsistent):
-      discard self.count.fetchAdd(1, moRelaxed)
       return
     backoffOnRetry(spins)
 
@@ -188,7 +186,6 @@ proc tryPop*[T](self: var TaggedStack[T], item: var T): bool =
     if self.top.compareExchangeWeak(oldTop, newTop, moSequentiallyConsistent, moSequentiallyConsistent):
       item = move(node.data)
       self.pushFreeNode(node)
-      discard self.count.fetchSub(1, moRelaxed)
       return true
     backoffOnRetry(spins)
 
@@ -212,10 +209,21 @@ proc peek*[T](self: var TaggedStack[T]): Option[T] =
 proc peek*[T](self: TaggedStack[T]): Option[T] {.inline.} =
   cast[ptr TaggedStack[T]](unsafeAddr self)[].peek()
 
-proc len*[T](self: var TaggedStack[T]): int {.inline.} =
-  ## Returns the approximate number of items in the stack.
-  let c = self.count.load(moAcquire)
-  if c < 0: 0 else: c
+proc len*[T](self: var TaggedStack[T]): int =
+  ## Returns the number of items currently in the stack by walking the active chain.
+  for attempt in 0 .. 3:
+    let snapTop = self.top.load(moSequentiallyConsistent)
+    var cur = cast[ptr TaggedStackNode[T]](snapTop.first)
+    var n = 0
+    var consistent = true
+    while cur != nil:
+      inc n
+      cur = cur.next.load(moAcquire)
+      if self.top.load(moSequentiallyConsistent) != snapTop:
+        consistent = false
+        break
+    if consistent or attempt == 3:
+      return n
 
 proc len*[T](self: TaggedStack[T]): int {.inline.} =
   cast[ptr TaggedStack[T]](unsafeAddr self)[].len()
@@ -237,13 +245,10 @@ proc clear*[T](self: var TaggedStack[T]) =
     let newTop = Pair[uint64, uint64](first: 0'u64, second: oldTop.second + 1'u64)
     if self.top.compareExchangeWeak(oldTop, newTop, moSequentiallyConsistent, moSequentiallyConsistent):
       var cur = cast[ptr TaggedStackNode[T]](oldTop.first)
-      var detachedCount = 0
       while cur != nil:
         let next = cur.next.load(moAcquire)
         self.pushFreeNode(cur)
-        inc detachedCount
         cur = next
-      discard self.count.fetchSub(detachedCount, moRelaxed)
       return
     backoffOnRetry(spins)
 
@@ -257,14 +262,11 @@ proc drain*[T](self: var TaggedStack[T]): seq[T] =
     let newTop = Pair[uint64, uint64](first: 0'u64, second: oldTop.second + 1'u64)
     if self.top.compareExchangeWeak(oldTop, newTop, moSequentiallyConsistent, moSequentiallyConsistent):
       var cur = cast[ptr TaggedStackNode[T]](oldTop.first)
-      var detachedCount = 0
       while cur != nil:
         let next = cur.next.load(moAcquire)
         result.add(move(cur.data))
         self.pushFreeNode(cur)
-        inc detachedCount
         cur = next
-      discard self.count.fetchSub(detachedCount, moRelaxed)
       return result
     backoffOnRetry(spins)
 
@@ -278,14 +280,11 @@ proc drainInto*[T](self: var TaggedStack[T], dest: var seq[T]) =
     let newTop = Pair[uint64, uint64](first: 0'u64, second: oldTop.second + 1'u64)
     if self.top.compareExchangeWeak(oldTop, newTop, moSequentiallyConsistent, moSequentiallyConsistent):
       var cur = cast[ptr TaggedStackNode[T]](oldTop.first)
-      var detachedCount = 0
       while cur != nil:
         let next = cur.next.load(moAcquire)
         dest.add(move(cur.data))
         self.pushFreeNode(cur)
-        inc detachedCount
         cur = next
-      discard self.count.fetchSub(detachedCount, moRelaxed)
       return
     backoffOnRetry(spins)
 
@@ -314,7 +313,6 @@ proc `=destroy`*[T](self: var TaggedStack[T]) =
     freeAligned(curFree)
     curFree = next
   self.freeList.store(Pair[uint64, uint64](first: 0'u64, second: 0'u64), moSequentiallyConsistent)
-  self.count.store(0, moRelaxed)
 
 proc destroy*[T](self: var TaggedStack[T]) {.inline.} =
   ## Explicitly destroys and reclaims all active and pooled nodes.

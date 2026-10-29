@@ -104,7 +104,6 @@ type
   BStackCore*[T; Cap: static int] = object
     top* {.align: CacheLineBytes.}: Atomic[uint64]
     freeHead* {.align: CacheLineBytes.}: Atomic[uint64]
-    count* {.align: CacheLineBytes.}: Atomic[int]
     rc* {.align: CacheLineBytes.}: Atomic[int]
     effCap*: int
     elimination*: array[BStackEliminationCapacity, BStackElimSlot[T]]
@@ -173,7 +172,6 @@ proc allocBStackCore[T; Cap: static int](): ptr BStackCore[T, Cap] =
     doAssert Cap > 0, "BStack capacity Cap must be greater than 0"
   let core = allocAligned[BStackCore[T, Cap]]()
   core.top.store(packTagIdx(0'u32, NilSlotIdx), moRelaxed)
-  core.count.store(0, moRelaxed)
   core.rc.store(1, moRelaxed)
   core.effCap = Cap
   for i in 0 ..< BStackEliminationCapacity:
@@ -403,7 +401,6 @@ proc tryLinkTop[T; Cap: static int](
   core.slots[idx].inTop.store(true, moRelease)
   let newTop = packTagIdx(unpackTag(oldTop) + 1'u32, idx)
   if core.top.compareExchange(oldTop, newTop, moAcquireRelease, moAcquire):
-    discard core.count.fetchAdd(1, moRelease)
     return true
   core.slots[idx].inTop.store(false, moRelease)
   return false
@@ -424,7 +421,6 @@ proc tryUnlinkTop[T; Cap: static int](
       outItem = move(core.slots[idx].data)
       reset(core.slots[idx].data)
       unlockSlot(core, idx)
-      discard core.count.fetchSub(1, moRelease)
       releaseFreeSlot(core, idx)
       return true
     cpuPause()
@@ -575,7 +571,6 @@ proc drainInto*[
     let newTop = packTagIdx(unpackTag(oldTop) + 1'u32, NilSlotIdx)
     if core.top.compareExchange(oldTop, newTop, moAcquireRelease, moAcquire):
       var curIdx = headIdx
-      var drained = 0
       while curIdx >= 0:
         let nextIdx = core.slots[curIdx].next.load(moAcquire)
         lockSlot(core, curIdx)
@@ -584,9 +579,7 @@ proc drainInto*[
         reset(core.slots[curIdx].data)
         unlockSlot(core, curIdx)
         releaseFreeSlot(core, curIdx)
-        inc drained
         curIdx = nextIdx
-      discard core.count.fetchSub(drained, moRelease)
       return
     cpuPause()
 
@@ -620,7 +613,6 @@ proc clear*[
     let newTop = packTagIdx(unpackTag(oldTop) + 1'u32, NilSlotIdx)
     if core.top.compareExchange(oldTop, newTop, moAcquireRelease, moAcquire):
       var curIdx = headIdx
-      var cleared = 0
       while curIdx >= 0:
         let nextIdx = core.slots[curIdx].next.load(moAcquire)
         lockSlot(core, curIdx)
@@ -628,9 +620,7 @@ proc clear*[
         reset(core.slots[curIdx].data)
         unlockSlot(core, curIdx)
         releaseFreeSlot(core, curIdx)
-        inc cleared
         curIdx = nextIdx
-      discard core.count.fetchSub(cleared, moRelease)
       return
     cpuPause()
 
@@ -639,12 +629,30 @@ proc len*[
   Cap: static int;
   ccProd: static PinScopeCardinality;
   ccCons: static PinScopeCardinality
-](self: BStack[T, Cap, ccProd, ccCons]): int {.inline.} =
+](self: BStack[T, Cap, ccProd, ccCons]): int =
   ## Returns the current number of elements in the bounded stack (`0 .. capacity`).
   if self.core == nil:
-    0
-  else:
-    clamp(self.core.count.load(moAcquire), 0, self.core.effCap)
+    return 0
+  let core = self.core
+  let maxCap = core.effCap
+  for attempt in 0 .. 3:
+    let snapTop = core.top.load(moAcquire)
+    var curIdx = unpackIdx(snapTop)
+    var n = 0
+    var consistent = true
+    while curIdx >= 0 and curIdx < int32(Cap) and n < maxCap:
+      inc n
+      curIdx = core.slots[curIdx].next.load(moAcquire)
+      if core.top.load(moAcquire) != snapTop:
+        consistent = false
+        break
+    if consistent:
+      return n
+  var active = 0
+  for i in 0 ..< maxCap:
+    if core.slots[i].inTop.load(moAcquire):
+      inc active
+  result = clamp(active, 0, maxCap)
 
 proc capacity*[
   T;

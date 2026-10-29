@@ -89,7 +89,6 @@ type
 
   TreiberStack*[T] {.TreiberStackLifecycle: TreiberStackInit.} = object
     top {.align: CacheLineBytes.}: Atomic[Pair[uint64, uint64]]
-    count {.align: CacheLineBytes.}: Atomic[int]
     smr {.align: CacheLineBytes.}: Atomic[pointer]
     elimination: array[EliminationCapacity, EliminationSlot[T]]
 
@@ -297,7 +296,6 @@ proc tryPushTreiber[T](self: var TreiberStack[T], node: ptr StackNode[T]): bool 
   node.next.store(cast[ptr StackNode[T]](oldTop.first), moRelease)
   let newTop = Pair[uint64, uint64](first: cast[uint64](node), second: oldTop.second + 1)
   if self.top.compareExchange(oldTop, newTop, moSequentiallyConsistent, moSequentiallyConsistent):
-    discard self.count.fetchAdd(1, moRelaxed)
     return true
   return false
 
@@ -321,7 +319,6 @@ proc tryPopTreiber[T](self: var TreiberStack[T], item: var T): bool =
         item = move(node.data)
         ready.retire(cast[pointer](node), reclaimStackNodeCallback[T])
         handle.advanceEvery(32)
-        discard self.count.fetchSub(1, moRelaxed)
         return true
       cpuPause()
       oldTop = self.top.load(moSequentiallyConsistent)
@@ -336,7 +333,6 @@ proc tryPopTreiber[T](self: var TreiberStack[T], item: var T): bool =
       if self.top.compareExchange(oldTop, newTop, moSequentiallyConsistent, moSequentiallyConsistent):
         item = move(node.data)
         freeAligned(node)
-        discard self.count.fetchSub(1, moRelaxed)
         return true
       cpuPause()
       oldTop = self.top.load(moSequentiallyConsistent)
@@ -430,10 +426,23 @@ proc peek*[T](self: var TreiberStack[T]): Option[T] =
 proc peek*[T](self: TreiberStack[T]): Option[T] {.inline.} =
   cast[ptr TreiberStack[T]](unsafeAddr self)[].peek()
 
-proc len*[T](self: var TreiberStack[T]): int {.inline.} =
-  ## Returns the approximate number of items currently in the stack.
-  let c = self.count.load(moAcquire)
-  if c < 0: 0 else: c
+proc len*[T](self: var TreiberStack[T]): int =
+  ## Returns the number of items currently in the stack by walking the active chain.
+  when compileOption("threads"):
+    let handle = self.getOrRegisterHandle()
+    let pinned = unpinned(handle).pin()
+    var ready = retireReady(pinned)
+    defer:
+      unpinGuard(toPinned(ready))
+    var cur = cast[ptr StackNode[T]](self.top.load(moSequentiallyConsistent).first)
+    while cur != nil:
+      inc result
+      cur = cur.next.load(moAcquire)
+  else:
+    var cur = cast[ptr StackNode[T]](self.top.load(moSequentiallyConsistent).first)
+    while cur != nil:
+      inc result
+      cur = cur.next.load(moAcquire)
 
 proc len*[T](self: TreiberStack[T]): int {.inline.} =
   cast[ptr TreiberStack[T]](unsafeAddr self)[].len()
@@ -462,16 +471,13 @@ proc drain*[T](self: var TreiberStack[T]): seq[T] =
       let newTop = Pair[uint64, uint64](first: 0, second: oldTop.second + 1)
       if self.top.compareExchange(oldTop, newTop, moSequentiallyConsistent, moSequentiallyConsistent):
         var cur = cast[ptr StackNode[T]](oldTop.first)
-        var drainedCount = 0
         while cur != nil:
           let next = cur.next.load(moAcquire)
           claimNodeForPop(cur)
           result.add(move(cur.data))
           ready.retire(cast[pointer](cur), reclaimStackNodeCallback[T])
-          inc drainedCount
           cur = next
         handle.advanceEvery(32)
-        discard self.count.fetchSub(drainedCount, moRelaxed)
         return result
       cpuPause()
       oldTop = self.top.load(moSequentiallyConsistent)
@@ -483,14 +489,11 @@ proc drain*[T](self: var TreiberStack[T]): seq[T] =
       let newTop = Pair[uint64, uint64](first: 0, second: oldTop.second + 1)
       if self.top.compareExchange(oldTop, newTop, moSequentiallyConsistent, moSequentiallyConsistent):
         var cur = cast[ptr StackNode[T]](oldTop.first)
-        var drainedCount = 0
         while cur != nil:
           let next = cur.next.load(moAcquire)
           result.add(move(cur.data))
           freeAligned(cur)
-          inc drainedCount
           cur = next
-        discard self.count.fetchSub(drainedCount, moRelaxed)
         return result
       cpuPause()
       oldTop = self.top.load(moSequentiallyConsistent)
@@ -512,16 +515,13 @@ proc drainInto*[T](self: var TreiberStack[T], dest: var seq[T]) =
       let newTop = Pair[uint64, uint64](first: 0, second: oldTop.second + 1)
       if self.top.compareExchange(oldTop, newTop, moSequentiallyConsistent, moSequentiallyConsistent):
         var cur = cast[ptr StackNode[T]](oldTop.first)
-        var drainedCount = 0
         while cur != nil:
           let next = cur.next.load(moAcquire)
           claimNodeForPop(cur)
           dest.add(move(cur.data))
           ready.retire(cast[pointer](cur), reclaimStackNodeCallback[T])
-          inc drainedCount
           cur = next
         handle.advanceEvery(32)
-        discard self.count.fetchSub(drainedCount, moRelaxed)
         return
       cpuPause()
       oldTop = self.top.load(moSequentiallyConsistent)
@@ -533,14 +533,11 @@ proc drainInto*[T](self: var TreiberStack[T], dest: var seq[T]) =
       let newTop = Pair[uint64, uint64](first: 0, second: oldTop.second + 1)
       if self.top.compareExchange(oldTop, newTop, moSequentiallyConsistent, moSequentiallyConsistent):
         var cur = cast[ptr StackNode[T]](oldTop.first)
-        var drainedCount = 0
         while cur != nil:
           let next = cur.next.load(moAcquire)
           dest.add(move(cur.data))
           freeAligned(cur)
-          inc drainedCount
           cur = next
-        discard self.count.fetchSub(drainedCount, moRelaxed)
         return
       cpuPause()
       oldTop = self.top.load(moSequentiallyConsistent)
@@ -585,7 +582,6 @@ proc `=destroy`*[T](self: var TreiberStack[T]) {.
     freeAligned(curTop)
     curTop = next
   self.top.store(Pair[uint64, uint64](first: 0, second: 0), moSequentiallyConsistent)
-  self.count.store(0, moRelaxed)
 
   for i in 0 ..< EliminationCapacity:
     let st = self.elimination[i].state.load(moRelaxed)
