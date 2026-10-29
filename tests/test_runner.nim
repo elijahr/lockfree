@@ -24,6 +24,7 @@ type
     p: Process
     t0: float
     output: string
+    workerSlot: int
 
 proc drainProcessOutput(rp: var RunningProcess) =
   when defined(posix):
@@ -85,7 +86,8 @@ proc buildCompileCmd*(
   cc: string = "",
   nimcacheDir: string = "",
   isRelease: bool = false,
-  isDanger: bool = false
+  isDanger: bool = false,
+  workerSlot: int = 0
 ): seq[string] =
   result = @[
     if backend == "cpp": "cpp" else: "c",
@@ -120,10 +122,12 @@ proc buildCompileCmd*(
     else:
       getHomeDir() / ".cache" / "nim" / ("test_runner_" & mm & "_" & backend & (if cc.len > 0: "_" & cc else: ""))
   let testBase = testPath.extractFilename().changeFileExt("")
-  let perTestNimcache = effNimcacheDir / testBase
-  result.add("--nimcache:" & perTestNimcache)
+  let perWorkerNimcache = effNimcacheDir / ("worker_" & $workerSlot)
+  let outBin = perWorkerNimcache / (testBase & (when defined(windows): ".exe" else: ""))
+  result.add("--nimcache:" & perWorkerNimcache)
+  result.add("--out:" & outBin)
   if not isRelease and not isDanger and cc == "vcc":
-    result.add("--passC:/Fd:" & (perTestNimcache / "vc140.pdb"))
+    result.add("--passC:/Fd:" & (perWorkerNimcache / "vc140.pdb"))
   result.add("-r")
   result.add(testPath)
 
@@ -140,6 +144,9 @@ proc runParallel(
 ): int =
   var running: seq[RunningProcess] = @[]
   var results: seq[TestResult] = @[]
+  var freeSlots: seq[int] = @[]
+  for slot in countdown(max(1, maxWorkers) - 1, 0):
+    freeSlots.add(slot)
   let total = tests.len
   var nextIdx = 0
   var completed = 0
@@ -148,8 +155,9 @@ proc runParallel(
 
   while nextIdx < total or running.len > 0:
     # Fill worker pool
-    while running.len < maxWorkers and nextIdx < total:
+    while running.len < maxWorkers and nextIdx < total and freeSlots.len > 0:
       let testPath = tests[nextIdx]
+      let workerSlot = freeSlots.pop()
       inc nextIdx
       let t0 = epochTime()
       let cmd = "nim"
@@ -160,7 +168,8 @@ proc runParallel(
         cc = cc,
         nimcacheDir = nimcacheDir,
         isRelease = isRelease,
-        isDanger = isDanger
+        isDanger = isDanger,
+        workerSlot = workerSlot
       )
 
       let p = startProcess(cmd, args = args, options = {poStdErrToStdOut, poUsePath})
@@ -169,7 +178,7 @@ proc runParallel(
         let flags = fcntl(fd, F_GETFL, 0)
         discard fcntl(fd, F_SETFL, flags or O_NONBLOCK)
 
-      running.add(RunningProcess(path: testPath, p: p, t0: t0, output: ""))
+      running.add(RunningProcess(path: testPath, p: p, t0: t0, output: "", workerSlot: workerSlot))
 
     # Poll running processes and drain pipes continuously to prevent deadlocks
     var i = 0
@@ -178,6 +187,10 @@ proc runParallel(
       var code = running[i].p.peekExitCode()
       let dur = epochTime() - running[i].t0
       if code == -1 and dur > timeoutSec:
+        when defined(windows):
+          discard execShellCmd("taskkill /F /T /PID " & $running[i].p.processID & " >NUL 2>&1")
+        elif defined(posix):
+          discard execShellCmd("pkill -KILL -P " & $running[i].p.processID & " >/dev/null 2>&1")
         running[i].p.kill()
         code = 124
         running[i].output.add("\n[TIMEOUT] Test exceeded " & $int(timeoutSec) & "s watchdog limit and was terminated.\n")
@@ -186,8 +199,10 @@ proc runParallel(
         drainProcessOutput(running[i])
         let testPath = running[i].path
         let outStr = running[i].output
+        let finishedSlot = running[i].workerSlot
         running[i].p.close()
         running.delete(i)
+        freeSlots.add(finishedSlot)
         inc completed
         let res = TestResult(path: testPath, duration: dur, exitCode: code, output: outStr)
         results.add(res)
@@ -195,9 +210,11 @@ proc runParallel(
         let relName = testPath.extractFilename()
         if code == 0:
           styledWriteLine(stdout, fgGreen, "  [PASS] ", fgDefault, relName, " (", dur.formatFloat(ffDecimal, 2), "s) [", $completed, "/", $total, "]")
+          flushFile(stdout)
         else:
           styledWriteLine(stdout, fgRed, "  [FAIL] ", fgDefault, relName, " (exit ", $code, ")")
           echo outStr
+          flushFile(stdout)
       else:
         inc i
 
@@ -216,6 +233,7 @@ proc runParallel(
   else:
     styledWriteLine(stdout, fgRed, styleBright, $failedCount, " of ", $total, " test suites failed in ", totalDuration.formatFloat(ffDecimal, 2), "s!")
   styledWriteLine(stdout, styleBright, "==================================================")
+  flushFile(stdout)
 
   return if failedCount == 0: 0 else: 1
 
@@ -315,5 +333,6 @@ when isMainModule:
   let optLabel = if isDanger: ", Danger" elif isRelease: ", Release" else: ", Debug"
   let ccLabel = if cc.len > 0: ", CC: " & cc else: ""
   echo "Running ", uniqueTests.len, " test suites across ", workers, " worker threads [MM: ", mm, ", Backend: ", backend, ccLabel, optLabel, "]..."
+  flushFile(stdout)
   let code = runParallel(uniqueTests, workers, mm = mm, backend = backend, cc = cc, nimcacheDir = nimcacheDir, isRelease = isRelease, isDanger = isDanger, timeoutSec = timeoutSec)
   quit(code)

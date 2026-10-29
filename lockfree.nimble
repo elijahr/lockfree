@@ -185,7 +185,7 @@ task testASan, "Runs the test suite under AddressSanitizer (ASAN)":
   # un-instrumented). Cell 7 (test-heavy/ubuntu-latest) invokes this.
   let nimcacheBase = getHomeDir() / ".cache" / "nim"
   exec "nim r --hints:off --warnings:off --path:src tests/should_fail/runner.nim"
-  exec "nim c --cc:clang --threads:on " &
+  exec "nim c -d:release --opt:speed --cc:clang --threads:on --path:src " &
     "--passC:\"-fsanitize=address\" --passL:\"-fsanitize=address\" " &
     "--nimcache:" & (nimcacheBase / "test_asan") & " -r tests/test.nim"
 

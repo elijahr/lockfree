@@ -11,11 +11,13 @@ suite "BroadcastRing — Concurrent Stress Tests":
       ring: BroadcastRing[int]
       totalItems: int
       receivedCount: ptr array[4, Atomic[int]]
+      readyCount: ptr Atomic[int]
       readerIndex: int
 
   proc losslessReaderThread(ctx: ptr StressContext) {.thread, gcsafe.} =
     {.cast(gcsafe).}:
       var cursor = ctx.ring.subscribe(soFromLatest)
+      discard ctx.readyCount[].fetchAdd(1, moRelease)
       let idx = ctx.readerIndex
       var nextExpected = 0
 
@@ -35,6 +37,8 @@ suite "BroadcastRing — Concurrent Stress Tests":
     var received: array[4, Atomic[int]]
     for i in 0 ..< 4:
       received[i].store(0, moRelaxed)
+    var readyCount: Atomic[int]
+    readyCount.store(0, moRelaxed)
 
     let ring = initBroadcastRing[int](capacity = 128, overflowMode = omBackoff)
     var contexts: array[4, StressContext]
@@ -45,12 +49,14 @@ suite "BroadcastRing — Concurrent Stress Tests":
         ring: ring,
         totalItems: Total,
         receivedCount: addr received,
+        readyCount: addr readyCount,
         readerIndex: i
       )
       createThread(threads[i], losslessReaderThread, addr contexts[i])
 
-    # Allow reader threads to subscribe
-    sleep(10)
+    # Wait until all 4 reader threads have subscribed before publishing item 0
+    while readyCount.load(moAcquire) < 4:
+      cpuRelax()
 
     # Publisher publishes Total items
     for i in 0 ..< Total:
@@ -65,6 +71,7 @@ suite "BroadcastRing — Concurrent Stress Tests":
 
   proc lossyReaderThread(ctx: ptr StressContext) {.thread, gcsafe.} =
     var cursor = ctx.ring.subscribe(soFromLatest)
+    discard ctx.readyCount[].fetchAdd(1, moRelease)
     let idx = ctx.readerIndex
     var count = 0
 
@@ -88,6 +95,8 @@ suite "BroadcastRing — Concurrent Stress Tests":
     var received: array[4, Atomic[int]]
     for i in 0 ..< 4:
       received[i].store(0, moRelaxed)
+    var readyCount: Atomic[int]
+    readyCount.store(0, moRelaxed)
 
     let ring = initBroadcastRing[int](capacity = 64, overflowMode = omDropOldest)
     var contexts: array[4, StressContext]
@@ -98,11 +107,14 @@ suite "BroadcastRing — Concurrent Stress Tests":
         ring: ring,
         totalItems: Total,
         receivedCount: addr received,
+        readyCount: addr readyCount,
         readerIndex: i
       )
       createThread(threads[i], lossyReaderThread, addr contexts[i])
 
-    sleep(10)
+    # Wait until all 4 reader threads have subscribed before publishing item 0
+    while readyCount.load(moAcquire) < 4:
+      cpuRelax()
 
     for i in 0 ..< Total:
       ring.publish(i)

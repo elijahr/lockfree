@@ -74,9 +74,10 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
     check exitCode == 0
     check "[LOCKFREE TEST WATCHDOG TIMEOUT]" notin output
 
-  test "buildCompileCmd enforces --parallelBuild:1, isolated nimcache, release debug-info stripping, and MSVC per-test /Fd: PDB":
+  test "buildCompileCmd enforces --parallelBuild:1, per-worker nimcache reuse, release debug-info stripping, and MSVC per-worker /Fd: PDB":
     let defaultCacheRoot = getHomeDir() / ".cache" / "nim" / "test_runner_orc_c_vcc"
-    let expectedPerTestCache = defaultCacheRoot / "t_dwcas"
+    let expectedWorker0Cache = defaultCacheRoot / "worker_0"
+    let binExt = when defined(windows): ".exe" else: ""
 
     let releaseVccCmd = buildCompileCmd(
       testPath = "tests/t_dwcas.nim",
@@ -85,7 +86,8 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       cc = "vcc",
       nimcacheDir = "",
       isRelease = true,
-      isDanger = false
+      isDanger = false,
+      workerSlot = 0
     )
     check releaseVccCmd == @[
       "c",
@@ -104,7 +106,8 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       "--assertions:on",
       "--debugger:off",
       "--debuginfo:off",
-      "--nimcache:" & expectedPerTestCache,
+      "--nimcache:" & expectedWorker0Cache,
+      "--out:" & (expectedWorker0Cache / ("t_dwcas" & binExt)),
       "-r",
       "tests/t_dwcas.nim"
     ]
@@ -116,8 +119,10 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       cc = "",
       nimcacheDir = "/tmp/custom_nimcache",
       isRelease = false,
-      isDanger = true
+      isDanger = true,
+      workerSlot = 3
     )
+    let customWorker3Cache = "/tmp/custom_nimcache" / "worker_3"
     check dangerCppCmd == @[
       "cpp",
       "--mm:arc",
@@ -133,7 +138,8 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       "--opt:speed",
       "--debugger:off",
       "--debuginfo:off",
-      "--nimcache:" & ("/tmp/custom_nimcache" / "t_queue"),
+      "--nimcache:" & customWorker3Cache,
+      "--out:" & (customWorker3Cache / ("t_queue" & binExt)),
       "-r",
       "tests/t_queue.nim"
     ]
@@ -145,8 +151,10 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       cc = "vcc",
       nimcacheDir = "",
       isRelease = false,
-      isDanger = false
+      isDanger = false,
+      workerSlot = 2
     )
+    let expectedWorker2Cache = defaultCacheRoot / "worker_2"
     check debugVccCmd == @[
       "c",
       "--mm:orc",
@@ -158,8 +166,9 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       "--hints:off",
       "--warnings:off",
       "--cc:vcc",
-      "--nimcache:" & expectedPerTestCache,
-      "--passC:/Fd:" & (expectedPerTestCache / "vc140.pdb"),
+      "--nimcache:" & expectedWorker2Cache,
+      "--out:" & (expectedWorker2Cache / ("t_dwcas" & binExt)),
+      "--passC:/Fd:" & (expectedWorker2Cache / "vc140.pdb"),
       "-r",
       "tests/t_dwcas.nim"
     ]
