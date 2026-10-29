@@ -189,7 +189,10 @@ for bin in "${BINARIES[@]}"; do
 
   echo "Running $bin..."
   if ! ./.tmp/"$bin" --bmf-out=".tmp/$bin.json" | tee ".tmp/${bin}_output.txt"; then
-    echo "::warning::$bin failed or flaked; continuing sequential run"
+    echo "::warning::$bin failed on attempt 1; retrying once..."
+    if ! ./.tmp/"$bin" --bmf-out=".tmp/$bin.json" | tee ".tmp/${bin}_output.txt"; then
+      echo "::warning::$bin failed or flaked after retry; continuing sequential run"
+    fi
   fi
 done
 
