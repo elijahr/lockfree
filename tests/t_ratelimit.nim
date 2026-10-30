@@ -16,10 +16,6 @@ import unittest2
 import lockfree/ratelimit
 import lockfree/atomics
 import std/os
-from lockfree/cabi import lfq_token_bucket_t, lfq_token_bucket_init, lfq_token_bucket_available,
-  lfq_token_bucket_try_acquire, lfq_token_bucket_acquire_timeout, lfq_leaky_bucket_t,
-  lfq_leaky_bucket_init, lfq_leaky_bucket_try_consume, lfq_leaky_bucket_water_level,
-  lfq_leaky_bucket_consume_timeout
 
 const NanosPerSec: uint64 = 1_000_000_000'u64
 
@@ -226,32 +222,6 @@ suite "Wave 4A 128-Bit DWCAS Rate Limiters":
     check ok == true
     check elapsed >= 7_000_000'u64
 
-  test "C ABI functions (include/lockfree_ratelimit.h)":
-    # TokenBucket C ABI
-    var tbStruct: lfq_token_bucket_t
-    check lfq_token_bucket_init(addr tbStruct, 20, 50) == 0
-    check lfq_token_bucket_available(addr tbStruct) == 20
-    check lfq_token_bucket_try_acquire(addr tbStruct, 5) == true
-    check lfq_token_bucket_available(addr tbStruct) == 15
-    check lfq_token_bucket_acquire_timeout(addr tbStruct, 5, 1_000_000) == true
-    check lfq_token_bucket_available(addr tbStruct) == 10
-
-    # Nil pointer resilience
-    check lfq_token_bucket_init(nil, 10, 10) == -1
-    check lfq_token_bucket_try_acquire(nil, 1) == false
-    check lfq_token_bucket_acquire_timeout(nil, 1, 100) == false
-    check lfq_token_bucket_available(nil) == 0
-
-    # LeakyBucket C ABI
-    var lbStruct: lfq_leaky_bucket_t
-    check lfq_leaky_bucket_init(addr lbStruct, 200_000_000, 10) == 0
-    check lfq_leaky_bucket_try_consume(addr lbStruct, 1) == true
-    check lfq_leaky_bucket_water_level(addr lbStruct) > 0
-    check lfq_leaky_bucket_init(nil, 0, 0) == -1
-    check lfq_leaky_bucket_try_consume(nil, 1) == false
-    check lfq_leaky_bucket_consume_timeout(nil, 1, 100) == false
-    check lfq_leaky_bucket_water_level(nil) == 0
-
   test "TokenBucket128 and LeakyBucket128 explicit constructors":
     var tb = initTokenBucket128(capacityTokens = 50, refillRatePerSec = 10)
     check tb.capacityTokens == 50
@@ -278,9 +248,9 @@ suite "Wave 4A 128-Bit DWCAS Rate Limiters":
     check lb64.leakRate == 20
     check lb64.tryConsume(1) == true
 
-
-  test "Direct C99 Header Interoperability":
-    let includeDir = currentSourcePath().parentDir() / ".." / "include"
-    let cmd = "clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_ratelimit.h")
-    let code = execShellCmd(cmd)
-    check code == 0
+  when not defined(windows):
+    test "Direct C99 Header Interoperability":
+      let includeDir = currentSourcePath().parentDir() / ".." / "include"
+      let cmd = "clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree_ratelimit.h")
+      let code = execShellCmd(cmd)
+      check code == 0

@@ -98,11 +98,21 @@ proc findQueueBundles*(): seq[string] =
     "unit/runner_queues_lcrq.nim"
   ])
 
-proc findUnitBundles*(): seq[string] =
-  result = resolveTestPaths([
-    "unit/runner_sync.nim",
-    "unit/runner_structures.nim"
+proc findStructureBundles*(): seq[string] =
+  resolveTestPaths([
+    "unit/runner_structures_trees.nim",
+    "unit/runner_structures_containers.nim"
   ])
+
+proc findSyncBundles*(): seq[string] =
+  resolveTestPaths([
+    "unit/runner_sync_channels.nim",
+    "unit/runner_sync_primitives.nim"
+  ])
+
+proc findUnitBundles*(): seq[string] =
+  result = findSyncBundles()
+  result.add(findStructureBundles())
   result.add(findQueueBundles())
   result.add(resolveTestPaths([
     "unit/runner_primitives.nim"
@@ -110,6 +120,7 @@ proc findUnitBundles*(): seq[string] =
 
 proc findConcurrencyBundles*(): seq[string] =
   resolveTestPaths([
+    "concurrency/runner_concurrency_cabi.nim",
     "concurrency/runner_concurrency_io.nim",
     "concurrency/runner_concurrency_queues.nim",
     "concurrency/runner_concurrency_sync.nim",
@@ -298,6 +309,7 @@ when isMainModule:
   var directFiles: seq[string] = @[]
 
   var workers = countProcessors()
+  var workersExplicit = false
   var mm = "orc"
   var backend = "c"
   var cc = getEnv("LFQ_CC", "")
@@ -348,6 +360,7 @@ when isMainModule:
       backend = param.split(":")[1]
     elif param.startsWith("--workers:"):
       workers = parseInt(param.split(":")[1])
+      workersExplicit = true
     elif param.startsWith("--timeout:"):
       timeoutSec = parseFloat(param.split(":")[1])
     elif param.startsWith("--nimcache:"):
@@ -363,14 +376,16 @@ when isMainModule:
     bundledFlag = bundledFlag,
     unbundledFlag = unbundledFlag
   )
+  if useBundled and not workersExplicit:
+    workers = max(1, countProcessors() div 2)
 
   var tests: seq[string] = @[]
   if directFiles.len > 0:
     tests = directFiles
   elif useBundled:
     if runQueues: tests.add(findQueueBundles())
-    if runStructures: tests.add(resolveTestPaths(["unit/runner_structures.nim"]))
-    if runSync: tests.add(resolveTestPaths(["unit/runner_sync.nim"]))
+    if runStructures: tests.add(findStructureBundles())
+    if runSync: tests.add(findSyncBundles())
     if runPrimitives: tests.add(resolveTestPaths(["unit/runner_primitives.nim"]))
     if runConcurrency: tests.add(findConcurrencyBundles())
     if runUnit or (not runQueues and not runStructures and not runSync and not runPrimitives and not runConcurrency):

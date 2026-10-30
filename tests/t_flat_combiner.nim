@@ -6,7 +6,6 @@ import unittest2
 import lockfree/atomics
 import lockfree/atomics/backoff
 import lockfree/flat_combiner
-import lockfree/cabi
 
 # ---------------------------------------------------------------------------
 # 1. Typed Reducer State & Operations
@@ -139,44 +138,6 @@ proc pruneWorker(ctx: ptr PruneWorkerCtx) {.thread.} =
       cpuPause()
   for _ in 0 ..< ctx.ops:
     discard ctx.fc.combine(CounterOp(kind: coAdd, delta: 1'i64))
-
-# ---------------------------------------------------------------------------
-# 3. C ABI Test Helpers
-# ---------------------------------------------------------------------------
-
-type
-  CAbiCounterState = object
-    counter: int64
-    destructorCalls: int
-
-proc cAbiAddOp(state: pointer, opArg: pointer, userData: pointer): pointer {.cdecl, gcsafe.} =
-  let st = cast[ptr CAbiCounterState](state)
-  let delta = cast[int](opArg)
-  let bonus = if userData != nil: cast[int](userData) else: 0
-  st.counter += int64(delta + bonus)
-  cast[pointer](int(st.counter))
-
-proc cAbiDestroyState(state: pointer, userData: pointer) {.cdecl, gcsafe.} =
-  if state != nil:
-    let st = cast[ptr CAbiCounterState](state)
-    inc st.destructorCalls
-  if userData != nil:
-    let flag = cast[ptr int](userData)
-    inc flag[]
-
-type
-  CAbiThreadCtx = object
-    combiner: ptr lfq_flat_combiner_t
-    iters: int
-    startFlag: ptr Atomic[bool]
-
-proc cAbiWorker(ctx: ptr CAbiThreadCtx) {.thread.} =
-  while not ctx.startFlag[].load(moAcquire):
-    cpuPause()
-  for _ in 0 ..< ctx.iters:
-    var outRes: pointer = nil
-    let rc = lfq_flat_combiner_combine(ctx.combiner, cast[pointer](1), addr outRes)
-    doAssert rc == LFQ_OK
 
 # ---------------------------------------------------------------------------
 # Test Suite
@@ -361,65 +322,3 @@ suite "FlatCombiner[T, Op, Res] — Hendler-Incze-Shavit-Tzafrir Adapter":
     check afterPruneRecords <= 1
     let finalCount = fc.combine(CounterOp(kind: coGet))
     check finalCount == int64(1 + NumTempWorkers * WorkerOps + 300)
-
-  test "C ABI (lfq_flat_combiner_*) lifecycle, validation, and multithreaded combining":
-    # Null argument guards
-    check lfq_flat_combiner_create(nil, cAbiAddOp, nil, nil, 0, 0, nil) == LFQ_ERR_INVALID_ARG
-    check lfq_flat_combiner_destroy(nil) == LFQ_ERR_INVALID_ARG
-    check lfq_flat_combiner_combine(nil, nil, nil) == LFQ_ERR_INVALID_ARG
-    check lfq_flat_combiner_combine_fn(nil, cAbiAddOp, nil, nil, nil) == LFQ_ERR_INVALID_ARG
-
-    var state = CAbiCounterState(counter: 0, destructorCalls: 0)
-    var destroyUserFlag = 0
-    var combiner: ptr lfq_flat_combiner_t = nil
-
-    let rcCreate = lfq_flat_combiner_create(
-      addr state,
-      cAbiAddOp,
-      cAbiDestroyState,
-      cast[pointer](10), # bonus = 10 for default_op_fn
-      16,
-      64,
-      addr combiner
-    )
-    check rcCreate == LFQ_OK
-    check combiner != nil
-
-    # Single-thread default_op_fn combine (delta=5 + bonus=10 -> 15)
-    var outVal: pointer = nil
-    check lfq_flat_combiner_combine(combiner, cast[pointer](5), addr outVal) == LFQ_OK
-    check cast[int](outVal) == 15
-    check state.counter == 15
-
-    # Custom per-call combine_fn (delta=7 + custom bonus=0 -> 22)
-    check lfq_flat_combiner_combine_fn(combiner, cAbiAddOp, cast[pointer](7), nil, addr outVal) == LFQ_OK
-    check cast[int](outVal) == 22
-    check state.counter == 22
-
-    # Invalid op_fn guard
-    check lfq_flat_combiner_combine_fn(combiner, nil, nil, nil, nil) == LFQ_ERR_INVALID_ARG
-
-    # Multi-threaded C ABI stress (4 threads x 5,000 ops, each adding 1 + bonus 10 = 11)
-    const
-      CThreads = 4
-      CIters = 5_000
-    var startFlag: Atomic[bool]
-    startFlag.store(false, moRelaxed)
-    var threads: array[CThreads, Thread[ptr CAbiThreadCtx]]
-    var ctxs: array[CThreads, CAbiThreadCtx]
-    for i in 0 ..< CThreads:
-      ctxs[i] = CAbiThreadCtx(combiner: combiner, iters: CIters, startFlag: addr startFlag)
-      createThread(threads[i], cAbiWorker, addr ctxs[i])
-    startFlag.store(true, moRelease)
-    for i in 0 ..< CThreads:
-      joinThread(threads[i])
-
-    check state.counter == 22 + int64(CThreads * CIters * 11)
-    check lfq_flat_combiner_total_combined_ops(combiner) == uint64(2 + CThreads * CIters)
-    check lfq_flat_combiner_pass_count(combiner) >= 1'u64
-
-    # Re-wire userData to addr destroyUserFlag to verify destructor callback
-    combiner.userData = addr destroyUserFlag
-    check lfq_flat_combiner_destroy(combiner) == LFQ_OK
-    check state.destructorCalls == 1
-    check destroyUserFlag == 1

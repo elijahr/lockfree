@@ -209,8 +209,10 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
     ]
 
     check findQueueBundles().len == 8
-    check findUnitBundles().len == 11
-    check findConcurrencyBundles().len == 4
+    check findStructureBundles().len == 2
+    check findSyncBundles().len == 2
+    check findUnitBundles().len == 13
+    check findConcurrencyBundles().len == 5
     check resolveBundledMode(0, "", bundledFlag = false, unbundledFlag = false) == true
     check resolveBundledMode(0, "", bundledFlag = true, unbundledFlag = false) == true
     check resolveBundledMode(0, "", bundledFlag = false, unbundledFlag = true) == false

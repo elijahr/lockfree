@@ -2020,6 +2020,32 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
     check spmcWakeups == NumEpochs
     check mpscWakeups == NumEpochs
 
+  test "C ABI functions (include/lockfree_ratelimit.h)":
+    # TokenBucket C ABI
+    var tbStruct: lfq_token_bucket_t
+    check lfq_token_bucket_init(addr tbStruct, 20, 50) == 0
+    check lfq_token_bucket_available(addr tbStruct) == 20
+    check lfq_token_bucket_try_acquire(addr tbStruct, 5) == true
+    check lfq_token_bucket_available(addr tbStruct) == 15
+    check lfq_token_bucket_acquire_timeout(addr tbStruct, 5, 1_000_000) == true
+    check lfq_token_bucket_available(addr tbStruct) == 10
+
+    # Nil pointer resilience
+    check lfq_token_bucket_init(nil, 10, 10) == -1
+    check lfq_token_bucket_try_acquire(nil, 1) == false
+    check lfq_token_bucket_acquire_timeout(nil, 1, 100) == false
+    check lfq_token_bucket_available(nil) == 0
+
+    # LeakyBucket C ABI
+    var lbStruct: lfq_leaky_bucket_t
+    check lfq_leaky_bucket_init(addr lbStruct, 200_000_000, 10) == 0
+    check lfq_leaky_bucket_try_consume(addr lbStruct, 1) == true
+    check lfq_leaky_bucket_water_level(addr lbStruct) > 0
+    check lfq_leaky_bucket_init(nil, 0, 0) == -1
+    check lfq_leaky_bucket_try_consume(nil, 1) == false
+    check lfq_leaky_bucket_consume_timeout(nil, 1, 100) == false
+    check lfq_leaky_bucket_water_level(nil) == 0
+
   when not defined(windows):
     test "Direct C99 Header Interoperability":
       let code1 = execShellCmd("clang -fsyntax-only -std=c99 -Wall -Wextra -Werror -pedantic -Wstrict-prototypes -I" & includeDir & " " & (includeDir / "lockfree.h"))
@@ -2059,3 +2085,189 @@ suite "lockfree C ABI Specification & Cross-Language Interop":
       check compCode == 0
       let runCode = execShellCmd(cTestBin)
       check runCode == 0
+
+# ---------------------------------------------------------------------------
+# Priority Queue & FlatCombiner C ABI Tests (relocated from unit test files
+# so unit tests do not pull in src/lockfree/cabi.nim's {.exportc.} surface)
+# ---------------------------------------------------------------------------
+
+var gCabiDestroyedCount: Atomic[int]
+
+proc testPqueueDestructor(item: pointer, userData: pointer) {.cdecl, gcsafe.} =
+  discard gCabiDestroyedCount.fetchAdd(1, moAcquireRelease)
+  if userData != nil:
+    let tagPtr = cast[ptr int](userData)
+    tagPtr[] = tagPtr[] + cast[int](item)
+
+type
+  CAbiCounterState = object
+    counter: int64
+    destructorCalls: int
+
+proc cAbiAddOp(state: pointer, opArg: pointer, userData: pointer): pointer {.cdecl, gcsafe.} =
+  let st = cast[ptr CAbiCounterState](state)
+  let delta = cast[int](opArg)
+  let bonus = if userData != nil: cast[int](userData) else: 0
+  st.counter += int64(delta + bonus)
+  cast[pointer](int(st.counter))
+
+proc cAbiDestroyState(state: pointer, userData: pointer) {.cdecl, gcsafe.} =
+  if state != nil:
+    let st = cast[ptr CAbiCounterState](state)
+    inc st.destructorCalls
+  if userData != nil:
+    let flag = cast[ptr int](userData)
+    inc flag[]
+
+type
+  CAbiThreadCtx = object
+    combiner: ptr lfq_flat_combiner_t
+    iters: int
+    startFlag: ptr Atomic[bool]
+
+proc cAbiWorker(ctx: ptr CAbiThreadCtx) {.thread.} =
+  while not ctx.startFlag[].load(moAcquire):
+    cpuPause()
+  for _ in 0 ..< ctx.iters:
+    var outRes: pointer = nil
+    let rc = lfq_flat_combiner_combine(ctx.combiner, cast[pointer](1), addr outRes)
+    doAssert rc == LFQ_OK
+
+suite "SkipListPriorityQueue & FlatCombiner C ABI":
+  test "lfq_pqueue lifecycle, push, peek_min, pop_min, and FIFO tie-breaking":
+    var pq: ptr lfq_pqueue_t = nil
+    check lfq_pqueue_create(nil, nil, addr pq) == LFQ_OK
+    check pq != nil
+    check lfq_pqueue_len(pq) == 0
+    check lfq_pqueue_is_empty(pq) == true
+
+    check lfq_pqueue_push(pq, 30'i64, cast[pointer](300)) == LFQ_OK
+    check lfq_pqueue_push(pq, 10'i64, cast[pointer](101)) == LFQ_OK
+    check lfq_pqueue_push(pq, 10'i64, cast[pointer](102)) == LFQ_OK
+    check lfq_pqueue_push(pq, 20'i64, cast[pointer](200)) == LFQ_OK
+
+    check lfq_pqueue_len(pq) == 4
+    check lfq_pqueue_is_empty(pq) == false
+
+    var prio: int64 = 0
+    var item: pointer = nil
+    check lfq_pqueue_peek_min(pq, addr prio, addr item) == LFQ_OK
+    check prio == 10'i64
+    check cast[int](item) == 101
+    check lfq_pqueue_len(pq) == 4
+
+    check lfq_pqueue_pop_min(pq, addr prio, addr item) == LFQ_OK
+    check prio == 10'i64
+    check cast[int](item) == 101
+
+    check lfq_pqueue_pop_min(pq, addr prio, addr item) == LFQ_OK
+    check prio == 10'i64
+    check cast[int](item) == 102
+
+    check lfq_pqueue_pop_min(pq, addr prio, addr item) == LFQ_OK
+    check prio == 20'i64
+    check cast[int](item) == 200
+
+    check lfq_pqueue_pop_min(pq, nil, addr item) == LFQ_OK
+    check cast[int](item) == 300
+
+    check lfq_pqueue_pop_min(pq, addr prio, addr item) == LFQ_ERR_EMPTY
+    check lfq_pqueue_peek_min(pq, addr prio, addr item) == LFQ_ERR_EMPTY
+    check lfq_pqueue_len(pq) == 0
+    check lfq_pqueue_is_empty(pq) == true
+
+    check lfq_pqueue_destroy(pq) == LFQ_OK
+
+  test "lfq_pqueue_clear and lfq_pqueue_destroy invoke destructor callback":
+    gCabiDestroyedCount.store(0, moRelease)
+    var sumTag: int = 0
+    var pq: ptr lfq_pqueue_t = nil
+    check lfq_pqueue_create(testPqueueDestructor, addr sumTag, addr pq) == LFQ_OK
+
+    check lfq_pqueue_push(pq, 5'i64, cast[pointer](10)) == LFQ_OK
+    check lfq_pqueue_push(pq, 15'i64, cast[pointer](20)) == LFQ_OK
+    check lfq_pqueue_clear(pq) == LFQ_OK
+    check gCabiDestroyedCount.load(moAcquire) == 2
+    check sumTag == 30
+    check lfq_pqueue_is_empty(pq) == true
+
+    check lfq_pqueue_push(pq, 1'i64, cast[pointer](40)) == LFQ_OK
+    check lfq_pqueue_push(pq, 2'i64, cast[pointer](60)) == LFQ_OK
+    check lfq_pqueue_destroy(pq) == LFQ_OK
+    check gCabiDestroyedCount.load(moAcquire) == 4
+    check sumTag == 130
+
+  test "lfq_pqueue invalid argument handling":
+    var pq: ptr lfq_pqueue_t = nil
+    var item: pointer = nil
+    check lfq_pqueue_create(nil, nil, nil) == LFQ_ERR_INVALID_ARG
+    check lfq_pqueue_destroy(nil) == LFQ_ERR_INVALID_ARG
+    check lfq_pqueue_clear(nil) == LFQ_ERR_INVALID_ARG
+    check lfq_pqueue_push(nil, 1'i64, nil) == LFQ_ERR_INVALID_ARG
+    check lfq_pqueue_pop_min(nil, nil, addr item) == LFQ_ERR_INVALID_ARG
+    check lfq_pqueue_peek_min(nil, nil, addr item) == LFQ_ERR_INVALID_ARG
+    check lfq_pqueue_len(nil) == 0
+    check lfq_pqueue_is_empty(nil) == true
+    discard pq
+
+  test "C ABI (lfq_flat_combiner_*) lifecycle, validation, and multithreaded combining":
+    # Null argument guards
+    check lfq_flat_combiner_create(nil, cAbiAddOp, nil, nil, 0, 0, nil) == LFQ_ERR_INVALID_ARG
+    check lfq_flat_combiner_destroy(nil) == LFQ_ERR_INVALID_ARG
+    check lfq_flat_combiner_combine(nil, nil, nil) == LFQ_ERR_INVALID_ARG
+    check lfq_flat_combiner_combine_fn(nil, cAbiAddOp, nil, nil, nil) == LFQ_ERR_INVALID_ARG
+
+    var state = CAbiCounterState(counter: 0, destructorCalls: 0)
+    var destroyUserFlag = 0
+    var combiner: ptr lfq_flat_combiner_t = nil
+
+    let rcCreate = lfq_flat_combiner_create(
+      addr state,
+      cAbiAddOp,
+      cAbiDestroyState,
+      cast[pointer](10), # bonus = 10 for default_op_fn
+      16,
+      64,
+      addr combiner
+    )
+    check rcCreate == LFQ_OK
+    check combiner != nil
+
+    # Single-thread default_op_fn combine (delta=5 + bonus=10 -> 15)
+    var outVal: pointer = nil
+    check lfq_flat_combiner_combine(combiner, cast[pointer](5), addr outVal) == LFQ_OK
+    check cast[int](outVal) == 15
+    check state.counter == 15
+
+    # Custom per-call combine_fn (delta=7 + custom bonus=0 -> 22)
+    check lfq_flat_combiner_combine_fn(combiner, cAbiAddOp, cast[pointer](7), nil, addr outVal) == LFQ_OK
+    check cast[int](outVal) == 22
+    check state.counter == 22
+
+    # Invalid op_fn guard
+    check lfq_flat_combiner_combine_fn(combiner, nil, nil, nil, nil) == LFQ_ERR_INVALID_ARG
+
+    # Multi-threaded C ABI stress (4 threads x 5,000 ops, each adding 1 + bonus 10 = 11)
+    const
+      CThreads = 4
+      CIters = 5_000
+    var startFlag: Atomic[bool]
+    startFlag.store(false, moRelaxed)
+    var threads: array[CThreads, Thread[ptr CAbiThreadCtx]]
+    var ctxs: array[CThreads, CAbiThreadCtx]
+    for i in 0 ..< CThreads:
+      ctxs[i] = CAbiThreadCtx(combiner: combiner, iters: CIters, startFlag: addr startFlag)
+      createThread(threads[i], cAbiWorker, addr ctxs[i])
+    startFlag.store(true, moRelease)
+    for i in 0 ..< CThreads:
+      joinThread(threads[i])
+
+    check state.counter == 22 + int64(CThreads * CIters * 11)
+    check lfq_flat_combiner_total_combined_ops(combiner) == uint64(2 + CThreads * CIters)
+    check lfq_flat_combiner_pass_count(combiner) >= 1'u64
+
+    # Re-wire userData to addr destroyUserFlag to verify destructor callback
+    combiner.userData = addr destroyUserFlag
+    check lfq_flat_combiner_destroy(combiner) == LFQ_OK
+    check state.destructorCalls == 1
+    check destroyUserFlag == 1
