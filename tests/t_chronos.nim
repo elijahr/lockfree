@@ -139,8 +139,8 @@ when defined(lockfreeChronos) and (compiles do:
       check waitFor(popFut) == some(11)
 
   suite "lockfree/chronos — unified async_bridge re-export & umbrella wiring":
-    test "umbrella LockfreeVersion is 0.6.4 and lockfree/chronos exports all 6 adapters":
-      check LockfreeVersion == "0.6.4"
+    test "umbrella LockfreeVersion is 0.6.5 and lockfree/chronos exports all 6 adapters":
+      check LockfreeVersion == "0.6.5"
       var ch = newAsyncRendezvousChannel[int]()
       check ch != nil
       var ring = newAsyncBroadcastRing[int](16)

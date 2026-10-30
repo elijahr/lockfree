@@ -3176,7 +3176,7 @@
       "lockfree": {
         "fingerprint": null,
         "kind": "in-tree",
-        "version": "0.6.4"
+        "version": "0.6.5"
       },
       "loony": {
         "fingerprint": null,
@@ -3240,7 +3240,7 @@
       "memory_human": "48 GB",
       "os": "macosx"
     },
-    "lockfree_version": "0.6.4",
+    "lockfree_version": "0.6.5",
     "nim_version": "2.4.0",
     "schema": 1
   },

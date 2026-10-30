@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.5] - 2026-10-30
+
+### Changed
+
+- **Bounded `typestates` dependency range (`lockfree.nimble`)**: Updated `requires "typestates >= 0.14.0 & < 0.15.0"` so `lockfree` receives `0.14.x` patch updates while remaining guarded against breaking `0.15.0` minor bumps.
+
 ## [0.6.4] - 2026-10-30
 
 ### Added

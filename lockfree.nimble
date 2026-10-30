@@ -1,7 +1,7 @@
 import os
 
 # Package
-version        = "0.6.4"
+version        = "0.6.5"
 author         = "Elijah Shaw-Rutschman"
 description    = "Lock-free concurrency toolkit for Nim & C99: MPMC Queues, SkipLists, Ctries, Broadcast Rings, Flat Combining, Work-Stealing TaskPools, 128-bit DWCAS Atomics, and NEBR SMR."
 license        = "MIT"
@@ -11,7 +11,7 @@ entryPoints    = @["tests/test.nim"]
 # Dependencies
 requires "nim >= 2.2.10"
 requires "unittest2"
-requires "typestates >= 0.14.0"
+requires "typestates >= 0.14.0 & < 0.15.0"
 
 # Optional dependencies (flag-only opt-in). chronos is the async-adapter
 # backend pulled in only when callers build with `-d:lockfreeChronos`.
