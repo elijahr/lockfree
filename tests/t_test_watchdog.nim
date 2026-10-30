@@ -102,12 +102,13 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       "--cc:vcc",
       "-d:release",
       "-u:debug",
-      "--opt:speed",
+      "--opt:none",
       "--assertions:on",
       "--debugger:off",
       "--debuginfo:off",
       "--nimcache:" & expectedWorker0Cache,
       "--out:" & (expectedWorker0Cache / ("t_dwcas" & binExt)),
+      "--passC:/Fd:" & (expectedWorker0Cache / "vc140.pdb"),
       "-r",
       "tests/t_dwcas.nim"
     ]
@@ -198,12 +199,13 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       "--cc:vcc",
       "-d:release",
       "-u:debug",
-      "--opt:speed",
+      "--opt:none",
       "--assertions:on",
       "--debugger:off",
       "--debuginfo:off",
       "--nimcache:" & expectedWorker1Cache,
       "--out:" & (expectedWorker1Cache / ("runner_primitives" & binExt)),
+      "--passC:/Fd:" & (expectedWorker1Cache / "vc140.pdb"),
       "-r",
       "tests/unit/runner_primitives.nim"
     ]

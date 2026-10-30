@@ -23,7 +23,7 @@
 ##
 ##
 
-import std/[os, osproc, strformat, strutils]
+import std/[os, osproc, streams, strformat, strutils]
 
 type
   ExpectedOutcome = enum
@@ -320,14 +320,12 @@ const cases = @[
 ]
 
 
-proc runCase(c: Case): bool =
-  # Child nim invocation uses the worktree's nimble.paths (regenerated
-  # by `nimble setup` / `nimble install -dy`) for dep resolution.
-  let ccEnv = getEnv("LFQ_CC", "")
-  let ccFlag = if ccEnv.len > 0: " --cc:" & ccEnv else: ""
-  let cmd =
-    &"nim c{ccFlag} --threads:on --hints:off --warnings:off --path:src --compileOnly {c.file}"
-  let (output, exitCode) = execCmdEx(cmd)
+type
+  RunningCase = object
+    idx: int
+    p: Process
+
+proc evaluateCase(c: Case, output: string, exitCode: int): bool =
   case c.outcome
   of eoCompiles:
     if exitCode != 0:
@@ -351,10 +349,70 @@ proc runCase(c: Case): bool =
     return true
 
 proc main() =
+  # Child nim invocations use the worktree's nimble.paths (regenerated
+  # by `nimble setup` / `nimble install -dy`) for dep resolution, with
+  # isolated per-case `--nimcache` directories so parallel `nim c --compileOnly`
+  # workers never collide.
+  let maxWorkers = max(1, countProcessors())
+  let ccEnv = getEnv("LFQ_CC", "")
+  let cacheBase = getTempDir() / ("lockfree_should_fail_" & $getCurrentProcessId())
+  var running: seq[RunningCase] = @[]
+  var outputs = newSeq[string](cases.len)
+  var exitCodes = newSeq[int](cases.len)
+  var completed = newSeq[bool](cases.len)
+  var nextIdx = 0
+  var nextPrintIdx = 0
   var failed = 0
-  for c in cases:
-    if not runCase(c):
-      inc failed
+
+  while nextIdx < cases.len or running.len > 0:
+    while running.len < maxWorkers and nextIdx < cases.len:
+      let idx = nextIdx
+      inc nextIdx
+      let c = cases[idx]
+      var args = @[
+        "c",
+        "--threads:on",
+        "--hints:off",
+        "--warnings:off",
+        "--path:src",
+        "--compileOnly",
+        "--nimcache:" & (cacheBase / ("case_" & $idx)),
+        c.file
+      ]
+      if ccEnv.len > 0:
+        args.insert("--cc:" & ccEnv, 1)
+      let p = startProcess("nim", args = args, options = {poStdErrToStdOut, poUsePath})
+      running.add(RunningCase(idx: idx, p: p))
+
+    var i = 0
+    var anyFinished = false
+    while i < running.len:
+      let code = running[i].p.peekExitCode()
+      if code != -1:
+        let idx = running[i].idx
+        outputs[idx] = running[i].p.outputStream.readAll()
+        exitCodes[idx] = code
+        completed[idx] = true
+        running[i].p.close()
+        running.delete(i)
+        anyFinished = true
+      else:
+        inc i
+
+    while nextPrintIdx < cases.len and completed[nextPrintIdx]:
+      if not evaluateCase(cases[nextPrintIdx], outputs[nextPrintIdx], exitCodes[nextPrintIdx]):
+        inc failed
+      flushFile(stdout)
+      inc nextPrintIdx
+
+    if not anyFinished and running.len > 0:
+      sleep(5)
+
+  try:
+    removeDir(cacheBase)
+  except CatchableError:
+    discard
+
   if failed > 0:
     echo &"\n{failed} compile-fail case(s) failed."
     quit(1)

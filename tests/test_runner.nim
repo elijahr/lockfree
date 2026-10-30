@@ -151,16 +151,17 @@ proc buildCompileCmd*(
   ]
   if cc.len > 0:
     result.add("--cc:" & cc)
+  let optFlag = if cc == "vcc": "--opt:none" else: "--opt:speed"
   if isDanger:
     result.add("-d:danger")
     result.add("-u:debug")
-    result.add("--opt:speed")
+    result.add(optFlag)
     result.add("--debugger:off")
     result.add("--debuginfo:off")
   elif isRelease:
     result.add("-d:release")
     result.add("-u:debug")
-    result.add("--opt:speed")
+    result.add(optFlag)
     result.add("--assertions:on")
     result.add("--debugger:off")
     result.add("--debuginfo:off")
@@ -175,7 +176,7 @@ proc buildCompileCmd*(
   let outBin = perWorkerNimcache / (testBase & (when defined(windows): ".exe" else: ""))
   result.add("--nimcache:" & perWorkerNimcache)
   result.add("--out:" & outBin)
-  if not isRelease and not isDanger and cc == "vcc":
+  if cc == "vcc":
     result.add("--passC:/Fd:" & (perWorkerNimcache / "vc140.pdb"))
   result.add("-r")
   result.add(testPath)
@@ -377,7 +378,7 @@ when isMainModule:
     unbundledFlag = unbundledFlag
   )
   if useBundled and not workersExplicit:
-    workers = max(1, countProcessors() div 2)
+    workers = max(1, (countProcessors() * 3) div 4)
 
   var tests: seq[string] = @[]
   if directFiles.len > 0:
