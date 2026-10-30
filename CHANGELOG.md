@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-10-30
+
 ### Added
 
 - **Zero-Copy Two-Phase `StreamBuffer` / `StreamRing` Reserve/Commit & Peek/Consume C ABI (`include/lockfree_streambuffer.h`, `src/lockfree/cabi.nim`)**:
