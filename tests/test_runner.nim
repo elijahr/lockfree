@@ -166,18 +166,19 @@ proc buildCompileCmd*(
     result.add("--debugger:off")
     result.add("--debuginfo:off")
 
+  let cacheTag = getEnv("LFQ_NIMCACHE_TAG", "")
   let effNimcacheDir =
     if nimcacheDir.len > 0:
       nimcacheDir
     else:
-      getHomeDir() / ".cache" / "nim" / ("test_runner_" & mm & "_" & backend & (if cc.len > 0: "_" & cc else: ""))
+      getHomeDir() / ".cache" / "nim" / ("test_runner_" & mm & "_" & backend & (if cc.len > 0: "_" & cc else: "") & (if cacheTag.len > 0: "_" & cacheTag else: ""))
   let testBase = testPath.extractFilename().changeFileExt("")
-  let perWorkerNimcache = effNimcacheDir / ("worker_" & $workerSlot)
-  let outBin = perWorkerNimcache / (testBase & (when defined(windows): ".exe" else: ""))
-  result.add("--nimcache:" & perWorkerNimcache)
+  let perBundleNimcache = effNimcacheDir / testBase
+  let outBin = perBundleNimcache / (testBase & (when defined(windows): ".exe" else: ""))
+  result.add("--nimcache:" & perBundleNimcache)
   result.add("--out:" & outBin)
   if cc == "vcc":
-    result.add("--passC:/Fd:" & (perWorkerNimcache / "vc140.pdb"))
+    result.add("--passC:/Fd:" & (perBundleNimcache / "vc140.pdb"))
   result.add("-r")
   result.add(testPath)
 

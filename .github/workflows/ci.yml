@@ -444,7 +444,7 @@ jobs:
           for ver in "${VERSIONS[@]}"; do
             switch_toolchain "$ver"
             echo "::group::Running test suite under Nim ${ver}"
-            rm -rf ~/.cache/nim
+            export LFQ_NIMCACHE_TAG="nim_${ver}"
             nimble setup || true
             for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
               [ -e "$d/src" ] || ln -s . "$d/src"
@@ -976,10 +976,6 @@ jobs:
             which gcc.exe || true
             gcc.exe --version | head -n 1 || true
           fi
-          echo "::endgroup::"
-
-          echo "::group::Verify 64-bit DWCAS (128-bit atomics) on Windows"
-          nim c --cc:${{ matrix.compiler }} --threads:on -r tests/t_dwcas.nim
           echo "::endgroup::"
 
           echo "::group::Run test suite on Windows (compiler=${{ matrix.compiler }}, mm=${{ matrix.mm }})"

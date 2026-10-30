@@ -74,9 +74,10 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
     check exitCode == 0
     check "[LOCKFREE TEST WATCHDOG TIMEOUT]" notin output
 
-  test "buildCompileCmd enforces --parallelBuild:1, per-worker nimcache reuse, release debug-info stripping, and MSVC per-worker /Fd: PDB":
+  test "buildCompileCmd enforces --parallelBuild:1, per-bundle nimcache reuse, release debug-info stripping, and MSVC per-bundle /Fd: PDB":
+    delEnv("LFQ_NIMCACHE_TAG")
     let defaultCacheRoot = getHomeDir() / ".cache" / "nim" / "test_runner_orc_c_vcc"
-    let expectedWorker0Cache = defaultCacheRoot / "worker_0"
+    let expectedDwcasCache = defaultCacheRoot / "t_dwcas"
     let binExt = when defined(windows): ".exe" else: ""
 
     let releaseVccCmd = buildCompileCmd(
@@ -106,9 +107,9 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       "--assertions:on",
       "--debugger:off",
       "--debuginfo:off",
-      "--nimcache:" & expectedWorker0Cache,
-      "--out:" & (expectedWorker0Cache / ("t_dwcas" & binExt)),
-      "--passC:/Fd:" & (expectedWorker0Cache / "vc140.pdb"),
+      "--nimcache:" & expectedDwcasCache,
+      "--out:" & (expectedDwcasCache / ("t_dwcas" & binExt)),
+      "--passC:/Fd:" & (expectedDwcasCache / "vc140.pdb"),
       "-r",
       "tests/t_dwcas.nim"
     ]
@@ -123,7 +124,7 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       isDanger = true,
       workerSlot = 3
     )
-    let customWorker3Cache = "/tmp/custom_nimcache" / "worker_3"
+    let customQueueCache = "/tmp/custom_nimcache" / "t_queue"
     check dangerCppCmd == @[
       "cpp",
       "--mm:arc",
@@ -139,8 +140,8 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       "--opt:speed",
       "--debugger:off",
       "--debuginfo:off",
-      "--nimcache:" & customWorker3Cache,
-      "--out:" & (customWorker3Cache / ("t_queue" & binExt)),
+      "--nimcache:" & customQueueCache,
+      "--out:" & (customQueueCache / ("t_queue" & binExt)),
       "-r",
       "tests/t_queue.nim"
     ]
@@ -155,7 +156,6 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       isDanger = false,
       workerSlot = 2
     )
-    let expectedWorker2Cache = defaultCacheRoot / "worker_2"
     check debugVccCmd == @[
       "c",
       "--mm:orc",
@@ -167,9 +167,9 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       "--hints:off",
       "--warnings:off",
       "--cc:vcc",
-      "--nimcache:" & expectedWorker2Cache,
-      "--out:" & (expectedWorker2Cache / ("t_dwcas" & binExt)),
-      "--passC:/Fd:" & (expectedWorker2Cache / "vc140.pdb"),
+      "--nimcache:" & expectedDwcasCache,
+      "--out:" & (expectedDwcasCache / ("t_dwcas" & binExt)),
+      "--passC:/Fd:" & (expectedDwcasCache / "vc140.pdb"),
       "-r",
       "tests/t_dwcas.nim"
     ]
@@ -185,7 +185,7 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       workerSlot = 1,
       isBundled = true
     )
-    let expectedWorker1Cache = defaultCacheRoot / "worker_1"
+    let expectedPrimitivesCache = defaultCacheRoot / "runner_primitives"
     check bundledVccCmd == @[
       "c",
       "--mm:orc",
@@ -203,12 +203,27 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       "--assertions:on",
       "--debugger:off",
       "--debuginfo:off",
-      "--nimcache:" & expectedWorker1Cache,
-      "--out:" & (expectedWorker1Cache / ("runner_primitives" & binExt)),
-      "--passC:/Fd:" & (expectedWorker1Cache / "vc140.pdb"),
+      "--nimcache:" & expectedPrimitivesCache,
+      "--out:" & (expectedPrimitivesCache / ("runner_primitives" & binExt)),
+      "--passC:/Fd:" & (expectedPrimitivesCache / "vc140.pdb"),
       "-r",
       "tests/unit/runner_primitives.nim"
     ]
+
+    putEnv("LFQ_NIMCACHE_TAG", "nim_2.2.12")
+    let taggedCmd = buildCompileCmd(
+      testPath = "tests/t_dwcas.nim",
+      mm = "orc",
+      backend = "c",
+      cc = "vcc",
+      nimcacheDir = "",
+      isRelease = true,
+      isDanger = false,
+      workerSlot = 0
+    )
+    delEnv("LFQ_NIMCACHE_TAG")
+    let expectedTaggedCache = getHomeDir() / ".cache" / "nim" / "test_runner_orc_c_vcc_nim_2.2.12" / "t_dwcas"
+    check "--nimcache:" & expectedTaggedCache in taggedCmd
 
     check findQueueBundles().len == 8
     check findStructureBundles().len == 2

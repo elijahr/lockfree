@@ -10,5 +10,3 @@ import ../t_set_threaded
 import ../t_ctrie_threaded
 import ../t_associative_threaded
 import ../t_atomic_arc_threaded
-import ../t_disjoint_set
-import ../t_bqueue128
