@@ -3,6 +3,7 @@
 import ../test_watchdog
 import ../t_aligned_alloc
 import ../t_atomic_dsl
+import ../t_cas
 import ../t_backoff
 import ../t_systems_opt
 import ../t_dwcas

@@ -35,20 +35,8 @@
 ## / `BQueue` types and their push/pop/drain APIs.
 
 import std/typetraits
-
-proc hasManagedFields*(T: typedesc): bool {.compileTime.} =
-  when compiles((var d: T; for _, v in d.fieldPairs: discard)):
-    var d: T
-    for _, v in d.fieldPairs:
-      when v is ref or v is string or v is seq:
-        return true
-      elif v is object or v is tuple:
-        when compiles((var d2: typeof(v); for _, v2 in d2.fieldPairs: discard)):
-          if hasManagedFields(typeof(v)):
-            return true
-    return false
-  else:
-    return false
+from ../atomics import hasManagedFields
+export hasManagedFields
 
 template pathCAdmit*(T: typedesc) =
   ## Static dispatch / admission gate for `Queue[T, ...]` and `BQueue[T, ...]`

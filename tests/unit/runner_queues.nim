@@ -1,5 +1,6 @@
 ## Domain Runner: Queues (MPMC, MPSC, SPMC, SPSC - Bounded & Unbounded)
 
+import ../test_watchdog
 import ../t_slot_seq_generation_rollover
 import ../t_queue_enums
 import ../t_queue_type_shell

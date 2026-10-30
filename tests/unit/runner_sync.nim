@@ -1,5 +1,6 @@
 ## Domain Runner: Concurrency & Synchronization Primitives (Channel, Broadcast, Rendezvous, RateLimit, StreamBuffer, TaskPool, FlatCombiner)
 
+import ../test_watchdog
 import ../t_broadcast
 import ../t_channel
 import ../t_ratelimit

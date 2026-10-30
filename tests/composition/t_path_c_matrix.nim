@@ -14,6 +14,7 @@
 
 import std/atomics
 import std/options
+import std/tables
 import unittest2
 
 import lockfree
@@ -372,3 +373,48 @@ suite "§2.5 ACCEPT rows — Path-C 25-row composition matrix":
         echo "seq[CountedRef] leaked: baseline=", baseline,
              " final=", finalCount
       check finalCount == baseline
+
+  test "hasManagedFields detects generic type aliases (Table), distinct managed types, closure procs, and iterators":
+    type
+      DistStr = distinct string
+      DistSeq = distinct seq[int]
+      DistRef = distinct RefFoo
+      DistInt = distinct int
+      ClosureProc = proc(): int {.closure.}
+      DefaultProc = proc(x: int): int
+      NimcallProc = proc(): int {.nimcall.}
+      CdeclProc = proc(x: cint): cint {.cdecl.}
+      NoconvProc = proc() {.noconv.}
+      IterType = iterator(): int {.closure.}
+      ObjWithTable = object
+        tbl: tables.Table[int, int]
+      ObjWithDistStr = object
+        s: DistStr
+      ObjWithClosure = object
+        fn: ClosureProc
+      ObjWithDefaultProc = object
+        fn: DefaultProc
+      ObjWithIter = object
+        it: IterType
+      ObjWithNimcall = object
+        fn: NimcallProc
+        id: DistInt
+
+    check hasManagedFields(tables.Table[int, int]) == true
+    check hasManagedFields(ObjWithTable) == true
+    check hasManagedFields(DistStr) == true
+    check hasManagedFields(DistSeq) == true
+    check hasManagedFields(DistRef) == true
+    check hasManagedFields(ClosureProc) == true
+    check hasManagedFields(DefaultProc) == true
+    check hasManagedFields(IterType) == true
+    check hasManagedFields(ObjWithDistStr) == true
+    check hasManagedFields(ObjWithClosure) == true
+    check hasManagedFields(ObjWithDefaultProc) == true
+    check hasManagedFields(ObjWithIter) == true
+
+    check hasManagedFields(DistInt) == false
+    check hasManagedFields(NimcallProc) == false
+    check hasManagedFields(CdeclProc) == false
+    check hasManagedFields(NoconvProc) == false
+    check hasManagedFields(ObjWithNimcall) == false

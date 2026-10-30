@@ -49,8 +49,8 @@ const
   TagSNode: uint = 1'u
   MaxLevel = 30 # 32-bit hash: 0, 5, 10, 15, 20, 25, 30
 
-template countBits32(x: uint32): int =
-  countSetBits(x)
+template ctriePopcount32(x: uint32): int =
+  bitops.countSetBits(x)
 
 # ---------------------------------------------------------------------------
 # Murmur3 Hash Finalizer
@@ -541,7 +541,7 @@ proc get*[K, V; MaxThreads: static int](
         let flag = 1'u32 shl pos
         if (cn.bmp and flag) == 0:
           return none(V)
-        let idx = countBits32(cn.bmp and (flag - 1'u32))
+        let idx = ctriePopcount32(cn.bmp and (flag - 1'u32))
         let child = cn.children[idx]
         if child.isSNode:
           let sn = child.toSNode
@@ -674,7 +674,7 @@ proc putInternal[K, V; MaxThreads: static int](
           if not present:
             # Case A: Slot is empty. Insert fresh SNode.
             let sn = allocSNode(key, val, h)
-            let idx = countBits32(cn.bmp and (flag - 1'u32))
+            let idx = ctriePopcount32(cn.bmp and (flag - 1'u32))
             let newCn = allocCNode[K, V](cn.bmp or flag, root.gen, cn.csize + 1)
             for i in 0 ..< idx:
               newCn.children[i] = cn.children[i]
@@ -694,7 +694,7 @@ proc putInternal[K, V; MaxThreads: static int](
               break
           else:
             # Case B: Slot is occupied.
-            let idx = countBits32(cn.bmp and (flag - 1'u32))
+            let idx = ctriePopcount32(cn.bmp and (flag - 1'u32))
             let child = cn.children[idx]
             if child.isINode:
               parent = cur
@@ -875,7 +875,7 @@ proc delete*[K, V; MaxThreads: static int](
           if (cn.bmp and flag) == 0:
             return none(V) # Key absent
 
-          let idx = countBits32(cn.bmp and (flag - 1'u32))
+          let idx = ctriePopcount32(cn.bmp and (flag - 1'u32))
           let child = cn.children[idx]
           if child.isINode:
             parent = cur
@@ -1082,7 +1082,7 @@ proc atomicUpdate*[K, V; MaxThreads: static int](
           if (cn.bmp and flag) == 0:
             return none(V) # Key absent
 
-          let idx = countBits32(cn.bmp and (flag - 1'u32))
+          let idx = ctriePopcount32(cn.bmp and (flag - 1'u32))
           let child = cn.children[idx]
           if child.isINode:
             parent = cur
@@ -1216,7 +1216,7 @@ proc upsert*[K, V; MaxThreads: static int](
           if not present:
             # Key absent: insert insertVal
             let sn = allocSNode(key, insertVal, h)
-            let idx = countBits32(cn.bmp and (flag - 1'u32))
+            let idx = ctriePopcount32(cn.bmp and (flag - 1'u32))
             let newCn = allocCNode[K, V](cn.bmp or flag, root.gen, cn.csize + 1)
             for i in 0 ..< idx:
               newCn.children[i] = cn.children[i]
@@ -1236,7 +1236,7 @@ proc upsert*[K, V; MaxThreads: static int](
               restarted = true
               break
           else:
-            let idx = countBits32(cn.bmp and (flag - 1'u32))
+            let idx = ctriePopcount32(cn.bmp and (flag - 1'u32))
             let child = cn.children[idx]
             if child.isINode:
               parent = cur
@@ -1486,7 +1486,7 @@ proc get*[K, V; MaxThreads: static int](
         let flag = 1'u32 shl pos
         if (cn.bmp and flag) == 0:
           return none(V)
-        let idx = countBits32(cn.bmp and (flag - 1'u32))
+        let idx = ctriePopcount32(cn.bmp and (flag - 1'u32))
         let child = cn.children[idx]
         if child.isSNode:
           let sn = child.toSNode

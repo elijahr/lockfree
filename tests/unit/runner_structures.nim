@@ -1,5 +1,6 @@
 ## Domain Runner: Data Structures (Stacks, Deques, SkipList, Set, Ctrie, Associative, PQueue, DisjointSet)
 
+import ../test_watchdog
 import ../t_stack
 import ../t_deque
 import ../t_skiplist

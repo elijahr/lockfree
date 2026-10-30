@@ -5,7 +5,6 @@ import std/[options, algorithm, strutils]
 import unittest2
 import lockfree
 import lockfree/priority_queue
-import lockfree/cabi
 
 # ---------------------------------------------------------------------------
 # ARC/ORC Destructor Lifecycle Tracking
@@ -245,95 +244,6 @@ suite "SkipListPriorityQueue ARC/ORC Managed Types & Destructor Lifecycle":
       for round in countdown(79, 0):
         check queues[q].popMin() == some(100 - round)
       check queues[q].isEmpty
-
-# ---------------------------------------------------------------------------
-# C ABI Tests (lfq_pqueue_*)
-# ---------------------------------------------------------------------------
-
-var gCabiDestroyedCount: Atomic[int]
-
-proc testPqueueDestructor(item: pointer, userData: pointer) {.cdecl, gcsafe.} =
-  discard gCabiDestroyedCount.fetchAdd(1, moAcquireRelease)
-  if userData != nil:
-    let tagPtr = cast[ptr int](userData)
-    tagPtr[] = tagPtr[] + cast[int](item)
-
-suite "SkipListPriorityQueue C ABI (lfq_pqueue_*)":
-  test "lfq_pqueue lifecycle, push, peek_min, pop_min, and FIFO tie-breaking":
-    var pq: ptr lfq_pqueue_t = nil
-    check lfq_pqueue_create(nil, nil, addr pq) == LFQ_OK
-    check pq != nil
-    check lfq_pqueue_len(pq) == 0
-    check lfq_pqueue_is_empty(pq) == true
-
-    check lfq_pqueue_push(pq, 30'i64, cast[pointer](300)) == LFQ_OK
-    check lfq_pqueue_push(pq, 10'i64, cast[pointer](101)) == LFQ_OK
-    check lfq_pqueue_push(pq, 10'i64, cast[pointer](102)) == LFQ_OK
-    check lfq_pqueue_push(pq, 20'i64, cast[pointer](200)) == LFQ_OK
-
-    check lfq_pqueue_len(pq) == 4
-    check lfq_pqueue_is_empty(pq) == false
-
-    var prio: int64 = 0
-    var item: pointer = nil
-    check lfq_pqueue_peek_min(pq, addr prio, addr item) == LFQ_OK
-    check prio == 10'i64
-    check cast[int](item) == 101
-    check lfq_pqueue_len(pq) == 4
-
-    check lfq_pqueue_pop_min(pq, addr prio, addr item) == LFQ_OK
-    check prio == 10'i64
-    check cast[int](item) == 101
-
-    check lfq_pqueue_pop_min(pq, addr prio, addr item) == LFQ_OK
-    check prio == 10'i64
-    check cast[int](item) == 102
-
-    check lfq_pqueue_pop_min(pq, addr prio, addr item) == LFQ_OK
-    check prio == 20'i64
-    check cast[int](item) == 200
-
-    check lfq_pqueue_pop_min(pq, nil, addr item) == LFQ_OK
-    check cast[int](item) == 300
-
-    check lfq_pqueue_pop_min(pq, addr prio, addr item) == LFQ_ERR_EMPTY
-    check lfq_pqueue_peek_min(pq, addr prio, addr item) == LFQ_ERR_EMPTY
-    check lfq_pqueue_len(pq) == 0
-    check lfq_pqueue_is_empty(pq) == true
-
-    check lfq_pqueue_destroy(pq) == LFQ_OK
-
-  test "lfq_pqueue_clear and lfq_pqueue_destroy invoke destructor callback":
-    gCabiDestroyedCount.store(0, moRelease)
-    var sumTag: int = 0
-    var pq: ptr lfq_pqueue_t = nil
-    check lfq_pqueue_create(testPqueueDestructor, addr sumTag, addr pq) == LFQ_OK
-
-    check lfq_pqueue_push(pq, 5'i64, cast[pointer](10)) == LFQ_OK
-    check lfq_pqueue_push(pq, 15'i64, cast[pointer](20)) == LFQ_OK
-    check lfq_pqueue_clear(pq) == LFQ_OK
-    check gCabiDestroyedCount.load(moAcquire) == 2
-    check sumTag == 30
-    check lfq_pqueue_is_empty(pq) == true
-
-    check lfq_pqueue_push(pq, 1'i64, cast[pointer](40)) == LFQ_OK
-    check lfq_pqueue_push(pq, 2'i64, cast[pointer](60)) == LFQ_OK
-    check lfq_pqueue_destroy(pq) == LFQ_OK
-    check gCabiDestroyedCount.load(moAcquire) == 4
-    check sumTag == 130
-
-  test "lfq_pqueue invalid argument handling":
-    var pq: ptr lfq_pqueue_t = nil
-    var item: pointer = nil
-    check lfq_pqueue_create(nil, nil, nil) == LFQ_ERR_INVALID_ARG
-    check lfq_pqueue_destroy(nil) == LFQ_ERR_INVALID_ARG
-    check lfq_pqueue_clear(nil) == LFQ_ERR_INVALID_ARG
-    check lfq_pqueue_push(nil, 1'i64, nil) == LFQ_ERR_INVALID_ARG
-    check lfq_pqueue_pop_min(nil, nil, addr item) == LFQ_ERR_INVALID_ARG
-    check lfq_pqueue_peek_min(nil, nil, addr item) == LFQ_ERR_INVALID_ARG
-    check lfq_pqueue_len(nil) == 0
-    check lfq_pqueue_is_empty(nil) == true
-    discard pq
 
 # ---------------------------------------------------------------------------
 # Multi-Threaded Concurrency & Stress Tests

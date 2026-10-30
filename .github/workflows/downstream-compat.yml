@@ -30,6 +30,10 @@ on:
       - '*.md'
       - 'docs/**'
   workflow_dispatch:
+  schedule:
+    # Twice-weekly cache keep-alive (Mondays and Thursdays at 06:00 UTC)
+    # Resets the 7-day GitHub Actions cache eviction timer across downstream compatibility jobs.
+    - cron: "0 6 * * 1,4"
 # yamllint enable rule:truthy
 
 concurrency:
@@ -78,6 +82,17 @@ jobs:
           key: nimble-downstream-lockfreequeues-${{ hashFiles('lockfree/lockfree.nimble', 'lockfreequeues/lockfreequeues.nimble') }}
           restore-keys: |
             nimble-downstream-lockfreequeues-
+          save-always: true
+
+      - name: Cache Nim nimcache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/nim
+          key: nimcache-${{ runner.os }}-downstream-lockfreequeues-${{ hashFiles('lockfree/lockfree.nimble', 'lockfreequeues/lockfreequeues.nimble', 'lockfree/src/**/*.nim', 'lockfreequeues/src/**/*.nim', 'lockfreequeues/tests/**/*.nim') }}
+          restore-keys: |
+            nimcache-${{ runner.os }}-downstream-lockfreequeues-
+          save-always: true
 
       - name: Link local lockfree via nimble develop
         run: |
@@ -162,6 +177,17 @@ jobs:
           key: nimble-downstream-debra-${{ hashFiles('lockfree/lockfree.nimble', 'nim-debra/debra.nimble') }}
           restore-keys: |
             nimble-downstream-debra-
+          save-always: true
+
+      - name: Cache Nim nimcache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/nim
+          key: nimcache-${{ runner.os }}-downstream-debra-${{ hashFiles('lockfree/lockfree.nimble', 'nim-debra/debra.nimble', 'lockfree/src/**/*.nim', 'nim-debra/src/**/*.nim', 'nim-debra/tests/**/*.nim') }}
+          restore-keys: |
+            nimcache-${{ runner.os }}-downstream-debra-
+          save-always: true
 
       - name: Link local lockfree via nimble develop
         run: |

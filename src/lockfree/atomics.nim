@@ -448,19 +448,101 @@ type Pair*[A, B] = object
   first* {.align: 16.}: A
   second*: B
 
-proc hasManagedFields*(T: typedesc): bool {.compileTime.} =
-  when compiles((var d: T; for _, v in d.fieldPairs: discard)):
-    var d: T
-    for _, v in d.fieldPairs:
-      when v is ref or v is string or v is seq:
-        return true
-      elif v is object or v is tuple:
-        when compiles((var d2: typeof(v); for _, v2 in d2.fieldPairs: discard)):
-          if hasManagedFields(typeof(v)):
-            return true
+import std/[macros, strutils]
+
+proc isUnmanagedProcPragma(pragmaNode: NimNode): bool {.compileTime.} =
+  if pragmaNode.isNil or pragmaNode.kind != nnkPragma:
     return false
+  for child in pragmaNode:
+    let pName =
+      if child.kind in {nnkSym, nnkIdent}:
+        child.strVal.toLowerAscii()
+      elif child.kind in {nnkExprColonExpr, nnkCall} and child.len > 0 and child[0].kind in {nnkSym, nnkIdent}:
+        child[0].strVal.toLowerAscii()
+      else:
+        ""
+    if pName in ["nimcall", "cdecl", "stdcall", "safecall", "fastcall", "noconv", "inline", "syscall"]:
+      return true
+  return false
+
+proc hasManagedFieldsImpl(n: NimNode, depth: int = 0): bool {.compileTime.}
+
+proc hasManagedFieldsRec(rec: NimNode, depth: int): bool {.compileTime.} =
+  if rec.isNil or depth > 32: return false
+  case rec.kind
+  of nnkRecList:
+    for c in rec:
+      if hasManagedFieldsRec(c, depth + 1): return true
+  of nnkIdentDefs:
+    if rec.len >= 2:
+      return hasManagedFieldsImpl(rec[^2], depth + 1)
+  of nnkRecCase:
+    if rec.len > 0 and hasManagedFieldsRec(rec[0], depth + 1): return true
+    for i in 1 ..< rec.len:
+      let b = rec[i]
+      if b.len > 0 and hasManagedFieldsRec(b[^1], depth + 1): return true
   else:
+    discard
+  return false
+
+proc hasManagedFieldsImpl(n: NimNode, depth: int = 0): bool {.compileTime.} =
+  if n.isNil or depth > 32: return false
+  case n.kind
+  of nnkBracketExpr:
+    if n.len >= 2 and n[0].kind in {nnkSym, nnkIdent} and eqIdent(n[0], "typeDesc"):
+      return hasManagedFieldsImpl(n[1], depth + 1)
+    if n.len >= 1 and n[0].kind in {nnkSym, nnkIdent}:
+      let head = n[0].strVal.toLowerAscii()
+      if head in ["seq", "iterator"]:
+        return true
+      if head == "proc" and n.getTypeImpl().kind != nnkProcTy:
+        return true
+      if head == "distinct" and n.len >= 2:
+        return hasManagedFieldsImpl(n[1], depth + 1)
+      if head in ["ptr", "set", "range", "enum", "var", "lent", "sink"]:
+        return false
+      if head == "array":
+        return hasManagedFieldsImpl(n[^1], depth + 1)
+    let impl = n.getTypeImpl()
+    if impl.kind != nnkNilLit and impl != n:
+      return hasManagedFieldsImpl(impl, depth + 1)
+  of nnkSym, nnkIdent:
+    if n.strVal == "string":
+      return true
+    if n.kind == nnkSym:
+      let impl = n.getTypeImpl()
+      if impl.kind in {nnkSym, nnkIdent}:
+        return impl.strVal == "string"
+      elif impl.kind != nnkNilLit:
+        return hasManagedFieldsImpl(impl, depth + 1)
+  of nnkRefTy, nnkIteratorTy:
+    return true
+  of nnkDistinctTy:
+    if n.len > 0:
+      return hasManagedFieldsImpl(n[0], depth + 1)
     return false
+  of nnkProcTy:
+    let pragmaNode = if n.len >= 2: n[1] else: nil
+    return not isUnmanagedProcPragma(pragmaNode)
+  of nnkPtrTy, nnkEnumTy:
+    return false
+  of nnkObjectTy:
+    if n.len >= 2 and n[1].kind == nnkOfInherit and n[1].len > 0:
+      if hasManagedFieldsImpl(n[1][0], depth + 1): return true
+    if n.len >= 3:
+      if hasManagedFieldsRec(n[2], depth + 1): return true
+  of nnkTupleTy, nnkTupleClassTy, nnkTupleConstr:
+    for c in n:
+      if c.kind == nnkIdentDefs:
+        if c.len >= 2 and hasManagedFieldsImpl(c[^2], depth + 1): return true
+      else:
+        if hasManagedFieldsImpl(c, depth + 1): return true
+  else:
+    discard
+  return false
+
+macro hasManagedFields*(T: typedesc): untyped =
+  newLit(hasManagedFieldsImpl(T.getTypeImpl()))
 
 template enforceDwcasConstraints*(A, B: typedesc) =
   ## Gate 2 (Pair shape) + Gate 4 (lock-free) for `Atomic[Pair[A, B]]`.

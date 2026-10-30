@@ -23,7 +23,16 @@
 ##
 ##
 
-import std/[os, osproc, strformat, strutils]
+import std/[os, osproc, strformat, strutils, times]
+
+when defined(posix):
+  import std/posix
+elif defined(windows):
+  import std/winlean
+  proc peekNamedPipe(hPipe: Handle, lpBuffer: pointer, nBufferSize: int32,
+                     lpBytesRead: ptr int32, lpTotalBytesAvail: ptr int32,
+                     lpBytesLeftThisMessage: ptr int32): WINBOOL {.
+      stdcall, dynlib: "kernel32", importc: "PeekNamedPipe".}
 
 type
   ExpectedOutcome = enum
@@ -320,14 +329,40 @@ const cases = @[
 ]
 
 
-proc runCase(c: Case): bool =
-  # Child nim invocation uses the worktree's nimble.paths (regenerated
-  # by `nimble setup` / `nimble install -dy`) for dep resolution.
-  let ccEnv = getEnv("LFQ_CC", "")
-  let ccFlag = if ccEnv.len > 0: " --cc:" & ccEnv else: ""
-  let cmd =
-    &"nim c{ccFlag} --threads:on --hints:off --warnings:off --path:src --compileOnly {c.file}"
-  let (output, exitCode) = execCmdEx(cmd)
+type
+  RunningCase = object
+    idx: int
+    p: Process
+    t0: float
+    output: string
+
+proc drainProcessOutput(rc: var RunningCase) =
+  when defined(posix):
+    let fd = rc.p.outputHandle.cint
+    var buf: array[4096, char]
+    while true:
+      let n = posix.read(fd, addr buf[0], buf.len)
+      if n > 0:
+        let oldLen = rc.output.len
+        rc.output.setLen(oldLen + n)
+        copyMem(addr rc.output[oldLen], addr buf[0], n)
+      else:
+        break
+  elif defined(windows):
+    let h = cast[Handle](rc.p.outputHandle)
+    var avail: int32 = 0
+    while peekNamedPipe(h, nil, 0, nil, addr avail, nil) != 0 and avail > 0:
+      var buf: array[4096, char]
+      var bytesRead: int32 = 0
+      let toRead = min(avail, int32(buf.len))
+      if winlean.readFile(h, addr buf[0], toRead, addr bytesRead, nil) != 0 and bytesRead > 0:
+        let oldLen = rc.output.len
+        rc.output.setLen(oldLen + int(bytesRead))
+        copyMem(addr rc.output[oldLen], addr buf[0], int(bytesRead))
+      else:
+        break
+
+proc evaluateCase(c: Case, output: string, exitCode: int): bool =
   case c.outcome
   of eoCompiles:
     if exitCode != 0:
@@ -351,10 +386,93 @@ proc runCase(c: Case): bool =
     return true
 
 proc main() =
+  # Child nim invocations use the worktree's nimble.paths (regenerated
+  # by `nimble setup` / `nimble install -dy`) for dep resolution, with
+  # isolated per-case `--nimcache` directories so parallel `nim c --compileOnly`
+  # workers never collide.
+  let maxWorkers = max(1, countProcessors())
+  let ccEnv = getEnv("LFQ_CC", "")
+  var timeoutSec = 180.0
+  let envTimeout = getEnv("LFQ_TEST_TIMEOUT_SEC", "")
+  if envTimeout.len > 0:
+    try:
+      timeoutSec = parseFloat(envTimeout)
+    except ValueError:
+      discard
+  let cacheBase = getTempDir() / ("lockfree_should_fail_" & $getCurrentProcessId())
+  var running: seq[RunningCase] = @[]
+  var outputs = newSeq[string](cases.len)
+  var exitCodes = newSeq[int](cases.len)
+  var completed = newSeq[bool](cases.len)
+  var nextIdx = 0
+  var nextPrintIdx = 0
   var failed = 0
-  for c in cases:
-    if not runCase(c):
-      inc failed
+
+  while nextIdx < cases.len or running.len > 0:
+    while running.len < maxWorkers and nextIdx < cases.len:
+      let idx = nextIdx
+      inc nextIdx
+      let c = cases[idx]
+      var args = @[
+        "c",
+        "--threads:on",
+        "--hints:off",
+        "--warnings:off",
+        "--path:src",
+        "--compileOnly",
+        "--nimcache:" & (cacheBase / ("case_" & $idx)),
+        c.file
+      ]
+      if ccEnv.len > 0:
+        args.insert("--cc:" & ccEnv, 1)
+      let p = startProcess("nim", args = args, options = {poStdErrToStdOut, poUsePath})
+      when defined(posix):
+        let fd = p.outputHandle.cint
+        let flags = fcntl(fd, F_GETFL, 0)
+        discard fcntl(fd, F_SETFL, flags or O_NONBLOCK)
+      running.add(RunningCase(idx: idx, p: p, t0: epochTime(), output: ""))
+
+    var i = 0
+    var anyFinished = false
+    while i < running.len:
+      drainProcessOutput(running[i])
+      var code = running[i].p.peekExitCode()
+      let dur = epochTime() - running[i].t0
+      if code == -1 and dur > timeoutSec:
+        when defined(windows):
+          discard execShellCmd("taskkill /F /T /PID " & $running[i].p.processID & " >NUL 2>&1")
+        elif defined(posix):
+          discard execShellCmd("pkill -KILL -P " & $running[i].p.processID & " >/dev/null 2>&1")
+        running[i].p.kill()
+        code = 124
+        running[i].output.add("\n[TIMEOUT] Compile-fail case exceeded " & $int(timeoutSec) & "s watchdog limit and was terminated.\n")
+
+      if code != -1:
+        drainProcessOutput(running[i])
+        let idx = running[i].idx
+        outputs[idx] = running[i].output
+        exitCodes[idx] = code
+        completed[idx] = true
+        running[i].p.close()
+        running.delete(i)
+        anyFinished = true
+      else:
+        inc i
+
+    while nextPrintIdx < cases.len and completed[nextPrintIdx]:
+      if not evaluateCase(cases[nextPrintIdx], outputs[nextPrintIdx], exitCodes[nextPrintIdx]):
+        inc failed
+      flushFile(stdout)
+      inc nextPrintIdx
+
+    if not anyFinished and running.len > 0:
+      sleep(5)
+
+  try:
+    removeDir(cacheBase)
+  except CatchableError:
+    discard
+
   if failed > 0:
     echo &"\n{failed} compile-fail case(s) failed."
     quit(1)

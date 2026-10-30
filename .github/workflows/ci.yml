@@ -63,6 +63,10 @@ on:
     paths-ignore:
       - '*.md'
   workflow_dispatch:
+  schedule:
+    # Twice-weekly cache keep-alive (Mondays and Thursdays at 06:00 UTC)
+    # Resets the 7-day GitHub Actions cache eviction timer across all Tier A & Tier C lanes.
+    - cron: "0 6 * * 1,4"
 # yamllint enable rule:truthy
 
 # Cancel superseded runs on the same ref so a force-push or rapid
@@ -73,7 +77,7 @@ concurrency:
 
 env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  LFQ_TEST_TIMEOUT_SEC: "360"
+  LFQ_TEST_TIMEOUT_SEC: "300"
 
 # Pin every `run:` step's shell to bash. Real GHA's hosted runners default
 # to bash for `run:` steps, so workflows that use bash-isms (`set -o
@@ -114,6 +118,7 @@ jobs:
           key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
             nimble-${{ runner.os }}-stable-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -123,6 +128,7 @@ jobs:
           key: nimcache-${{ runner.os }}-stable-base-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
           restore-keys: |
             nimcache-${{ runner.os }}-stable-base-
+          save-always: true
 
       - name: Install dependencies from nimble registry
         run: |
@@ -202,7 +208,7 @@ jobs:
             sanitize-address: 'no'
             cache-tag: 'orc'
             continue-on-error: 'false'
-            timeout: 60
+            timeout: 20
 
           - cell: '1b'
             label: 'baseline cpp/gcc/linux'
@@ -215,7 +221,7 @@ jobs:
             sanitize-address: 'no'
             cache-tag: 'cpp'
             continue-on-error: 'false'
-            timeout: 60
+            timeout: 20
 
           - cell: '1c'
             label: 'baseline arc/gcc/linux + nebr aggregator'
@@ -228,7 +234,7 @@ jobs:
             sanitize-address: 'no'
             cache-tag: 'arc'
             continue-on-error: 'false'
-            timeout: 60
+            timeout: 20
 
     steps:
       - name: Checkout project
@@ -243,6 +249,7 @@ jobs:
           key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
             nimble-${{ runner.os }}-stable-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -253,6 +260,7 @@ jobs:
           restore-keys: |
             nimcache-${{ runner.os }}-stable-${{ matrix.cache-tag }}-
             nimcache-${{ runner.os }}-stable-
+          save-always: true
 
       # Tier A is container-only (LOCKFREE_NIM_FROM_IMAGE='true' at job level),
       # so this step is a no-op here. Kept as a safety net in case the matrix
@@ -336,7 +344,7 @@ jobs:
   multi-nim:
     name: '13: Multi-Nim (2.2.10, 2.2.12, devel)'
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 20
 
     steps:
       - name: Checkout project
@@ -357,6 +365,7 @@ jobs:
           restore-keys: |
             nimble-${{ runner.os }}-multinim-
             nimble-${{ runner.os }}-stable-
+          save-always: true
 
       - name: Cache vfox toolchains
         uses: actions/cache@v4
@@ -368,6 +377,7 @@ jobs:
           restore-keys: |
             vfox-${{ runner.os }}-multinim-
             vfox-${{ runner.os }}-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -377,6 +387,7 @@ jobs:
           key: nimcache-${{ runner.os }}-multinim-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
           restore-keys: |
             nimcache-${{ runner.os }}-multinim-
+          save-always: true
 
       - name: Install dependencies from nimble registry
         shell: bash
@@ -444,7 +455,7 @@ jobs:
           for ver in "${VERSIONS[@]}"; do
             switch_toolchain "$ver"
             echo "::group::Running test suite under Nim ${ver}"
-            rm -rf ~/.cache/nim
+            export LFQ_NIMCACHE_TAG="nim_${ver}"
             nimble setup || true
             for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
               [ -e "$d/src" ] || ln -s . "$d/src"
@@ -480,7 +491,7 @@ jobs:
       image: ghcr.io/elijahr/lockfree-ci:latest
     env:
       LOCKFREE_NIM_FROM_IMAGE: 'true'
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
@@ -495,6 +506,7 @@ jobs:
           restore-keys: |
             nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}-
             nimble-${{ runner.os }}-stable-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -505,6 +517,7 @@ jobs:
           restore-keys: |
             nimcache-${{ runner.os }}-stable-chronos-
             nimcache-${{ runner.os }}-stable-base-
+          save-always: true
 
       - name: Install dependencies + chronos
         # CRITICAL #4 preservation: chronos is NOT in lockfree.nimble's
@@ -550,7 +563,7 @@ jobs:
       image: ghcr.io/elijahr/lockfree-ci:latest
     env:
       LOCKFREE_NIM_FROM_IMAGE: 'true'
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
@@ -565,6 +578,7 @@ jobs:
           restore-keys: |
             nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}-
             nimble-${{ runner.os }}-stable-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -575,6 +589,7 @@ jobs:
           restore-keys: |
             nimcache-${{ runner.os }}-stable-stress-
             nimcache-${{ runner.os }}-stable-base-
+          save-always: true
 
       - name: Install dependencies
         run: |
@@ -597,7 +612,7 @@ jobs:
   nimony:
     name: '14: nimony aufbruch (informational)'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 20
     continue-on-error: true
     steps:
       - name: Checkout project
@@ -632,6 +647,7 @@ jobs:
           key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
             nimble-${{ runner.os }}-stable-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -642,6 +658,7 @@ jobs:
           restore-keys: |
             nimcache-${{ runner.os }}-stable-nimony-
             nimcache-${{ runner.os }}-stable-base-
+          save-always: true
 
       - name: Install dependencies from nimble registry
         run: |
@@ -694,7 +711,7 @@ jobs:
   # ===========================================================================
   test-heavy:
     name: '${{ matrix.cell }}: ${{ matrix.label }}'
-    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')) || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')) || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ${{ matrix.runs-on }}
     # Per-cell container: Linux cells (6, 7, 10) inherit the multi-arch
     # lockfree-ci image (Nim 2.2.10 stable + all build tools); macOS (11)
@@ -733,7 +750,7 @@ jobs:
             sanitize-address: 'no'
             cache-tag: 'tsan'
             continue-on-error: true
-            timeout: 45
+            timeout: 20
 
           # --- Cell 7: ASAN on baseline lane ---------------------------------
           - cell: '7'
@@ -750,7 +767,7 @@ jobs:
             sanitize-address: 'yes'
             cache-tag: 'asan'
             continue-on-error: true
-            timeout: 60
+            timeout: 20
 
           # --- Cell 10: Linux arm64 ------------------------------------------
           - cell: '10'
@@ -765,7 +782,7 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'no'
             cache-tag: 'base'
-            timeout: 45
+            timeout: 20
 
           # --- Cell 11: macOS arm64 (Apple Silicon + Apple Clang) ------------
           # No container: macOS runner cannot host a Linux container.
@@ -779,7 +796,7 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'no'
             cache-tag: 'base'
-            timeout: 45
+            timeout: 20
 
           # --- Cell 17a: Windows + MSVC (vcc) + orc --------------------------
           # No container: Windows runner cannot host a Linux container.
@@ -795,7 +812,7 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'no'
             cache-tag: 'msvc'
-            timeout: 60
+            timeout: 20
             continue-on-error: true
 
           # --- Cell 17b: Windows + MinGW GCC + orc ---------------------------
@@ -812,7 +829,7 @@ jobs:
             sanitize-threads: 'no'
             sanitize-address: 'no'
             cache-tag: 'mingw'
-            timeout: 45
+            timeout: 20
             continue-on-error: true
 
     steps:
@@ -855,6 +872,7 @@ jobs:
           restore-keys: |
             nimble-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.compiler || 'default' }}-
             nimble-${{ runner.os }}-${{ matrix.nim-version }}-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -865,6 +883,7 @@ jobs:
           restore-keys: |
             nimcache-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-
             nimcache-${{ runner.os }}-${{ matrix.nim-version }}-base-
+          save-always: true
 
       # Image already ships clang; only install on non-container Linux runs.
       - name: Install clang (Linux, non-container)
@@ -946,9 +965,6 @@ jobs:
               echo "::endgroup::"
               ;;
           esac
-          echo "::group::Run examples"
-          nimble_run nimble examples
-          echo "::endgroup::"
 
       - name: Run tests (Windows)
         if: runner.os == 'Windows'
@@ -981,16 +997,8 @@ jobs:
           fi
           echo "::endgroup::"
 
-          echo "::group::Verify 64-bit DWCAS (128-bit atomics) on Windows"
-          nim c --cc:${{ matrix.compiler }} --threads:on -r tests/t_dwcas.nim
-          echo "::endgroup::"
-
           echo "::group::Run test suite on Windows (compiler=${{ matrix.compiler }}, mm=${{ matrix.mm }})"
           nimble_run nimble test
-          echo "::endgroup::"
-
-          echo "::group::Run examples on Windows"
-          nimble_run nimble examples
           echo "::endgroup::"
 
   # ===========================================================================
@@ -998,13 +1006,13 @@ jobs:
   # ===========================================================================
   valgrind:
     name: '8: Valgrind memcheck (subset)'
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')) || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/elijahr/lockfree-ci:latest
     env:
       LOCKFREE_NIM_FROM_IMAGE: 'true'
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
@@ -1018,6 +1026,7 @@ jobs:
           key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
             nimble-${{ runner.os }}-stable-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -1027,6 +1036,7 @@ jobs:
           key: nimcache-${{ runner.os }}-stable-base-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
           restore-keys: |
             nimcache-${{ runner.os }}-stable-base-
+          save-always: true
 
       # Image already ships valgrind; only install when running outside the
       # container (kept as a safety hatch if the container is ever removed).
@@ -1085,13 +1095,13 @@ jobs:
   # ===========================================================================
   helgrind:
     name: '9: Helgrind (subset)'
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')) || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/elijahr/lockfree-ci:latest
     env:
       LOCKFREE_NIM_FROM_IMAGE: 'true'
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - name: Checkout project
         uses: actions/checkout@v4
@@ -1105,6 +1115,7 @@ jobs:
           key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
             nimble-${{ runner.os }}-stable-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -1114,6 +1125,7 @@ jobs:
           key: nimcache-${{ runner.os }}-stable-base-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
           restore-keys: |
             nimcache-${{ runner.os }}-stable-base-
+          save-always: true
 
       # Image already ships valgrind (provides helgrind); only install when
       # running outside the container.

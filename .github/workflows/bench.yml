@@ -84,8 +84,8 @@ jobs:
       - name: Install dependencies from nimble registry
         run: |
           nimble install -dy
-          nimble install -y threading loony
           nimble setup
+          nimble install -y threading loony
           for d in $(find ~/.nimble/pkgs2 -maxdepth 1 -type d -name "typestates-*" 2>/dev/null); do
             [ -e "$d/src" ] || ln -s . "$d/src"
           done
@@ -160,6 +160,7 @@ jobs:
           cp merged.json "docs/assets/bench-results/${SHA}.json"
           cp merged.json docs/assets/bench-results/latest.json
           cp merged.json docs/assets/bench-results/example.json
+          python3 -m unittest discover -s benchmarks/tests -p "test_*.py"
           python3 benchmarks/scripts/generate_readme_benchmarks.py \
             --bmf docs/assets/bench-results/latest.json \
             --svg-hero docs/assets/bench-results/hero-throughput.svg \
@@ -204,6 +205,7 @@ jobs:
           cp merged.json "docs/assets/bench-results/${SHA}.json"
           cp merged.json docs/assets/bench-results/latest.json
           cp merged.json docs/assets/bench-results/example.json
+          python3 -m unittest discover -s benchmarks/tests -p "test_*.py"
           python3 benchmarks/scripts/generate_readme_benchmarks.py \
             --bmf docs/assets/bench-results/latest.json \
             --svg-hero docs/assets/bench-results/hero-throughput.svg \

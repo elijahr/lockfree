@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-10-30
+
 ### Added
 
 - **Zero-Copy Two-Phase `StreamBuffer` / `StreamRing` Reserve/Commit & Peek/Consume C ABI (`include/lockfree_streambuffer.h`, `src/lockfree/cabi.nim`)**:
@@ -15,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Added `BQueue128.tryPushEx` / `pushEx`, `lf_bqueue128_push_ex` (`lfq_bqueue128_push_ex`), and `lf_push_ex` / `lf_queue_push_ex` (`lfq_push_ex` / `lfq_queue_push_ex`) reporting `out_was_empty` on `0 -> 1` queue transitions for zero-syscall steady-state event-loop wakeups.
 - **Unbounded Queue Teardown Destructor Fallback (`src/lockfree/cabi.nim`)**:
   - Hardened `unboundedQueueDestroy` with a direct segment-chain LCRQ cell drain fallback when `DebraManager` thread registration slots are exhausted at teardown time.
+- **Bundled Parallel Test Runner, Compile-Fail Parallelism & CI Cache / Schedule Hardening (`tests/test_runner.nim`, `tests/should_fail/runner.nim`, `tests/unit/runner_*.nim`, `tests/concurrency/runner_concurrency_*.nim`, `.github/workflows/ci.yml`, `.github/workflows/downstream-compat.yml`)**:
+  - Defaulted `tests/test_runner.nim` to bundled parallel mode across 18 balanced sub-runners (13 unit + 5 concurrency, with `--unbundled` fallback and `max(1, (countProcessors() * 3) div 4)` default bundled workers), parallelized `tests/should_fail/runner.nim` across `countProcessors()` with non-blocking pipe drainage and per-case timeout watchdog, added `save-always: true` and `nimcache` caching across `.github/workflows/ci.yml` and `.github/workflows/downstream-compat.yml`, and added twice-weekly schedule triggers (`0 6 * * 1,4`) with all CI job timeouts capped at 20m.
 
 ### Changed
 
@@ -24,6 +28,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Windows MSVC `C1041` PDB Contention, Per-Worker `nimcache` Reuse, `t_broadcast_threaded` Subscription Barrier, `-mcx16` Flag Scoping, `nimble.lock` `actionSetup` Compatibility, `ctrie` `countBits32` Symbol Collision, and Nim 2.4.0 `RegisterResult` & `hasManagedFields` Compatibility (`nimble.lock`, `.github/workflows/bench.yml`, `lockfree.nimble`, `nim.cfg`, `tests/nim.cfg`, `tests/test_runner.nim`, `tests/t_broadcast_threaded.nim`, `tests/smr/debra-legacy/should_fail/t_dwcas_no_mcx16.nim.cfg`, `src/lockfree/ctrie.nim`, `src/lockfree/smr/nebr/typestates/registration.nim`, `src/lockfree/internal/path_c_admit.nim`, `src/lockfree/atomics.nim`)**:
+  - Updated `nimble.lock` to lock `typestates` (`0.14.0`) and `unittest2` (`0.3.0`) matching `lockfree.nimble` constraints (eliminating Nimble v0.26.2 `actionSetup` `FieldDefect` when regenerating `nimble.paths`), and invoked `nimble setup` immediately after `nimble install -dy` in `.github/workflows/bench.yml`.
+  - Guarded debug-only flags (`--opt:none`, `--define:debug`, `--debuginfo`, `--debugger:native`, `--lineDir:on`) in `tests/nim.cfg` under `@if not release and not danger:`, and updated `tests/test_runner.nim` (`buildCompileCmd` / `runParallel`) to pass `--parallelBuild:2` in bundled mode (`--parallelBuild:1` unbundled), `--debugger:off` and `--debuginfo:off` in release/danger mode, `--opt:none` and `--passC:/Fd:<dir>/vc140.pdb` on MSVC (`cc == "vcc"`), per-bundle isolated `--nimcache` directories (`<effNimcacheDir>/<testBase>`) with `LFQ_NIMCACHE_TAG` version scoping and isolated `--out:` binaries (preventing concurrent `.c`/`.obj`/`vc140.pdb` collisions across parallel bundles), process-tree cleanup (`taskkill /F /T` / `pkill -KILL -P`) on timeout, and immediate `flushFile(stdout)`.
+  - Replaced the racy `sleep(10)` startup delay in `tests/t_broadcast_threaded.nim` with an atomic `readyCount` barrier so all 4 reader threads complete `subscribe(soFromLatest)` before item `0` is published on heavily loaded Windows CI runners.
+  - Scoped `-mcx16` and `-march=armv8.1-a+lse` in `nim.cfg` to `gcc`/`clang` C and C++ backends (`*.options.always`) so MSVC `cl.exe` no longer emits `Command line warning D9002: ignoring unknown option '-mcx16'`, added `define = "lockfreeCustomCFlags"` to `t_dwcas_no_mcx16.nim.cfg`, and added `-d:release --opt:speed --path:src` to `task testASan` in `lockfree.nimble`.
+  - Renamed internal `countBits32` template in `src/lockfree/ctrie.nim` to `ctriePopcount32` (calling `bitops.countSetBits`) to prevent generic instantiation ambiguity with `system.countBits32(n: uint32)` from `system/sets.nim` when consumers import both `lockfree` and `std/strutils` (e.g., `benchmarks/nim/bench_latency.nim`).
+  - Refactored `proc register` in `src/lockfree/smr/nebr/typestates/registration.nim` to exit the slot-claiming loops via `block search: ... break search` before constructing `RegisterResult[MaxThreads, CC]`, and converted `hasManagedFields` in `src/lockfree/atomics.nim` (re-exported by `src/lockfree/internal/path_c_admit.nim`) to an AST-inspecting macro (`getTypeImpl`, handling `distinct`, closure `proc`, and `iterator` types) so Nim 2.4.0 / `devel` never emits compile-time VM `=destroy` calls on non-copyable types with runtime destructors.
+  - Restored the 48 `bench_stacks_deques` benchmark slugs in `docs/assets/bench-results/example.json` and `docs/assets/bench-results/latest.json`, added a single-retry guard in `benchmarks/scripts/run_benchmarks.sh`, and gated `bench.yml` snapshot commits on `python3 -m unittest discover -s benchmarks/tests -p "test_*.py"`.
 - **C ABI StreamBuffer Reservation Tracking & Unbounded Queue `pushEx` Segment Rollover (`src/lockfree/cabi.nim`, `src/lockfree/queue.nim`, `tests/t_cabi.nim`)**:
   - Preserved active `lastReservedWrite` reservation across failed `lf_stream_reserve_write` calls (`LF_ERR_INVALID_ARG` / `LF_ERR_FULL`), delegated `unboundedQueueIsEmpty`, `lf_table_is_empty`, `lf_ctrie_is_empty`, and `lf_ctrie_snapshot_is_empty` to `.isEmpty()`, and handled segment-boundary rollover in `Queue.pushEx`.
 - **`TaggedStack.tryPush` Data Race & `Channel` TLS MRU Eviction Slot Recycling (`src/lockfree/stack128.nim`, `src/lockfree/channel.nim`)**:

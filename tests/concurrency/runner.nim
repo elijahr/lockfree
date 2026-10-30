@@ -30,5 +30,3 @@ import ../t_associative_threaded
 import ../t_atomic_arc_threaded
 import ../t_async_bridge
 import ../t_cabi
-import ../t_disjoint_set
-import ../t_bqueue128

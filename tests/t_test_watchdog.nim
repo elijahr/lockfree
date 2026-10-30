@@ -3,6 +3,7 @@
 import std/[os, osproc, strtabs, strutils]
 import unittest2
 import ./test_watchdog
+import ./test_runner
 
 proc cloneCurrentEnv(overrides: openArray[(string, string)]): StringTableRef =
   result = newStringTable(modeCaseSensitive)
@@ -72,3 +73,173 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
     )
     check exitCode == 0
     check "[LOCKFREE TEST WATCHDOG TIMEOUT]" notin output
+
+  test "buildCompileCmd enforces --parallelBuild:1, per-bundle nimcache reuse, release debug-info stripping, and MSVC per-bundle /Fd: PDB":
+    delEnv("LFQ_NIMCACHE_TAG")
+    let defaultCacheRoot = getHomeDir() / ".cache" / "nim" / "test_runner_orc_c_vcc"
+    let expectedDwcasCache = defaultCacheRoot / "t_dwcas"
+    let binExt = when defined(windows): ".exe" else: ""
+
+    let releaseVccCmd = buildCompileCmd(
+      testPath = "tests/t_dwcas.nim",
+      mm = "orc",
+      backend = "c",
+      cc = "vcc",
+      nimcacheDir = "",
+      isRelease = true,
+      isDanger = false
+    )
+    check releaseVccCmd == @[
+      "c",
+      "--mm:orc",
+      "--threads:on",
+      "--parallelBuild:1",
+      "--path:src",
+      "-d:testing",
+      "--verbosity:0",
+      "--hints:off",
+      "--warnings:off",
+      "--cc:vcc",
+      "-d:release",
+      "-u:debug",
+      "--opt:none",
+      "--assertions:on",
+      "--debugger:off",
+      "--debuginfo:off",
+      "--nimcache:" & expectedDwcasCache,
+      "--out:" & (expectedDwcasCache / ("t_dwcas" & binExt)),
+      "--passC:/Fd:" & (expectedDwcasCache / "vc140.pdb"),
+      "-r",
+      "tests/t_dwcas.nim"
+    ]
+
+    let dangerCppCmd = buildCompileCmd(
+      testPath = "tests/t_queue.nim",
+      mm = "arc",
+      backend = "cpp",
+      cc = "",
+      nimcacheDir = "/tmp/custom_nimcache",
+      isRelease = false,
+      isDanger = true
+    )
+    let customQueueCache = "/tmp/custom_nimcache" / "t_queue"
+    check dangerCppCmd == @[
+      "cpp",
+      "--mm:arc",
+      "--threads:on",
+      "--parallelBuild:1",
+      "--path:src",
+      "-d:testing",
+      "--verbosity:0",
+      "--hints:off",
+      "--warnings:off",
+      "-d:danger",
+      "-u:debug",
+      "--opt:speed",
+      "--debugger:off",
+      "--debuginfo:off",
+      "--nimcache:" & customQueueCache,
+      "--out:" & (customQueueCache / ("t_queue" & binExt)),
+      "-r",
+      "tests/t_queue.nim"
+    ]
+
+    let debugVccCmd = buildCompileCmd(
+      testPath = "tests/t_dwcas.nim",
+      mm = "orc",
+      backend = "c",
+      cc = "vcc",
+      nimcacheDir = "",
+      isRelease = false,
+      isDanger = false
+    )
+    check debugVccCmd == @[
+      "c",
+      "--mm:orc",
+      "--threads:on",
+      "--parallelBuild:1",
+      "--path:src",
+      "-d:testing",
+      "--verbosity:0",
+      "--hints:off",
+      "--warnings:off",
+      "--cc:vcc",
+      "--nimcache:" & expectedDwcasCache,
+      "--out:" & (expectedDwcasCache / ("t_dwcas" & binExt)),
+      "--passC:/Fd:" & (expectedDwcasCache / "vc140.pdb"),
+      "-r",
+      "tests/t_dwcas.nim"
+    ]
+
+    let bundledVccCmd = buildCompileCmd(
+      testPath = "tests/unit/runner_primitives.nim",
+      mm = "orc",
+      backend = "c",
+      cc = "vcc",
+      nimcacheDir = "",
+      isRelease = true,
+      isDanger = false,
+      isBundled = true
+    )
+    let expectedPrimitivesCache = defaultCacheRoot / "runner_primitives"
+    check bundledVccCmd == @[
+      "c",
+      "--mm:orc",
+      "--threads:on",
+      "--parallelBuild:2",
+      "--path:src",
+      "-d:testing",
+      "--verbosity:0",
+      "--hints:off",
+      "--warnings:off",
+      "--cc:vcc",
+      "-d:release",
+      "-u:debug",
+      "--opt:none",
+      "--assertions:on",
+      "--debugger:off",
+      "--debuginfo:off",
+      "--nimcache:" & expectedPrimitivesCache,
+      "--out:" & (expectedPrimitivesCache / ("runner_primitives" & binExt)),
+      "--passC:/Fd:" & (expectedPrimitivesCache / "vc140.pdb"),
+      "-r",
+      "tests/unit/runner_primitives.nim"
+    ]
+
+    putEnv("LFQ_NIMCACHE_TAG", "nim_2.2.12")
+    let taggedCmd = buildCompileCmd(
+      testPath = "tests/t_dwcas.nim",
+      mm = "orc",
+      backend = "c",
+      cc = "vcc",
+      nimcacheDir = "",
+      isRelease = true,
+      isDanger = false
+    )
+    delEnv("LFQ_NIMCACHE_TAG")
+    let expectedTaggedCache = getHomeDir() / ".cache" / "nim" / "test_runner_orc_c_vcc_nim_2.2.12" / "t_dwcas"
+    check "--nimcache:" & expectedTaggedCache in taggedCmd
+
+    let winDriveArg = "--nimcache:C:\\temp\\cache"
+    let parsedWinNimcache = winDriveArg.split(":", maxsplit = 1)[1]
+    check parsedWinNimcache == "C:\\temp\\cache"
+    let winCmd = buildCompileCmd(
+      testPath = "tests/t_dwcas.nim",
+      mm = "orc",
+      backend = "c",
+      cc = "vcc",
+      nimcacheDir = parsedWinNimcache,
+      isRelease = true,
+      isDanger = false
+    )
+    check ("--nimcache:" & ("C:\\temp\\cache" / "t_dwcas")) in winCmd
+
+    check findQueueBundles().len == 8
+    check findStructureBundles().len == 2
+    check findSyncBundles().len == 2
+    check findUnitBundles().len == 13
+    check findConcurrencyBundles().len == 5
+    check resolveBundledMode(0, "", unbundledFlag = false) == true
+    check resolveBundledMode(0, "", unbundledFlag = true) == false
+    check resolveBundledMode(1, "", unbundledFlag = false) == false
+    check resolveBundledMode(0, "dwcas", unbundledFlag = false) == false
