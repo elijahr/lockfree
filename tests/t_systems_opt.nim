@@ -4,10 +4,12 @@
 ## 3. isEmpty and optional itemCount tracking
 
 import std/atomics
+import std/tables
 import unittest2
 import options
 
 import lockfree/constants
+from lockfree/atomics import hasManagedFields
 import lockfree/bqueue
 import lockfree/queue
 import lockfree/endpoint
@@ -104,3 +106,28 @@ suite "Systems Optimization — Queue.isEmpty":
     let v = c.pop()
     check v.isSome and v.get == 100
     check q.isEmpty()
+
+  test "hasManagedFields classifies generic aliases (Table), distinct, proc, iterator, and non-copyable types":
+    type
+      DistinctString = distinct string
+      DistinctInt = distinct int
+      ClosureCb = proc(): int {.closure.}
+      RawNimcallCb = proc(): int {.nimcall.}
+      TableWrapper = object
+        t: Table[int, int]
+      ManagedWrapper = object
+        label: DistinctString
+      UnmanagedWrapper = object
+        handle: CustomHandle
+        cb: RawNimcallCb
+        tag: DistinctInt
+
+    check hasManagedFields(Table[int, int]) == true
+    check hasManagedFields(TableWrapper) == true
+    check hasManagedFields(DistinctString) == true
+    check hasManagedFields(ClosureCb) == true
+    check hasManagedFields(ManagedWrapper) == true
+    check hasManagedFields(DistinctInt) == false
+    check hasManagedFields(RawNimcallCb) == false
+    check hasManagedFields(CustomHandle) == false
+    check hasManagedFields(UnmanagedWrapper) == false

@@ -450,6 +450,21 @@ type Pair*[A, B] = object
 
 import std/[macros, strutils]
 
+proc isUnmanagedProcPragma(pragmaNode: NimNode): bool {.compileTime.} =
+  if pragmaNode.isNil or pragmaNode.kind != nnkPragma:
+    return false
+  for child in pragmaNode:
+    let pName =
+      if child.kind in {nnkSym, nnkIdent}:
+        child.strVal.toLowerAscii()
+      elif child.kind in {nnkExprColonExpr, nnkCall} and child.len > 0 and child[0].kind in {nnkSym, nnkIdent}:
+        child[0].strVal.toLowerAscii()
+      else:
+        ""
+    if pName in ["nimcall", "cdecl", "stdcall", "safecall", "fastcall", "noconv", "inline", "syscall"]:
+      return true
+  return false
+
 proc hasManagedFieldsImpl(n: NimNode, depth: int = 0): bool {.compileTime.}
 
 proc hasManagedFieldsRec(rec: NimNode, depth: int): bool {.compileTime.} =
@@ -478,14 +493,18 @@ proc hasManagedFieldsImpl(n: NimNode, depth: int = 0): bool {.compileTime.} =
       return hasManagedFieldsImpl(n[1], depth + 1)
     if n.len >= 1 and n[0].kind in {nnkSym, nnkIdent}:
       let head = n[0].strVal.toLowerAscii()
-      if head == "seq":
+      if head in ["seq", "iterator"]:
         return true
-      if head in ["ptr", "distinct", "set", "proc", "iterator", "range", "enum", "var", "lent", "sink"]:
+      if head == "proc" and n.getTypeImpl().kind != nnkProcTy:
+        return true
+      if head == "distinct" and n.len >= 2:
+        return hasManagedFieldsImpl(n[1], depth + 1)
+      if head in ["ptr", "set", "range", "enum", "var", "lent", "sink"]:
         return false
       if head == "array":
         return hasManagedFieldsImpl(n[^1], depth + 1)
     let impl = n.getTypeImpl()
-    if impl.kind notin {nnkNilLit, nnkSym, nnkIdent, nnkBracketExpr}:
+    if impl.kind != nnkNilLit and impl != n:
       return hasManagedFieldsImpl(impl, depth + 1)
   of nnkSym, nnkIdent:
     if n.strVal == "string":
@@ -496,9 +515,16 @@ proc hasManagedFieldsImpl(n: NimNode, depth: int = 0): bool {.compileTime.} =
         return impl.strVal == "string"
       elif impl.kind != nnkNilLit:
         return hasManagedFieldsImpl(impl, depth + 1)
-  of nnkRefTy:
+  of nnkRefTy, nnkIteratorTy:
     return true
-  of nnkPtrTy, nnkDistinctTy, nnkEnumTy, nnkProcTy, nnkIteratorTy:
+  of nnkDistinctTy:
+    if n.len > 0:
+      return hasManagedFieldsImpl(n[0], depth + 1)
+    return false
+  of nnkProcTy:
+    let pragmaNode = if n.len >= 2: n[1] else: nil
+    return not isUnmanagedProcPragma(pragmaNode)
+  of nnkPtrTy, nnkEnumTy:
     return false
   of nnkObjectTy:
     if n.len >= 2 and n[1].kind == nnkOfInherit and n[1].len > 0:

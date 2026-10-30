@@ -24,7 +24,6 @@ type
     p: Process
     t0: float
     output: string
-    workerSlot: int
 
 proc drainProcessOutput(rp: var RunningProcess) =
   when defined(posix):
@@ -135,7 +134,6 @@ proc buildCompileCmd*(
   nimcacheDir: string = "",
   isRelease: bool = false,
   isDanger: bool = false,
-  workerSlot: int = 0,
   isBundled: bool = false
 ): seq[string] =
   result = @[
@@ -185,7 +183,6 @@ proc buildCompileCmd*(
 proc resolveBundledMode*(
   directFilesCount: int,
   filterSubstr: string,
-  bundledFlag: bool = false,
   unbundledFlag: bool = false
 ): bool =
   if directFilesCount > 0 or filterSubstr.len > 0 or unbundledFlag:
@@ -206,9 +203,6 @@ proc runParallel(
 ): int =
   var running: seq[RunningProcess] = @[]
   var results: seq[TestResult] = @[]
-  var freeSlots: seq[int] = @[]
-  for slot in countdown(max(1, maxWorkers) - 1, 0):
-    freeSlots.add(slot)
   let total = tests.len
   var nextIdx = 0
   var completed = 0
@@ -217,9 +211,8 @@ proc runParallel(
 
   while nextIdx < total or running.len > 0:
     # Fill worker pool
-    while running.len < maxWorkers and nextIdx < total and freeSlots.len > 0:
+    while running.len < maxWorkers and nextIdx < total:
       let testPath = tests[nextIdx]
-      let workerSlot = freeSlots.pop()
       inc nextIdx
       let t0 = epochTime()
       let cmd = "nim"
@@ -231,7 +224,6 @@ proc runParallel(
         nimcacheDir = nimcacheDir,
         isRelease = isRelease,
         isDanger = isDanger,
-        workerSlot = workerSlot,
         isBundled = isBundled
       )
 
@@ -241,7 +233,7 @@ proc runParallel(
         let flags = fcntl(fd, F_GETFL, 0)
         discard fcntl(fd, F_SETFL, flags or O_NONBLOCK)
 
-      running.add(RunningProcess(path: testPath, p: p, t0: t0, output: "", workerSlot: workerSlot))
+      running.add(RunningProcess(path: testPath, p: p, t0: t0, output: ""))
 
     # Poll running processes and drain pipes continuously to prevent deadlocks
     var i = 0
@@ -262,10 +254,8 @@ proc runParallel(
         drainProcessOutput(running[i])
         let testPath = running[i].path
         let outStr = running[i].output
-        let finishedSlot = running[i].workerSlot
         running[i].p.close()
         running.delete(i)
-        freeSlots.add(finishedSlot)
         inc completed
         let res = TestResult(path: testPath, duration: dur, exitCode: code, output: outStr)
         results.add(res)
@@ -318,7 +308,6 @@ when isMainModule:
   var nimcacheDir = ""
   var isRelease = false
   var isDanger = false
-  var bundledFlag = false
   var unbundledFlag = false
   var timeoutSec = 300.0
   let envTimeout = getEnv("LFQ_TEST_TIMEOUT_SEC", "")
@@ -345,7 +334,7 @@ when isMainModule:
     elif param == "--primitives" or param == "-p":
       runPrimitives = true
     elif param == "--bundled" or param == "-b":
-      bundledFlag = true
+      unbundledFlag = false
     elif param == "--no-bundled" or param == "--unbundled":
       unbundledFlag = true
     elif param == "--release" or param == "-d:release":
@@ -355,27 +344,26 @@ when isMainModule:
     elif param == "--cpp":
       backend = "cpp"
     elif param.startsWith("--cc:"):
-      cc = param.split(":")[1]
+      cc = param.split(":", maxsplit = 1)[1]
     elif param.startsWith("--mm:"):
-      mm = param.split(":")[1]
+      mm = param.split(":", maxsplit = 1)[1]
     elif param.startsWith("--backend:"):
-      backend = param.split(":")[1]
+      backend = param.split(":", maxsplit = 1)[1]
     elif param.startsWith("--workers:"):
-      workers = parseInt(param.split(":")[1])
+      workers = parseInt(param.split(":", maxsplit = 1)[1])
       workersExplicit = true
     elif param.startsWith("--timeout:"):
-      timeoutSec = parseFloat(param.split(":")[1])
+      timeoutSec = parseFloat(param.split(":", maxsplit = 1)[1])
     elif param.startsWith("--nimcache:"):
-      nimcacheDir = param.split(":")[1]
+      nimcacheDir = param.split(":", maxsplit = 1)[1]
     elif param.startsWith("--filter:") or param.startsWith("-f:"):
-      filterSubstr = param.split(":")[1]
+      filterSubstr = param.split(":", maxsplit = 1)[1]
     elif fileExists(param):
       directFiles.add(param.absolutePath())
 
   let useBundled = resolveBundledMode(
     directFilesCount = directFiles.len,
     filterSubstr = filterSubstr,
-    bundledFlag = bundledFlag,
     unbundledFlag = unbundledFlag
   )
   if useBundled and not workersExplicit:

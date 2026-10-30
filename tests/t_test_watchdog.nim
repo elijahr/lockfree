@@ -87,8 +87,7 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       cc = "vcc",
       nimcacheDir = "",
       isRelease = true,
-      isDanger = false,
-      workerSlot = 0
+      isDanger = false
     )
     check releaseVccCmd == @[
       "c",
@@ -121,8 +120,7 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       cc = "",
       nimcacheDir = "/tmp/custom_nimcache",
       isRelease = false,
-      isDanger = true,
-      workerSlot = 3
+      isDanger = true
     )
     let customQueueCache = "/tmp/custom_nimcache" / "t_queue"
     check dangerCppCmd == @[
@@ -153,8 +151,7 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       cc = "vcc",
       nimcacheDir = "",
       isRelease = false,
-      isDanger = false,
-      workerSlot = 2
+      isDanger = false
     )
     check debugVccCmd == @[
       "c",
@@ -182,7 +179,6 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       nimcacheDir = "",
       isRelease = true,
       isDanger = false,
-      workerSlot = 1,
       isBundled = true
     )
     let expectedPrimitivesCache = defaultCacheRoot / "runner_primitives"
@@ -218,20 +214,32 @@ suite "Per-Test Sentinel Watchdog (Task 1.9)":
       cc = "vcc",
       nimcacheDir = "",
       isRelease = true,
-      isDanger = false,
-      workerSlot = 0
+      isDanger = false
     )
     delEnv("LFQ_NIMCACHE_TAG")
     let expectedTaggedCache = getHomeDir() / ".cache" / "nim" / "test_runner_orc_c_vcc_nim_2.2.12" / "t_dwcas"
     check "--nimcache:" & expectedTaggedCache in taggedCmd
+
+    let winDriveArg = "--nimcache:C:\\temp\\cache"
+    let parsedWinNimcache = winDriveArg.split(":", maxsplit = 1)[1]
+    check parsedWinNimcache == "C:\\temp\\cache"
+    let winCmd = buildCompileCmd(
+      testPath = "tests/t_dwcas.nim",
+      mm = "orc",
+      backend = "c",
+      cc = "vcc",
+      nimcacheDir = parsedWinNimcache,
+      isRelease = true,
+      isDanger = false
+    )
+    check ("--nimcache:" & ("C:\\temp\\cache" / "t_dwcas")) in winCmd
 
     check findQueueBundles().len == 8
     check findStructureBundles().len == 2
     check findSyncBundles().len == 2
     check findUnitBundles().len == 13
     check findConcurrencyBundles().len == 5
-    check resolveBundledMode(0, "", bundledFlag = false, unbundledFlag = false) == true
-    check resolveBundledMode(0, "", bundledFlag = true, unbundledFlag = false) == true
-    check resolveBundledMode(0, "", bundledFlag = false, unbundledFlag = true) == false
-    check resolveBundledMode(1, "", bundledFlag = false, unbundledFlag = false) == false
-    check resolveBundledMode(0, "dwcas", bundledFlag = false, unbundledFlag = false) == false
+    check resolveBundledMode(0, "", unbundledFlag = false) == true
+    check resolveBundledMode(0, "", unbundledFlag = true) == false
+    check resolveBundledMode(1, "", unbundledFlag = false) == false
+    check resolveBundledMode(0, "dwcas", unbundledFlag = false) == false

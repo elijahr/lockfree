@@ -34,75 +34,9 @@
 ## This module is an internal implementation detail. Users see only the `Queue`
 ## / `BQueue` types and their push/pop/drain APIs.
 
-import std/[macros, strutils, typetraits]
-
-proc hasManagedFieldsImpl(n: NimNode, depth: int = 0): bool {.compileTime.}
-
-proc hasManagedFieldsRec(rec: NimNode, depth: int): bool {.compileTime.} =
-  if rec.isNil or depth > 32: return false
-  case rec.kind
-  of nnkRecList:
-    for c in rec:
-      if hasManagedFieldsRec(c, depth + 1): return true
-  of nnkIdentDefs:
-    if rec.len >= 2:
-      return hasManagedFieldsImpl(rec[^2], depth + 1)
-  of nnkRecCase:
-    if rec.len > 0 and hasManagedFieldsRec(rec[0], depth + 1): return true
-    for i in 1 ..< rec.len:
-      let b = rec[i]
-      if b.len > 0 and hasManagedFieldsRec(b[^1], depth + 1): return true
-  else:
-    discard
-  return false
-
-proc hasManagedFieldsImpl(n: NimNode, depth: int = 0): bool {.compileTime.} =
-  if n.isNil or depth > 32: return false
-  case n.kind
-  of nnkBracketExpr:
-    if n.len >= 2 and n[0].kind in {nnkSym, nnkIdent} and eqIdent(n[0], "typeDesc"):
-      return hasManagedFieldsImpl(n[1], depth + 1)
-    if n.len >= 1 and n[0].kind in {nnkSym, nnkIdent}:
-      let head = n[0].strVal.toLowerAscii()
-      if head == "seq":
-        return true
-      if head in ["ptr", "distinct", "set", "proc", "iterator", "range", "enum", "var", "lent", "sink"]:
-        return false
-      if head == "array":
-        return hasManagedFieldsImpl(n[^1], depth + 1)
-    let impl = n.getTypeImpl()
-    if impl.kind notin {nnkNilLit, nnkSym, nnkIdent, nnkBracketExpr}:
-      return hasManagedFieldsImpl(impl, depth + 1)
-  of nnkSym, nnkIdent:
-    if n.strVal == "string":
-      return true
-    if n.kind == nnkSym:
-      let impl = n.getTypeImpl()
-      if impl.kind in {nnkSym, nnkIdent}:
-        return impl.strVal == "string"
-      elif impl.kind != nnkNilLit:
-        return hasManagedFieldsImpl(impl, depth + 1)
-  of nnkRefTy:
-    return true
-  of nnkPtrTy, nnkDistinctTy, nnkEnumTy, nnkProcTy, nnkIteratorTy:
-    return false
-  of nnkObjectTy:
-    if n.len >= 2 and n[1].kind == nnkOfInherit and n[1].len > 0:
-      if hasManagedFieldsImpl(n[1][0], depth + 1): return true
-    if n.len >= 3:
-      if hasManagedFieldsRec(n[2], depth + 1): return true
-  of nnkTupleTy, nnkTupleClassTy, nnkTupleConstr:
-    for c in n:
-      if c.kind == nnkIdentDefs:
-        if c.len >= 2 and hasManagedFieldsImpl(c[^2], depth + 1): return true
-      else:
-        if hasManagedFieldsImpl(c, depth + 1): return true
-  else:
-    discard
-  return false
-
-macro hasManagedFields*(T: typedesc): untyped =
-  newLit(hasManagedFieldsImpl(T.getTypeImpl()))
+import std/typetraits
+from ../atomics import hasManagedFields
+export hasManagedFields
 
 template pathCAdmit*(T: typedesc) =
   ## Static dispatch / admission gate for `Queue[T, ...]` and `BQueue[T, ...]`
