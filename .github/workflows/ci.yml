@@ -63,6 +63,10 @@ on:
     paths-ignore:
       - '*.md'
   workflow_dispatch:
+  schedule:
+    # Twice-weekly cache keep-alive (Mondays and Thursdays at 06:00 UTC)
+    # Resets the 7-day GitHub Actions cache eviction timer across all Tier A & Tier C lanes.
+    - cron: "0 6 * * 1,4"
 # yamllint enable rule:truthy
 
 # Cancel superseded runs on the same ref so a force-push or rapid
@@ -114,6 +118,7 @@ jobs:
           key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
             nimble-${{ runner.os }}-stable-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -123,6 +128,7 @@ jobs:
           key: nimcache-${{ runner.os }}-stable-base-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
           restore-keys: |
             nimcache-${{ runner.os }}-stable-base-
+          save-always: true
 
       - name: Install dependencies from nimble registry
         run: |
@@ -243,6 +249,7 @@ jobs:
           key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
             nimble-${{ runner.os }}-stable-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -253,6 +260,7 @@ jobs:
           restore-keys: |
             nimcache-${{ runner.os }}-stable-${{ matrix.cache-tag }}-
             nimcache-${{ runner.os }}-stable-
+          save-always: true
 
       # Tier A is container-only (LOCKFREE_NIM_FROM_IMAGE='true' at job level),
       # so this step is a no-op here. Kept as a safety net in case the matrix
@@ -357,6 +365,7 @@ jobs:
           restore-keys: |
             nimble-${{ runner.os }}-multinim-
             nimble-${{ runner.os }}-stable-
+          save-always: true
 
       - name: Cache vfox toolchains
         uses: actions/cache@v4
@@ -368,6 +377,7 @@ jobs:
           restore-keys: |
             vfox-${{ runner.os }}-multinim-
             vfox-${{ runner.os }}-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -377,6 +387,7 @@ jobs:
           key: nimcache-${{ runner.os }}-multinim-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
           restore-keys: |
             nimcache-${{ runner.os }}-multinim-
+          save-always: true
 
       - name: Install dependencies from nimble registry
         shell: bash
@@ -495,6 +506,7 @@ jobs:
           restore-keys: |
             nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}-
             nimble-${{ runner.os }}-stable-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -505,6 +517,7 @@ jobs:
           restore-keys: |
             nimcache-${{ runner.os }}-stable-chronos-
             nimcache-${{ runner.os }}-stable-base-
+          save-always: true
 
       - name: Install dependencies + chronos
         # CRITICAL #4 preservation: chronos is NOT in lockfree.nimble's
@@ -565,6 +578,7 @@ jobs:
           restore-keys: |
             nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}-
             nimble-${{ runner.os }}-stable-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -575,6 +589,7 @@ jobs:
           restore-keys: |
             nimcache-${{ runner.os }}-stable-stress-
             nimcache-${{ runner.os }}-stable-base-
+          save-always: true
 
       - name: Install dependencies
         run: |
@@ -632,6 +647,7 @@ jobs:
           key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
             nimble-${{ runner.os }}-stable-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -642,6 +658,7 @@ jobs:
           restore-keys: |
             nimcache-${{ runner.os }}-stable-nimony-
             nimcache-${{ runner.os }}-stable-base-
+          save-always: true
 
       - name: Install dependencies from nimble registry
         run: |
@@ -694,7 +711,7 @@ jobs:
   # ===========================================================================
   test-heavy:
     name: '${{ matrix.cell }}: ${{ matrix.label }}'
-    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')) || github.event_name == 'workflow_dispatch'
+    if: (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/devel')) || github.event_name == 'workflow_dispatch' || github.event_name == 'schedule'
     runs-on: ${{ matrix.runs-on }}
     # Per-cell container: Linux cells (6, 7, 10) inherit the multi-arch
     # lockfree-ci image (Nim 2.2.10 stable + all build tools); macOS (11)
@@ -855,6 +872,7 @@ jobs:
           restore-keys: |
             nimble-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.compiler || 'default' }}-
             nimble-${{ runner.os }}-${{ matrix.nim-version }}-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -865,6 +883,7 @@ jobs:
           restore-keys: |
             nimcache-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-
             nimcache-${{ runner.os }}-${{ matrix.nim-version }}-base-
+          save-always: true
 
       # Image already ships clang; only install on non-container Linux runs.
       - name: Install clang (Linux, non-container)
@@ -1007,6 +1026,7 @@ jobs:
           key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
             nimble-${{ runner.os }}-stable-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -1016,6 +1036,7 @@ jobs:
           key: nimcache-${{ runner.os }}-stable-base-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
           restore-keys: |
             nimcache-${{ runner.os }}-stable-base-
+          save-always: true
 
       # Image already ships valgrind; only install when running outside the
       # container (kept as a safety hatch if the container is ever removed).
@@ -1094,6 +1115,7 @@ jobs:
           key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
             nimble-${{ runner.os }}-stable-
+          save-always: true
 
       - name: Cache Nim nimcache
         uses: actions/cache@v4
@@ -1103,6 +1125,7 @@ jobs:
           key: nimcache-${{ runner.os }}-stable-base-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
           restore-keys: |
             nimcache-${{ runner.os }}-stable-base-
+          save-always: true
 
       # Image already ships valgrind (provides helgrind); only install when
       # running outside the container.

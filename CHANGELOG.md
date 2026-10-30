@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Purge accidental lockfree/cabi imports from unit tests (t_priority_queue, t_ratelimit, t_flat_combiner) into t_cabi.nim, split structures/sync/cabi bundles into 18 balanced sub-runners, and cap default bundled worker count to max(1, countProcessors() div 2) to eliminate 4x4 compiler oversubscription
 - Parallelize tests/should_fail/runner.nim across countProcessors(), pass --opt:none and /Fd:vc140.pdb for MSVC release/danger test builds, and set default bundled workers to max(1, (countProcessors() * 3) div 4)
 - Isolate per-bundle nimcache directories (<effNimcacheDir>/<testBase>) with LFQ_NIMCACHE_TAG version scoping, replace rm -rf ~/.cache/nim in multi-nim with LFQ_NIMCACHE_TAG, and deduplicate redundant t_disjoint_set, t_bqueue128, and Windows standalone t_dwcas runs
+- Add save-always: true to all 19 actions/cache@v4 steps and add twice-weekly schedule trigger (0 6 * * 1,4) across Tier A and test-heavy lanes in .github/workflows/ci.yml
 
 ### Changed
 
