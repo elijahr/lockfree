@@ -1609,7 +1609,8 @@ proc newMpmcUnboundedQueue*[
 ## handle storage entirely.
 ## ----------------------------------------------------------------------
 
-proc pushEx*[
+proc pushImpl[
+    computeWasEmpty: static bool;
     T;
     Tag: SpscProducerTag | MpmcProducerTag | AnyThreadTag,
     ccProd, ccCons: static PinScopeCardinality,
@@ -1620,9 +1621,8 @@ proc pushEx*[
     item: sink T,
     wasEmpty: var bool,
 ): bool {.discardable, tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
-  ## Push a single item onto the unbounded queue (cardinality-dispatched) and
-  ## set `wasEmpty = true` if the queue transitioned from empty to non-empty.
-  wasEmpty = false
+  when computeWasEmpty:
+    wasEmpty = false
   # Path-C admission gate (25-row composition matrix + reject chain). Rejects:
   # distinct ref alias (row 7), nested ref (row 8), value types with managed
   # fields, unsupported T. Accepts: ref T, string, seq[U] (with R7 element
@@ -1660,44 +1660,58 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
 
   when ccProd == ccSingle and ccCons == ccSingle:
     # SPSC-absorbed — no pin, no committed flag, no debra.
+    # Never dereference `self.queue.headSegment.load(moAcquire)` directly:
+    # once `seg.next` is published, SPSC `pop` can drain and `freeAligned(oldSeg)`
+    # concurrently without SMR. Consumers never free `seg` while `seg.next == nil`.
     var seg = self.queue.tailSegment.load(moRelaxed)
-    # Single load: `tail` doubles as the write index. The grow branch sets `tail
-    # = 0` explicitly (mirroring the SPMC arm below) rather than re-loading the
-    # fresh segment's tail. Single producer, so no peer can advance `tail`
-    # between these statements.
     var tail = seg.tail.load(moRelaxed)
     if tail >= S:
+      when computeWasEmpty:
+        let prevSegWasDrained =
+          (self.queue.headSegment.load(moAcquire) == seg and
+           seg.head.load(moAcquire) >= S)
       let newSeg = newSegment[T, ccProd, ccCons, S](seg.segIdx + 1'u64)
+      newSeg.data[0] = wrapOrIdentity[T](item)
+      newSeg.tail.store(1, moRelease)
       seg.next.store(newSeg, moRelease)
       self.queue.tailSegment.store(newSeg, moRelease)
-      seg = newSeg
-      tail = 0
+      when computeWasEmpty:
+        wasEmpty = prevSegWasDrained
+      return true
     # data[] holds SlotEncoding(T); encode at the boundary.
     seg.data[tail] = wrapOrIdentity[T](item)
     seg.tail.store(tail + 1, moRelease)
-    let hSeg = self.queue.headSegment.load(moAcquire)
-    let hHead = hSeg.head.load(moAcquire)
-    wasEmpty =
-      (hSeg == seg and hHead >= tail) or
-      (tail == 0 and hSeg.next.load(moAcquire) == seg and hHead >= S)
+    when computeWasEmpty:
+      wasEmpty =
+        (self.queue.headSegment.load(moAcquire) == seg and
+         seg.head.load(moAcquire) >= tail)
     return true
   elif ccProd == ccSingle and ccCons == ccMulti:
     # spmc-equiv — single producer, no pin.
+    # Never dereference `self.queue.headSegment.load(moAcquire)` without a pin:
+    # inspect `seg` before publishing `seg.next`.
     var seg = self.queue.tailSegment.load(moRelaxed)
     var tail = seg.tail.load(moRelaxed)
     if tail >= S:
+      when computeWasEmpty:
+        let prevSegWasDrained =
+          (self.queue.headSegment.load(moAcquire) == seg and
+           seg.prevConsumerIdx.load(moAcquire) + 1 >= S)
       let newSeg = newSegment[T, ccProd, ccCons, S](seg.segIdx + 1'u64)
+      newSeg.data[0] = wrapOrIdentity[T](item)
+      newSeg.tail.store(1, moRelease)
       seg.next.store(newSeg, moRelease)
       self.queue.tailSegment.store(newSeg, moRelease)
-      seg = newSeg
-      tail = 0
+      when computeWasEmpty:
+        wasEmpty = prevSegWasDrained
+      return true
     # data[] holds SlotEncoding(T); encode at the boundary.
     seg.data[tail] = wrapOrIdentity[T](item)
     seg.tail.store(tail + 1, moRelease)
-    let hSeg = self.queue.headSegment.load(moAcquire)
-    wasEmpty =
-      (hSeg == seg and seg.prevConsumerIdx.load(moAcquire) + 1 >= tail) or
-      (tail == 0 and hSeg.next.load(moAcquire) == seg and hSeg.prevConsumerIdx.load(moAcquire) + 1 >= S)
+    when computeWasEmpty:
+      wasEmpty =
+        (self.queue.headSegment.load(moAcquire) == seg and
+         seg.prevConsumerIdx.load(moAcquire) + 1 >= tail)
     return true
   else:
     # ccProd == ccMulti — mpsc/mpmc-equiv: pin claim required.
@@ -1819,17 +1833,33 @@ which preserves move-only T support. See CHANGELOG.md v5.0.0 BREAKING.
             else:
               seg.data[tail] = encoded
             seg.committed[tail].store(true, moRelease)
-          let hSeg = self.queue.headSegment.load(moAcquire)
-          when ccCons == ccMulti:
-            wasEmpty =
-              (hSeg == seg and seg.prevConsumerIdx.load(moAcquire) + 1 >= tail) or
-              (tail == 0 and hSeg.next.load(moAcquire) == seg and hSeg.prevConsumerIdx.load(moAcquire) + 1 >= S)
-          else:
-            let hHead = hSeg.head.load(moAcquire)
-            wasEmpty =
-              (hSeg == seg and hHead >= tail) or
-              (tail == 0 and hSeg.next.load(moAcquire) == seg and hHead >= S)
+          when computeWasEmpty:
+            let hSeg = self.queue.headSegment.load(moAcquire)
+            when ccCons == ccMulti:
+              wasEmpty =
+                (hSeg == seg and seg.prevConsumerIdx.load(moAcquire) + 1 >= tail) or
+                (tail == 0 and hSeg.next.load(moAcquire) == seg and hSeg.prevConsumerIdx.load(moAcquire) + 1 >= S)
+            else:
+              let hHead = hSeg.head.load(moAcquire)
+              wasEmpty =
+                (hSeg == seg and hHead >= tail) or
+                (tail == 0 and hSeg.next.load(moAcquire) == seg and hHead >= S)
           return true
+
+proc pushEx*[
+    T;
+    Tag: SpscProducerTag | MpmcProducerTag | AnyThreadTag,
+    ccProd, ccCons: static PinScopeCardinality,
+    ST: static DeallocationStrategy,
+    S, MaxThreads: static int,
+](
+    self: Bound[T, Tag, Queue[T, ccProd, ccCons, ST, S, MaxThreads]],
+    item: sink T,
+    wasEmpty: var bool,
+): bool {.discardable, tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
+  ## Push a single item onto the unbounded queue (cardinality-dispatched) and
+  ## set `wasEmpty = true` if the queue transitioned from empty to non-empty.
+  pushImpl[true, T, Tag, ccProd, ccCons, ST, S, MaxThreads](self, item, wasEmpty)
 
 proc push*[
     T;
@@ -1842,7 +1872,7 @@ proc push*[
 ) {.tags: [Tag, TypestateOp, RootEffect], raises: [], notATransition.} =
   ## Push a single item onto the unbounded queue (cardinality-dispatched).
   var dummy = false
-  discard self.pushEx(item, dummy)
+  discard pushImpl[false, T, Tag, ccProd, ccCons, ST, S, MaxThreads](self, item, dummy)
 
 proc push*[
     T;
