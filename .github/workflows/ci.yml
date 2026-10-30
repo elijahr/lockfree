@@ -115,9 +115,9 @@ jobs:
           path: |
             ~/.nimble/pkgs2
             ~/.nimble/bin
-          key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+          key: nimble-${{ runner.os }}-${{ runner.arch }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
-            nimble-${{ runner.os }}-stable-
+            nimble-${{ runner.os }}-${{ runner.arch }}-stable-
           save-always: true
 
       - name: Cache Nim nimcache
@@ -125,9 +125,9 @@ jobs:
         with:
           path: |
             ~/.cache/nim
-          key: nimcache-${{ runner.os }}-stable-base-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          key: nimcache-${{ runner.os }}-${{ runner.arch }}-stable-base-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims') }}
           restore-keys: |
-            nimcache-${{ runner.os }}-stable-base-
+            nimcache-${{ runner.os }}-${{ runner.arch }}-stable-base-
           save-always: true
 
       - name: Install dependencies from nimble registry
@@ -246,9 +246,9 @@ jobs:
           path: |
             ~/.nimble/pkgs2
             ~/.nimble/bin
-          key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+          key: nimble-${{ runner.os }}-${{ runner.arch }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
-            nimble-${{ runner.os }}-stable-
+            nimble-${{ runner.os }}-${{ runner.arch }}-stable-
           save-always: true
 
       - name: Cache Nim nimcache
@@ -256,10 +256,10 @@ jobs:
         with:
           path: |
             ~/.cache/nim
-          key: nimcache-${{ runner.os }}-stable-${{ matrix.cache-tag }}-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          key: nimcache-${{ runner.os }}-${{ runner.arch }}-stable-${{ matrix.cache-tag }}-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims') }}
           restore-keys: |
-            nimcache-${{ runner.os }}-stable-${{ matrix.cache-tag }}-
-            nimcache-${{ runner.os }}-stable-
+            nimcache-${{ runner.os }}-${{ runner.arch }}-stable-${{ matrix.cache-tag }}-
+            nimcache-${{ runner.os }}-${{ runner.arch }}-stable-
           save-always: true
 
       # Tier A is container-only (LOCKFREE_NIM_FROM_IMAGE='true' at job level),
@@ -361,10 +361,10 @@ jobs:
           path: |
             ~/.nimble/pkgs2
             ~/.nimble/bin
-          key: nimble-${{ runner.os }}-multinim-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+          key: nimble-${{ runner.os }}-${{ runner.arch }}-multinim-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
-            nimble-${{ runner.os }}-multinim-
-            nimble-${{ runner.os }}-stable-
+            nimble-${{ runner.os }}-${{ runner.arch }}-multinim-
+            nimble-${{ runner.os }}-${{ runner.arch }}-stable-
           save-always: true
 
       - name: Cache vfox toolchains
@@ -373,10 +373,10 @@ jobs:
           path: |
             ~/.version-fox/cache/nim
             ~/.vfox/cache/nim
-          key: vfox-${{ runner.os }}-multinim-2.2.12-devel-${{ hashFiles('lockfree.nimble') }}
+          key: vfox-${{ runner.os }}-${{ runner.arch }}-multinim-2.2.12-devel-${{ hashFiles('lockfree.nimble') }}
           restore-keys: |
-            vfox-${{ runner.os }}-multinim-
-            vfox-${{ runner.os }}-
+            vfox-${{ runner.os }}-${{ runner.arch }}-multinim-
+            vfox-${{ runner.os }}-${{ runner.arch }}-
           save-always: true
 
       - name: Cache Nim nimcache
@@ -384,9 +384,9 @@ jobs:
         with:
           path: |
             ~/.cache/nim
-          key: nimcache-${{ runner.os }}-multinim-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          key: nimcache-${{ runner.os }}-${{ runner.arch }}-multinim-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims') }}
           restore-keys: |
-            nimcache-${{ runner.os }}-multinim-
+            nimcache-${{ runner.os }}-${{ runner.arch }}-multinim-
           save-always: true
 
       - name: Install dependencies from nimble registry
@@ -502,10 +502,10 @@ jobs:
           path: |
             ~/.nimble/pkgs2
             ~/.nimble/bin
-          key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}-chronos
+          key: nimble-${{ runner.os }}-${{ runner.arch }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}-chronos
           restore-keys: |
-            nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}-
-            nimble-${{ runner.os }}-stable-
+            nimble-${{ runner.os }}-${{ runner.arch }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}-
+            nimble-${{ runner.os }}-${{ runner.arch }}-stable-
           save-always: true
 
       - name: Cache Nim nimcache
@@ -513,10 +513,10 @@ jobs:
         with:
           path: |
             ~/.cache/nim
-          key: nimcache-${{ runner.os }}-stable-chronos-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          key: nimcache-${{ runner.os }}-${{ runner.arch }}-stable-chronos-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims') }}
           restore-keys: |
-            nimcache-${{ runner.os }}-stable-chronos-
-            nimcache-${{ runner.os }}-stable-base-
+            nimcache-${{ runner.os }}-${{ runner.arch }}-stable-chronos-
+            nimcache-${{ runner.os }}-${{ runner.arch }}-stable-base-
           save-always: true
 
       - name: Install dependencies + chronos
@@ -574,10 +574,10 @@ jobs:
           path: |
             ~/.nimble/pkgs2
             ~/.nimble/bin
-          key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}-stress
+          key: nimble-${{ runner.os }}-${{ runner.arch }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}-stress
           restore-keys: |
-            nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}-
-            nimble-${{ runner.os }}-stable-
+            nimble-${{ runner.os }}-${{ runner.arch }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}-
+            nimble-${{ runner.os }}-${{ runner.arch }}-stable-
           save-always: true
 
       - name: Cache Nim nimcache
@@ -585,10 +585,10 @@ jobs:
         with:
           path: |
             ~/.cache/nim
-          key: nimcache-${{ runner.os }}-stable-stress-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          key: nimcache-${{ runner.os }}-${{ runner.arch }}-stable-stress-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims') }}
           restore-keys: |
-            nimcache-${{ runner.os }}-stable-stress-
-            nimcache-${{ runner.os }}-stable-base-
+            nimcache-${{ runner.os }}-${{ runner.arch }}-stable-stress-
+            nimcache-${{ runner.os }}-${{ runner.arch }}-stable-base-
           save-always: true
 
       - name: Install dependencies
@@ -644,9 +644,9 @@ jobs:
           path: |
             ~/.nimble/pkgs2
             ~/.nimble/bin
-          key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+          key: nimble-${{ runner.os }}-${{ runner.arch }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
-            nimble-${{ runner.os }}-stable-
+            nimble-${{ runner.os }}-${{ runner.arch }}-stable-
           save-always: true
 
       - name: Cache Nim nimcache
@@ -654,10 +654,10 @@ jobs:
         with:
           path: |
             ~/.cache/nim
-          key: nimcache-${{ runner.os }}-stable-nimony-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          key: nimcache-${{ runner.os }}-${{ runner.arch }}-stable-nimony-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims') }}
           restore-keys: |
-            nimcache-${{ runner.os }}-stable-nimony-
-            nimcache-${{ runner.os }}-stable-base-
+            nimcache-${{ runner.os }}-${{ runner.arch }}-stable-nimony-
+            nimcache-${{ runner.os }}-${{ runner.arch }}-stable-base-
           save-always: true
 
       - name: Install dependencies from nimble registry
@@ -868,10 +868,10 @@ jobs:
           path: |
             ~/.nimble/pkgs2
             ~/.nimble/bin
-          key: nimble-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.compiler || 'default' }}-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+          key: nimble-${{ runner.os }}-${{ runner.arch }}-${{ matrix.nim-version }}-${{ matrix.compiler || 'default' }}-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
-            nimble-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.compiler || 'default' }}-
-            nimble-${{ runner.os }}-${{ matrix.nim-version }}-
+            nimble-${{ runner.os }}-${{ runner.arch }}-${{ matrix.nim-version }}-${{ matrix.compiler || 'default' }}-
+            nimble-${{ runner.os }}-${{ runner.arch }}-${{ matrix.nim-version }}-
           save-always: true
 
       - name: Cache Nim nimcache
@@ -879,10 +879,11 @@ jobs:
         with:
           path: |
             ~/.cache/nim
-          key: nimcache-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          key: nimcache-${{ runner.os }}-${{ runner.arch }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims') }}
           restore-keys: |
-            nimcache-${{ runner.os }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-
-            nimcache-${{ runner.os }}-${{ matrix.nim-version }}-base-
+            nimcache-${{ runner.os }}-${{ runner.arch }}-${{ matrix.nim-version }}-${{ matrix.cache-tag }}-
+            nimcache-${{ runner.os }}-${{ runner.arch }}-${{ matrix.nim-version }}-base-
+            nimcache-${{ runner.os }}-${{ runner.arch }}-${{ matrix.nim-version }}-
           save-always: true
 
       # Image already ships clang; only install on non-container Linux runs.
@@ -1023,9 +1024,9 @@ jobs:
           path: |
             ~/.nimble/pkgs2
             ~/.nimble/bin
-          key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+          key: nimble-${{ runner.os }}-${{ runner.arch }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
-            nimble-${{ runner.os }}-stable-
+            nimble-${{ runner.os }}-${{ runner.arch }}-stable-
           save-always: true
 
       - name: Cache Nim nimcache
@@ -1033,9 +1034,9 @@ jobs:
         with:
           path: |
             ~/.cache/nim
-          key: nimcache-${{ runner.os }}-stable-base-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          key: nimcache-${{ runner.os }}-${{ runner.arch }}-stable-base-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims') }}
           restore-keys: |
-            nimcache-${{ runner.os }}-stable-base-
+            nimcache-${{ runner.os }}-${{ runner.arch }}-stable-base-
           save-always: true
 
       # Image already ships valgrind; only install when running outside the
@@ -1112,9 +1113,9 @@ jobs:
           path: |
             ~/.nimble/pkgs2
             ~/.nimble/bin
-          key: nimble-${{ runner.os }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
+          key: nimble-${{ runner.os }}-${{ runner.arch }}-stable-${{ hashFiles('lockfree.nimble', 'nimble.lock') }}
           restore-keys: |
-            nimble-${{ runner.os }}-stable-
+            nimble-${{ runner.os }}-${{ runner.arch }}-stable-
           save-always: true
 
       - name: Cache Nim nimcache
@@ -1122,9 +1123,9 @@ jobs:
         with:
           path: |
             ~/.cache/nim
-          key: nimcache-${{ runner.os }}-stable-base-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims', 'lockfree.nimble') }}
+          key: nimcache-${{ runner.os }}-${{ runner.arch }}-stable-base-${{ hashFiles('src/**/*.nim', 'tests/**/*.nim', 'nim.cfg', 'config.nims') }}
           restore-keys: |
-            nimcache-${{ runner.os }}-stable-base-
+            nimcache-${{ runner.os }}-${{ runner.arch }}-stable-base-
           save-always: true
 
       # Image already ships valgrind (provides helgrind); only install when

@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.6] - 2026-04-19
+
+### Fixed
+
+- **SPSC & SPMC `Queue.pushEx` Unpinned `headSegment` Use-After-Free / TSAN Data Race (`src/lockfree/queue.nim`)**:
+  - Eliminated post-publish `self.queue.headSegment.load(moAcquire)` dereferencing in `ccProd == ccSingle` (`SPSC` and `SPMC`) where concurrent consumers could drain and `freeAligned(oldSeg)` immediately after `seg.next.store(newSeg, moRelease)`.
+  - Evaluated `prevSegWasDrained` on the producer-owned `seg` before linking `seg.next`, and refactored `push` and `pushEx` via `pushImpl[computeWasEmpty: static bool]` so `push` skips `headSegment` loads and `wasEmpty` computation entirely.
+- **CI Cross-Architecture Cache Isolation & `nimcache` Key Stability (`.github/workflows/ci.yml`)**:
+  - Scoped all `actions/cache@v4` `key:` and `restore-keys:` entries by `${{ runner.os }}-${{ runner.arch }}` to prevent `ubuntu-24.04-arm` (`ARM64`) and `ubuntu-latest` (`X64`) from sharing `~/.nimble/bin/typestates` binaries across architectures.
+  - Removed `'lockfree.nimble'` from `nimcache` `hashFiles(...)` expressions and added a `nimcache-${{ runner.os }}-${{ runner.arch }}-${{ matrix.nim-version }}-` fallback restore key so version bumps in `lockfree.nimble` reuse warm C object caches on Windows MSVC/MinGW and POSIX runners.
+
 ## [0.6.5] - 2026-10-30
 
 ### Changed
