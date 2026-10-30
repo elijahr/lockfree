@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Parallelize tests/should_fail/runner.nim across countProcessors(), pass --opt:none and /Fd:vc140.pdb for MSVC release/danger test builds, and set default bundled workers to max(1, (countProcessors() * 3) div 4)
 - Isolate per-bundle nimcache directories (<effNimcacheDir>/<testBase>) with LFQ_NIMCACHE_TAG version scoping, replace rm -rf ~/.cache/nim in multi-nim with LFQ_NIMCACHE_TAG, and deduplicate redundant t_disjoint_set, t_bqueue128, and Windows standalone t_dwcas runs
 - Add save-always: true to all 19 actions/cache@v4 steps and add twice-weekly schedule trigger (0 6 * * 1,4) across Tier A and test-heavy lanes in .github/workflows/ci.yml
+- Add nimcache caching, save-always: true, and twice-weekly schedule trigger (0 6 * * 1,4) to .github/workflows/downstream-compat.yml
 
 ### Changed
 
