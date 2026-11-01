@@ -110,7 +110,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cache nimble packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.nimble/pkgs2
@@ -121,7 +121,7 @@ jobs:
           save-always: true
 
       - name: Cache Nim nimcache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/nim
@@ -241,7 +241,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cache nimble packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.nimble/pkgs2
@@ -252,7 +252,7 @@ jobs:
           save-always: true
 
       - name: Cache Nim nimcache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/nim
@@ -356,7 +356,7 @@ jobs:
           version: '2.2.12'
 
       - name: Cache nimble packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.nimble/pkgs2
@@ -368,7 +368,7 @@ jobs:
           save-always: true
 
       - name: Cache vfox toolchains
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.version-fox/cache/nim
@@ -380,7 +380,7 @@ jobs:
           save-always: true
 
       - name: Cache Nim nimcache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/nim
@@ -497,7 +497,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cache nimble packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.nimble/pkgs2
@@ -509,7 +509,7 @@ jobs:
           save-always: true
 
       - name: Cache Nim nimcache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/nim
@@ -569,7 +569,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cache nimble packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.nimble/pkgs2
@@ -581,7 +581,7 @@ jobs:
           save-always: true
 
       - name: Cache Nim nimcache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/nim
@@ -639,7 +639,7 @@ jobs:
           done
 
       - name: Cache nimble packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.nimble/pkgs2
@@ -650,7 +650,7 @@ jobs:
           save-always: true
 
       - name: Cache Nim nimcache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/nim
@@ -863,7 +863,7 @@ jobs:
           echo "C:\msys64\mingw64\bin" >> "$GITHUB_PATH"
 
       - name: Cache nimble packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.nimble/pkgs2
@@ -875,7 +875,7 @@ jobs:
           save-always: true
 
       - name: Cache Nim nimcache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/nim
@@ -1019,7 +1019,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cache nimble packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.nimble/pkgs2
@@ -1030,7 +1030,7 @@ jobs:
           save-always: true
 
       - name: Cache Nim nimcache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/nim
@@ -1108,7 +1108,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Cache nimble packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.nimble/pkgs2
@@ -1119,7 +1119,7 @@ jobs:
           save-always: true
 
       - name: Cache Nim nimcache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/nim
