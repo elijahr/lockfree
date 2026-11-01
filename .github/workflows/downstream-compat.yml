@@ -74,7 +74,7 @@ jobs:
           path: lockfreequeues
 
       - name: Cache nimble packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.nimble/pkgs2
@@ -85,7 +85,7 @@ jobs:
           save-always: true
 
       - name: Cache Nim nimcache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/nim
@@ -169,7 +169,7 @@ jobs:
           path: nim-debra
 
       - name: Cache nimble packages
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.nimble/pkgs2
@@ -180,7 +180,7 @@ jobs:
           save-always: true
 
       - name: Cache Nim nimcache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cache/nim
