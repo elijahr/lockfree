@@ -63,12 +63,12 @@ jobs:
         run: git config --global --add safe.directory '*'
 
       - name: Checkout lockfree (under test)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: lockfree
 
       - name: Checkout downstream lockfreequeues
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: elijahr/lockfreequeues
           path: lockfreequeues
@@ -158,12 +158,12 @@ jobs:
         run: git config --global --add safe.directory '*'
 
       - name: Checkout lockfree (under test)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           path: lockfree
 
       - name: Checkout downstream nim-debra
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: elijahr/nim-debra
           path: nim-debra
