@@ -107,7 +107,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Cache nimble packages
         uses: actions/cache@v4
@@ -238,7 +238,7 @@ jobs:
 
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Cache nimble packages
         uses: actions/cache@v4
@@ -348,7 +348,7 @@ jobs:
 
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Nim via vfox-nim
         uses: elijahr/vfox-nim@main
@@ -494,7 +494,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Cache nimble packages
         uses: actions/cache@v4
@@ -566,7 +566,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Cache nimble packages
         uses: actions/cache@v4
@@ -616,7 +616,7 @@ jobs:
     continue-on-error: true
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Setup Nim stable (2.2.10)
         uses: elijahr/vfox-nim@main
@@ -834,7 +834,7 @@ jobs:
 
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       # Nim provisioning, split by runner type:
       #   - Linux cells in the lockfree-ci container: image ships Nim
@@ -1016,7 +1016,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Cache nimble packages
         uses: actions/cache@v4
@@ -1105,7 +1105,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout project
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Cache nimble packages
         uses: actions/cache@v4
