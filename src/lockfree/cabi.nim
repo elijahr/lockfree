@@ -2224,14 +2224,14 @@ type
   lfq_rate_limit_state_t* = lf_rate_limit_state_t
 
   lf_token_bucket_t* {.exportc: "lf_token_bucket_t", bycopy.} = object
-    state* {.align: CacheLineBytes.}: RateLimitState
+    state* {.align: CacheLineBytes.}: lf_rate_limit_state_t
     capacity*: uint64
     refill_rate_per_sec*: uint64
     scale_factor*: uint64
   lfq_token_bucket_t* = lf_token_bucket_t
 
   lf_leaky_bucket_t* {.exportc: "lf_leaky_bucket_t", bycopy.} = object
-    state* {.align: CacheLineBytes.}: RateLimitState
+    state* {.align: CacheLineBytes.}: lf_rate_limit_state_t
     burst_tolerance_ns*: uint64
     leak_rate_per_sec*: uint64
     scale_factor*: uint64
