@@ -1,0 +1,17 @@
+# HeaderKit ABI Verification Configuration for lockfree C ABI
+# Generated during roundtable v2 architecture verification
+
+[tool.headerkit]
+version = "2.0"
+
+[[targets]]
+name = "lockfree_cabi"
+headers = ["include/lockfree.h"]
+nim_source_paths = ["src/lockfree/cabi.nim"]
+writers = ["nim"]
+transforms = ["nim_cleanup"]
+
+[targets.options]
+abi_mode = true
+ignore_pointer_const = true
+relax_nim_pointer_const = true
