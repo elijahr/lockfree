@@ -10,4 +10,3 @@ transforms = ["nim_cleanup"]
 [targets.options]
 abi_mode = true
 ignore_pointer_const = true
-relax_nim_pointer_const = true

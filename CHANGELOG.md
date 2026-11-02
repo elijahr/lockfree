@@ -16,8 +16,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
-- **Declarative HeaderKit ABI Target Options (`headerkit.toml`)**:
-  - Aligned `headerkit.toml` target configuration with `writer = "diff"` and removed unused sections to ensure clean loading under `generate_targets`.
+- **Declarative HeaderKit ABI Target Options (`headerkit.toml`, `.gitignore`)**:
+  - Aligned `headerkit.toml` target configuration with `writer = "diff"`, purged stale `relax_nim_pointer_const = true` in favor of generic `ignore_pointer_const = true`, and added `.headerkit/` to `.gitignore`.
 
 
 ## [0.6.6] - 2026-04-19
