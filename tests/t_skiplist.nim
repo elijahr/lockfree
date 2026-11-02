@@ -54,6 +54,33 @@ suite "SkipListMap Basic Operations":
     expect(KeyError):
       discard map[999]
 
+  test "putPrev and deletePrev atomic displaced and removed return":
+    var map = newSkipListMap[int, string]()
+    # Insert new key: putPrev returns none(string)
+    check map.putPrev(10, "ten").isNone
+    check map.len == 1
+    check map.get(10) == some("ten")
+
+    # Update existing key: putPrev returns some(oldVal)
+    let displaced = map.putPrev(10, "ten_v2")
+    check displaced == some("ten")
+    check map.len == 1
+    check map.get(10) == some("ten_v2")
+
+    # Another update
+    check map.putPrev(10, "ten_v3") == some("ten_v2")
+    check map.get(10) == some("ten_v3")
+
+    # deletePrev on existing key: returns some(oldVal)
+    let removed = map.deletePrev(10)
+    check removed == some("ten_v3")
+    check map.len == 0
+    check map.get(10).isNone
+
+    # deletePrev on absent key: returns none(string)
+    check map.deletePrev(10).isNone
+    check map.deletePrev(999).isNone
+
   test "delete and del":
     var map = newSkipListMap[int, string]()
     map[1] = "one"

@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Atomic `putPrev` and `deletePrev` on `SkipListMap` (`src/lockfree/skiplist.nim`)**:
+  - Added `putPrev` returning `Option[V]` (`some(oldVal)` on key update via atomic CAS, `none(V)` on insertion) with thread-handle and auto-dispatched overloads.
+  - Added `deletePrev` returning `Option[V]` (`some(oldVal)` on logical deletion via atomic CAS, `none(V)` when absent) with thread-handle and auto-dispatched overloads.
+  - Preserved backward-compatible boolean `put` and `delete` delegating to `putPrev` and `deletePrev`.
+
+### Fixed
+
+- **Declarative HeaderKit ABI Target Options (`headerkit.toml`)**:
+  - Aligned `headerkit.toml` target configuration with `writer = "diff"` and removed unused sections to ensure clean loading under `generate_targets`.
+
+
 ## [0.6.6] - 2026-04-19
 
 ### Fixed
