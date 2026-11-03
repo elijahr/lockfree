@@ -72,3 +72,6 @@ benchmarks/rust/*/target/
 benchmarks/rust/*/Cargo.lock
 nimbledeps
 benchmarks/results/
+
+# HeaderKit cache and intermediate representation artifacts
+.headerkit/

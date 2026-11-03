@@ -1,0 +1,12 @@
+# HeaderKit ABI Verification Configuration for lockfree C ABI
+# Generated during roundtable v2 architecture verification
+
+[[targets]]
+name = "lockfree_cabi"
+headers = ["include/lockfree.h"]
+writer = "diff"
+transforms = ["nim_cleanup"]
+
+[targets.options]
+abi_mode = true
+ignore_pointer_const = true

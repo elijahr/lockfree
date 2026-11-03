@@ -617,14 +617,14 @@ proc hasKey*[K, V; MaxThreads, MaxLevel: static int](
   ## Alias for `contains`. Returns true if `key` is present in the map (auto-dispatched thread handle).
   self.contains(key)
 
-proc put*[K, V; MaxThreads, MaxLevel: static int](
+proc putPrev*[K, V; MaxThreads, MaxLevel: static int](
     self: var SkipListMap[K, V, MaxThreads, MaxLevel],
     key: K,
     val: V,
     handle: ThreadHandle[MaxThreads, ccMulti]
-): bool =
-  ## Inserts or updates `(key, val)`. Returns `true` if a new key was inserted,
-  ## `false` if an existing key was updated.
+): Option[V] =
+  ## Inserts or updates `(key, val)`. Returns `some(oldVal)` if an existing key was
+  ## updated, or `none(V)` if a new key was inserted.
   let pinned = unpinned(handle).pin()
   var ready = retireReady(pinned)
   try:
@@ -639,17 +639,20 @@ proc put*[K, V; MaxThreads, MaxLevel: static int](
         let newBox = newVBox(val)
         var oldBox = existingNode.valPtr.load(moAcquire)
         var updated = false
+        var previousVal: Option[V] = none(V)
         while true:
           if isMarked(existingNode.next[0].load(moAcquire)):
             freeVBox(newBox)
             break
+          let currentVal = oldBox[].val
           if existingNode.valPtr.compareExchange(oldBox, newBox, moAcquireRelease, moAcquire):
+            previousVal = some(currentVal)
             ready.retire(cast[pointer](oldBox), destroyVBoxCallback[V])
             handle.advanceEvery(32)
             updated = true
             break
         if updated:
-          return false
+          return previousVal
         continue
 
       let newNode = cast[ptr SkipListNode[K, V, MaxLevel]](
@@ -690,9 +693,29 @@ proc put*[K, V; MaxThreads, MaxLevel: static int](
           discard self.find(key, preds, succs, ready)
 
       handle.advanceEvery(32)
-      return true
+      return none(V)
   finally:
     unpinGuard(toPinned(ready))
+
+proc putPrev*[K, V; MaxThreads, MaxLevel: static int](
+    self: var SkipListMap[K, V, MaxThreads, MaxLevel],
+    key: K,
+    val: V
+): Option[V] {.inline.} =
+  ## Inserts or updates `(key, val)` using automatic thread registration. Returns
+  ## `some(oldVal)` if an existing key was updated, or `none(V)` if a new key was inserted.
+  let h = self.getOrRegisterHandle()
+  self.putPrev(key, val, h)
+
+proc put*[K, V; MaxThreads, MaxLevel: static int](
+    self: var SkipListMap[K, V, MaxThreads, MaxLevel],
+    key: K,
+    val: V,
+    handle: ThreadHandle[MaxThreads, ccMulti]
+): bool {.inline.} =
+  ## Inserts or updates `(key, val)`. Returns `true` if a new key was inserted,
+  ## `false` if an existing key was updated.
+  self.putPrev(key, val, handle).isNone
 
 proc put*[K, V; MaxThreads, MaxLevel: static int](
     self: var SkipListMap[K, V, MaxThreads, MaxLevel],
@@ -711,13 +734,13 @@ proc `[]=`*[K, V; MaxThreads, MaxLevel: static int](
   ## Table assignment syntax `map[key] = val`.
   discard self.put(key, val)
 
-proc delete*[K, V; MaxThreads, MaxLevel: static int](
+proc deletePrev*[K, V; MaxThreads, MaxLevel: static int](
     self: var SkipListMap[K, V, MaxThreads, MaxLevel],
     key: K,
     handle: ThreadHandle[MaxThreads, ccMulti]
-): bool =
-  ## Logically marks and physically splices `key` out of the map. Returns `true`
-  ## if `key` was found and removed, `false` otherwise.
+): Option[V] =
+  ## Logically marks and physically splices `key` out of the map. Returns `some(oldVal)`
+  ## if `key` was found and removed, or `none(V)` otherwise.
   let pinned = unpinned(handle).pin()
   var ready = retireReady(pinned)
   try:
@@ -727,7 +750,7 @@ proc delete*[K, V; MaxThreads, MaxLevel: static int](
     while true:
       let found = self.find(key, preds, succs, ready)
       if not found:
-        return false
+        return none(V)
       let nodeToDelete = succs[0]
 
       for level in countdown(nodeToDelete.topLevel, 1):
@@ -742,16 +765,36 @@ proc delete*[K, V; MaxThreads, MaxLevel: static int](
       var succEntry0 = nodeToDelete.next[0].load(moAcquire)
       while true:
         if isMarked(succEntry0):
-          return false
+          return none(V)
         let succPtr0 = toPtr[SkipListNode[K, V, MaxLevel]](succEntry0)
         let markedEntry0 = toEntry(succPtr0, true)
+        let vBox = nodeToDelete.valPtr.load(moAcquire)
+        let removedVal = vBox[].val
         if nodeToDelete.next[0].compareExchange(succEntry0, markedEntry0, moAcquireRelease, moAcquire):
           discard self.find(key, preds, succs, ready)
           handle.advanceEvery(32)
-          return true
+          return some(removedVal)
         succEntry0 = nodeToDelete.next[0].load(moAcquire)
   finally:
     unpinGuard(toPinned(ready))
+
+proc deletePrev*[K, V; MaxThreads, MaxLevel: static int](
+    self: var SkipListMap[K, V, MaxThreads, MaxLevel],
+    key: K
+): Option[V] {.inline.} =
+  ## Deletes `key` using automatic thread registration. Returns `some(oldVal)` if
+  ## removed, or `none(V)` otherwise.
+  let h = self.getOrRegisterHandle()
+  self.deletePrev(key, h)
+
+proc delete*[K, V; MaxThreads, MaxLevel: static int](
+    self: var SkipListMap[K, V, MaxThreads, MaxLevel],
+    key: K,
+    handle: ThreadHandle[MaxThreads, ccMulti]
+): bool {.inline.} =
+  ## Logically marks and physically splices `key` out of the map. Returns `true`
+  ## if `key` was found and removed, `false` otherwise.
+  self.deletePrev(key, handle).isSome
 
 proc delete*[K, V; MaxThreads, MaxLevel: static int](
     self: var SkipListMap[K, V, MaxThreads, MaxLevel],
