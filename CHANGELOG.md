@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.7] - 2026-11-03
+
 ### Added
 
 - **Atomic `putPrev` and `deletePrev` on `SkipListMap` (`src/lockfree/skiplist.nim`)**:
@@ -20,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Aligned `headerkit.toml` target configuration with `writer = "diff"`, purged stale `relax_nim_pointer_const = true` in favor of generic `ignore_pointer_const = true`, and added `.headerkit/` to `.gitignore`.
 
 
-## [0.6.6] - 2026-04-19
+## [0.6.6] - 2026-10-30
 
 ### Fixed
 
