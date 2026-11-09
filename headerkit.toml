@@ -4,8 +4,8 @@
 [[targets]]
 name = "lockfree_cabi"
 headers = ["include/lockfree.h"]
+backend = "nim"
 writer = "diff"
-transforms = ["nim_cleanup"]
 
 [targets.options]
 abi_mode = true

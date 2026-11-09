@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Migrated `headerkit.toml` ABI Target to `NimBackend` (`headerkit.toml`)**:
+  - Updated `[[targets]]` (`name = "lockfree_cabi"`) in `headerkit.toml` to use `backend = "nim"` (`NimBackend`) in place of `transforms = ["nim_cleanup"]`.
+
 ## [0.6.7] - 2026-11-03
 
 ### Added
