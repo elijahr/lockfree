@@ -15,6 +15,6 @@
     "astro-mermaid": "^2.2.0",
     "mermaid": "^12.3.0",
     "starlight-image-zoom": "^0.16.2",
-    "starlight-versions": "^0.10.1"
+    "starlight-versions": "^0.10.2"
   }
 }
