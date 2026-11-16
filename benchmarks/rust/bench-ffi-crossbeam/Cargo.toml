@@ -19,7 +19,7 @@ crossbeam-channel = "0.5"
 crossbeam-epoch = "0.9"
 dashmap = "6.1"
 flurry = "0.5"
-flume = "0.11"
+flume = "0.12"
 kanal = "0.1"
 tokio = { version = "1", default-features = false, features = ["sync"] }
 bus = "2.4"
