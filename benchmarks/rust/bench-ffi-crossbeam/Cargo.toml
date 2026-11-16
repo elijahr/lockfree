@@ -32,7 +32,7 @@ rayon = "1.10"
 # against future Cargo lockfile format moves (e.g. reordering `name`
 # and `version` keys within a `[[package]]` stanza). Build-script-only
 # dep, not exposed to the cdylib.
-toml = "0.8"
+toml = "0.9"
 
 [profile.release]
 # Unwinding a Rust panic across the C-ABI boundary into Nim is undefined
