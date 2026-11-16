@@ -18,7 +18,7 @@ requires "typestates >= 0.14.0 & < 0.15.0"
 # See `src/lockfree/chronos.nim` (flag-only chronos opt-in) and
 # `docs/api/chronos.md` for the integration guide.
 when defined(lockfreeChronos):
-  requires "chronos >= 4.0.0 & < 5.0.0"
+  requires "chronos >= 4.4.1"
 
 # Tasks
 task should_fail, "Verifies compile-fail negative controls":
