@@ -12,7 +12,7 @@
       }
     },
     "typestates": {
-      "version": "0.14.0",
+      "version": "0.14.1",
       "vcsRevision": "086c236a77e759bf9186d32f3f375b8818833f11",
       "url": "https://github.com/elijahr/nim-typestates",
       "downloadMethod": "git",
